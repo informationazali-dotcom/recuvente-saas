@@ -13,9 +13,16 @@ export default function App() {
   }, []);
 
   async function loadWorkspace() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    if (!userId) {
+      setWorkspace(null);
+      return;
+    }
     const { data, error } = await supabase
       .from("workspace_members")
       .select("workspace_id, role, workspaces(id, name, country, currency, created_at)")
+      .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
     if (!error && data) {

@@ -440,12 +440,20 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return { start, end };
   }, [datePreset, customStart, customEnd]);
 
+  const [recherche, setRecherche] = useState("");
+
   const commandesInRange = useMemo(() => {
     return commandes.filter((c) => {
       const d = new Date(c.created_at);
       return d >= dateRange.start && d < dateRange.end;
     });
   }, [commandes, dateRange]);
+
+  const commandesAffichees = useMemo(() => {
+    if (!recherche.trim()) return commandesInRange;
+    const q = recherche.trim().toLowerCase();
+    return commandesInRange.filter((c) => (c.client || "").toLowerCase().includes(q) || (c.tel || "").includes(q));
+  }, [commandesInRange, recherche]);
 
   const periodLabel = { aujourdhui: "Aujourd'hui", hier: "Hier", semaine: "Cette semaine", mois: "Ce mois", personnalise: "Période personnalisée" }[datePreset];
 
@@ -703,8 +711,16 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
+      <input
+        type="text"
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        placeholder="Rechercher un client ou numéro..."
+        style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13.5, background: "white", marginBottom: 12, boxSizing: "border-box" }}
+      />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandesInRange.length})</div>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandesAffichees.length})</div>
         <button
           onClick={() => !accesBloque && !quotaAtteint && setShowAdd(true)}
           disabled={accesBloque || quotaAtteint}
@@ -722,7 +738,10 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {commandesInRange.map((c) => (
+        {commandesAffichees.length === 0 && (
+          <div style={{ textAlign: "center", padding: "30px 0", color: "#8A9089", fontSize: 13 }}>Aucune commande ne correspond.</div>
+        )}
+        {commandesAffichees.map((c) => (
           <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} />
         ))}
       </div>

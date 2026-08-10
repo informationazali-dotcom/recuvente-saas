@@ -203,6 +203,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }
 
   const totalCA = commandes.reduce((s, c) => s + Number(c.montant), 0);
+  const caConfirme = commandes.filter((c) => c.statut === "confirmee").reduce((s, c) => s + Number(c.montant), 0);
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
@@ -212,8 +213,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
           {workspace.country} · {workspace.currency} · rôle : {workspace.role}
         </div>
-        <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>Chiffre d'affaires</div>
-        <div style={{ fontSize: 26, fontWeight: 700 }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency}</div>
+        <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>Chiffre d'affaires confirmé</div>
+        <div style={{ fontSize: 26, fontWeight: 700 }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
+        <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency} au total (toutes commandes)</div>
         {workspace.role === "owner" && (
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
@@ -266,13 +268,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {commandes.map((c) => (
-          <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{c.client}</div>
-              <div style={{ fontSize: 12, color: "#6B7168" }}>{c.produit} · {c.zone}</div>
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {workspace.currency}</div>
-          </div>
+          <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} />
         ))}
       </div>
 
@@ -682,6 +678,67 @@ function DemandeCard({ demande, onConfirmed }) {
       <button onClick={confirmer} disabled={loading} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
         {loading ? "..." : "✅ Confirmer reçu"}
       </button>
+    </div>
+  );
+}
+
+const STATUTS = {
+  en_cours: { label: "En cours", color: "#E8A93D", bg: "#FBF3E3" },
+  confirmee: { label: "Confirmée", color: "#1F9D6E", bg: "#EAF7F1" },
+  echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
+};
+
+function CommandeCard({ commande, currency, onStatusChanged }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const s = STATUTS[commande.statut] || STATUTS.en_cours;
+
+  async function changerStatut(nouveauStatut) {
+    setLoading(true);
+    const { error } = await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commande.id);
+    if (error) alert("Erreur: " + error.message);
+    else await onStatusChanged();
+    setLoading(false);
+    setOpen(false);
+  }
+
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: "12px 14px" }}>
+      <div onClick={() => setOpen(!open)} style={{ display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{commande.client}</div>
+          <div style={{ fontSize: 12, color: "#6B7168" }}>{commande.produit} · {commande.zone}</div>
+          <span style={{ fontSize: 10.5, fontWeight: 600, color: s.color, background: s.bg, padding: "2px 8px", borderRadius: 999, display: "inline-block", marginTop: 4 }}>
+            {s.label}
+          </span>
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
+      </div>
+
+      {open && (
+        <div style={{ display: "flex", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0EEE6" }}>
+          {Object.entries(STATUTS).map(([key, val]) => (
+            <button
+              key={key}
+              onClick={() => changerStatut(key)}
+              disabled={loading || commande.statut === key}
+              style={{
+                flex: 1,
+                padding: "7px 4px",
+                borderRadius: 7,
+                border: `1px solid ${commande.statut === key ? val.color : "#DDD8CC"}`,
+                background: commande.statut === key ? val.bg : "white",
+                color: commande.statut === key ? val.color : "#6B7168",
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: commande.statut === key ? "default" : "pointer",
+              }}
+            >
+              {val.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

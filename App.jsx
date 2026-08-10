@@ -159,12 +159,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [commandes, setCommandes] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
   const [closers, setClosers] = useState([]);
+  const [produits, setProduits] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
   const [showAbonnement, setShowAbonnement] = useState(false);
   const [showLivreurs, setShowLivreurs] = useState(false);
   const [showClosers, setShowClosers] = useState(false);
+  const [showProduits, setShowProduits] = useState(false);
 
   async function loadLivreurs() {
     const { data } = await supabase.from("livreurs").select("*").eq("workspace_id", workspace.id).order("nom");
@@ -174,6 +176,34 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   async function loadClosers() {
     const { data } = await supabase.from("closers").select("*").eq("workspace_id", workspace.id).order("nom");
     setClosers(data || []);
+  }
+
+  async function loadProduits() {
+    const { data } = await supabase.from("produits").select("*").eq("workspace_id", workspace.id).order("nom");
+    setProduits(data || []);
+  }
+
+  function parseProduitTexte(texte) {
+    if (!texte) return { nom: "", quantite: 1 };
+    const match = texte.match(/^(.*?)\s*x\s*(\d+)\s*$/i);
+    if (match) return { nom: match[1].trim(), quantite: Number(match[2]) || 1 };
+    return { nom: texte.trim(), quantite: 1 };
+  }
+
+  async function addProduit(form) {
+    const { error } = await supabase.from("produits").insert([{ nom: form.nom, cout_achat: Number(form.cout_achat) || 0, workspace_id: workspace.id }]);
+    if (error) alert("Erreur: " + error.message);
+    else await loadProduits();
+  }
+
+  async function updateProduitCout(id, cout) {
+    await supabase.from("produits").update({ cout_achat: Number(cout) || 0 }).eq("id", id);
+    await loadProduits();
+  }
+
+  async function deleteProduit(id) {
+    await supabase.from("produits").delete().eq("id", id);
+    await loadProduits();
   }
 
   async function addLivreur(form) {
@@ -217,6 +247,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   useEffect(() => {
     loadLivreurs();
     loadClosers();
+    loadProduits();
   }, []);
 
   const accesBloque = (() => {
@@ -298,7 +329,25 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   const COUT_LIVRAISON = 1500;
   const coutLivraisons = confirmees.length * COUT_LIVRAISON;
-  const beneficeReel = caConfirme - coutLivraisons;
+
+  const coutProduitsInfo = useMemo(() => {
+    let coutTotal = 0;
+    let nbInconnu = 0;
+    let montantInconnu = 0;
+    confirmees.forEach((c) => {
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
+      if (!trouve) {
+        nbInconnu += 1;
+        montantInconnu += Number(c.montant);
+      } else {
+        coutTotal += trouve.cout_achat * quantite;
+      }
+    });
+    return { coutTotal, nbInconnu, montantInconnu };
+  }, [confirmees, produits]);
+
+  const beneficeReel = caConfirme - coutLivraisons - coutProduitsInfo.coutTotal;
 
   const depotsParLivreur = useMemo(() => {
     return livreurs
@@ -445,9 +494,22 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({confirmees.length} × {COUT_LIVRAISON.toLocaleString("fr-FR")})
+              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({confirmees.length} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
             </div>
           </div>
+
+          {coutProduitsInfo.nbInconnu > 0 && (
+            <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 12, color: "#8A6412" }}>
+              ⚠️ {coutProduitsInfo.nbInconnu} commande{coutProduitsInfo.nbInconnu > 1 ? "s" : ""} ({coutProduitsInfo.montantInconnu.toLocaleString("fr-FR")} {workspace.currency}) sans coût produit connu — non déduites, bénéfice sous-estimé.
+              <button onClick={() => setShowProduits(true)} style={{ display: "block", marginTop: 6, background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                📦 Renseigner le catalogue
+              </button>
+            </div>
+          )}
+
+          <button onClick={() => setShowProduits(true)} style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", borderRadius: 10, padding: "10px 0", fontSize: 13, fontWeight: 600, color: "#16231F", cursor: "pointer", marginBottom: 16 }}>
+            📦 Gérer le catalogue produits ({produits.length})
+          </button>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
             <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "14px 16px" }}>
@@ -494,6 +556,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
     </div>
   );
 }
@@ -1118,3 +1181,60 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose }) {
   );
 }
 
+
+function ProduitsModal({ produits, onAdd, onUpdateCout, onDelete, currency, onClose }) {
+  const [nom, setNom] = useState("");
+  const [cout, setCout] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+
+  async function ajouter() {
+    if (!nom.trim()) return;
+    await onAdd({ nom: nom.trim(), cout_achat: cout });
+    setNom("");
+    setCout("");
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, maxHeight: "80vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Catalogue produits</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 14 }}>
+          Le nom doit correspondre exactement à celui utilisé dans tes commandes.
+        </div>
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          <input placeholder="Nom du produit" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />
+          <input placeholder="Coût" type="number" value={cout} onChange={(e) => setCout(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <button onClick={ajouter} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 18, cursor: "pointer" }}>+</button>
+        </div>
+
+        {produits.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucun produit dans le catalogue.</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {produits.map((p) => (
+            <div key={p.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}</div>
+                {editId === p.id ? (
+                  <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+                    <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} autoFocus style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                    <button onClick={() => { onUpdateCout(p.id, editValue); setEditId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setEditId(p.id); setEditValue(String(p.cout_achat)); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
+                    Coût : {Number(p.cout_achat).toLocaleString("fr-FR")} {currency}
+                  </button>
+                )}
+              </div>
+              <button onClick={() => onDelete(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0, marginLeft: 8 }}>🗑️</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

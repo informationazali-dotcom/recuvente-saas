@@ -187,11 +187,17 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   async function assignLivreur(commandeId, nom) {
     await supabase.from("commandes").update({ livreur: nom || null }).eq("id", commandeId);
+    await supabase.from("relances").insert([
+      { commande_id: commandeId, note: nom ? `🚚 Livreur assigné : ${nom}` : "🚚 Livreur retiré" },
+    ]);
     await loadCommandes();
   }
 
   async function assignCloser(commandeId, nom) {
     await supabase.from("commandes").update({ closer: nom || null }).eq("id", commandeId);
+    await supabase.from("relances").insert([
+      { commande_id: commandeId, note: nom ? `🎧 Closer assigné : ${nom}` : "🎧 Closer retiré" },
+    ]);
     await loadCommandes();
   }
 
@@ -758,9 +764,16 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
 
   async function changerStatut(nouveauStatut) {
     setLoading(true);
+    const ancienStatut = commande.statut;
     const { error } = await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commande.id);
-    if (error) alert("Erreur: " + error.message);
-    else await onStatusChanged();
+    if (error) {
+      alert("Erreur: " + error.message);
+    } else {
+      await supabase.from("relances").insert([
+        { commande_id: commande.id, note: `📋 Statut : ${STATUTS[ancienStatut]?.label || ancienStatut} → ${STATUTS[nouveauStatut]?.label || nouveauStatut}` },
+      ]);
+      await onStatusChanged();
+    }
     setLoading(false);
     setOpen(false);
   }
@@ -845,6 +858,64 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               )}
             </div>
           )}
+
+          <HistoriqueRelances commandeId={commande.id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoriqueRelances({ commandeId }) {
+  const [relances, setRelances] = useState(null);
+  const [note, setNote] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from("relances").select("*").eq("commande_id", commandeId).order("created_at", { ascending: false });
+    setRelances(data || []);
+  }
+
+  useEffect(() => {
+    load();
+  }, [commandeId]);
+
+  async function ajouter() {
+    if (!note.trim()) return;
+    setAdding(true);
+    await supabase.from("relances").insert([{ commande_id: commandeId, note: note.trim() }]);
+    setNote("");
+    await load();
+    setAdding(false);
+  }
+
+  return (
+    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #F0EEE6" }}>
+      <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 8 }}>
+        Historique {relances && relances.length > 0 && `(${relances.length})`}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && ajouter()}
+          placeholder="Ex: Appelé, pas de réponse"
+          style={{ flex: 1, padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12 }}
+        />
+        <button onClick={ajouter} disabled={adding || !note.trim()} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "0 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          +
+        </button>
+      </div>
+      {relances && relances.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 160, overflowY: "auto" }}>
+          {relances.map((r) => (
+            <div key={r.id} style={{ background: "#FAFAF7", borderRadius: 7, padding: "6px 9px" }}>
+              <div style={{ fontSize: 12 }}>{r.note}</div>
+              <div style={{ fontSize: 10, color: "#8A9089", marginTop: 1 }}>
+                {new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
 
 export default function App() {
@@ -252,6 +252,26 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     loadCommandes();
   }, []);
 
+  const [vue, setVue] = useState("commandes");
+
+  const clients = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      const key = c.tel || c.client;
+      if (!map[key]) map[key] = { nom: c.client, tel: c.tel, zone: c.zone, commandes: [] };
+      map[key].commandes.push(c);
+    });
+    return Object.values(map)
+      .map((cl) => ({
+        ...cl,
+        total: cl.commandes.length,
+        confirmees: cl.commandes.filter((c) => c.statut === "confirmee").length,
+        echouees: cl.commandes.filter((c) => c.statut === "echouee").length,
+        montantTotal: cl.commandes.filter((c) => c.statut === "confirmee").reduce((s, c) => s + Number(c.montant), 0),
+      }))
+      .sort((a, b) => b.montantTotal - a.montantTotal);
+  }, [commandes]);
+
   async function addCommande(form) {
     if (accesBloque) {
       alert("Ton essai gratuit est terminé. Passe à un plan payant pour continuer à ajouter des commandes.");
@@ -306,6 +326,23 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <SubscriptionBanner subscription={subscription} />
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button
+          onClick={() => setVue("commandes")}
+          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          Commandes
+        </button>
+        <button
+          onClick={() => setVue("clients")}
+          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "clients" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "clients" ? "#1a7a3c" : "white", color: vue === "clients" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          Clients ({clients.length})
+        </button>
+      </div>
+
+      {vue === "commandes" && (
+      <>
       {accesBloque && (
         <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#D64933" }}>
           🔒 Impossible d'ajouter de nouvelles commandes tant que l'abonnement n'est pas actif. Tes données existantes restent accessibles et en sécurité.
@@ -347,6 +384,30 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} />
         ))}
       </div>
+      </>
+      )}
+
+      {vue === "clients" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {clients.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "30px 0" }}>Aucun client pour l'instant.</div>}
+          {clients.map((cl, i) => (
+            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{cl.nom}</div>
+                <div style={{ fontSize: 12, color: "#6B7168" }}>{cl.tel} · {cl.zone}</div>
+                <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", gap: 8 }}>
+                  <span style={{ color: "#1a7a3c" }}>{cl.confirmees} confirmée{cl.confirmees > 1 ? "s" : ""}</span>
+                  {cl.echouees > 0 && <span style={{ color: "#D64933" }}>{cl.echouees} échouée{cl.echouees > 1 ? "s" : ""}</span>}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#1a7a3c" }}>{cl.montantTotal.toLocaleString("fr-FR")} {workspace.currency}</div>
+                <div style={{ fontSize: 10.5, color: "#8A9089" }}>{cl.total} commande{cl.total > 1 ? "s" : ""}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <a href="?admin=1" style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: 12, color: "#8A9089", textDecoration: "underline" }}>
         🧮 Panel Admin RecuVente

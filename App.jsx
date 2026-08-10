@@ -144,6 +144,12 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
         <button onClick={() => nom.trim() && onCreate(nom.trim())} disabled={loading || !nom.trim()} style={btnStyle}>
           {loading ? "Création..." : "Créer mon espace"}
         </button>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          style={{ width: "100%", marginTop: 10, padding: "10px 0", borderRadius: 10, border: "1px solid #DDD8CC", background: "white", color: "#6B7168", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          Déconnexion
+        </button>
       </div>
     </Centered>
   );
@@ -342,7 +348,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         ))}
       </div>
 
-      <button onClick={() => supabase.auth.signOut()} style={{ ...btnStyle, marginTop: 20, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
+      <a href="?admin=1" style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: 12, color: "#8A9089", textDecoration: "underline" }}>
+        🧮 Panel Admin RecuVente
+      </a>
+
+      <button onClick={() => supabase.auth.signOut()} style={{ ...btnStyle, marginTop: 10, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
         Déconnexion
       </button>
 
@@ -588,7 +598,10 @@ function AdminPanel({ session }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>Admin RecuVente</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ fontWeight: 700, fontSize: 22 }}>Admin RecuVente</div>
+        <a href="?" style={{ fontSize: 12.5, color: "#1a7a3c", textDecoration: "underline" }}>← Mon espace</a>
+      </div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>Connecté en tant que {session.user.email}</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>

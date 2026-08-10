@@ -401,11 +401,71 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       .order("created_at", { ascending: false });
     if (!error) setCommandes(data || []);
     setLoaded(true);
+    loadAllRelances();
+  }
+
+  const [allRelances, setAllRelances] = useState([]);
+
+  async function loadAllRelances() {
+    const { data: cmds } = await supabase.from("commandes").select("id").eq("workspace_id", workspace.id);
+    const ids = (cmds || []).map((c) => c.id);
+    if (ids.length === 0) {
+      setAllRelances([]);
+      return;
+    }
+    const { data } = await supabase.from("relances").select("commande_id, created_at").in("commande_id", ids).order("created_at", { ascending: false });
+    setAllRelances(data || []);
   }
 
   useEffect(() => {
     loadCommandes();
+    loadAllRelances();
   }, []);
+
+  const relanceCountByOrder = useMemo(() => {
+    const map = {};
+    const lastByOrder = {};
+    allRelances.forEach((r) => {
+      map[r.commande_id] = (map[r.commande_id] || 0) + 1;
+      if (!lastByOrder[r.commande_id] || new Date(r.created_at) > new Date(lastByOrder[r.commande_id])) {
+        lastByOrder[r.commande_id] = r.created_at;
+      }
+    });
+    return { count: map, last: lastByOrder };
+  }, [allRelances]);
+
+  const todoAujourdhui = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const now24hAgo = new Date(today.getTime() - 24 * 3600 * 1000);
+    const byMontant = (a, b) => Number(b.montant) - Number(a.montant);
+
+    const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+
+    const aRelivrer = actives.filter((c) => c.date_relivraison === todayStr).sort(byMontant);
+
+    const jamaisContactees = actives
+      .filter((c) => !relanceCountByOrder.count[c.id] && aRelivrer.every((a) => a.id !== c.id))
+      .sort(byMontant);
+
+    const sansNouvelles = actives
+      .filter((c) => {
+        if (aRelivrer.some((a) => a.id === c.id)) return false;
+        if (jamaisContactees.some((j) => j.id === c.id)) return false;
+        const last = relanceCountByOrder.last[c.id];
+        if (!last) return false;
+        return new Date(last) < now24hAgo;
+      })
+      .sort(byMontant);
+
+    const total = aRelivrer.length + jamaisContactees.length + sansNouvelles.length;
+    const echouees = commandes.filter((c) => c.statut === "echouee");
+    const enCoursOuEchouee = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+    const argentARisque = enCoursOuEchouee.reduce((s, c) => s + Number(c.montant), 0);
+    const argentRecuperable = echouees.reduce((s, c) => s + Number(c.montant), 0);
+
+    return { aRelivrer, jamaisContactees, sansNouvelles, total, argentARisque, argentRecuperable };
+  }, [commandes, relanceCountByOrder]);
 
   const [vue, setVue] = useState("commandes");
   const [datePreset, setDatePreset] = useState("aujourdhui");
@@ -712,6 +772,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           RECU<span style={{ color: "#e8920a" }}>VENTE</span>
         </div>
         {[
+          { key: "aujourdhui", label: "Aujourd'hui" },
           { key: "commandes", label: "Commandes" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" ? [{ key: "compta", label: "🧮 Compta" }] : []),
@@ -827,7 +888,13 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <button
+          onClick={() => setVue("aujourdhui")}
+          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "aujourdhui" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "aujourdhui" ? "#1a7a3c" : "white", color: vue === "aujourdhui" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          Aujourd'hui
+        </button>
         <button
           onClick={() => setVue("commandes")}
           style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
@@ -849,6 +916,59 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           </button>
         )}
       </div>
+
+      {vue === "aujourdhui" && (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Aujourd'hui</div>
+          <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 14 }}>
+            {todoAujourdhui.total > 0 ? `${todoAujourdhui.total} commande${todoAujourdhui.total > 1 ? "s" : ""} à traiter` : "Rien à traiter, tout est à jour ✅"}
+          </div>
+
+          {(todoAujourdhui.argentARisque > 0 || todoAujourdhui.argentRecuperable > 0) && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontSize: 10.5, color: "#B23A22", textTransform: "uppercase", fontWeight: 600 }}>💸 Argent à risque</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3, color: "#D64933" }}>{todoAujourdhui.argentARisque.toLocaleString("fr-FR")} {workspace.currency}</div>
+              </div>
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontSize: 10.5, color: "#8A6412", textTransform: "uppercase", fontWeight: 600 }}>♻️ Récupérable</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3, color: "#8A6412" }}>{todoAujourdhui.argentRecuperable.toLocaleString("fr-FR")} {workspace.currency}</div>
+              </div>
+            </div>
+          )}
+
+          {todoAujourdhui.total === 0 && (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9089" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+              <div style={{ fontSize: 14 }}>Aucune commande urgente pour le moment.</div>
+            </div>
+          )}
+
+          {[
+            { key: "aRelivrer", title: "📅 À relivrer aujourd'hui", items: todoAujourdhui.aRelivrer, color: "#1a7a3c" },
+            { key: "jamaisContactees", title: "🆕 Jamais contactées", items: todoAujourdhui.jamaisContactees, color: "#8A6412" },
+            { key: "sansNouvelles", title: "⏰ Sans nouvelles depuis 24h+", items: todoAujourdhui.sansNouvelles, color: "#D64933" },
+          ].map((sec) => sec.items.length > 0 && (
+            <div key={sec.key} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: sec.color, marginBottom: 8 }}>{sec.title} ({sec.items.length})</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {sec.items.map((c, i) => (
+                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${sec.color}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: i === 0 ? sec.color : "#ECE8DC", color: i === 0 ? "white" : "#8A9089", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{c.client}</div>
+                      <div style={{ fontSize: 12, color: "#6B7168" }}>{c.produit} · {c.tel}</div>
+                    </div>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {workspace.currency}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {vue === "commandes" && (
       <>

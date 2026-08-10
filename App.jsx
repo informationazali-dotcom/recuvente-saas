@@ -2,6 +2,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import { jsPDF } from "jspdf";
 import { supabase } from "./supabaseClient";
 
+function cleanPhoneForWhatsApp(tel) {
+  let digits = String(tel).replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("225")) return digits;
+  digits = digits.replace(/^0/, "");
+  return "225" + digits;
+}
+
 function numeroFacture(commande) {
   const date = new Date(commande.created_at);
   const y = date.getFullYear();
@@ -409,15 +417,43 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       map[key].commandes.push(c);
     });
     return Object.values(map)
-      .map((cl) => ({
-        ...cl,
-        total: cl.commandes.length,
-        confirmees: cl.commandes.filter((c) => c.statut === "confirmee").length,
-        echouees: cl.commandes.filter((c) => c.statut === "echouee").length,
-        montantTotal: cl.commandes.filter((c) => c.statut === "confirmee").reduce((s, c) => s + Number(c.montant), 0),
-      }))
+      .map((cl) => {
+        const confirmeesTriees = cl.commandes
+          .filter((c) => c.statut === "confirmee")
+          .map((c) => new Date(c.created_at))
+          .sort((a, b) => a - b);
+
+        let intervalleMoyen = null;
+        let joursDepuisDernier = null;
+        let joursDeRetard = null;
+        if (confirmeesTriees.length >= 2) {
+          const intervalles = [];
+          for (let i = 1; i < confirmeesTriees.length; i++) {
+            intervalles.push((confirmeesTriees[i] - confirmeesTriees[i - 1]) / 86400000);
+          }
+          intervalleMoyen = Math.round(intervalles.reduce((s, v) => s + v, 0) / intervalles.length);
+          const dernier = confirmeesTriees[confirmeesTriees.length - 1];
+          joursDepuisDernier = Math.round((new Date() - dernier) / 86400000);
+          joursDeRetard = joursDepuisDernier - intervalleMoyen;
+        }
+
+        return {
+          ...cl,
+          total: cl.commandes.length,
+          confirmees: cl.commandes.filter((c) => c.statut === "confirmee").length,
+          echouees: cl.commandes.filter((c) => c.statut === "echouee").length,
+          montantTotal: cl.commandes.filter((c) => c.statut === "confirmee").reduce((s, c) => s + Number(c.montant), 0),
+          intervalleMoyen,
+          joursDepuisDernier,
+          joursDeRetard,
+        };
+      })
       .sort((a, b) => b.montantTotal - a.montantTotal);
   }, [commandes]);
+
+  const clientsARelancer = useMemo(() => {
+    return clients.filter((c) => c.joursDeRetard !== null && c.joursDeRetard >= 0).sort((a, b) => b.joursDeRetard - a.joursDeRetard);
+  }, [clients]);
 
   async function addCommande(form) {
     if (accesBloque) {
@@ -594,24 +630,50 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
 
       {vue === "clients" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {clients.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "30px 0" }}>Aucun client pour l'instant.</div>}
-          {clients.map((cl, i) => (
-            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{cl.nom}</div>
-                <div style={{ fontSize: 12, color: "#6B7168" }}>{cl.tel} · {cl.zone}</div>
-                <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", gap: 8 }}>
-                  <span style={{ color: "#1a7a3c" }}>{cl.confirmees} confirmée{cl.confirmees > 1 ? "s" : ""}</span>
-                  {cl.echouees > 0 && <span style={{ color: "#D64933" }}>{cl.echouees} échouée{cl.echouees > 1 ? "s" : ""}</span>}
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#1a7a3c" }}>{cl.montantTotal.toLocaleString("fr-FR")} {workspace.currency}</div>
-                <div style={{ fontSize: 10.5, color: "#8A9089" }}>{cl.total} commande{cl.total > 1 ? "s" : ""}</div>
+        <div>
+          {clientsARelancer.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#1a7a3c", marginBottom: 3 }}>🔄 Clients à relancer pour réachat ({clientsARelancer.length})</div>
+              <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 8 }}>Basé sur leur rythme d'achat habituel.</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {clientsARelancer.slice(0, 10).map((c, i) => (
+                  <a
+                    key={i}
+                    href={`https://wa.me/${cleanPhoneForWhatsApp(c.tel)}?text=${encodeURIComponent(`Bonjour ${(c.nom || "").split(" ")[0]} 👋, ça faisait un moment ! Seriez-vous intéressé(e) pour recommander chez ${workspace.name} ?`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: "4px solid #1a7a3c", borderRadius: 10, padding: "10px 12px", display: "block", textDecoration: "none", color: "inherit" }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.nom}</div>
+                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>Achète en général tous les {c.intervalleMoyen}j · dernier achat il y a {c.joursDepuisDernier}j</div>
+                  </a>
+                ))}
               </div>
             </div>
-          ))}
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {clients.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "30px 0" }}>Aucun client pour l'instant.</div>}
+            {clients.map((cl, i) => (
+              <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    {cl.joursDeRetard !== null && cl.joursDeRetard >= 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#1a7a3c", background: "#EAF3DE", padding: "1px 7px", borderRadius: 999 }}>🔄</span>}
+                    {cl.nom}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6B7168" }}>{cl.tel} · {cl.zone}</div>
+                  <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", gap: 8 }}>
+                    <span style={{ color: "#1a7a3c" }}>{cl.confirmees} confirmée{cl.confirmees > 1 ? "s" : ""}</span>
+                    {cl.echouees > 0 && <span style={{ color: "#D64933" }}>{cl.echouees} échouée{cl.echouees > 1 ? "s" : ""}</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#1a7a3c" }}>{cl.montantTotal.toLocaleString("fr-FR")} {workspace.currency}</div>
+                  <div style={{ fontSize: 10.5, color: "#8A9089" }}>{cl.total} commande{cl.total > 1 ? "s" : ""}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -1225,12 +1287,22 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
           )}
 
           {workspace && (
-            <button
-              onClick={() => genererFacturePDF(commande, workspace)}
-              style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
-            >
-              🧾 Facture PDF
-            </button>
+            <>
+              <a
+                href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]} 👋, suivez votre commande en direct ici : ${window.location.origin}/?suivi=${commande.id}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "block", textAlign: "center", width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 8, textDecoration: "none", boxSizing: "border-box" }}
+              >
+                🔗 Envoyer le lien de suivi
+              </a>
+              <button
+                onClick={() => genererFacturePDF(commande, workspace)}
+                style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+              >
+                🧾 Facture PDF
+              </button>
+            </>
           )}
 
           <HistoriqueRelances commandeId={commande.id} />

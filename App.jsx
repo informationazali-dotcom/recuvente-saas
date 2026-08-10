@@ -127,6 +127,7 @@ function WorkspaceDashboard({ workspace, session }) {
   const [commandes, setCommandes] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
 
   async function loadCommandes() {
     const { data, error } = await supabase
@@ -166,6 +167,11 @@ function WorkspaceDashboard({ workspace, session }) {
         </div>
         <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>Chiffre d'affaires</div>
         <div style={{ fontSize: 26, fontWeight: 700 }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency}</div>
+        {workspace.role === "owner" && (
+          <button onClick={() => setShowTeam(true)} style={{ marginTop: 12, background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+            👥 Gérer l'équipe
+          </button>
+        )}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -199,6 +205,7 @@ function WorkspaceDashboard({ workspace, session }) {
       </button>
 
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
+      {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
     </div>
   );
 }
@@ -231,3 +238,119 @@ function AddCommandeModal({ onClose, onAdd, currency }) {
 
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" };
 const btnStyle = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#1a7a3c", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" };
+
+function TeamModal({ workspace, onClose }) {
+  const [members, setMembers] = useState(null);
+  const [error, setError] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
+
+  async function loadMembers() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const res = await fetch(`/api/list-members?workspaceId=${workspace.id}`, {
+      headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
+    });
+    const json = await res.json();
+    if (!res.ok) setError(json.error || "Erreur");
+    else setMembers(json.members);
+  }
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
+
+  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Équipe</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <button onClick={() => setShowInvite(true)} style={{ ...btnStyle, marginBottom: 14 }}>
+          + Inviter quelqu'un
+        </button>
+
+        {error && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+        {members === null && !error && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+
+        {members && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {members.map((m) => (
+              <div key={m.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{m.email}</div>
+                <div style={{ fontSize: 11.5, color: "#6B7168" }}>{roleLabels[m.role] || m.role}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showInvite && (
+          <InviteMemberForm
+            workspace={workspace}
+            onClose={() => setShowInvite(false)}
+            onInvited={() => {
+              setShowInvite(false);
+              loadMembers();
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InviteMemberForm({ workspace, onClose, onInvited }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("closer");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const roles = [
+    { key: "admin", label: "Admin — accès complet" },
+    { key: "closer", label: "Closer — ses commandes" },
+    { key: "livreur", label: "Livreur — ses livraisons" },
+    { key: "comptable", label: "Comptable — lecture financière" },
+  ];
+
+  async function submit() {
+    if (!email || !password) {
+      setError("Remplis email et mot de passe.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    const { data: sessionData } = await supabase.auth.getSession();
+    const res = await fetch("/api/invite-member", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+      body: JSON.stringify({ workspaceId: workspace.id, email, password, role }),
+    });
+    const json = await res.json();
+    if (!res.ok) setError(json.error || "Erreur");
+    else onInvited();
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 10 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340 }}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Inviter quelqu'un</div>
+        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+        <input placeholder="Mot de passe temporaire" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 6 }}>Rôle</div>
+        <select value={role} onChange={(e) => setRole(e.target.value)} style={{ ...inputStyle, background: "white" }}>
+          {roles.map((r) => (
+            <option key={r.key} value={r.key}>{r.label}</option>
+          ))}
+        </select>
+        {error && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+        <button onClick={submit} disabled={loading} style={btnStyle}>
+          {loading ? "Création..." : "Créer le compte"}
+        </button>
+      </div>
+    </div>
+  );
+}

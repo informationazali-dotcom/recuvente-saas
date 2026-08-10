@@ -364,6 +364,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
   const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
 
+  const monProfilLivreur = livreurs.find((l) => l.email && l.email.toLowerCase() === session.user.email.toLowerCase());
+
+  if (workspace.role === "livreur" && monProfilLivreur) {
+    return (
+      <LivreurPortalSaas
+        livreur={monProfilLivreur}
+        commandes={commandes.filter((c) => c.livreur === monProfilLivreur.nom)}
+        currency={workspace.currency}
+        onStatusChanged={loadCommandes}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
@@ -522,6 +535,26 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             </div>
           </div>
 
+          {livreurs.some((l) => l.en_tournee) && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🟢 Livreurs en tournée</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {livreurs.filter((l) => l.en_tournee).map((l) => (
+                  <div key={l.id} style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 600, fontSize: 13.5 }}>{l.nom}</span>
+                    {l.position_lat && l.position_lng ? (
+                      <a href={`https://www.google.com/maps?q=${l.position_lat},${l.position_lng}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 600 }}>
+                        📍 Voir sur la carte
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: 11.5, color: "#8A9089" }}>Position en attente...</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Détail par livreur</div>
           {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -554,7 +587,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
     </div>
@@ -1138,15 +1171,19 @@ function HistoriqueRelances({ commandeId }) {
   );
 }
 
-function EquipeModal({ titre, items, onAdd, onDelete, onClose }) {
+function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [email, setEmail] = useState("");
 
   async function ajouter() {
     if (!nom.trim()) return;
-    await onAdd({ nom: nom.trim(), telephone: telephone.trim() });
+    const payload = { nom: nom.trim(), telephone: telephone.trim() };
+    if (avecEmail) payload.email = email.trim();
+    await onAdd(payload);
     setNom("");
     setTelephone("");
+    setEmail("");
   }
 
   return (
@@ -1157,11 +1194,19 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose }) {
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
-        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: avecEmail ? 6 : 16 }}>
           <input placeholder="Nom" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
           <input placeholder="Téléphone" value={telephone} onChange={(e) => setTelephone(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-          <button onClick={ajouter} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 18, cursor: "pointer" }}>+</button>
         </div>
+        {avecEmail && (
+          <div style={{ marginBottom: 16 }}>
+            <input placeholder="Email de connexion (optionnel, pour le suivi GPS)" value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, marginBottom: 4 }} />
+            <div style={{ fontSize: 11, color: "#8A9089" }}>Invite-le d'abord via "Gérer l'équipe", avec ce même email et le rôle Livreur.</div>
+          </div>
+        )}
+        <button onClick={ajouter} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 16 }}>
+          Ajouter
+        </button>
 
         {items.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucun {titre.toLowerCase()} pour l'instant.</div>}
 
@@ -1171,6 +1216,7 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose }) {
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
                 {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
+                {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
               </div>
               <button onClick={() => onDelete(it.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
             </div>
@@ -1234,6 +1280,135 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onDelete, currency, onCl
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
+  const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);
+  const [gpsErreur, setGpsErreur] = useState(null);
+  const watchIdRef = React.useRef(null);
+
+  async function majPosition(lat, lng) {
+    await supabase.from("livreurs").update({ position_lat: lat, position_lng: lng, position_maj: new Date().toISOString() }).eq("id", livreur.id);
+  }
+
+  function demarrerTournee() {
+    if (!navigator.geolocation) {
+      setGpsErreur("La géolocalisation n'est pas disponible sur cet appareil.");
+      return;
+    }
+    setGpsErreur(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        await supabase.from("livreurs").update({ en_tournee: true }).eq("id", livreur.id);
+        await majPosition(pos.coords.latitude, pos.coords.longitude);
+        setEnTournee(true);
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (p) => majPosition(p.coords.latitude, p.coords.longitude),
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+        );
+      },
+      (err) => {
+        setGpsErreur(err.code === err.PERMISSION_DENIED ? "Autorisation de localisation refusée. Active-la dans les réglages de ton téléphone." : "Impossible d'obtenir ta position pour le moment.");
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }
+
+  async function terminerTournee() {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    await supabase.from("livreurs").update({ en_tournee: false }).eq("id", livreur.id);
+    setEnTournee(false);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
+
+  const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+  const confirmees = commandes.filter((c) => c.statut === "confirmee");
+
+  async function changerStatut(commandeId, nouveauStatut) {
+    await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commandeId);
+    await onStatusChanged();
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif" }}>
+      <div style={{ background: "#1a7a3c", color: "white", padding: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>RecuVente</div>
+        <div style={{ fontSize: 13, opacity: 0.8 }}>Bonjour</div>
+        <div style={{ fontWeight: 700, fontSize: 22 }}>{livreur.nom}</div>
+
+        <button
+          onClick={enTournee ? terminerTournee : demarrerTournee}
+          style={{ width: "100%", marginTop: 14, padding: "13px 0", borderRadius: 10, border: "none", background: enTournee ? "#D64933" : "#e8920a", color: "white", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}
+        >
+          {enTournee ? "🔴 Terminer ma tournée" : "🟢 Démarrer ma tournée"}
+        </button>
+        {enTournee && <div style={{ fontSize: 11.5, opacity: 0.8, marginTop: 6, textAlign: "center" }}>📍 Ta position est partagée avec l'entreprise pendant ta tournée</div>}
+        {gpsErreur && <div style={{ background: "rgba(214,73,51,0.2)", borderRadius: 8, padding: "8px 10px", marginTop: 8, fontSize: 12 }}>{gpsErreur}</div>}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>À traiter</div>
+            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{actives.length}</div>
+          </div>
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>Confirmées</div>
+            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{confirmees.length}</div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 10, background: "rgba(232,146,10,0.18)", border: "1px solid rgba(232,146,10,0.35)", borderRadius: 10, padding: "12px 14px" }}>
+          <div style={{ fontSize: 11, opacity: 0.85 }}>💰 Mes gains ({confirmees.length} × 1 500 {currency})</div>
+          <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 22, color: "#e8920a", marginTop: 2 }}>
+            {(confirmees.length * 1500).toLocaleString("fr-FR")} {currency}
+          </div>
+        </div>
+
+        <button onClick={() => supabase.auth.signOut()} style={{ width: "100%", marginTop: 14, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "8px 0", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+          Déconnexion
+        </button>
+      </div>
+
+      <div style={{ padding: "18px 20px" }}>
+        {actives.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "50px 20px", color: "#8A9089" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontSize: 14 }}>Aucune commande à traiter pour le moment.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {actives.map((c) => (
+              <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+                <div style={{ fontWeight: 700, fontSize: 15.5 }}>{c.client}</div>
+                <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
+                <div style={{ fontSize: 13, color: "#6B7168", marginTop: 2 }}>📍 {c.zone}</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 17, marginTop: 8, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                <a href={`tel:${c.tel}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 0", borderRadius: 9, fontWeight: 600, fontSize: 13, textDecoration: "none", marginTop: 12 }}>
+                  📞 {c.tel}
+                </a>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button onClick={() => changerStatut(c.id, "confirmee")} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+                    ✅ Confirmer
+                  </button>
+                  <button onClick={() => changerStatut(c.id, "echouee")} style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+                    ❌ Échoué
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

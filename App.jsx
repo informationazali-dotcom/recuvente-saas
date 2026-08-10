@@ -65,6 +65,10 @@ export default function App() {
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
   if (!session) return <AuthScreen />;
+
+  const isAdminRoute = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
+  if (isAdminRoute) return <AdminPanel session={session} />;
+
   if (workspace === undefined) return <Centered>Chargement de ton espace…</Centered>;
   if (workspace === null) return <CreateWorkspaceScreen onCreate={creerWorkspace} loading={loadingWorkspace} />;
 
@@ -440,4 +444,76 @@ function SubscriptionBanner({ subscription }) {
   }
 
   return null;
+}
+
+function AdminPanel({ session }) {
+  const [data, setData] = useState(undefined);
+  const [error, setError] = useState("");
+
+  async function load() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const res = await fetch("/api/admin-workspaces", {
+      headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
+    });
+    const json = await res.json();
+    if (!res.ok) setError(json.error || "Erreur");
+    else setData(json);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  if (error) {
+    return (
+      <Centered>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🔒</div>
+          <div style={{ color: "#D64933", fontWeight: 600 }}>{error}</div>
+        </div>
+      </Centered>
+    );
+  }
+
+  if (data === undefined) return <Centered>Chargement...</Centered>;
+
+  const statusLabels = { trial: "🎁 Essai", active: "✅ Actif", suspended: "🔴 Suspendu", cancelled: "Annulé" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>Admin RecuVente</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>Connecté en tant que {session.user.email}</div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        <div style={{ background: "#16231F", color: "white", borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 11, opacity: 0.7, textTransform: "uppercase" }}>MRR estimé</div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "#e8920a" }}>{data.mrr.toLocaleString("fr-FR")} XOF</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 11, color: "#8A9089", textTransform: "uppercase" }}>Entreprises</div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{data.total}</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 11, color: "#8A9089", textTransform: "uppercase" }}>En essai / Actifs</div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{data.enEssai} / {data.actifs}</div>
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Toutes les entreprises</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {data.workspaces.map((ws) => (
+          <div key={ws.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{ws.name}</div>
+              <div style={{ fontSize: 11.5, color: "#6B7168" }}>{ws.ownerEmail} · {ws.nbMembres} membre{ws.nbMembres > 1 ? "s" : ""} · {ws.country}</div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>
+              {ws.subscription ? statusLabels[ws.subscription.status] || ws.subscription.status : "—"}
+            </div>
+          </div>
+        ))}
+        {data.workspaces.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune entreprise inscrite pour l'instant.</div>}
+      </div>
+    </div>
+  );
 }

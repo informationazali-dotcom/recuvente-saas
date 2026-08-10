@@ -293,7 +293,27 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }
 
   const totalCA = commandes.reduce((s, c) => s + Number(c.montant), 0);
-  const caConfirme = commandes.filter((c) => c.statut === "confirmee").reduce((s, c) => s + Number(c.montant), 0);
+  const confirmees = commandes.filter((c) => c.statut === "confirmee");
+  const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
+
+  const COUT_LIVRAISON = 1500;
+  const coutLivraisons = confirmees.length * COUT_LIVRAISON;
+  const beneficeReel = caConfirme - coutLivraisons;
+
+  const depotsParLivreur = useMemo(() => {
+    return livreurs
+      .map((l) => {
+        const mesLivrees = confirmees.filter((c) => c.livreur === l.nom);
+        const montantRecupere = mesLivrees.reduce((s, c) => s + Number(c.montant), 0);
+        const commission = mesLivrees.length * COUT_LIVRAISON;
+        return { nom: l.nom, livrees: mesLivrees.length, montantRecupere, commission, aDeposer: montantRecupere - commission };
+      })
+      .filter((l) => l.livrees > 0)
+      .sort((a, b) => b.aDeposer - a.aDeposer);
+  }, [livreurs, confirmees]);
+
+  const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
+  const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
@@ -339,6 +359,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         >
           Clients ({clients.length})
         </button>
+        {workspace.role === "owner" && (
+          <button
+            onClick={() => setVue("compta")}
+            style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "compta" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "compta" ? "#1a7a3c" : "white", color: vue === "compta" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          >
+            🧮 Compta
+          </button>
+        )}
       </div>
 
       {vue === "commandes" && (
@@ -406,6 +434,50 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {vue === "compta" && (
+        <div>
+          <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
+            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+              {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({confirmees.length} × {COUT_LIVRAISON.toLocaleString("fr-FR")})
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💵 À payer aux livreurs</div>
+              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "#e8920a", marginTop: 3 }}>{totalCommission.toLocaleString("fr-FR")} {workspace.currency}</div>
+            </div>
+            <div style={{ background: "linear-gradient(135deg, #1a7a3c, #1F9D6E)", borderRadius: 14, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", textTransform: "uppercase" }}>🏦 Dépôt attendu</div>
+              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "white", marginTop: 3 }}>{totalADeposer.toLocaleString("fr-FR")} {workspace.currency}</div>
+            </div>
+          </div>
+
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Détail par livreur</div>
+          {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {depotsParLivreur.map((l) => (
+              <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+                <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+                    Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+                  </div>
+                  <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+                    À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

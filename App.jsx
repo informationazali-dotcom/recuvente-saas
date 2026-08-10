@@ -412,7 +412,7 @@ function SubscriptionBanner({ subscription }) {
 
   if (subscription.status === "trial") {
     const finEssai = new Date(subscription.trial_ends_at);
-    const joursRestants = Math.max(0, Math.ceil((finEssai - new Date()) / 86400000));
+    const joursRestants = Math.max(0, Math.floor((finEssai - new Date()) / 86400000));
     const expire = joursRestants === 0;
     return (
       <div style={{ background: expire ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${expire ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: expire ? "#D64933" : "#3B6D11", fontWeight: 600 }}>

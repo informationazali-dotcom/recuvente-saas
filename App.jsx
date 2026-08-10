@@ -25,6 +25,21 @@ export default function App() {
     }
   }
 
+  const [subscription, setSubscription] = useState(undefined);
+
+  async function loadSubscription(workspaceId) {
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("*, subscription_plans(nom, prix, devise)")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+    setSubscription(data || null);
+  }
+
+  useEffect(() => {
+    if (workspace && workspace.id) loadSubscription(workspace.id);
+  }, [workspace?.id]);
+
   useEffect(() => {
     if (session) loadWorkspace();
   }, [session]);
@@ -53,7 +68,7 @@ export default function App() {
   if (workspace === undefined) return <Centered>Chargement de ton espace…</Centered>;
   if (workspace === null) return <CreateWorkspaceScreen onCreate={creerWorkspace} loading={loadingWorkspace} />;
 
-  return <WorkspaceDashboard workspace={workspace} session={session} />;
+  return <WorkspaceDashboard workspace={workspace} session={session} subscription={subscription} />;
 }
 
 function Centered({ children }) {
@@ -123,7 +138,7 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
   );
 }
 
-function WorkspaceDashboard({ workspace, session }) {
+function WorkspaceDashboard({ workspace, session, subscription }) {
   const [commandes, setCommandes] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -173,6 +188,8 @@ function WorkspaceDashboard({ workspace, session }) {
           </button>
         )}
       </div>
+
+      <SubscriptionBanner subscription={subscription} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandes.length})</div>
@@ -353,4 +370,49 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
       </div>
     </div>
   );
+}
+
+function SubscriptionBanner({ subscription }) {
+  if (subscription === undefined) return null;
+
+  if (subscription === null) {
+    return (
+      <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#8A6412" }}>
+        ⚠️ Aucun abonnement associé à cet espace (créé avant la mise en place du système d'essai).
+      </div>
+    );
+  }
+
+  const planNom = subscription.subscription_plans?.nom || "?";
+
+  if (subscription.status === "trial") {
+    const finEssai = new Date(subscription.trial_ends_at);
+    const joursRestants = Math.max(0, Math.ceil((finEssai - new Date()) / 86400000));
+    const expire = joursRestants === 0;
+    return (
+      <div style={{ background: expire ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${expire ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: expire ? "#D64933" : "#3B6D11", fontWeight: 600 }}>
+        {expire
+          ? `⏰ Ton essai gratuit (${planNom}) est terminé.`
+          : `🎁 Essai gratuit — plan ${planNom} — ${joursRestants} jour${joursRestants > 1 ? "s" : ""} restant${joursRestants > 1 ? "s" : ""}.`}
+      </div>
+    );
+  }
+
+  if (subscription.status === "active") {
+    return (
+      <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#3B6D11", fontWeight: 600 }}>
+        ✅ Abonnement actif — plan {planNom}
+      </div>
+    );
+  }
+
+  if (subscription.status === "suspended") {
+    return (
+      <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#D64933", fontWeight: 600 }}>
+        🔴 Abonnement suspendu — contacte le support pour réactiver.
+      </div>
+    );
+  }
+
+  return null;
 }

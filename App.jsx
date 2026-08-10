@@ -408,6 +408,46 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }, []);
 
   const [vue, setVue] = useState("commandes");
+  const [datePreset, setDatePreset] = useState("aujourdhui");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start, end;
+    if (datePreset === "aujourdhui") {
+      start = startOfToday;
+      end = new Date(startOfToday.getTime() + 86400000);
+    } else if (datePreset === "hier") {
+      start = new Date(startOfToday.getTime() - 86400000);
+      end = startOfToday;
+    } else if (datePreset === "semaine") {
+      const day = startOfToday.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      start = new Date(startOfToday.getTime() - diff * 86400000);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "mois") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "personnalise" && customStart && customEnd) {
+      start = new Date(customStart + "T00:00:00");
+      end = new Date(customEnd + "T23:59:59");
+    } else {
+      start = new Date(0);
+      end = new Date(now.getTime() + 60000);
+    }
+    return { start, end };
+  }, [datePreset, customStart, customEnd]);
+
+  const commandesInRange = useMemo(() => {
+    return commandes.filter((c) => {
+      const d = new Date(c.created_at);
+      return d >= dateRange.start && d < dateRange.end;
+    });
+  }, [commandes, dateRange]);
+
+  const periodLabel = { aujourdhui: "Aujourd'hui", hier: "Hier", semaine: "Cette semaine", mois: "Ce mois", personnalise: "Période personnalisée" }[datePreset];
 
   const clients = useMemo(() => {
     const map = {};
@@ -475,8 +515,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     setShowAdd(false);
   }
 
-  const totalCA = commandes.reduce((s, c) => s + Number(c.montant), 0);
-  const confirmees = commandes.filter((c) => c.statut === "confirmee");
+  const totalCA = commandesInRange.reduce((s, c) => s + Number(c.montant), 0);
+  const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
 
   const COUT_LIVRAISON = 1500;
@@ -592,6 +632,34 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <SubscriptionBanner subscription={subscription} />
 
+      {(vue === "commandes" || vue === "compta") && (
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 2 }}>
+          {[
+            { key: "aujourdhui", label: "Aujourd'hui" },
+            { key: "hier", label: "Hier" },
+            { key: "semaine", label: "Cette semaine" },
+            { key: "mois", label: "Ce mois" },
+            { key: "personnalise", label: "Personnalisé" },
+          ].map((d) => (
+            <button
+              key={d.key}
+              onClick={() => setDatePreset(d.key)}
+              style={{ padding: "6px 12px", borderRadius: 999, border: `1px solid ${datePreset === d.key ? "#1a7a3c" : "#DDD8CC"}`, background: datePreset === d.key ? "#1a7a3c" : "white", color: datePreset === d.key ? "white" : "#16231F", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", cursor: "pointer" }}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {vue === "commandes" && datePreset === "personnalise" && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+          <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+          <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>
+          <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button
           onClick={() => setVue("commandes")}
@@ -636,7 +704,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandes.length})</div>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandesInRange.length})</div>
         <button
           onClick={() => !accesBloque && !quotaAtteint && setShowAdd(true)}
           disabled={accesBloque || quotaAtteint}
@@ -654,7 +722,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {commandes.map((c) => (
+        {commandesInRange.map((c) => (
           <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} />
         ))}
       </div>
@@ -711,6 +779,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       {vue === "compta" && (
         <div>
+          <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "3px 10px", borderRadius: 999, marginBottom: 12 }}>
+            📊 {periodLabel}
+          </div>
           <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
             <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>

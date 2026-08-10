@@ -144,10 +144,61 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
 
 function WorkspaceDashboard({ workspace, session, subscription }) {
   const [commandes, setCommandes] = useState([]);
+  const [livreurs, setLivreurs] = useState([]);
+  const [closers, setClosers] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
   const [showAbonnement, setShowAbonnement] = useState(false);
+  const [showLivreurs, setShowLivreurs] = useState(false);
+  const [showClosers, setShowClosers] = useState(false);
+
+  async function loadLivreurs() {
+    const { data } = await supabase.from("livreurs").select("*").eq("workspace_id", workspace.id).order("nom");
+    setLivreurs(data || []);
+  }
+
+  async function loadClosers() {
+    const { data } = await supabase.from("closers").select("*").eq("workspace_id", workspace.id).order("nom");
+    setClosers(data || []);
+  }
+
+  async function addLivreur(form) {
+    const { error } = await supabase.from("livreurs").insert([{ ...form, workspace_id: workspace.id }]);
+    if (error) alert("Erreur: " + error.message);
+    else await loadLivreurs();
+  }
+
+  async function deleteLivreur(id) {
+    await supabase.from("livreurs").delete().eq("id", id);
+    await loadLivreurs();
+  }
+
+  async function addCloser(form) {
+    const { error } = await supabase.from("closers").insert([{ ...form, workspace_id: workspace.id }]);
+    if (error) alert("Erreur: " + error.message);
+    else await loadClosers();
+  }
+
+  async function deleteCloser(id) {
+    await supabase.from("closers").delete().eq("id", id);
+    await loadClosers();
+  }
+
+  async function assignLivreur(commandeId, nom) {
+    await supabase.from("commandes").update({ livreur: nom || null }).eq("id", commandeId);
+    await loadCommandes();
+  }
+
+  async function assignCloser(commandeId, nom) {
+    await supabase.from("commandes").update({ closer: nom || null }).eq("id", commandeId);
+    await loadCommandes();
+  }
+
+  useEffect(() => {
+    loadLivreurs();
+    loadClosers();
+  }, []);
 
   const accesBloque = (() => {
     if (subscription === undefined || subscription === null) return false; // pas encore chargé ou pas d'abonnement du tout (ancien workspace) : ne rien bloquer
@@ -217,12 +268,18 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         <div style={{ fontSize: 26, fontWeight: 700 }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
         <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency} au total (toutes commandes)</div>
         {workspace.role === "owner" && (
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
             <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
               👥 Gérer l'équipe
             </button>
             <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
               💳 Mon abonnement
+            </button>
+            <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+              🚚 Livreurs
+            </button>
+            <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+              🎧 Closers
             </button>
           </div>
         )}
@@ -268,7 +325,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {commandes.map((c) => (
-          <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} />
+          <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} />
         ))}
       </div>
 
@@ -279,6 +336,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} />}
+      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} />}
     </div>
   );
 }
@@ -692,7 +751,7 @@ const STATUTS = {
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
@@ -712,37 +771,126 @@ function CommandeCard({ commande, currency, onStatusChanged }) {
         <div>
           <div style={{ fontWeight: 600, fontSize: 14 }}>{commande.client}</div>
           <div style={{ fontSize: 12, color: "#6B7168" }}>{commande.produit} · {commande.zone}</div>
-          <span style={{ fontSize: 10.5, fontWeight: 600, color: s.color, background: s.bg, padding: "2px 8px", borderRadius: 999, display: "inline-block", marginTop: 4 }}>
-            {s.label}
-          </span>
+          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: s.color, background: s.bg, padding: "2px 8px", borderRadius: 999, display: "inline-block" }}>
+              {s.label}
+            </span>
+            {commande.livreur && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>🚚 {commande.livreur}</span>
+            )}
+            {commande.closer && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A6412", background: "#FBF3E3", padding: "2px 8px", borderRadius: 999 }}>🎧 {commande.closer}</span>
+            )}
+          </div>
         </div>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
       </div>
 
       {open && (
-        <div style={{ display: "flex", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0EEE6" }}>
-          {Object.entries(STATUTS).map(([key, val]) => (
-            <button
-              key={key}
-              onClick={() => changerStatut(key)}
-              disabled={loading || commande.statut === key}
-              style={{
-                flex: 1,
-                padding: "7px 4px",
-                borderRadius: 7,
-                border: `1px solid ${commande.statut === key ? val.color : "#DDD8CC"}`,
-                background: commande.statut === key ? val.bg : "white",
-                color: commande.statut === key ? val.color : "#6B7168",
-                fontSize: 11.5,
-                fontWeight: 600,
-                cursor: commande.statut === key ? "default" : "pointer",
-              }}
-            >
-              {val.label}
-            </button>
-          ))}
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0EEE6" }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {Object.entries(STATUTS).map(([key, val]) => (
+              <button
+                key={key}
+                onClick={() => changerStatut(key)}
+                disabled={loading || commande.statut === key}
+                style={{
+                  flex: 1,
+                  padding: "7px 4px",
+                  borderRadius: 7,
+                  border: `1px solid ${commande.statut === key ? val.color : "#DDD8CC"}`,
+                  background: commande.statut === key ? val.bg : "white",
+                  color: commande.statut === key ? val.color : "#6B7168",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: commande.statut === key ? "default" : "pointer",
+                }}
+              >
+                {val.label}
+              </button>
+            ))}
+          </div>
+
+          {(livreurs.length > 0 || closers.length > 0) && (
+            <div style={{ display: "flex", gap: 8 }}>
+              {livreurs.length > 0 && (
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 10.5, color: "#8A9089", display: "block", marginBottom: 3 }}>Livreur</label>
+                  <select
+                    value={commande.livreur || ""}
+                    onChange={(e) => onAssignLivreur(commande.id, e.target.value)}
+                    style={{ width: "100%", padding: "7px 8px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, background: "white" }}
+                  >
+                    <option value="">Non assigné</option>
+                    {livreurs.map((l) => (
+                      <option key={l.id} value={l.nom}>{l.nom}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {closers.length > 0 && (
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 10.5, color: "#8A9089", display: "block", marginBottom: 3 }}>Closer</label>
+                  <select
+                    value={commande.closer || ""}
+                    onChange={(e) => onAssignCloser(commande.id, e.target.value)}
+                    style={{ width: "100%", padding: "7px 8px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, background: "white" }}
+                  >
+                    <option value="">Non assigné</option>
+                    {closers.map((c) => (
+                      <option key={c.id} value={c.nom}>{c.nom}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+function EquipeModal({ titre, items, onAdd, onDelete, onClose }) {
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+
+  async function ajouter() {
+    if (!nom.trim()) return;
+    await onAdd({ nom: nom.trim(), telephone: telephone.trim() });
+    setNom("");
+    setTelephone("");
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, maxHeight: "80vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{titre}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          <input placeholder="Nom" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <input placeholder="Téléphone" value={telephone} onChange={(e) => setTelephone(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <button onClick={ajouter} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 18, cursor: "pointer" }}>+</button>
+        </div>
+
+        {items.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucun {titre.toLowerCase()} pour l'instant.</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map((it) => (
+            <div key={it.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
+                {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
+              </div>
+              <button onClick={() => onDelete(it.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

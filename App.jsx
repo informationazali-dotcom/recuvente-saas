@@ -1219,7 +1219,23 @@ const STATUTS = {
 function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
+
+  async function enregistrerInfos() {
+    setLoading(true);
+    const infos = { client: form.client, tel: form.tel, produit: form.produit, montant: Number(form.montant), zone: form.zone };
+    const { error } = await supabase.from("commandes").update(infos).eq("id", commande.id);
+    if (error) {
+      alert("Erreur: " + error.message);
+    } else {
+      await supabase.from("relances").insert([{ commande_id: commande.id, note: "✏️ Informations modifiées" }]);
+      await onStatusChanged();
+      setEditing(false);
+    }
+    setLoading(false);
+  }
 
   async function changerStatut(nouveauStatut) {
     setLoading(true);
@@ -1239,6 +1255,30 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
 
   return (
     <div style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: "12px 14px" }}>
+      {editing ? (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Modifier la commande</div>
+          {["client", "tel", "produit", "montant", "zone"].map((f) => (
+            <input
+              key={f}
+              placeholder={f === "montant" ? `Montant (${currency})` : f}
+              value={form[f]}
+              onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+              type={f === "montant" ? "number" : "text"}
+              style={{ ...inputStyle, marginBottom: 6, padding: "7px 9px", fontSize: 13 }}
+            />
+          ))}
+          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+            <button onClick={enregistrerInfos} disabled={loading} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>
+              {loading ? "..." : "Enregistrer"}
+            </button>
+            <button onClick={() => setEditing(false)} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 7, padding: "8px 0", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      ) : (
+      <>
       <div onClick={() => setOpen(!open)} style={{ display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
         <div>
           <div style={{ fontWeight: 600, fontSize: 14 }}>{commande.client}</div>
@@ -1337,8 +1377,17 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             </>
           )}
 
+          <button
+            onClick={() => setEditing(true)}
+            style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+          >
+            ✏️ Modifier les informations
+          </button>
+
           <HistoriqueRelances commandeId={commande.id} />
         </div>
+      )}
+      </>
       )}
     </div>
   );

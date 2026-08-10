@@ -547,6 +547,20 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     );
   }
 
+  const monProfilCloser = closers.find((c) => c.email && c.email.toLowerCase() === session.user.email.toLowerCase());
+
+  if (workspace.role === "closer" && monProfilCloser) {
+    return (
+      <CloserPortalSaas
+        closer={monProfilCloser}
+        commandes={commandes.filter((c) => c.closer === monProfilCloser.nom)}
+        currency={workspace.currency}
+        workspace={workspace}
+        onStatusChanged={loadCommandes}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
@@ -784,7 +798,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
-      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} />}
+      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
     </div>
   );
@@ -1703,6 +1717,95 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChanged }) {
+  const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+  const confirmees = commandes.filter((c) => c.statut === "confirmee");
+  const [selected, setSelected] = useState(null);
+
+  async function changerStatut(commandeId, nouveauStatut) {
+    const ancien = commandes.find((c) => c.id === commandeId)?.statut;
+    await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commandeId);
+    await supabase.from("relances").insert([
+      { commande_id: commandeId, note: `📋 Statut : ${ancien} → ${nouveauStatut}` },
+    ]);
+    await onStatusChanged();
+    setSelected(null);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif" }}>
+      <div style={{ background: "#1a7a3c", color: "white", padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>RecuVente — {workspace.name}</div>
+          <button onClick={() => supabase.auth.signOut()} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+            Déconnexion
+          </button>
+        </div>
+        <div style={{ fontSize: 13, opacity: 0.8, marginTop: 8 }}>Bonjour</div>
+        <div style={{ fontWeight: 700, fontSize: 22 }}>{closer.nom}</div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>À traiter</div>
+            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{actives.length}</div>
+          </div>
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>Confirmées</div>
+            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{confirmees.length}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 20px" }}>
+        {actives.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "50px 20px", color: "#8A9089" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontSize: 14 }}>Aucune commande à traiter pour le moment.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {actives.map((c) => (
+              <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+                <div onClick={() => setSelected(selected === c.id ? null : c.id)} style={{ cursor: "pointer" }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{c.client}</div>
+                  <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit} · {c.tel}</div>
+                  <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 16, marginTop: 6, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                </div>
+
+                {selected === c.id && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #F0EEE6" }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                      <a href={`tel:${c.tel}`} style={{ flex: 1, textAlign: "center", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}>
+                        📞 Appeler
+                      </a>
+                      <a
+                        href={`https://wa.me/${cleanPhoneForWhatsApp(c.tel)}?text=${encodeURIComponent(`Bonjour ${(c.client || "").split(" ")[0]} 👋, nous confirmons votre commande "${c.produit}" (${Number(c.montant).toLocaleString("fr-FR")} ${currency}). Un livreur passera bientôt.`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ flex: 1, textAlign: "center", background: "#1F9D6E", color: "white", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                      >
+                        💬 WhatsApp
+                      </a>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => changerStatut(c.id, "confirmee")} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "10px 0", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                        ✅ Confirmer
+                      </button>
+                      <button onClick={() => changerStatut(c.id, "echouee")} style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "10px 0", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                        ❌ Échoué
+                      </button>
+                    </div>
+                    <HistoriqueRelances commandeId={c.id} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

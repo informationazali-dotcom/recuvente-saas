@@ -660,31 +660,85 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
-      <div style={{ background: "#1a7a3c", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, opacity: 0.8 }}>Espace de</div>
-        <div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 700 }}>{workspace.name}</div>
-        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-          {workspace.country} · {workspace.currency} · rôle : {workspace.role}
+      <style>{`
+        .rv-mesh-blob { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
+        .rv-mesh-1 { width: 180px; height: 180px; background: radial-gradient(circle, rgba(232,146,10,0.45) 0%, rgba(232,146,10,0) 70%); top: -60px; right: -40px; animation: rvMeshFloat1 9s ease-in-out infinite; }
+        .rv-mesh-2 { width: 140px; height: 140px; background: radial-gradient(circle, rgba(127,214,163,0.4) 0%, rgba(127,214,163,0) 70%); bottom: -50px; left: 10%; animation: rvMeshFloat2 11s ease-in-out infinite; }
+        .rv-mesh-3 { width: 110px; height: 110px; background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%); top: 20%; right: 25%; animation: rvMeshFloat3 7s ease-in-out infinite; }
+        @keyframes rvMeshFloat1 { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-20px,20px) scale(1.15); } }
+        @keyframes rvMeshFloat2 { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(25px,-15px) scale(1.1); } }
+        @keyframes rvMeshFloat3 { 0%, 100% { transform: translate(0,0) scale(1); opacity: 0.6; } 50% { transform: translate(-15px,-10px) scale(1.3); opacity: 1; } }
+        .rv-wave-1 { animation: rvWaveDrift 9s linear infinite; }
+        .rv-wave-2 { animation: rvWaveDrift 14s linear infinite reverse; }
+        .rv-wave-3 { animation: rvWaveDrift 20s linear infinite; }
+        @keyframes rvWaveDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .rv-glow { animation: rvGlowBreathe 4s ease-in-out infinite; }
+        @keyframes rvGlowBreathe { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+        .rv-3d-card { animation: rv3DFloat 6s ease-in-out infinite; transform-style: preserve-3d; }
+        @keyframes rv3DFloat {
+          0%, 100% { transform: rotateX(0deg) rotateY(0deg) translateZ(0); }
+          25% { transform: rotateX(3deg) rotateY(-4deg) translateZ(6px); }
+          50% { transform: rotateX(0deg) rotateY(0deg) translateZ(0); }
+          75% { transform: rotateX(-3deg) rotateY(4deg) translateZ(6px); }
+        }
+        .rv-livedot { animation: rvPulseDot 2s ease-in-out infinite; }
+        @keyframes rvPulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+
+      <div style={{ background: "#1a7a3c", color: "white", padding: "20px 20px 24px", borderRadius: 14, marginBottom: 20, position: "relative", overflow: "hidden" }}>
+        <div className="rv-mesh-blob rv-mesh-1" />
+        <div className="rv-mesh-blob rv-mesh-2" />
+        <div className="rv-mesh-blob rv-mesh-3" />
+
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 90, overflow: "hidden", pointerEvents: "none" }}>
+          <svg className="rv-wave-1" viewBox="0 0 400 60" preserveAspectRatio="none" style={{ position: "absolute", bottom: -5, width: "200%", height: 70 }}>
+            <path d="M0,30 C40,10 80,50 120,30 C160,10 200,50 240,30 C280,10 320,50 360,30 C380,20 390,25 400,30 L400,60 L0,60 Z" fill="rgba(232,146,10,0.55)" />
+          </svg>
+          <svg className="rv-wave-2" viewBox="0 0 400 60" preserveAspectRatio="none" style={{ position: "absolute", bottom: -8, width: "200%", height: 60 }}>
+            <path d="M0,25 C50,45 90,5 140,25 C190,45 230,5 280,25 C330,45 370,5 400,20 L400,60 L0,60 Z" fill="rgba(255,255,255,0.4)" />
+          </svg>
+          <svg className="rv-wave-3" viewBox="0 0 400 60" preserveAspectRatio="none" style={{ position: "absolute", bottom: -3, width: "200%", height: 50 }}>
+            <path d="M0,35 C60,15 100,45 160,25 C220,5 260,45 320,25 C360,10 380,30 400,25 L400,60 L0,60 Z" fill="rgba(248,180,60,0.4)" />
+          </svg>
         </div>
-        <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>Chiffre d'affaires confirmé</div>
-        <div style={{ fontSize: 26, fontWeight: 700 }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
-        <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency} au total (toutes commandes)</div>
-        {workspace.role === "owner" && (
-          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-            <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              👥 Gérer l'équipe
-            </button>
-            <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              💳 Mon abonnement
-            </button>
-            <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              🚚 Livreurs
-            </button>
-            <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              🎧 Closers
-            </button>
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
+            <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
+            <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
           </div>
-        )}
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 700 }}>{workspace.name}</div>
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+            {workspace.country} · {workspace.currency} · rôle : {workspace.role}
+          </div>
+
+          <div style={{ marginTop: 16, perspective: "800px" }}>
+            <div className="rv-3d-card" style={{ position: "relative", padding: "14px 16px", borderRadius: 14, background: "linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 70%)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 24px rgba(0,0,0,0.2)" }}>
+              <div className="rv-glow" style={{ position: "absolute", top: -16, left: -16, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />
+              <div style={{ fontSize: 12, opacity: 0.85, position: "relative" }}>Chiffre d'affaires confirmé</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 700, position: "relative" }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
+              <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2, position: "relative" }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency} au total</div>
+            </div>
+          </div>
+
+          {workspace.role === "owner" && (
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+              <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                👥 Gérer l'équipe
+              </button>
+              <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                💳 Mon abonnement
+              </button>
+              <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                🚚 Livreurs
+              </button>
+              <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                🎧 Closers
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <SubscriptionBanner subscription={subscription} />

@@ -395,15 +395,19 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
     }
     setLoading(true);
     setError("");
-    const { data: sessionData } = await supabase.auth.getSession();
-    const res = await fetch("/api/invite-member", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-      body: JSON.stringify({ workspaceId: workspace.id, email, password, role }),
-    });
-    const json = await res.json();
-    if (!res.ok) setError(json.error || "Erreur");
-    else onInvited();
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const res = await fetch("/api/invite-member", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ workspaceId: workspace.id, email, password, role }),
+      });
+      const json = await res.json().catch(() => ({ error: `Réponse invalide du serveur (code ${res.status})` }));
+      if (!res.ok) setError(json.error || `Erreur (${res.status})`);
+      else onInvited();
+    } catch (e) {
+      setError("Erreur réseau: " + e.message);
+    }
     setLoading(false);
   }
 

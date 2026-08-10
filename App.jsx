@@ -457,6 +457,17 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   const periodLabel = { aujourdhui: "Aujourd'hui", hier: "Hier", semaine: "Cette semaine", mois: "Ce mois", personnalise: "Période personnalisée" }[datePreset];
 
+  const evolutionData = useMemo(() => {
+    const map = {};
+    commandesInRange.forEach((c) => {
+      const d = new Date(c.created_at);
+      const key = d.toISOString().slice(0, 10);
+      if (!map[key]) map[key] = { date: key, commandes: 0, label: d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) };
+      map[key].commandes += 1;
+    });
+    return Object.values(map).sort((a, b) => (a.date < b.date ? -1 : 1));
+  }, [commandesInRange]);
+
   const anomaliesProduitZone = useMemo(() => {
     const traites = commandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
 
@@ -746,6 +757,37 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {!accesBloque && !quotaAtteint && maxCommandesMois !== null && (
         <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 10 }}>
           {commandesCeMois} / {maxCommandesMois} commandes utilisées ce mois-ci
+        </div>
+      )}
+
+      {commandesInRange.length > 0 && (
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 20 }}>
+          <StatusDonutSaas
+            livrees={commandesInRange.filter((c) => c.statut === "confirmee").length}
+            enAttente={commandesInRange.filter((c) => c.statut === "en_cours").length}
+            echouees={commandesInRange.filter((c) => c.statut === "echouee").length}
+          />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#1F9D6E", display: "inline-block" }} />
+              Confirmées <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "confirmee").length}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#E8A93D", display: "inline-block" }} />
+              En cours <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "en_cours").length}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#D64933", display: "inline-block" }} />
+              Échouées <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "echouee").length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {evolutionData.length > 1 && (
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "18px 20px 14px", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>Évolution des commandes</div>
+          <EvolutionChartSaas data={evolutionData} />
         </div>
       )}
 
@@ -2012,5 +2054,69 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
         )}
       </div>
     </div>
+  );
+}
+
+function StatusDonutSaas({ livrees, enAttente, echouees }) {
+  const total = livrees + enAttente + echouees || 1;
+  const r = 34;
+  const circ = 2 * Math.PI * r;
+  const segs = [
+    { val: livrees, color: "#1F9D6E" },
+    { val: enAttente, color: "#E8A93D" },
+    { val: echouees, color: "#D64933" },
+  ];
+  let offset = 0;
+  return (
+    <svg width="92" height="92" viewBox="0 0 92 92" style={{ flexShrink: 0 }}>
+      <circle cx="46" cy="46" r={r} fill="none" stroke="#ECE8DC" strokeWidth="12" />
+      {segs.map((s, i) => {
+        const frac = s.val / total;
+        const len = frac * circ;
+        const el = (
+          <circle key={i} cx="46" cy="46" r={r} fill="none" stroke={s.color} strokeWidth="12" strokeDasharray={`${len} ${circ - len}`} strokeDashoffset={-offset} transform="rotate(-90 46 46)" />
+        );
+        offset += len;
+        return el;
+      })}
+      <text x="46" y="50" textAnchor="middle" fontFamily="monospace" fontWeight="600" fontSize="18" fill="#16231F">
+        {livrees + enAttente + echouees}
+      </text>
+    </svg>
+  );
+}
+
+function EvolutionChartSaas({ data }) {
+  const w = 300;
+  const h = 110;
+  const padL = 4, padR = 4, padT = 8, padB = 20;
+  const maxVal = Math.max(...data.map((d) => d.commandes), 1);
+  const innerW = w - padL - padR;
+  const innerH = h - padT - padB;
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
+
+  const points = data.map((d, i) => {
+    const x = padL + i * stepX;
+    const y = padT + innerH - (d.commandes / maxVal) * innerH;
+    return { x, y, d };
+  });
+
+  const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ");
+  const areaD = `${pathD} L ${points[points.length - 1].x} ${padT + innerH} L ${points[0].x} ${padT + innerH} Z`;
+
+  return (
+    <svg width="100%" height={h + 10} viewBox={`0 0 ${w} ${h + 10}`} preserveAspectRatio="none" style={{ overflow: "visible" }}>
+      <path d={areaD} fill="#EAF3DE" />
+      <path d={pathD} fill="none" stroke="#1a7a3c" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="2.5" fill="#1a7a3c" />)}
+      {points.map((p, i) => {
+        if (data.length > 8 && i % Math.ceil(data.length / 6) !== 0 && i !== data.length - 1) return null;
+        return (
+          <text key={"t" + i} x={p.x} y={h + 8} fontSize="8" fill="#8A9089" textAnchor="middle">
+            {p.d.label}
+          </text>
+        );
+      })}
+    </svg>
   );
 }

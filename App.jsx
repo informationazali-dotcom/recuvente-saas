@@ -1,5 +1,121 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { jsPDF } from "jspdf";
 import { supabase } from "./supabaseClient";
+
+function numeroFacture(commande) {
+  const date = new Date(commande.created_at);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const short = commande.id.replace(/-/g, "").slice(0, 6).toUpperCase();
+  return `F-${y}${m}-${short}`;
+}
+
+function genererFacturePDF(commande, workspace) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const green = [26, 122, 60];
+  const orange = [232, 146, 10];
+  const gray = [107, 113, 104];
+  const dark = [22, 35, 31];
+
+  doc.setFillColor(...green);
+  doc.rect(0, 0, 210, 32, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(workspace.name.toUpperCase(), 15, 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(workspace.country || "", 15, 25);
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("FACTURE", 195, 18, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(numeroFacture(commande), 195, 25, { align: "right" });
+
+  let y = 46;
+  doc.setTextColor(...gray);
+  doc.setFontSize(9);
+  doc.text("FACTURÉ À", 15, y);
+  doc.text("DATE", 140, y);
+
+  y += 6;
+  doc.setTextColor(...dark);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(commande.client || "", 15, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(new Date(commande.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }), 140, y);
+
+  y += 6;
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text(commande.tel || "", 15, y);
+  if (commande.zone) {
+    y += 5;
+    doc.text(commande.zone, 15, y, { maxWidth: 90 });
+  }
+
+  y += 14;
+  doc.setFillColor(...green);
+  doc.rect(15, y, 180, 9, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("PRODUIT", 18, y + 6);
+  doc.text("MONTANT", 190, y + 6, { align: "right" });
+
+  y += 9;
+  doc.setDrawColor(230, 230, 225);
+  doc.setTextColor(...dark);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.rect(15, y, 180, 12);
+  doc.text(commande.produit || "", 18, y + 8, { maxWidth: 130 });
+  const montantTxt = `${Number(commande.montant).toLocaleString("fr-FR")} ${workspace.currency}`;
+  doc.text(montantTxt, 190, y + 8, { align: "right" });
+
+  y += 20;
+  doc.setDrawColor(...green);
+  doc.setLineWidth(0.5);
+  doc.line(120, y, 195, y);
+  y += 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...dark);
+  doc.text("TOTAL", 120, y);
+  doc.setTextColor(...orange);
+  doc.setFontSize(14);
+  doc.text(montantTxt, 195, y, { align: "right" });
+
+  y += 12;
+  const statutPaiement = commande.statut === "confirmee" ? "PAYÉE (à la livraison)" : "EN ATTENTE DE PAIEMENT";
+  const couleurStatut = commande.statut === "confirmee" ? green : orange;
+  doc.setFillColor(...couleurStatut);
+  doc.roundedRect(15, y, 75, 9, 2, 2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text(statutPaiement, 52.5, y + 6, { align: "center" });
+
+  doc.setTextColor(...gray);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Merci pour votre confiance — ${workspace.name}`, 105, 280, { align: "center" });
+  doc.text("Paiement à la livraison (COD) — Facture générée automatiquement", 105, 285, { align: "center" });
+
+  const nomFichier = `Facture-${numeroFacture(commande)}.pdf`;
+  const blob = doc.output("blob");
+  const fichier = new File([blob], nomFichier, { type: "application/pdf" });
+
+  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+    navigator.share({ files: [fichier], title: nomFichier }).catch(() => doc.save(nomFichier));
+  } else {
+    doc.save(nomFichier);
+  }
+}
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -471,7 +587,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {commandes.map((c) => (
-          <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} />
+          <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} />
         ))}
       </div>
       </>
@@ -1006,7 +1122,7 @@ const STATUTS = {
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
@@ -1106,6 +1222,15 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                 </div>
               )}
             </div>
+          )}
+
+          {workspace && (
+            <button
+              onClick={() => genererFacturePDF(commande, workspace)}
+              style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+            >
+              🧾 Facture PDF
+            </button>
           )}
 
           <HistoriqueRelances commandeId={commande.id} />

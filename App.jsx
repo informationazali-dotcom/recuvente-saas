@@ -641,8 +641,9 @@ function DemandeCard({ demande, onConfirmed }) {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
       body: JSON.stringify({ requestId: demande.id }),
     });
+    const json = await res.json().catch(() => ({}));
     if (res.ok) await onConfirmed();
-    else alert("Erreur lors de la confirmation");
+    else alert("Erreur (" + res.status + "): " + (json.error || "inconnue"));
     setLoading(false);
   }
 

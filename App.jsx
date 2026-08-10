@@ -529,6 +529,24 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     );
   }
 
+  if (workspace.role === "comptable") {
+    return (
+      <ComptablePortalSaas
+        workspace={workspace}
+        beneficeReel={beneficeReel}
+        caConfirme={caConfirme}
+        confirmees={confirmees}
+        coutLivraisons={coutLivraisons}
+        coutProduitsInfo={coutProduitsInfo}
+        COUT_LIVRAISON={COUT_LIVRAISON}
+        depotsParLivreur={depotsParLivreur}
+        totalCommission={totalCommission}
+        totalADeposer={totalADeposer}
+        livreurs={livreurs}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
@@ -1606,6 +1624,85 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, coutLivraisons, coutProduitsInfo, COUT_LIVRAISON, depotsParLivreur, totalCommission, totalADeposer, livreurs }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
+      <div style={{ background: "#16231F", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 13, opacity: 0.75 }}>🧮 Comptabilité — {workspace.name}</div>
+          <button onClick={() => supabase.auth.signOut()} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+            Déconnexion
+          </button>
+        </div>
+      </div>
+
+      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
+        <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+          {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+          CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({confirmees.length} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
+        </div>
+      </div>
+
+      {coutProduitsInfo.nbInconnu > 0 && (
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 12, color: "#8A6412" }}>
+          ⚠️ {coutProduitsInfo.nbInconnu} commande{coutProduitsInfo.nbInconnu > 1 ? "s" : ""} ({coutProduitsInfo.montantInconnu.toLocaleString("fr-FR")} {workspace.currency}) sans coût produit connu — bénéfice sous-estimé.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💵 À payer aux livreurs</div>
+          <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "#e8920a", marginTop: 3 }}>{totalCommission.toLocaleString("fr-FR")} {workspace.currency}</div>
+        </div>
+        <div style={{ background: "linear-gradient(135deg, #1a7a3c, #1F9D6E)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", textTransform: "uppercase" }}>🏦 Dépôt attendu</div>
+          <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "white", marginTop: 3 }}>{totalADeposer.toLocaleString("fr-FR")} {workspace.currency}</div>
+        </div>
+      </div>
+
+      {livreurs.some((l) => l.en_tournee) && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🟢 Livreurs en tournée</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {livreurs.filter((l) => l.en_tournee).map((l) => (
+              <div key={l.id} style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, fontSize: 13.5 }}>{l.nom}</span>
+                {l.position_lat && l.position_lng ? (
+                  <a href={`https://www.google.com/maps?q=${l.position_lat},${l.position_lng}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 600 }}>📍 Voir</a>
+                ) : (
+                  <span style={{ fontSize: 11.5, color: "#8A9089" }}>Position en attente...</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Détail par livreur</div>
+      {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {depotsParLivreur.map((l) => (
+          <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+            <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+                Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+              </div>
+              <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+                À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

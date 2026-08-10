@@ -30,7 +30,7 @@ export default function App() {
   async function loadSubscription(workspaceId) {
     const { data } = await supabase
       .from("subscriptions")
-      .select("*, subscription_plans(nom, prix, devise)")
+      .select("*, subscription_plans(nom, prix, devise, max_commandes_mois)")
       .eq("workspace_id", workspaceId)
       .maybeSingle();
     setSubscription(data || null);
@@ -160,6 +160,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return false;
   })();
 
+  const maxCommandesMois = subscription?.subscription_plans?.max_commandes_mois ?? null;
+  const commandesCeMois = commandes.filter((c) => {
+    const d = new Date(c.created_at);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+  const quotaAtteint = maxCommandesMois !== null && commandesCeMois >= maxCommandesMois && !accesBloque;
+
   async function loadCommandes() {
     const { data, error } = await supabase
       .from("commandes")
@@ -177,6 +185,10 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   async function addCommande(form) {
     if (accesBloque) {
       alert("Ton essai gratuit est terminé. Passe à un plan payant pour continuer à ajouter des commandes.");
+      return;
+    }
+    if (quotaAtteint) {
+      alert("Quota de commandes du mois atteint pour ton plan. Passe à un plan supérieur pour continuer.");
       return;
     }
     const { error } = await supabase.from("commandes").insert([
@@ -222,12 +234,24 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
+      {quotaAtteint && (
+        <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#D64933" }}>
+          🔒 Quota du plan atteint ({commandesCeMois}/{maxCommandesMois} commandes ce mois-ci). Passe à un plan supérieur pour continuer.
+        </div>
+      )}
+
+      {!accesBloque && !quotaAtteint && maxCommandesMois !== null && (
+        <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 10 }}>
+          {commandesCeMois} / {maxCommandesMois} commandes utilisées ce mois-ci
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandes.length})</div>
         <button
-          onClick={() => !accesBloque && setShowAdd(true)}
-          disabled={accesBloque}
-          style={{ ...btnStyle, width: "auto", padding: "8px 16px", opacity: accesBloque ? 0.4 : 1, cursor: accesBloque ? "not-allowed" : "pointer" }}
+          onClick={() => !accesBloque && !quotaAtteint && setShowAdd(true)}
+          disabled={accesBloque || quotaAtteint}
+          style={{ ...btnStyle, width: "auto", padding: "8px 16px", opacity: (accesBloque || quotaAtteint) ? 0.4 : 1, cursor: (accesBloque || quotaAtteint) ? "not-allowed" : "pointer" }}
         >
           + Ajouter
         </button>

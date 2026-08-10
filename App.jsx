@@ -147,6 +147,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
+  const [showAbonnement, setShowAbonnement] = useState(false);
 
   const accesBloque = (() => {
     if (subscription === undefined || subscription === null) return false; // pas encore chargé ou pas d'abonnement du tout (ancien workspace) : ne rien bloquer
@@ -202,9 +203,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>Chiffre d'affaires</div>
         <div style={{ fontSize: 26, fontWeight: 700 }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency}</div>
         {workspace.role === "owner" && (
-          <button onClick={() => setShowTeam(true)} style={{ marginTop: 12, background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-            👥 Gérer l'équipe
-          </button>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+              👥 Gérer l'équipe
+            </button>
+            <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+              💳 Mon abonnement
+            </button>
+          </div>
         )}
       </div>
 
@@ -252,6 +258,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
+      {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
     </div>
   );
 }
@@ -449,6 +456,7 @@ function SubscriptionBanner({ subscription }) {
 function AdminPanel({ session }) {
   const [data, setData] = useState(undefined);
   const [error, setError] = useState("");
+  const [debug, setDebug] = useState("");
 
   async function load() {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -456,8 +464,10 @@ function AdminPanel({ session }) {
       headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
     });
     const json = await res.json();
-    if (!res.ok) setError(json.error || "Erreur");
-    else setData(json);
+    if (!res.ok) {
+      setError(json.error || "Erreur");
+      setDebug(json.debug || "");
+    } else setData(json);
   }
 
   useEffect(() => {
@@ -467,9 +477,10 @@ function AdminPanel({ session }) {
   if (error) {
     return (
       <Centered>
-        <div style={{ textAlign: "center" }}>
+        <div style={{ textAlign: "center", maxWidth: 400, padding: 20 }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>🔒</div>
           <div style={{ color: "#D64933", fontWeight: 600 }}>{error}</div>
+          {debug && <div style={{ color: "#8A9089", fontSize: 12, marginTop: 12, wordBreak: "break-all" }}>{debug}</div>}
         </div>
       </Centered>
     );
@@ -499,6 +510,17 @@ function AdminPanel({ session }) {
         </div>
       </div>
 
+      {data.demandes && data.demandes.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10, color: "#8A6412" }}>💰 Demandes de paiement en attente ({data.demandes.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {data.demandes.map((d) => (
+              <DemandeCard key={d.id} demande={d} onConfirmed={load} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Toutes les entreprises</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {data.workspaces.map((ws) => (
@@ -514,6 +536,127 @@ function AdminPanel({ session }) {
         ))}
         {data.workspaces.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune entreprise inscrite pour l'instant.</div>}
       </div>
+    </div>
+  );
+}
+
+function AbonnementModal({ workspace, subscription, onClose }) {
+  const [plans, setPlans] = useState([]);
+  const [demandes, setDemandes] = useState([]);
+  const [loading, setLoading] = useState(null);
+  const [message, setMessage] = useState("");
+
+  async function load() {
+    const { data: p } = await supabase.from("subscription_plans").select("*").order("prix");
+    setPlans(p || []);
+    const { data: d } = await supabase
+      .from("upgrade_requests")
+      .select("*, subscription_plans(nom)")
+      .eq("workspace_id", workspace.id)
+      .order("created_at", { ascending: false });
+    setDemandes(d || []);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const demandeEnAttente = demandes.find((d) => d.statut === "en_attente");
+
+  async function demander(planId) {
+    setLoading(planId);
+    const { error } = await supabase.from("upgrade_requests").insert([
+      { workspace_id: workspace.id, plan_id: planId },
+    ]);
+    if (error) {
+      setMessage("Erreur: " + error.message);
+    } else {
+      setMessage("✅ Demande envoyée ! Effectue le paiement Mobile Money et contacte le support pour confirmation.");
+      await load();
+    }
+    setLoading(null);
+  }
+
+  const planActuel = subscription?.subscription_plans?.nom;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Mon abonnement</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        {planActuel && (
+          <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: "#3B6D11" }}>
+            Plan actuel : <strong>{planActuel}</strong> — statut : {subscription.status}
+          </div>
+        )}
+
+        {demandeEnAttente && (
+          <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: "#8A6412" }}>
+            ⏳ Demande en attente pour le plan <strong>{demandeEnAttente.subscription_plans?.nom}</strong> — en attente de confirmation.
+          </div>
+        )}
+
+        {message && (
+          <div style={{ background: "#EAF3DE", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12.5, color: "#3B6D11" }}>
+            {message}
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {plans.map((p) => (
+            <div key={p.id} style={{ border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{p.nom}</div>
+              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "#1a7a3c", marginTop: 3 }}>
+                {Number(p.prix).toLocaleString("fr-FR")} {p.devise}<span style={{ fontSize: 11, color: "#8A9089", fontWeight: 400 }}>/mois</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>
+                {p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes illimitées"} · {p.max_membres ? `${p.max_membres} membres max` : "Membres illimités"}
+              </div>
+              <button
+                onClick={() => demander(p.id)}
+                disabled={loading === p.id || !!demandeEnAttente}
+                style={{ width: "100%", marginTop: 10, padding: "9px 0", borderRadius: 8, border: "none", background: p.nom === planActuel ? "#DDD8CC" : "#1a7a3c", color: "white", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+              >
+                {loading === p.id ? "..." : p.nom === planActuel ? "Plan actuel" : "Demander ce plan"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DemandeCard({ demande, onConfirmed }) {
+  const [loading, setLoading] = useState(false);
+
+  async function confirmer() {
+    setLoading(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const res = await fetch("/api/confirmer-paiement", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+      body: JSON.stringify({ requestId: demande.id }),
+    });
+    if (res.ok) await onConfirmed();
+    else alert("Erreur lors de la confirmation");
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{demande.workspaceName}</div>
+        <div style={{ fontSize: 12, color: "#8A6412" }}>
+          Demande plan <strong>{demande.subscription_plans?.nom}</strong> — {Number(demande.subscription_plans?.prix).toLocaleString("fr-FR")} {demande.subscription_plans?.devise}
+        </div>
+      </div>
+      <button onClick={confirmer} disabled={loading} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        {loading ? "..." : "✅ Confirmer reçu"}
+      </button>
     </div>
   );
 }

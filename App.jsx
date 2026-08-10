@@ -208,7 +208,7 @@ export default function App() {
 
 function Centered({ children }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", background: "#FAFAF7" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
       {children}
     </div>
   );
@@ -237,7 +237,7 @@ function AuthScreen() {
   return (
     <Centered>
       <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 340 }}>
-        <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>RecuVente <span style={{ color: "#e8920a" }}>SaaS</span></div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 4 }}>RecuVente <span style={{ color: "#e8920a" }}>SaaS</span></div>
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
           {mode === "signup" ? "Crée ton compte et ton espace" : "Connexion"}
         </div>
@@ -260,7 +260,7 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
   return (
     <Centered>
       <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 340 }}>
-        <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Bienvenue 👋</div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Bienvenue 👋</div>
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
           Nomme ton entreprise pour créer ton espace privé.
         </div>
@@ -659,10 +659,10 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
         <div style={{ fontSize: 13, opacity: 0.8 }}>Espace de</div>
-        <div style={{ fontSize: 24, fontWeight: 700 }}>{workspace.name}</div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 700 }}>{workspace.name}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
           {workspace.country} · {workspace.currency} · rôle : {workspace.role}
         </div>
@@ -899,7 +899,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           </div>
           <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
-            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
               {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
@@ -923,11 +923,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
             <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "14px 16px" }}>
               <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💵 À payer aux livreurs</div>
-              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "#e8920a", marginTop: 3 }}>{totalCommission.toLocaleString("fr-FR")} {workspace.currency}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#e8920a", marginTop: 3 }}>{totalCommission.toLocaleString("fr-FR")} {workspace.currency}</div>
             </div>
             <div style={{ background: "linear-gradient(135deg, #1a7a3c, #1F9D6E)", borderRadius: 14, padding: "14px 16px" }}>
               <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", textTransform: "uppercase" }}>🏦 Dépôt attendu</div>
-              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "white", marginTop: 3 }}>{totalADeposer.toLocaleString("fr-FR")} {workspace.currency}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "white", marginTop: 3 }}>{totalADeposer.toLocaleString("fr-FR")} {workspace.currency}</div>
             </div>
           </div>
 
@@ -1222,9 +1222,9 @@ function AdminPanel({ session }) {
   const statusLabels = { trial: "🎁 Essai", active: "✅ Actif", suspended: "🔴 Suspendu", cancelled: "Annulé" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <div style={{ fontWeight: 700, fontSize: 22 }}>Admin RecuVente</div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22 }}>Admin RecuVente</div>
         <a href="?" style={{ fontSize: 12.5, color: "#1a7a3c", textDecoration: "underline" }}>← Mon espace</a>
       </div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>Connecté en tant que {session.user.email}</div>
@@ -1343,7 +1343,7 @@ function AbonnementModal({ workspace, subscription, onClose }) {
           {plans.map((p) => (
             <div key={p.id} style={{ border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{p.nom}</div>
-              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "#1a7a3c", marginTop: 3 }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#1a7a3c", marginTop: 3 }}>
                 {Number(p.prix).toLocaleString("fr-FR")} {p.devise}<span style={{ fontSize: 11, color: "#8A9089", fontWeight: 400 }}>/mois</span>
               </div>
               <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>
@@ -1817,7 +1817,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif" }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20 }}>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>RecuVente</div>
         <div style={{ fontSize: 13, opacity: 0.8 }}>Bonjour</div>
@@ -1835,17 +1835,17 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: 11, opacity: 0.75 }}>À traiter</div>
-            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{actives.length}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 20 }}>{actives.length}</div>
           </div>
           <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: 11, opacity: 0.75 }}>Confirmées</div>
-            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{confirmees.length}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 20 }}>{confirmees.length}</div>
           </div>
         </div>
 
         <div style={{ marginTop: 10, background: "rgba(232,146,10,0.18)", border: "1px solid rgba(232,146,10,0.35)", borderRadius: 10, padding: "12px 14px" }}>
           <div style={{ fontSize: 11, opacity: 0.85 }}>💰 Mes gains ({confirmees.length} × 1 500 {currency})</div>
-          <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 22, color: "#e8920a", marginTop: 2 }}>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#e8920a", marginTop: 2 }}>
             {(confirmees.length * 1500).toLocaleString("fr-FR")} {currency}
           </div>
         </div>
@@ -1868,7 +1868,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{c.client}</div>
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 2 }}>📍 {c.zone}</div>
-                <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 17, marginTop: 8, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 17, marginTop: 8, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
                 <a href={`tel:${c.tel}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 0", borderRadius: 9, fontWeight: 600, fontSize: 13, textDecoration: "none", marginTop: 12 }}>
                   📞 {c.tel}
                 </a>
@@ -1891,7 +1891,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
 
 function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, coutLivraisons, coutProduitsInfo, COUT_LIVRAISON, depotsParLivreur, totalCommission, totalADeposer, livreurs }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
       <div style={{ background: "#16231F", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 13, opacity: 0.75 }}>🧮 Comptabilité — {workspace.name}</div>
@@ -1903,7 +1903,7 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
 
       <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
-        <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
           {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
@@ -1920,11 +1920,11 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
         <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "14px 16px" }}>
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💵 À payer aux livreurs</div>
-          <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "#e8920a", marginTop: 3 }}>{totalCommission.toLocaleString("fr-FR")} {workspace.currency}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#e8920a", marginTop: 3 }}>{totalCommission.toLocaleString("fr-FR")} {workspace.currency}</div>
         </div>
         <div style={{ background: "linear-gradient(135deg, #1a7a3c, #1F9D6E)", borderRadius: 14, padding: "14px 16px" }}>
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", textTransform: "uppercase" }}>🏦 Dépôt attendu</div>
-          <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, color: "white", marginTop: 3 }}>{totalADeposer.toLocaleString("fr-FR")} {workspace.currency}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "white", marginTop: 3 }}>{totalADeposer.toLocaleString("fr-FR")} {workspace.currency}</div>
         </div>
       </div>
 
@@ -1984,7 +1984,7 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif" }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>RecuVente — {workspace.name}</div>
@@ -1998,11 +1998,11 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: 11, opacity: 0.75 }}>À traiter</div>
-            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{actives.length}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 20 }}>{actives.length}</div>
           </div>
           <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: 11, opacity: 0.75 }}>Confirmées</div>
-            <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 20 }}>{confirmees.length}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 20 }}>{confirmees.length}</div>
           </div>
         </div>
       </div>
@@ -2020,7 +2020,7 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
                 <div onClick={() => setSelected(selected === c.id ? null : c.id)} style={{ cursor: "pointer" }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{c.client}</div>
                   <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit} · {c.tel}</div>
-                  <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 16, marginTop: 6, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, marginTop: 6, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
                 </div>
 
                 {selected === c.id && (

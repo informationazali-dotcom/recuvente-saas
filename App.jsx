@@ -683,7 +683,63 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         }
         .rv-livedot { animation: rvPulseDot 2s ease-in-out infinite; }
         @keyframes rvPulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .rv-saas-sidebar { display: none; }
+        .rv-saas-content { }
+        .rv-saas-tabs-mobile { }
+        @media (min-width: 900px) {
+          .rv-saas-sidebar {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 220px;
+            background: #16231F;
+            flex-direction: column;
+            padding: 24px 14px;
+            z-index: 30;
+          }
+          .rv-saas-content {
+            margin-left: 220px;
+            max-width: 800px;
+          }
+          .rv-saas-tabs-mobile { display: none !important; }
+        }
       `}</style>
+
+      <div className="rv-saas-sidebar">
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: "white", marginBottom: 28, padding: "0 8px" }}>
+          RECU<span style={{ color: "#e8920a" }}>VENTE</span>
+        </div>
+        {[
+          { key: "commandes", label: "Commandes" },
+          { key: "clients", label: "Clients" },
+          ...(workspace.role === "owner" ? [{ key: "compta", label: "🧮 Compta" }] : []),
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setVue(t.key)}
+            style={{
+              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
+              background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
+              color: vue === t.key ? "white" : "rgba(255,255,255,0.6)",
+              fontSize: 14, fontWeight: vue === t.key ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+        <div style={{ marginTop: "auto" }}>
+          <a href="?admin=1" style={{ display: "block", fontSize: 11.5, color: "rgba(255,255,255,0.5)", padding: "0 8px", marginBottom: 10, textDecoration: "underline" }}>
+            🧮 Admin RecuVente
+          </a>
+          <button onClick={() => supabase.auth.signOut()} style={{ width: "100%", padding: "8px 0", borderRadius: 9, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: 12.5, cursor: "pointer" }}>
+            Déconnexion
+          </button>
+        </div>
+      </div>
+
+      <div className="rv-saas-content">
 
       <div style={{ background: "#1a7a3c", color: "white", padding: "20px 20px 24px", borderRadius: 14, marginBottom: 20, position: "relative", overflow: "hidden" }}>
         <div className="rv-mesh-blob rv-mesh-1" />
@@ -771,7 +827,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button
           onClick={() => setVue("commandes")}
           style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
@@ -1026,13 +1082,15 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <a href="?admin=1" style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: 12, color: "#8A9089", textDecoration: "underline" }}>
+      <a href="?admin=1" className="rv-saas-tabs-mobile" style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: 12, color: "#8A9089", textDecoration: "underline" }}>
         🧮 Panel Admin RecuVente
       </a>
 
-      <button onClick={() => supabase.auth.signOut()} style={{ ...btnStyle, marginTop: 10, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
+      <button onClick={() => supabase.auth.signOut()} className="rv-saas-tabs-mobile" style={{ ...btnStyle, marginTop: 10, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
         Déconnexion
       </button>
+
+      </div>
 
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}

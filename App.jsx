@@ -144,6 +144,17 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showAdd, setShowAdd] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
 
+  const accesBloque = (() => {
+    if (subscription === undefined || subscription === null) return false; // pas encore chargé ou pas d'abonnement du tout (ancien workspace) : ne rien bloquer
+    if (subscription.status === "active") return false;
+    if (subscription.status === "trial") {
+      const finEssai = new Date(subscription.trial_ends_at);
+      return finEssai < new Date();
+    }
+    if (subscription.status === "suspended" || subscription.status === "cancelled") return true;
+    return false;
+  })();
+
   async function loadCommandes() {
     const { data, error } = await supabase
       .from("commandes")
@@ -159,6 +170,10 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }, []);
 
   async function addCommande(form) {
+    if (accesBloque) {
+      alert("Ton essai gratuit est terminé. Passe à un plan payant pour continuer à ajouter des commandes.");
+      return;
+    }
     const { error } = await supabase.from("commandes").insert([
       { ...form, montant: Number(form.montant), workspace_id: workspace.id },
     ]);
@@ -191,9 +206,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <SubscriptionBanner subscription={subscription} />
 
+      {accesBloque && (
+        <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#D64933" }}>
+          🔒 Impossible d'ajouter de nouvelles commandes tant que l'abonnement n'est pas actif. Tes données existantes restent accessibles et en sécurité.
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandes.length})</div>
-        <button onClick={() => setShowAdd(true)} style={{ ...btnStyle, width: "auto", padding: "8px 16px" }}>
+        <button
+          onClick={() => !accesBloque && setShowAdd(true)}
+          disabled={accesBloque}
+          style={{ ...btnStyle, width: "auto", padding: "8px 16px", opacity: accesBloque ? 0.4 : 1, cursor: accesBloque ? "not-allowed" : "pointer" }}
+        >
           + Ajouter
         </button>
       </div>

@@ -457,6 +457,44 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   const periodLabel = { aujourdhui: "Aujourd'hui", hier: "Hier", semaine: "Cette semaine", mois: "Ce mois", personnalise: "Période personnalisée" }[datePreset];
 
+  const anomaliesProduitZone = useMemo(() => {
+    const traites = commandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
+
+    const globalParProduit = {};
+    traites.forEach((c) => {
+      const p = (c.produit || "").split(" x")[0].trim();
+      if (!p) return;
+      if (!globalParProduit[p]) globalParProduit[p] = { total: 0, echecs: 0 };
+      globalParProduit[p].total += 1;
+      if (c.statut === "echouee") globalParProduit[p].echecs += 1;
+    });
+
+    const parProduitZone = {};
+    traites.forEach((c) => {
+      const p = (c.produit || "").split(" x")[0].trim();
+      const z = (c.zone || "").trim();
+      if (!p || !z) return;
+      const key = p + "|||" + z;
+      if (!parProduitZone[key]) parProduitZone[key] = { produit: p, zone: z, total: 0, echecs: 0 };
+      parProduitZone[key].total += 1;
+      if (c.statut === "echouee") parProduitZone[key].echecs += 1;
+    });
+
+    const anomalies = [];
+    Object.values(parProduitZone).forEach((g) => {
+      if (g.total < 5) return;
+      const tauxLocal = g.echecs / g.total;
+      const global = globalParProduit[g.produit];
+      const tauxGlobal = global && global.total > 0 ? global.echecs / global.total : 0;
+      const ecartPoints = (tauxLocal - tauxGlobal) * 100;
+      if (ecartPoints >= 15 && tauxLocal >= tauxGlobal * 1.5) {
+        anomalies.push({ produit: g.produit, zone: g.zone, total: g.total, tauxLocal: Math.round(tauxLocal * 100), tauxGlobal: Math.round(tauxGlobal * 100) });
+      }
+    });
+
+    return anomalies.sort((a, b) => b.tauxLocal - a.tauxLocal);
+  }, [commandes]);
+
   const clients = useMemo(() => {
     const map = {};
     commandes.forEach((c) => {
@@ -708,6 +746,22 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {!accesBloque && !quotaAtteint && maxCommandesMois !== null && (
         <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 10 }}>
           {commandesCeMois} / {maxCommandesMois} commandes utilisées ce mois-ci
+        </div>
+      )}
+
+      {anomaliesProduitZone.length > 0 && (
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412", marginBottom: 8 }}>
+            📍 {anomaliesProduitZone.length} produit{anomaliesProduitZone.length > 1 ? "s" : ""} échoue{anomaliesProduitZone.length > 1 ? "nt" : ""} anormalement dans une zone précise
+          </div>
+          {anomaliesProduitZone.slice(0, 3).map((a, i) => (
+            <div key={i} style={{ fontSize: 12, color: "#8A6412", marginBottom: 3 }}>
+              <strong>{a.produit}</strong> à <strong>{a.zone}</strong> — {a.tauxLocal}% d'échec ici (contre {a.tauxGlobal}% ailleurs, sur {a.total} commandes)
+            </div>
+          ))}
+          <div style={{ fontSize: 10.5, color: "#8A6412", marginTop: 4, opacity: 0.8 }}>
+            Vérifie l'adresse, le livreur assigné, ou la disponibilité du produit dans cette zone.
+          </div>
         </div>
       )}
 

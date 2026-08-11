@@ -509,11 +509,45 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     });
   }, [commandes, dateRange]);
 
+  const [filterStatut, setFilterStatut] = useState("toutes");
+
   const commandesAffichees = useMemo(() => {
-    if (!recherche.trim()) return commandesInRange;
-    const q = recherche.trim().toLowerCase();
-    return commandesInRange.filter((c) => (c.client || "").toLowerCase().includes(q) || (c.tel || "").includes(q));
-  }, [commandesInRange, recherche]);
+    let r = commandesInRange;
+    if (filterStatut !== "toutes") r = r.filter((c) => c.statut === filterStatut);
+    if (recherche.trim()) {
+      const q = recherche.trim().toLowerCase();
+      r = r.filter((c) => (c.client || "").toLowerCase().includes(q) || (c.tel || "").includes(q));
+    }
+    return r;
+  }, [commandesInRange, recherche, filterStatut]);
+
+  const groupedByDay = useMemo(() => {
+    const groups = {};
+    commandesAffichees.forEach((c) => {
+      const d = new Date(c.created_at);
+      const dayKey = d.toISOString().slice(0, 10);
+      if (!groups[dayKey]) {
+        groups[dayKey] = { label: d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), orders: [] };
+      }
+      groups[dayKey].orders.push(c);
+    });
+    return Object.entries(groups).sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([, val]) => val);
+  }, [commandesAffichees]);
+
+  function exportCSV() {
+    const headers = ["Client", "Téléphone", "Produit", "Montant", "Zone", "Statut", "Livreur", "Date"];
+    const rows = commandesAffichees.map((c) => [
+      c.client, c.tel, c.produit, c.montant, c.zone || "", STATUTS[c.statut]?.label || c.statut, c.livreur || "", new Date(c.created_at).toLocaleDateString("fr-FR"),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${workspace.name}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const periodLabel = { aujourdhui: "Aujourd'hui", hier: "Hier", semaine: "Cette semaine", mois: "Ce mois", personnalise: "Période personnalisée" }[datePreset];
 
@@ -635,6 +669,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const totalCA = commandesInRange.reduce((s, c) => s + Number(c.montant), 0);
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
+  const echoueesInRange = commandesInRange.filter((c) => c.statut === "echouee");
+  const enCoursInRange = commandesInRange.filter((c) => c.statut === "en_cours");
+  const aRisqueCount = echoueesInRange.length + enCoursInRange.length;
+  const tauxLivraison = commandesInRange.length ? Math.round((confirmees.length / commandesInRange.length) * 100) : 0;
+  const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
 
   const COUT_LIVRAISON = 1500;
   const coutLivraisons = confirmees.length * COUT_LIVRAISON;
@@ -735,6 +774,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         .rv-glow { animation: rvGlowBreathe 4s ease-in-out infinite; }
         @keyframes rvGlowBreathe { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
         .rv-3d-card { animation: rv3DFloat 6s ease-in-out infinite; transform-style: preserve-3d; }
+        .rv-glass-card { position: relative; overflow: hidden; border-radius: 12px; padding: 11px 13px; background: linear-gradient(155deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0.1) 100%); border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 14px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.08); }
+        .rv-glass-shine { position: absolute; top: -50%; left: -60%; width: 60%; height: 200%; background: linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%); transform: rotate(20deg); animation: rvShineSweep 3.5s ease-in-out infinite; pointer-events: none; }
+        @keyframes rvShineSweep { 0% { left: -60%; } 35%, 100% { left: 140%; } }
         @keyframes rv3DFloat {
           0%, 100% { transform: rotateX(0deg) rotateY(0deg) translateZ(0); }
           25% { transform: rotateX(3deg) rotateY(-4deg) translateZ(6px); }
@@ -834,9 +876,26 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           <div style={{ marginTop: 16, perspective: "800px" }}>
             <div className="rv-3d-card" style={{ position: "relative", padding: "14px 16px", borderRadius: 14, background: "linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 70%)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 24px rgba(0,0,0,0.2)" }}>
               <div className="rv-glow" style={{ position: "absolute", top: -16, left: -16, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />
-              <div style={{ fontSize: 12, opacity: 0.85, position: "relative" }}>Chiffre d'affaires confirmé</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 700, position: "relative" }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
-              <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2, position: "relative" }}>{totalCA.toLocaleString("fr-FR")} {workspace.currency} au total</div>
+              <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: "0.04em", position: "relative" }}>Argent récupéré</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 32, fontWeight: 700, color: "#e8920a", marginTop: 4, position: "relative" }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <div className="rv-glass-card" style={{ flex: 1 }}>
+              <div className="rv-glass-shine" />
+              <div style={{ fontSize: 11, opacity: 0.75, position: "relative" }}>À risque</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 19, position: "relative" }}>{aRisqueCount}</div>
+            </div>
+            <div className="rv-glass-card" style={{ flex: 1 }}>
+              <div className="rv-glass-shine" />
+              <div style={{ fontSize: 11, opacity: 0.75, position: "relative" }}>Taux livraison</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 19, position: "relative" }}>{tauxLivraison}%</div>
+            </div>
+            <div className="rv-glass-card" style={{ flex: 1 }}>
+              <div className="rv-glass-shine" />
+              <div style={{ fontSize: 11, opacity: 0.75, position: "relative" }}>Total</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 19, position: "relative" }}>{commandesInRange.length}</div>
             </div>
           </div>
 
@@ -1038,13 +1097,38 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <input
-        type="text"
-        value={recherche}
-        onChange={(e) => setRecherche(e.target.value)}
-        placeholder="Rechercher un client ou numéro..."
-        style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13.5, background: "white", marginBottom: 12, boxSizing: "border-box" }}
-      />
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input
+          type="text"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder="Rechercher un client ou numéro..."
+          style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13.5, background: "white", boxSizing: "border-box" }}
+        />
+        <button
+          onClick={exportCSV}
+          style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 9, padding: "0 13px", color: "#1a7a3c", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap", cursor: "pointer" }}
+        >
+          Exporter
+        </button>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
+        {[
+          { key: "toutes", label: "Toutes" },
+          { key: "echouee", label: "Échouées" },
+          { key: "en_cours", label: "En cours" },
+          { key: "confirmee", label: "Confirmées" },
+        ].map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilterStatut(f.key)}
+            style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${filterStatut === f.key ? "#1a7a3c" : "#DDD8CC"}`, background: filterStatut === f.key ? "#1a7a3c" : "white", color: filterStatut === f.key ? "white" : "#16231F", fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", cursor: "pointer" }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandesAffichees.length})</div>
@@ -1064,14 +1148,22 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {commandesAffichees.length === 0 && (
-          <div style={{ textAlign: "center", padding: "30px 0", color: "#8A9089", fontSize: 13 }}>Aucune commande ne correspond.</div>
-        )}
-        {commandesAffichees.map((c) => (
-          <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} />
-        ))}
-      </div>
+      {commandesAffichees.length === 0 && commandes.length > 0 && (
+        <div style={{ textAlign: "center", padding: "30px 0", color: "#8A9089", fontSize: 13 }}>Aucune commande ne correspond.</div>
+      )}
+
+      {groupedByDay.map((group, gi) => (
+        <div key={gi} style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1a7a3c", textTransform: "capitalize", padding: "8px 2px" }}>
+            {group.label} <span style={{ color: "#8A9089", fontWeight: 500 }}>({group.orders.length})</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {group.orders.map((c) => (
+              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} />
+            ))}
+          </div>
+        </div>
+      ))}
       </>
       )}
 

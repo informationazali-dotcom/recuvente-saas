@@ -1246,9 +1246,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           </button>
         ))}
         <div style={{ marginTop: "auto" }}>
-          <a href="?admin=1" style={{ display: "block", fontSize: 11.5, color: "rgba(255,255,255,0.5)", padding: "0 8px", marginBottom: 10, textDecoration: "underline" }}>
-            🧮 Admin RecuVente
-          </a>
           <button onClick={() => supabase.auth.signOut()} style={{ width: "100%", padding: "8px 0", borderRadius: 9, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: 12.5, cursor: "pointer" }}>
             Déconnexion
           </button>
@@ -1294,20 +1291,20 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           </div>
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <div className="rv-glass-card" style={{ flex: 1 }}>
+            <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>
               <div className="rv-glass-shine" />
-              <div style={{ fontSize: 11, opacity: 0.75, position: "relative" }}>À risque</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 19, position: "relative" }}>{aRisqueCount}</div>
+              <div style={{ fontSize: 10.5, opacity: 0.75, position: "relative", minHeight: 28, display: "flex", alignItems: "center" }}>À risque</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, position: "relative" }}>{aRisqueCount}</div>
             </div>
-            <div className="rv-glass-card" style={{ flex: 1 }}>
+            <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>
               <div className="rv-glass-shine" />
-              <div style={{ fontSize: 11, opacity: 0.75, position: "relative" }}>Taux livraison</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 19, position: "relative" }}>{tauxLivraison}%</div>
+              <div style={{ fontSize: 10.5, opacity: 0.75, position: "relative", minHeight: 28, display: "flex", alignItems: "center" }}>Taux livraison</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, position: "relative" }}>{tauxLivraison}%</div>
             </div>
-            <div className="rv-glass-card" style={{ flex: 1 }}>
+            <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>
               <div className="rv-glass-shine" />
-              <div style={{ fontSize: 11, opacity: 0.75, position: "relative" }}>Total</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 19, position: "relative" }}>{commandesInRange.length}</div>
+              <div style={{ fontSize: 10.5, opacity: 0.75, position: "relative", minHeight: 28, display: "flex", alignItems: "center" }}>Total</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, position: "relative" }}>{commandesInRange.length}</div>
             </div>
           </div>
 
@@ -1739,11 +1736,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <a href="?admin=1" className="rv-saas-tabs-mobile" style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: 12, color: "#8A9089", textDecoration: "underline" }}>
-        🧮 Panel Admin RecuVente
-      </a>
-
-      <button onClick={() => supabase.auth.signOut()} className="rv-saas-tabs-mobile" style={{ ...btnStyle, marginTop: 10, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
+      <button onClick={() => supabase.auth.signOut()} className="rv-saas-tabs-mobile" style={{ ...btnStyle, marginTop: 20, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
         Déconnexion
       </button>
 

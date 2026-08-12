@@ -431,13 +431,15 @@ function AuthScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetEnvoye, setResetEnvoye] = useState(false);
+  const [confirmationRequise, setConfirmationRequise] = useState(false);
 
   async function submit() {
     setError("");
     setLoading(true);
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) setError(error.message);
+      else if (data.user && !data.session) setConfirmationRequise(true);
     } else if (mode === "reset") {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin + "?resetpw=1",
@@ -462,6 +464,10 @@ function AuthScreen() {
         {mode === "reset" && resetEnvoye ? (
           <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "14px 12px", fontSize: 13, color: "#3B6D11", marginBottom: 14 }}>
             ✅ Un lien de réinitialisation a été envoyé à <strong>{email}</strong>. Vérifie ta boîte mail (et les spams).
+          </div>
+        ) : mode === "signup" && confirmationRequise ? (
+          <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "14px 12px", fontSize: 13, color: "#3B6D11", marginBottom: 14 }}>
+            ✅ Compte créé ! Un email de confirmation a été envoyé à <strong>{email}</strong>. Clique sur le lien reçu pour activer ton compte, puis reviens te connecter.
           </div>
         ) : (
           <>
@@ -1767,6 +1773,7 @@ function TeamModal({ workspace, onClose }) {
   const [members, setMembers] = useState(null);
   const [error, setError] = useState("");
   const [showInvite, setShowInvite] = useState(false);
+  const [retraitEnCours, setRetraitEnCours] = useState(null);
 
   async function loadMembers() {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -1781,6 +1788,21 @@ function TeamModal({ workspace, onClose }) {
   useEffect(() => {
     loadMembers();
   }, []);
+
+  async function retirerMembre(memberUserId, email) {
+    if (!window.confirm(`Retirer ${email} de l'équipe ? Cette personne perdra immédiatement l'accès.`)) return;
+    setRetraitEnCours(memberUserId);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const res = await fetch("/api/remove-member", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+      body: JSON.stringify({ workspaceId: workspace.id, memberUserId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) alert(json.error || "Erreur lors du retrait");
+    else await loadMembers();
+    setRetraitEnCours(null);
+  }
 
   const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable" };
 
@@ -1802,9 +1824,20 @@ function TeamModal({ workspace, onClose }) {
         {members && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {members.map((m) => (
-              <div key={m.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{m.email}</div>
-                <div style={{ fontSize: 11.5, color: "#6B7168" }}>{roleLabels[m.role] || m.role}</div>
+              <div key={m.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
+                  <div style={{ fontSize: 11.5, color: "#6B7168" }}>{roleLabels[m.role] || m.role}</div>
+                </div>
+                {m.role !== "owner" && (
+                  <button
+                    onClick={() => retirerMembre(m.user_id, m.email)}
+                    disabled={retraitEnCours === m.user_id}
+                    style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 12.5, flexShrink: 0 }}
+                  >
+                    {retraitEnCours === m.user_id ? "..." : "🗑️ Retirer"}
+                  </button>
+                )}
               </div>
             ))}
           </div>

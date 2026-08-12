@@ -1,4 +1,4 @@
- import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -14,6 +14,15 @@ const ETAPES = [
 export default function SuiviPublic({ commandeId }) {
   const [commande, setCommande] = useState(undefined);
   const [erreur, setErreur] = useState(null);
+  const [confirme, setConfirme] = useState(false);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  async function confirmerReception() {
+    setEnvoiEnCours(true);
+    const { error } = await supabase.rpc("confirmer_reception_public", { p_id: commandeId });
+    if (!error) setConfirme(true);
+    setEnvoiEnCours(false);
+  }
 
   useEffect(() => {
     supabase.rpc("suivi_commande_public", { p_id: commandeId }).then(({ data, error }) => {
@@ -70,6 +79,21 @@ export default function SuiviPublic({ commandeId }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {etapeActuelle === 1 && !confirme && (
+              <button
+                onClick={confirmerReception}
+                disabled={envoiEnCours}
+                style={{ width: "100%", marginTop: 16, background: "#1a7a3c", color: "white", border: "none", padding: "13px 0", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+              >
+                {envoiEnCours ? "..." : "✅ Je confirme avoir bien reçu ma commande"}
+              </button>
+            )}
+            {confirme && (
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "12px 14px", marginTop: 16, textAlign: "center", fontSize: 13, color: "#3B6D11", fontWeight: 600 }}>
+                🙏 Merci pour ta confirmation !
               </div>
             )}
           </div>

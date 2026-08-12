@@ -1214,7 +1214,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           { key: "aujourdhui", label: "Aujourd'hui" },
           { key: "commandes", label: "Commandes" },
           { key: "clients", label: "Clients" },
-          ...(workspace.role === "owner" ? [{ key: "compta", label: "🧮 Compta" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
           <button
             key={t.key}
@@ -1295,14 +1295,18 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             </div>
           </div>
 
-          {workspace.role === "owner" && (
+          {(workspace.role === "owner" || workspace.role === "admin") && (
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                👥 Gérer l'équipe
-              </button>
-              <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                💳 Mon abonnement
-              </button>
+              {workspace.role === "owner" && (
+                <>
+                  <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                    👥 Gérer l'équipe
+                  </button>
+                  <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                    💳 Mon abonnement
+                  </button>
+                </>
+              )}
               <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 🚚 Livreurs
               </button>
@@ -1366,7 +1370,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         >
           Clients ({clients.length})
         </button>
-        {workspace.role === "owner" && (
+        {(workspace.role === "owner" || workspace.role === "admin") && (
           <button
             onClick={() => setVue("compta")}
             style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "compta" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "compta" ? "#1a7a3c" : "white", color: vue === "compta" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
@@ -1866,7 +1870,7 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
   const [error, setError] = useState("");
 
   const roles = [
-    { key: "admin", label: "Admin — accès complet" },
+    { key: "admin", label: "Admin — gestion opérationnelle" },
     { key: "closer", label: "Closer — ses commandes" },
     { key: "livreur", label: "Livreur — ses livraisons" },
     { key: "comptable", label: "Comptable — lecture financière" },

@@ -909,7 +909,13 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     const rows = commandesAffichees.map((c) => [
       c.client, c.tel, c.produit, c.montant, c.zone || "", STATUTS[c.statut]?.label || c.statut, c.livreur || "", new Date(c.created_at).toLocaleDateString("fr-FR"),
     ]);
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+    function neutraliser(valeur) {
+      const s = String(valeur ?? "");
+      // Empêche l'injection de formule (=, +, -, @ en début de cellule) si le fichier est ouvert dans Excel
+      if (/^[=+\-@\t\r]/.test(s)) return "'" + s;
+      return s;
+    }
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${neutraliser(cell).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

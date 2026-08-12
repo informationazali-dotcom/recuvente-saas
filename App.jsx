@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient";
 
 function cleanPhoneForWhatsApp(tel) {
@@ -1854,16 +1854,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
           {livreurs.some((l) => l.en_tournee) && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🟢 Livreurs en tournée</div>
+              <CarteLivreursSaas livreurs={livreurs} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {livreurs.filter((l) => l.en_tournee).map((l) => (
                   <div key={l.id} style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontWeight: 600, fontSize: 13.5 }}>{l.nom}</span>
-                    {l.position_lat && l.position_lng ? (
-                      <a href={`https://www.google.com/maps?q=${l.position_lat},${l.position_lng}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 600 }}>
-                        📍 Voir sur la carte
-                      </a>
-                    ) : (
+                    {!l.position_lat && (
                       <span style={{ fontSize: 11.5, color: "#8A9089" }}>Position en attente...</span>
                     )}
                   </div>
@@ -3081,19 +3077,7 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
 
       {livreurs.some((l) => l.en_tournee) && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🟢 Livreurs en tournée</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {livreurs.filter((l) => l.en_tournee).map((l) => (
-              <div key={l.id} style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 600, fontSize: 13.5 }}>{l.nom}</span>
-                {l.position_lat && l.position_lng ? (
-                  <a href={`https://www.google.com/maps?q=${l.position_lat},${l.position_lng}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 600 }}>📍 Voir</a>
-                ) : (
-                  <span style={{ fontSize: 11.5, color: "#8A9089" }}>Position en attente...</span>
-                )}
-              </div>
-            ))}
-          </div>
+          <CarteLivreursSaas livreurs={livreurs} />
         </div>
       )}
 
@@ -3720,6 +3704,64 @@ function CelebrationOverlaySaas({ montant, client, currency }) {
           +{Number(montant).toLocaleString("fr-FR")} {currency}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CarteLivreursSaas({ livreurs }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+
+  const enTourneeAvecPosition = livreurs.filter((l) => l.en_tournee && l.position_lat && l.position_lng);
+
+  useEffect(() => {
+    if (!window.L || !mapRef.current) return;
+
+    if (!mapInstanceRef.current) {
+      mapInstanceRef.current = window.L.map(mapRef.current, { zoomControl: true, attributionControl: true }).setView([5.359952, -4.008256], 12);
+      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap", maxZoom: 19 }).addTo(mapInstanceRef.current);
+    }
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    const icon = window.L.divIcon({
+      html: `<div style="background:#1a7a3c;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+      className: "",
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+    });
+
+    enTourneeAvecPosition.forEach((l) => {
+      const marker = window.L.marker([l.position_lat, l.position_lng], { icon })
+        .addTo(mapInstanceRef.current)
+        .bindPopup(`<strong>${l.nom}</strong><br/>En tournée`);
+      markersRef.current.push(marker);
+    });
+
+    if (enTourneeAvecPosition.length > 0) {
+      const bounds = window.L.latLngBounds(enTourneeAvecPosition.map((l) => [l.position_lat, l.position_lng]));
+      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    }
+
+    setTimeout(() => mapInstanceRef.current && mapInstanceRef.current.invalidateSize(), 100);
+  }, [JSON.stringify(enTourneeAvecPosition.map((l) => [l.id, l.position_lat, l.position_lng]))]);
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+          Livreurs en tournée en direct
+        </div>
+        {enTourneeAvecPosition.length > 0 && (
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1F9D6E", display: "inline-block", animation: "rvPulseDot 2s ease-in-out infinite" }} />
+        )}
+      </div>
+      <div ref={mapRef} style={{ width: "100%", height: 220, borderRadius: 12, overflow: "hidden", border: "1px solid #ECE8DC", background: "#EEF0EA" }} />
+      {enTourneeAvecPosition.length === 0 && (
+        <div style={{ fontSize: 12, color: "#8A9089", marginTop: 6 }}>Aucun livreur en tournée pour le moment.</div>
+      )}
     </div>
   );
 }

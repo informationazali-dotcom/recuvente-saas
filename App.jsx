@@ -1170,7 +1170,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: "20px 20px 8px", width: "100%", maxWidth: "100vw", overflowX: "hidden", boxSizing: "border-box" }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", width: "100%", maxWidth: "100vw", overflowX: "hidden", boxSizing: "border-box" }}>
       <style>{`
         .rv-mesh-blob { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
         .rv-mesh-1 { width: 180px; height: 180px; background: radial-gradient(circle, rgba(232,146,10,0.45) 0%, rgba(232,146,10,0) 70%); top: -60px; right: -40px; animation: rvMeshFloat1 9s ease-in-out infinite; }
@@ -1254,7 +1254,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <div className="rv-saas-content">
 
-      <div style={{ background: "#1a7a3c", color: "white", padding: "20px 20px 34px", borderRadius: 14, marginBottom: 20, position: "relative", overflow: "hidden" }}>
+      <div style={{ background: "#1a7a3c", color: "white", padding: "20px 20px 34px", position: "relative", overflow: "hidden" }}>
         <div className="rv-mesh-blob rv-mesh-1" />
         <div className="rv-mesh-blob rv-mesh-2" />
         <div className="rv-mesh-blob rv-mesh-3" />
@@ -1334,6 +1334,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       </div>
 
+      <div style={{ padding: "0 20px 8px" }}>
       <SubscriptionBanner subscription={subscription} />
 
       {(vue === "commandes" || vue === "compta") && (
@@ -1740,6 +1741,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         Déconnexion
       </button>
 
+      </div>
       </div>
 
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}

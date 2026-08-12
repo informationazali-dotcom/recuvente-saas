@@ -766,7 +766,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return (
       <CloserPortalSaas
         closer={monProfilCloser}
-        commandes={commandes.filter((c) => c.closer === monProfilCloser.nom)}
+        commandes={commandes}
         currency={workspace.currency}
         workspace={workspace}
         onStatusChanged={loadCommandes}
@@ -2227,6 +2227,21 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
   const confirmees = commandes.filter((c) => c.statut === "confirmee");
 
+  const bilanParJour = React.useMemo(() => {
+    const map = {};
+    confirmees.forEach((c) => {
+      const d = new Date(c.created_at);
+      const key = d.toISOString().slice(0, 10);
+      if (!map[key]) {
+        map[key] = { date: key, label: d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), livrees: 0, gains: 0 };
+      }
+      map[key].livrees += 1;
+      map[key].gains += 1500;
+    });
+    return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [confirmees]);
+  const [showBilan, setShowBilan] = useState(false);
+
   async function changerStatut(commandeId, nouveauStatut) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom } : {};
     await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
@@ -2265,7 +2280,31 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#e8920a", marginTop: 2 }}>
             {(confirmees.length * 1500).toLocaleString("fr-FR")} {currency}
           </div>
+          {bilanParJour.length > 0 && (
+            <button
+              onClick={() => setShowBilan(!showBilan)}
+              style={{ marginTop: 8, background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 7, padding: "6px 10px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+            >
+              📊 {showBilan ? "Cacher" : "Voir"} mon bilan journalier
+            </button>
+          )}
         </div>
+
+        {showBilan && bilanParJour.length > 0 && (
+          <div style={{ marginTop: 10, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 14px" }}>
+            <div style={{ fontSize: 10.5, opacity: 0.75, textTransform: "uppercase", marginBottom: 8 }}>Bilan par jour</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {bilanParJour.map((j) => (
+                <div key={j.date} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
+                  <span style={{ textTransform: "capitalize", opacity: 0.9 }}>{j.label}</span>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+                    {j.livrees} livrée{j.livrees > 1 ? "s" : ""} · {j.gains.toLocaleString("fr-FR")} {currency}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <button onClick={() => supabase.auth.signOut()} style={{ width: "100%", marginTop: 14, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "8px 0", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
           Déconnexion
@@ -2307,6 +2346,27 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
 }
 
 function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, coutLivraisons, coutProduitsInfo, COUT_LIVRAISON, depotsParLivreur, totalCommission, totalADeposer, livreurs }) {
+  function parseProduitTexteLocal(texte) {
+    if (!texte) return { nom: "", quantite: 1 };
+    const match = texte.match(/^(.*?)\s*x\s*(\d+)\s*$/i);
+    if (match) return { nom: match[1].trim(), quantite: Number(match[2]) || 1 };
+    return { nom: texte.trim(), quantite: 1 };
+  }
+
+  const produitsParLivreur = {};
+  depotsParLivreur.forEach((l) => {
+    const mesConfirmees = confirmees.filter((c) => c.livreur === l.nom);
+    const map = {};
+    mesConfirmees.forEach((c) => {
+      const { nom, quantite } = parseProduitTexteLocal(c.produit);
+      if (!nom) return;
+      if (!map[nom]) map[nom] = { nom, pieces: 0, ca: 0 };
+      map[nom].pieces += quantite;
+      map[nom].ca += Number(c.montant);
+    });
+    produitsParLivreur[l.nom] = Object.values(map).sort((a, b) => b.ca - a.ca);
+  });
+
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
       <div style={{ background: "#16231F", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
@@ -2367,27 +2427,56 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
       {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {depotsParLivreur.map((l) => (
-          <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
-            <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
-                Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
-              </div>
-              <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
-                À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
-              </div>
-            </div>
-          </div>
+          <LivreurDetailComptableSaas key={l.nom} l={l} produits={produitsParLivreur[l.nom] || []} currency={workspace.currency} />
         ))}
       </div>
     </div>
   );
 }
 
+function LivreurDetailComptableSaas({ l, produits, currency }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+      <div onClick={() => setOpen(!open)} style={{ cursor: "pointer" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+          <span style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 600 }}>{open ? "Fermer ▲" : "Voir le détail ▼"}</span>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {currency} encaissé</div>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+          Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+        </div>
+        <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+          À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+        </div>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0EEE6" }}>
+          <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", marginBottom: 6 }}>CA par produit</div>
+          {produits.length === 0 && <div style={{ fontSize: 12, color: "#8A9089" }}>Aucune vente confirmée.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {produits.map((p) => (
+              <div key={p.nom} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ color: "#6B7168" }}>{p.nom} <span style={{ color: "#8A9089" }}>({p.pieces} pc)</span></span>
+                <span style={{ fontWeight: 600 }}>{p.ca.toLocaleString("fr-FR")} {currency}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChanged }) {
-  const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
-  const confirmees = commandes.filter((c) => c.statut === "confirmee");
+  const mesCommandes = commandes.filter((c) => c.closer === closer.nom);
+  const actives = mesCommandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+  const confirmees = mesCommandes.filter((c) => c.statut === "confirmee");
+  const nonAssignees = commandes.filter((c) => !c.closer && (c.statut === "en_cours" || c.statut === "echouee"));
   const [selected, setSelected] = useState(null);
 
   async function changerStatut(commandeId, nouveauStatut) {
@@ -2399,6 +2488,27 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
     ]);
     await onStatusChanged();
     setSelected(null);
+  }
+
+  async function seAttribuer(commandeId) {
+    const { data, error } = await supabase
+      .from("commandes")
+      .update({ closer: closer.nom })
+      .eq("id", commandeId)
+      .is("closer", null)
+      .select();
+
+    if (error) {
+      alert("Erreur: " + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      alert("⚠️ Trop tard, un autre closer vient de la prendre");
+      await onStatusChanged();
+      return;
+    }
+    await supabase.from("relances").insert([{ commande_id: commandeId, note: `🎧 Prise en charge par ${closer.nom}` }]);
+    await onStatusChanged();
   }
 
   return (
@@ -2426,6 +2536,33 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
       </div>
 
       <div style={{ padding: "18px 20px" }}>
+        {nonAssignees.length > 0 && (
+          <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 14, padding: "14px 16px", marginBottom: 18 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5, color: "#8A6412", marginBottom: 2 }}>
+              🆓 Non assignées — à prendre ({nonAssignees.length})
+            </div>
+            <div style={{ fontSize: 12, color: "#8A6412", marginBottom: 10 }}>
+              Personne n'a encore pris ces commandes. Une fois prise, elle disparaît pour les autres closers.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {nonAssignees.slice(0, 8).map((o) => (
+                <div key={o.id} style={{ background: "white", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.client}</div>
+                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>{o.produit} · {Number(o.montant).toLocaleString("fr-FR")} {currency}</div>
+                  </div>
+                  <button
+                    onClick={() => seAttribuer(o.id)}
+                    style={{ flexShrink: 0, background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                  >
+                    Je la prends
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {actives.length === 0 ? (
           <div style={{ textAlign: "center", padding: "50px 20px", color: "#8A9089" }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>

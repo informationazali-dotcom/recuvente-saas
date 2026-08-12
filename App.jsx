@@ -259,7 +259,7 @@ function LandingPage() {
           RECU<span style={{ color: "#e8920a" }}>VENTE</span>
         </div>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 34, lineHeight: 1.25, maxWidth: 480, margin: "0 auto" }}>
-          Le logiciel qui organise ton e-commerce en paiement à la livraison
+          🔴 TEST VERSION 2 🔴 Le logiciel qui organise ton e-commerce en paiement à la livraison
         </div>
         <div style={{ fontSize: 15, opacity: 0.85, marginTop: 16, maxWidth: 420, margin: "16px auto 0" }}>
           Commandes, livreurs, closers, comptabilité — tout au même endroit, pensé pour le COD en Afrique de l'Ouest.

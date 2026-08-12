@@ -587,6 +587,28 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [produits, setProduits] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [celebration, setCelebration] = useState(null);
+
+  function playCelebrationSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [523.25, 659.25, 783.99];
+      notes.forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.type = "sine";
+        o.frequency.value = freq;
+        const start = ctx.currentTime + i * 0.09;
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(0.16, start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+        o.start(start);
+        o.stop(start + 0.5);
+      });
+    } catch (e) {}
+  }
   const [showTeam, setShowTeam] = useState(false);
   const [showAbonnement, setShowAbonnement] = useState(false);
   const [showLivreurs, setShowLivreurs] = useState(false);
@@ -1239,6 +1261,22 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         }
         .rv-livedot { animation: rvPulseDot 2s ease-in-out infinite; }
         @keyframes rvPulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .rv-saas-celebrate-in { animation: rvSaasCelebrateIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes rvSaasCelebrateIn {
+          0% { opacity: 0; transform: scale(0.5) translateY(20px); }
+          60% { opacity: 1; transform: scale(1.08) translateY(-4px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .rv-saas-celebrate-out { animation: rvSaasCelebrateOut 0.35s ease forwards; }
+        @keyframes rvSaasCelebrateOut {
+          from { opacity: 1; transform: scale(1); }
+          to { opacity: 0; transform: scale(0.92) translateY(-10px); }
+        }
+        .rv-saas-confetti { animation: rvSaasConfetti 1.4s ease-out forwards; }
+        @keyframes rvSaasConfetti {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(90px) rotate(360deg); opacity: 0; }
+        }
         .rv-saas-sidebar { display: none; }
         .rv-saas-content { }
         .rv-saas-tabs-mobile { }
@@ -1645,7 +1683,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} />
+              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} />
             ))}
           </div>
         </div>
@@ -1686,6 +1724,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    {i < 3 && cl.montantTotal > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#e8920a", background: "#FBF3E3", padding: "1px 7px", borderRadius: 999 }}>🏆 TOP CLIENT</span>}
                     {cl.joursDeRetard !== null && cl.joursDeRetard >= 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#1a7a3c", background: "#EAF3DE", padding: "1px 7px", borderRadius: 999 }}>🔄</span>}
                     {cl.nom}
                   </div>
@@ -1817,6 +1856,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       </div>
       </div>
 
+      {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
@@ -2288,7 +2328,7 @@ const STATUTS = {
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace, confirmateurNom }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace, confirmateurNom, onCelebrate }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -2312,6 +2352,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   async function changerStatut(nouveauStatut) {
     setLoading(true);
     const ancienStatut = commande.statut;
+    const vraimentRecuperee = nouveauStatut === "confirmee" && ancienStatut === "echouee";
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: confirmateurNom || "Admin" } : {};
     const { error } = await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commande.id);
     if (error) {
@@ -2321,6 +2362,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
         { commande_id: commande.id, note: `📋 Statut : ${STATUTS[ancienStatut]?.label || ancienStatut} → ${STATUTS[nouveauStatut]?.label || nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${confirmateurNom || "Admin"}` : ""}` },
       ]);
       await onStatusChanged();
+      if (vraimentRecuperee && onCelebrate) onCelebrate(commande.montant, commande.client);
     }
     setLoading(false);
     setOpen(false);
@@ -3576,6 +3618,39 @@ function ValidationsViewSaas({ validationsParJour, nonValideesParJour, currency 
           ))}
         </>
       )}
+    </div>
+  );
+}
+
+function CelebrationOverlaySaas({ montant, client, currency }) {
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLeaving(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const confettiColors = ["#e8920a", "#1F9D6E", "#1a7a3c", "#f0b94a"];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, pointerEvents: "none" }}>
+      <div
+        className={leaving ? "rv-saas-celebrate-out" : "rv-saas-celebrate-in"}
+        style={{ background: "#16231F", borderRadius: 20, padding: "28px 36px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.35)", position: "relative", overflow: "visible" }}
+      >
+        <div style={{ position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
+          {confettiColors.map((c, i) => (
+            <span key={i} className="rv-saas-confetti" style={{ width: 6, height: 6, borderRadius: i % 2 === 0 ? "50%" : 2, background: c, display: "inline-block", animationDelay: `${i * 0.06}s` }} />
+          ))}
+        </div>
+        <div style={{ fontSize: 32, marginBottom: 6 }}>🎉</div>
+        <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12.5, marginBottom: 4 }}>
+          Vente récupérée{client ? ` — ${client.split(" ")[0]}` : ""}
+        </div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 34, color: "#e8920a" }}>
+          +{Number(montant).toLocaleString("fr-FR")} {currency}
+        </div>
+      </div>
     </div>
   );
 }

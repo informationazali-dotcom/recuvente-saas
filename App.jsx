@@ -1176,7 +1176,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} />
+              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} />
             ))}
           </div>
         </div>
@@ -1744,7 +1744,7 @@ const STATUTS = {
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace, confirmateurNom }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -1768,12 +1768,13 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   async function changerStatut(nouveauStatut) {
     setLoading(true);
     const ancienStatut = commande.statut;
-    const { error } = await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commande.id);
+    const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: confirmateurNom || "Admin" } : {};
+    const { error } = await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commande.id);
     if (error) {
       alert("Erreur: " + error.message);
     } else {
       await supabase.from("relances").insert([
-        { commande_id: commande.id, note: `📋 Statut : ${STATUTS[ancienStatut]?.label || ancienStatut} → ${STATUTS[nouveauStatut]?.label || nouveauStatut}` },
+        { commande_id: commande.id, note: `📋 Statut : ${STATUTS[ancienStatut]?.label || ancienStatut} → ${STATUTS[nouveauStatut]?.label || nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${confirmateurNom || "Admin"}` : ""}` },
       ]);
       await onStatusChanged();
     }
@@ -1820,6 +1821,9 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             )}
             {commande.closer && (
               <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A6412", background: "#FBF3E3", padding: "2px 8px", borderRadius: 999 }}>🎧 {commande.closer}</span>
+            )}
+            {commande.statut === "confirmee" && commande.confirmed_by && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>✅ validé par {commande.confirmed_by}</span>
             )}
           </div>
         </div>
@@ -2224,7 +2228,8 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const confirmees = commandes.filter((c) => c.statut === "confirmee");
 
   async function changerStatut(commandeId, nouveauStatut) {
-    await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commandeId);
+    const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom } : {};
+    await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
     await onStatusChanged();
   }
 
@@ -2387,9 +2392,10 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
 
   async function changerStatut(commandeId, nouveauStatut) {
     const ancien = commandes.find((c) => c.id === commandeId)?.statut;
-    await supabase.from("commandes").update({ statut: nouveauStatut }).eq("id", commandeId);
+    const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: closer.nom } : {};
+    await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
     await supabase.from("relances").insert([
-      { commande_id: commandeId, note: `📋 Statut : ${ancien} → ${nouveauStatut}` },
+      { commande_id: commandeId, note: `📋 Statut : ${ancien} → ${nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${closer.nom}` : ""}` },
     ]);
     await onStatusChanged();
     setSelected(null);

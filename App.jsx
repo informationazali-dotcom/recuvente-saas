@@ -195,7 +195,11 @@ export default function App() {
   }
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
-  if (!session) return <AuthScreen />;
+  if (!session) {
+    const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
+    if (!wantsAuth) return <LandingPage />;
+    return <AuthScreen />;
+  }
 
   const isAdminRoute = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
   if (isAdminRoute) return <AdminPanel session={session} />;
@@ -210,6 +214,63 @@ function Centered({ children }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
       {children}
+    </div>
+  );
+}
+
+function LandingPage() {
+  const fonctionnalites = [
+    { icon: "📋", titre: "Commandes & suivi", desc: "Statuts en temps réel, historique complet, jamais un client oublié." },
+    { icon: "🚚", titre: "Livreurs avec GPS", desc: "Suis leur tournée en direct, commissions calculées automatiquement." },
+    { icon: "🎧", titre: "Équipe de closers", desc: "Rôles restreints, répartition équitable, aucun doublon d'appel." },
+    { icon: "🧮", titre: "Comptabilité claire", desc: "Bénéfice réel, dépôts par livreur, coût produit — sans surprise." },
+    { icon: "📦", titre: "Stock & produits", desc: "Sais exactement combien il te reste, avant la rupture." },
+    { icon: "🔄", titre: "Réachat automatique", desc: "L'app te dit qui relancer, et quand, selon leur rythme d'achat." },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');`}</style>
+
+      <div style={{ background: "#1a7a3c", color: "white", padding: "60px 24px 70px", textAlign: "center" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 30 }}>
+          RECU<span style={{ color: "#e8920a" }}>VENTE</span>
+        </div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 34, lineHeight: 1.25, maxWidth: 480, margin: "0 auto" }}>
+          Le logiciel qui organise ton e-commerce en paiement à la livraison
+        </div>
+        <div style={{ fontSize: 15, opacity: 0.85, marginTop: 16, maxWidth: 420, margin: "16px auto 0" }}>
+          Commandes, livreurs, closers, comptabilité — tout au même endroit, pensé pour le COD en Afrique de l'Ouest.
+        </div>
+        <a href="?auth=1" style={{ display: "inline-block", marginTop: 28, background: "#e8920a", color: "white", padding: "14px 32px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+          Essayer gratuitement — 7 jours
+        </a>
+        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 10 }}>Sans carte bancaire</div>
+      </div>
+
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "50px 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+          {fonctionnalites.map((f, i) => (
+            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 22 }}>
+              <div style={{ fontSize: 28, marginBottom: 10 }}>{f.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 15.5, marginBottom: 6 }}>{f.titre}</div>
+              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: "#16231F", color: "white", padding: "50px 24px", textAlign: "center" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, marginBottom: 10 }}>Prêt à essayer ?</div>
+        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 24 }}>7 jours gratuits, aucune carte requise.</div>
+        <a href="?auth=1" style={{ display: "inline-block", background: "#1a7a3c", color: "white", padding: "14px 32px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+          Créer mon espace
+        </a>
+      </div>
+
+      <div style={{ textAlign: "center", padding: "20px 24px", fontSize: 12, color: "#8A9089" }}>
+        RecuVente — {new Date().getFullYear()}
+      </div>
     </div>
   );
 }
@@ -250,6 +311,7 @@ function AuthScreen() {
         <div style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: "#6B7168", cursor: "pointer" }} onClick={() => setMode(mode === "signup" ? "login" : "signup")}>
           {mode === "signup" ? "Déjà un compte ? Se connecter" : "Pas de compte ? S'inscrire"}
         </div>
+        <a href="?" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "#8A9089" }}>← Retour à l'accueil</a>
       </div>
     </Centered>
   );

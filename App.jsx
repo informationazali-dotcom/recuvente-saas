@@ -398,13 +398,52 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }).length;
   const quotaAtteint = maxCommandesMois !== null && commandesCeMois >= maxCommandesMois && !accesBloque;
 
+  const knownOrderIds = React.useRef(null);
+
+  function playNotifSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      function jouerChaChing(decalage) {
+        const notes = [
+          { freq: 987.77, start: decalage, dur: 0.16, vol: 0.55 },
+          { freq: 1318.51, start: decalage + 0.1, dur: 0.32, vol: 0.6 },
+          { freq: 1975.53, start: decalage + 0.1, dur: 0.32, vol: 0.25 },
+        ];
+        notes.forEach((n) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.type = "sine";
+          o.frequency.value = n.freq;
+          const start = ctx.currentTime + n.start;
+          g.gain.setValueAtTime(0, start);
+          g.gain.linearRampToValueAtTime(n.vol, start + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.001, start + n.dur);
+          o.start(start);
+          o.stop(start + n.dur);
+        });
+      }
+      jouerChaChing(0);
+      jouerChaChing(0.55);
+    } catch (e) {}
+  }
+
   async function loadCommandes() {
     const { data, error } = await supabase
       .from("commandes")
       .select("*")
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false });
-    if (!error) setCommandes(data || []);
+    if (!error) {
+      const list = data || [];
+      if (knownOrderIds.current !== null) {
+        const nouvelles = list.filter((c) => !knownOrderIds.current.has(c.id));
+        if (nouvelles.length > 0) playNotifSound();
+      }
+      knownOrderIds.current = new Set(list.map((c) => c.id));
+      setCommandes(list);
+    }
     setLoaded(true);
     loadAllRelances();
   }
@@ -425,6 +464,20 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   useEffect(() => {
     loadCommandes();
     loadAllRelances();
+
+    // Détection instantanée des nouvelles commandes de CET espace uniquement
+    const channel = supabase
+      .channel(`commandes-${workspace.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "commandes", filter: `workspace_id=eq.${workspace.id}` },
+        () => loadCommandes()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const relanceCountByOrder = useMemo(() => {

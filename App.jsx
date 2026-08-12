@@ -735,6 +735,50 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   const knownOrderIds = React.useRef(null);
 
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
+
+  const VAPID_PUBLIC_KEY = "BNEWuL6J-c31X4sab428A92UjDE2GOirvhes0XlQz-bnNngVucHV22AdQzLq_FleLTsCNoFaxYkL_xDqR6WgHFs";
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+  }
+
+  async function activerNotificationsPush() {
+    try {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission !== "granted") return;
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        alert("Notifications Push non supportées sur ce navigateur");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let sub = await registration.pushManager.getSubscription();
+      if (!sub) {
+        sub = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+
+      const raw = sub.toJSON();
+      await supabase.from("push_subscriptions").upsert(
+        [{ workspace_id: workspace.id, user_email: session.user.email, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }],
+        { onConflict: "endpoint" }
+      );
+      alert("🔔 Notifications activées, même app fermée !");
+    } catch (e) {
+      alert("Erreur activation notifications: " + e.message);
+    }
+  }
+
   function playNotifSound() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1447,6 +1491,15 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       <div style={{ padding: "0 20px 8px" }}>
       <SubscriptionBanner subscription={subscription} />
+
+      {notifPermission === "default" && (
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12.5, color: "#8A6412" }}>🔔 Active les notifications pour ne rater aucune commande, même l'app fermée.</span>
+          <button onClick={activerNotificationsPush} style={{ background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
+            Activer
+          </button>
+        </div>
+      )}
 
       {(vue === "commandes" || vue === "compta") && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 2 }}>

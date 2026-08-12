@@ -940,6 +940,35 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return map;
   }, [commandes]);
 
+  const validationsParJour = useMemo(() => {
+    const confirmeesAvecDate = commandes.filter((c) => c.statut === "confirmee" && c.confirmed_at);
+    const map = {};
+    confirmeesAvecDate.forEach((c) => {
+      const dValidation = new Date(c.confirmed_at);
+      const keyValidation = dValidation.toISOString().slice(0, 10);
+      const dCreation = new Date(c.created_at);
+      const keyCreation = dCreation.toISOString().slice(0, 10);
+      const memeJour = keyValidation === keyCreation;
+      if (!map[keyValidation]) {
+        map[keyValidation] = { date: keyValidation, label: dValidation.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), orders: [] };
+      }
+      map[keyValidation].orders.push({ ...c, memeJour, labelCreation: dCreation.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) });
+    });
+    return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [commandes]);
+
+  const nonValideesParJour = useMemo(() => {
+    const nonValidees = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+    const map = {};
+    nonValidees.forEach((c) => {
+      const d = new Date(c.created_at);
+      const key = d.toISOString().slice(0, 10);
+      if (!map[key]) map[key] = { date: key, label: d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), orders: [] };
+      map[key].orders.push(c);
+    });
+    return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [commandes]);
+
   const evolutionData = useMemo(() => {
     const map = {};
     commandesInRange.forEach((c) => {
@@ -1230,6 +1259,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         {[
           { key: "aujourdhui", label: "Aujourd'hui" },
           { key: "commandes", label: "Commandes" },
+          { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -1378,6 +1408,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
         >
           Commandes
+        </button>
+        <button
+          onClick={() => setVue("validations")}
+          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "validations" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "validations" ? "#1a7a3c" : "white", color: vue === "validations" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          Validations
         </button>
         <button
           onClick={() => setVue("clients")}
@@ -1590,6 +1626,10 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       ))}
       </>
+      )}
+
+      {vue === "validations" && (
+        <ValidationsViewSaas validationsParJour={validationsParJour} nonValideesParJour={nonValideesParJour} currency={workspace.currency} />
       )}
 
       {vue === "clients" && (
@@ -3391,6 +3431,107 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ValidationsViewSaas({ validationsParJour, nonValideesParJour, currency }) {
+  const [tab, setTab] = useState("validees");
+
+  return (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Validations</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 14 }}>
+        Ce qui a été confirmé, jour par jour — et ce qui attend encore.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        <button
+          onClick={() => setTab("validees")}
+          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${tab === "validees" ? "#1a7a3c" : "#DDD8CC"}`, background: tab === "validees" ? "#1a7a3c" : "white", color: tab === "validees" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          ✅ Validées ({validationsParJour.reduce((s, g) => s + g.orders.length, 0)})
+        </button>
+        <button
+          onClick={() => setTab("nonvalidees")}
+          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${tab === "nonvalidees" ? "#D64933" : "#DDD8CC"}`, background: tab === "nonvalidees" ? "#D64933" : "white", color: tab === "nonvalidees" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          ⏳ Non validées ({nonValideesParJour.reduce((s, g) => s + g.orders.length, 0)})
+        </button>
+      </div>
+
+      {tab === "validees" && (
+        <>
+          {validationsParJour.length === 0 && (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9089" }}>
+              <div style={{ fontSize: 14 }}>Aucune validation enregistrée pour l'instant.</div>
+            </div>
+          )}
+          {validationsParJour.map((group) => (
+            <div key={group.date} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#1a7a3c", textTransform: "capitalize", marginBottom: 8 }}>
+                Validé {group.label} ({group.orders.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {group.orders.map((c) => (
+                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{c.client}</div>
+                        <div style={{ fontSize: 12, color: "#6B7168" }}>{c.produit}</div>
+                      </div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                      {!c.memeJour && (
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A6412", background: "#FBF3E3", padding: "2px 8px", borderRadius: 999 }}>
+                          📅 commandée le {c.labelCreation}
+                        </span>
+                      )}
+                      {c.confirmed_by && (
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>
+                          ✅ validé par {c.confirmed_by}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {tab === "nonvalidees" && (
+        <>
+          {nonValideesParJour.length === 0 && (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9089" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+              <div style={{ fontSize: 14 }}>Tout est validé, rien en attente.</div>
+            </div>
+          )}
+          {nonValideesParJour.map((group) => (
+            <div key={group.date} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#D64933", textTransform: "capitalize", marginBottom: 8 }}>
+                Commandée {group.label} ({group.orders.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {group.orders.map((c) => (
+                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${c.statut === "echouee" ? "#D64933" : "#E8A93D"}`, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{c.client}</div>
+                        <div style={{ fontSize: 12, color: "#6B7168" }}>{c.produit} · {c.statut === "echouee" ? "Échouée" : "En cours"}</div>
+                      </div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

@@ -389,6 +389,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showAbonnement, setShowAbonnement] = useState(false);
   const [showLivreurs, setShowLivreurs] = useState(false);
   const [showClosers, setShowClosers] = useState(false);
+  const [showCampagne, setShowCampagne] = useState(false);
   const [showProduits, setShowProduits] = useState(false);
 
   async function loadLivreurs() {
@@ -1082,6 +1083,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 🎧 Closers
               </button>
+              <button onClick={() => setShowCampagne(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                📣 Campagne
+              </button>
             </div>
           )}
         </div>
@@ -1477,6 +1481,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
+      {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
@@ -2825,5 +2830,160 @@ function EvolutionChartSaas({ data }) {
         );
       })}
     </svg>
+  );
+}
+
+function CampagneModalSaas({ clients, workspace, onClose }) {
+  const [segment, setSegment] = useState("tous");
+  const [segmentProduit, setSegmentProduit] = useState("");
+  const [message, setMessage] = useState("");
+  const [productLink, setProductLink] = useState("");
+  const [started, setStarted] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [sentCount, setSentCount] = useState(0);
+
+  const produitsAchetes = useMemo(() => {
+    const set = new Set();
+    clients.forEach((c) => c.commandes.forEach((o) => set.add((o.produit || "").split(" x")[0].trim())));
+    return Array.from(set).filter(Boolean);
+  }, [clients]);
+
+  const clientsSegmentes = useMemo(() => {
+    const now = new Date();
+    if (segment === "inactifs30") {
+      return clients.filter((c) => {
+        const dernier = c.commandes.reduce((max, o) => (new Date(o.created_at) > max ? new Date(o.created_at) : max), new Date(0));
+        return (now - dernier) / (1000 * 3600 * 24) >= 30;
+      });
+    }
+    if (segment === "produit" && segmentProduit) {
+      return clients.filter((c) => c.commandes.some((o) => (o.produit || "").split(" x")[0].trim() === segmentProduit));
+    }
+    if (segment === "vip") {
+      return clients.filter((c) => c.total >= 3);
+    }
+    return clients;
+  }, [clients, segment, segmentProduit]);
+
+  const current = clientsSegmentes[index];
+
+  function personalize(tpl, nom) {
+    let text = tpl.replace(/\{prenom\}/gi, (nom || "").split(" ")[0] || "");
+    if (productLink.trim()) text = text.trim() + "\n\n" + productLink.trim();
+    return text;
+  }
+
+  function send() {
+    const text = personalize(message, current.nom);
+    window.open(`https://wa.me/${cleanPhoneForWhatsApp(current.tel)}?text=${encodeURIComponent(text)}`, "_blank");
+    setSentCount((c) => c + 1);
+  }
+
+  function next() {
+    setIndex((i) => i + 1);
+  }
+
+  const finished = started && index >= clientsSegmentes.length;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FAFAF7", width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto", borderRadius: 18, padding: "20px 20px 24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18 }}>Campagne promo</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        {!started && (
+          <>
+            <label style={{ fontSize: 12, color: "#6B7168", display: "block", marginBottom: 6 }}>À qui envoyer ?</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+              {[
+                { key: "tous", label: `Tous les clients (${clients.length})` },
+                { key: "vip", label: "Meilleurs clients — 3+ achats" },
+                { key: "inactifs30", label: "Inactifs depuis 30+ jours" },
+                { key: "produit", label: "Ayant acheté un produit précis" },
+              ].map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setSegment(s.key)}
+                  style={{
+                    textAlign: "left", padding: "9px 12px", borderRadius: 9,
+                    border: "1px solid " + (segment === s.key ? "#1a7a3c" : "#DDD8CC"),
+                    background: segment === s.key ? "#EAF3DE" : "white",
+                    color: segment === s.key ? "#1a7a3c" : "#16231F",
+                    fontSize: 13, fontWeight: segment === s.key ? 600 : 500, cursor: "pointer",
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {segment === "produit" && (
+              <select value={segmentProduit} onChange={(e) => setSegmentProduit(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, background: "white" }}>
+                <option value="">Choisir un produit...</option>
+                {produitsAchetes.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+
+            <div style={{ background: "#EAF3DE", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, color: "#3B6D11", marginBottom: 14 }}>
+              {clientsSegmentes.length} client{clientsSegmentes.length > 1 ? "s" : ""} concerné{clientsSegmentes.length > 1 ? "s" : ""}
+            </div>
+
+            <label style={{ fontSize: 12, color: "#6B7168", display: "block", marginBottom: 6 }}>Message (utilise {"{prenom}"} pour personnaliser)</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={`Bonjour {prenom} 👋, une offre spéciale vous attend chez ${workspace.name} !`}
+              rows={4}
+              style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }}
+            />
+            <input
+              value={productLink}
+              onChange={(e) => setProductLink(e.target.value)}
+              placeholder="Lien à ajouter (optionnel)"
+              style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 16, boxSizing: "border-box" }}
+            />
+
+            <button
+              onClick={() => message.trim() && clientsSegmentes.length > 0 && setStarted(true)}
+              disabled={!message.trim() || clientsSegmentes.length === 0}
+              style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: (!message.trim() || clientsSegmentes.length === 0) ? 0.5 : 1 }}
+            >
+              Démarrer l'envoi
+            </button>
+          </>
+        )}
+
+        {started && !finished && current && (
+          <div>
+            <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 10 }}>{index + 1} / {clientsSegmentes.length}</div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{current.nom}</div>
+              <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 2 }}>{current.tel}</div>
+              <div style={{ marginTop: 10, fontSize: 13, whiteSpace: "pre-wrap", color: "#16231F" }}>{personalize(message, current.nom)}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { send(); next(); }} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+                💬 Envoyer et suivant
+              </button>
+              <button onClick={next} style={{ background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 10, padding: "0 16px", fontSize: 13, cursor: "pointer" }}>
+                Passer
+              </button>
+            </div>
+          </div>
+        )}
+
+        {finished && (
+          <div style={{ textAlign: "center", padding: "30px 0" }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{sentCount} message{sentCount > 1 ? "s" : ""} envoyé{sentCount > 1 ? "s" : ""}</div>
+            <button onClick={onClose} style={{ marginTop: 16, background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "10px 20px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              Fermer
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

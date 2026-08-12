@@ -195,6 +195,10 @@ export default function App() {
   }
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
+
+  const pageParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("page") : null;
+  if (pageParam === "cgu" || pageParam === "confidentialite") return <PageLegale page={pageParam} />;
+
   if (!session) {
     const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
     if (!wantsAuth) return <LandingPage />;
@@ -338,6 +342,80 @@ function LandingPage() {
 
       <div style={{ textAlign: "center", padding: "20px 24px", fontSize: 12, color: "#8A9089" }}>
         RecuVente — {new Date().getFullYear()}
+        <div style={{ marginTop: 8, display: "flex", gap: 16, justifyContent: "center" }}>
+          <a href="?page=cgu" style={{ color: "#8A9089", textDecoration: "underline" }}>Conditions d'utilisation</a>
+          <a href="?page=confidentialite" style={{ color: "#8A9089", textDecoration: "underline" }}>Confidentialité</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageLegale({ page }) {
+  const contenu = {
+    cgu: {
+      titre: "Conditions Générales d'Utilisation",
+      texte: `Dernière mise à jour : ${new Date().toLocaleDateString("fr-FR")}
+
+1. OBJET
+RecuVente est une plateforme logicielle permettant aux entreprises de gestion de commandes en paiement à la livraison (COD) de gérer leurs commandes, équipes, livraisons et comptabilité.
+
+2. INSCRIPTION ET ESSAI GRATUIT
+Toute entreprise peut créer un espace et bénéficier d'un essai gratuit de 7 jours. Aucune carte bancaire n'est requise pour l'essai. À l'issue de l'essai, l'accès aux fonctionnalités de création de commandes est suspendu jusqu'à activation d'un abonnement payant, sans suppression des données existantes.
+
+3. ABONNEMENTS ET PAIEMENT
+Les tarifs des différents plans sont affichés sur la page d'accueil. Le paiement s'effectue par Mobile Money. L'activation du plan payant intervient après confirmation manuelle de la réception du paiement par l'équipe RecuVente.
+
+4. DONNÉES DE L'ENTREPRISE CLIENTE
+Chaque entreprise reste propriétaire de ses données (commandes, clients, équipe, finances). RecuVente s'engage à ne jamais partager ces données avec une autre entreprise cliente de la plateforme.
+
+5. RÉSILIATION
+Une entreprise peut cesser d'utiliser le service à tout moment. Les données restent accessibles en lecture pendant une période raisonnable après la fin de l'abonnement, sauf demande explicite de suppression.
+
+6. RESPONSABILITÉ
+RecuVente met à disposition un outil de gestion. La responsabilité de l'exactitude des données saisies (commandes, montants, coûts) incombe à l'entreprise cliente. RecuVente ne saurait être tenu responsable des pertes commerciales liées à une mauvaise utilisation de l'outil.
+
+7. MODIFICATION DES CONDITIONS
+Ces conditions peuvent être amenées à évoluer. Les entreprises clientes seront informées de tout changement significatif.
+
+⚠️ Ce document est un modèle de départ, non validé par un juriste. Avant tout lancement commercial réel, une relecture par un professionnel du droit ivoirien (ou de la juridiction concernée) est fortement recommandée.`,
+    },
+    confidentialite: {
+      titre: "Politique de confidentialité",
+      texte: `Dernière mise à jour : ${new Date().toLocaleDateString("fr-FR")}
+
+1. DONNÉES COLLECTÉES
+RecuVente collecte : l'email et le mot de passe de connexion, le nom de l'entreprise, les données de commandes (clients, produits, montants), et les informations d'équipe (livreurs, closers, comptables) que vous saisissez volontairement.
+
+2. UTILISATION DES DONNÉES
+Ces données sont utilisées exclusivement pour faire fonctionner votre espace de gestion — jamais revendues, jamais partagées avec d'autres entreprises clientes de la plateforme, jamais utilisées à des fins publicitaires tierces.
+
+3. ISOLATION ENTRE ENTREPRISES
+Chaque entreprise cliente dispose d'un espace strictement isolé au niveau technique (base de données). Aucune entreprise ne peut accéder aux données d'une autre, même par erreur.
+
+4. HÉBERGEMENT
+Les données sont hébergées via Supabase (infrastructure cloud sécurisée) et Vercel.
+
+5. VOS DROITS
+Vous pouvez demander l'export ou la suppression complète de vos données à tout moment en contactant l'équipe RecuVente.
+
+6. NOTIFICATIONS
+Avec votre autorisation explicite, RecuVente peut vous envoyer des notifications sonores dans l'application lors de l'arrivée de nouvelles commandes.
+
+⚠️ Ce document est un modèle de départ, non validé par un juriste. Avant tout lancement commercial réel, une relecture par un professionnel du droit est fortement recommandée.`,
+    },
+  };
+
+  const c = contenu[page] || contenu.cgu;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: "40px 20px" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+        <a href="?" style={{ fontSize: 13, color: "#1a7a3c", textDecoration: "underline" }}>← Retour à l'accueil</a>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26, marginTop: 16, marginBottom: 20 }}>{c.titre}</div>
+        <div style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.7, color: "#16231F", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 24 }}>
+          {c.texte}
+        </div>
       </div>
     </div>
   );

@@ -991,6 +991,30 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
   const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
 
+  const repartitionCloserLivreur = useMemo(() => {
+    const map = {};
+    commandesInRange.forEach((c) => {
+      if (!c.closer || !c.livreur) return;
+      const key = c.closer + "|||" + c.livreur;
+      if (!map[key]) map[key] = { closer: c.closer, livreur: c.livreur, total: 0, produits: {} };
+      map[key].total += 1;
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      if (nom) map[key].produits[nom] = (map[key].produits[nom] || 0) + quantite;
+    });
+    return Object.values(map)
+      .map((r) => ({ ...r, produitsListe: Object.entries(r.produits).map(([nom, qte]) => ({ nom, qte })).sort((a, b) => b.qte - a.qte) }))
+      .sort((a, b) => b.total - a.total);
+  }, [commandesInRange]);
+
+  const livreursAvecCommandes = useMemo(() => {
+    const map = {};
+    commandesInRange.forEach((c) => {
+      if (!c.livreur) return;
+      map[c.livreur] = (map[c.livreur] || 0) + 1;
+    });
+    return Object.entries(map).map(([nom, total]) => ({ nom, total })).sort((a, b) => b.total - a.total);
+  }, [commandesInRange]);
+
   const monProfilLivreur = livreurs.find((l) => l.email && l.email.toLowerCase() === session.user.email.toLowerCase());
 
   if (workspace.role === "livreur" && monProfilLivreur) {
@@ -1574,6 +1598,31 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               </div>
             ))}
           </div>
+
+          {livreursAvecCommandes.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>📊 Résumé — commandes reçues par livreur ({periodLabel})</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {livreursAvecCommandes.map((l) => (
+                  <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "9px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 13 }}><strong>{l.nom}</strong> a reçu</span>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: "#1a7a3c" }}>{l.total} commande{l.total > 1 ? "s" : ""}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {repartitionCloserLivreur.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🔄 Répartition Closer → Livreur ({periodLabel})</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {repartitionCloserLivreur.map((r, i) => (
+                  <RepartitionLigne key={i} r={r} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -3093,6 +3142,33 @@ function CampagneModalSaas({ clients, workspace, onClose }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function RepartitionLigne({ r }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{ width: "100%", background: "none", border: "none", display: "flex", justifyContent: "space-between", alignItems: "center", textAlign: "left", cursor: "pointer" }}
+      >
+        <span style={{ fontSize: 12.5 }}>
+          <strong>{r.closer}</strong> → <strong>{r.livreur}</strong>
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#1a7a3c" }}>{r.total} cmd {open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0EEE6", display: "flex", flexDirection: "column", gap: 5 }}>
+          {r.produitsListe.map((p) => (
+            <div key={p.nom} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5 }}>
+              <span style={{ color: "#6B7168" }}>{p.nom}</span>
+              <span style={{ fontWeight: 600 }}>{p.qte} pièce{p.qte > 1 ? "s" : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

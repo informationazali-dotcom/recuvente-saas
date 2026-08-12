@@ -643,7 +643,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     else await loadLivreurs();
   }
 
-  async function deleteLivreur(id) {
+  async function deleteLivreur(id, nom) {
+    const commandesLiees = commandes.filter((c) => c.livreur === nom && (c.statut === "en_cours" || c.statut === "echouee")).length;
+    if (commandesLiees > 0) {
+      const confirmer = window.confirm(`${nom} a encore ${commandesLiees} commande${commandesLiees > 1 ? "s" : ""} active${commandesLiees > 1 ? "s" : ""} assignée${commandesLiees > 1 ? "s" : ""}. Si tu le retires, tu ne pourras plus les réassigner facilement. Continuer quand même ?`);
+      if (!confirmer) return;
+    }
     await supabase.from("livreurs").delete().eq("id", id);
     await loadLivreurs();
   }
@@ -654,7 +659,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     else await loadClosers();
   }
 
-  async function deleteCloser(id) {
+  async function deleteCloser(id, nom) {
+    const commandesLiees = commandes.filter((c) => c.closer === nom && (c.statut === "en_cours" || c.statut === "echouee")).length;
+    if (commandesLiees > 0) {
+      const confirmer = window.confirm(`${nom} a encore ${commandesLiees} commande${commandesLiees > 1 ? "s" : ""} active${commandesLiees > 1 ? "s" : ""} assignée${commandesLiees > 1 ? "s" : ""}. Si tu le retires, tu ne pourras plus les réassigner facilement. Continuer quand même ?`);
+      if (!confirmer) return;
+    }
     await supabase.from("closers").delete().eq("id", id);
     await loadClosers();
   }
@@ -2478,7 +2488,7 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
                 {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
                 {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
               </div>
-              <button onClick={() => onDelete(it.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+              <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
             </div>
           ))}
         </div>

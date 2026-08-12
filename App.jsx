@@ -220,10 +220,19 @@ function Centered({ children }) {
 
 function LandingPage() {
   const [plans, setPlans] = useState([]);
+  const [faqOuverte, setFaqOuverte] = useState(null);
 
   useEffect(() => {
     supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
   }, []);
+
+  const faq = [
+    { q: "Comment fonctionne l'essai gratuit ?", r: "7 jours d'accès complet dès l'inscription, sur le plan Pro. Aucune carte bancaire requise. Tu peux annuler ou continuer à tout moment." },
+    { q: "Comment se fait le paiement ?", r: "Par Mobile Money. Tu demandes le plan de ton choix depuis l'app, effectues le transfert, et l'accès s'active dès la confirmation reçue." },
+    { q: "Mes données sont-elles visibles par d'autres entreprises ?", r: "Non, jamais. Chaque entreprise a son espace complètement isolé et sécurisé — personne d'autre ne peut voir tes commandes, clients ou finances." },
+    { q: "Puis-je changer de plan plus tard ?", r: "Oui, à tout moment, selon la croissance de ton activité." },
+    { q: "Ça fonctionne pour quel type de commerce ?", r: "Pensé pour la vente en paiement à la livraison (COD) — tout commerce avec des livreurs et une équipe de vente peut l'utiliser." },
+  ];
 
   const fonctionnalites = [
     { icon: "📋", titre: "Commandes & suivi", desc: "Statuts en temps réel, historique complet, jamais un client oublié." },
@@ -296,6 +305,28 @@ function LandingPage() {
           </div>
         </div>
       )}
+
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "50px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Questions fréquentes</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {faq.map((f, i) => (
+            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, overflow: "hidden" }}>
+              <button
+                onClick={() => setFaqOuverte(faqOuverte === i ? null : i)}
+                style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              >
+                <span style={{ fontWeight: 600, fontSize: 14.5 }}>{f.q}</span>
+                <span style={{ color: "#1a7a3c", fontSize: 16, flexShrink: 0, marginLeft: 10 }}>{faqOuverte === i ? "−" : "+"}</span>
+              </button>
+              {faqOuverte === i && (
+                <div style={{ padding: "0 18px 16px", fontSize: 13.5, color: "#6B7168", lineHeight: 1.6 }}>{f.r}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div style={{ background: "#16231F", color: "white", padding: "50px 24px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, marginBottom: 10 }}>Prêt à essayer ?</div>

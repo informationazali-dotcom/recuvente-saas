@@ -592,6 +592,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showLivreurs, setShowLivreurs] = useState(false);
   const [showClosers, setShowClosers] = useState(false);
   const [showCampagne, setShowCampagne] = useState(false);
+  const [showBatch, setShowBatch] = useState(false);
   const [showProduits, setShowProduits] = useState(false);
 
   async function loadLivreurs() {
@@ -1396,7 +1397,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
       {vue === "aujourdhui" && (
         <div>
-          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Aujourd'hui</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 17 }}>Aujourd'hui</div>
+            {todoAujourdhui.total > 0 && (
+              <button onClick={() => setShowBatch(true)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                📢 Relancer tout
+              </button>
+            )}
+          </div>
           <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 14 }}>
             {todoAujourdhui.total > 0 ? `${todoAujourdhui.total} commande${todoAujourdhui.total > 1 ? "s" : ""} à traiter` : "Rien à traiter, tout est à jour ✅"}
           </div>
@@ -1748,6 +1756,17 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
+      {showBatch && (
+        <BatchRelanceModalSaas
+          orders={[...todoAujourdhui.aRelivrer, ...todoAujourdhui.jamaisContactees, ...todoAujourdhui.sansNouvelles]}
+          currency={workspace.currency}
+          onClose={() => setShowBatch(false)}
+          onLog={async (commandeId, note) => {
+            await supabase.from("relances").insert([{ commande_id: commandeId, note }]);
+            await loadAllRelances();
+          }}
+        />
+      )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
@@ -3314,6 +3333,64 @@ function RepartitionLigne({ r }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
+  const [index, setIndex] = useState(0);
+  const [done, setDone] = useState([]);
+  const current = orders[index];
+  const finished = index >= orders.length;
+
+  function next() {
+    setIndex((i) => i + 1);
+  }
+
+  async function sendAndLog() {
+    const text = `Bonjour ${(current.client || "").split(" ")[0]} 👋, votre commande "${current.produit}" (${Number(current.montant).toLocaleString("fr-FR")} ${currency}) est toujours en attente. Confirmez-vous la livraison ?`;
+    window.open(`https://wa.me/${cleanPhoneForWhatsApp(current.tel)}?text=${encodeURIComponent(text)}`, "_blank");
+    await onLog(current.id, "Relance groupée envoyée (WhatsApp)");
+    setDone((d) => [...d, current.id]);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FAFAF7", width: "100%", maxWidth: 380, borderRadius: 18, padding: "20px 20px 24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18 }}>Relance groupée</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        {!finished ? (
+          <>
+            <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 14 }}>
+              {index + 1} / {orders.length} — {done.length} déjà contacté{done.length > 1 ? "s" : ""}
+            </div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{current.client}</div>
+              <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 2 }}>{current.tel} · {current.produit}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 15, marginTop: 6, color: "#1a7a3c" }}>{Number(current.montant).toLocaleString("fr-FR")} {currency}</div>
+            </div>
+
+            <button onClick={sendAndLog} style={{ width: "100%", background: "#1F9D6E", color: "white", border: "none", padding: "11px 0", borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginBottom: 8 }}>
+              💬 Envoyer WhatsApp
+            </button>
+            <button onClick={next} style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>
+              {index < orders.length - 1 ? "Suivant →" : "Terminer"}
+            </button>
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{done.length} relance{done.length > 1 ? "s" : ""} envoyée{done.length > 1 ? "s" : ""}</div>
+            <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 18 }}>sur {orders.length} commandes de la liste</div>
+            <button onClick={onClose} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "10px 24px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              Fermer
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

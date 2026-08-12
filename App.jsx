@@ -1902,7 +1902,12 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
       });
       const json = await res.json().catch(() => ({ error: `Réponse invalide du serveur (code ${res.status})` }));
       if (!res.ok) setError(json.error || `Erreur (${res.status})`);
-      else onInvited();
+      else {
+        if (json.compteExistant) {
+          alert(`✅ ${email} avait déjà un compte — il/elle a été ajouté(e) à ton équipe avec son mot de passe habituel (le mot de passe que tu as tapé n'a pas été utilisé).`);
+        }
+        onInvited();
+      }
     } catch (e) {
       setError("Erreur réseau: " + e.message);
     }

@@ -991,6 +991,20 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [commandes]);
 
+  const produitsClassement = useMemo(() => {
+    const map = {};
+    commandesInRange.forEach((c) => {
+      const nom = (c.produit || "Autre").split(" x")[0].trim();
+      if (!map[nom]) map[nom] = { nom, ventes: 0, revenus: 0 };
+      map[nom].ventes += 1;
+      map[nom].revenus += Number(c.montant);
+    });
+    return Object.values(map).sort((a, b) => b.ventes - a.ventes);
+  }, [commandesInRange]);
+
+  const meilleurProduit = produitsClassement[0] || null;
+  const produitPlusRentable = produitsClassement.length ? [...produitsClassement].sort((a, b) => b.revenus - a.revenus)[0] : null;
+
   const evolutionData = useMemo(() => {
     const map = {};
     commandesInRange.forEach((c) => {
@@ -1187,6 +1201,15 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     });
     return Object.entries(map).map(([nom, total]) => ({ nom, total })).sort((a, b) => b.total - a.total);
   }, [commandesInRange]);
+
+  const meilleurLivreur = useMemo(() => {
+    if (depotsParLivreur.length === 0) return null;
+    const avecTaux = depotsParLivreur.map((l) => {
+      const total = livreursAvecCommandes.find((x) => x.nom === l.nom)?.total || l.livrees;
+      return { ...l, taux: total > 0 ? Math.round((l.livrees / total) * 100) : 0, total };
+    });
+    return avecTaux.sort((a, b) => b.taux - a.taux)[0];
+  }, [depotsParLivreur, livreursAvecCommandes]);
 
   const monProfilLivreur = livreurs.find((l) => l.email && l.email.toLowerCase() === session.user.email.toLowerCase());
 
@@ -1589,6 +1612,29 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "18px 20px 14px", marginBottom: 16 }}>
           <div style={{ fontSize: 12, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>Évolution des commandes</div>
           <EvolutionChartSaas data={evolutionData} />
+        </div>
+      )}
+
+      {(meilleurProduit || meilleurLivreur) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {meilleurProduit && (
+            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12.5, color: "#3B6D11" }}>🏆 Produit le plus vendu</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#3B6D11" }}>{meilleurProduit.nom} ({meilleurProduit.ventes})</span>
+            </div>
+          )}
+          {produitPlusRentable && produitPlusRentable.nom !== meilleurProduit?.nom && (
+            <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12.5, color: "#8A6412" }}>💰 Produit le plus rentable</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412" }}>{produitPlusRentable.nom}</span>
+            </div>
+          )}
+          {meilleurLivreur && meilleurLivreur.total > 0 && (
+            <div style={{ background: "#EAF7F1", border: "1px solid #C7E8D6", borderRadius: 12, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12.5, color: "#1F9D6E" }}>🚀 Livreur le plus performant</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#1F9D6E" }}>{meilleurLivreur.nom} ({meilleurLivreur.taux}%)</span>
+            </div>
+          )}
         </div>
       )}
 

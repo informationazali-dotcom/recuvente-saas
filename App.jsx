@@ -3021,6 +3021,7 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
   return (
     <div className="rv-saas-print-scope" style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
       <style>{`
+        @keyframes rvPulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         @media print {
           .rv-saas-no-print { display: none !important; }
           .rv-saas-print-only { display: block !important; }

@@ -980,6 +980,18 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return Object.values(map).sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [commandesInRange]);
 
+  const clientsSuspects = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      const key = c.tel;
+      if (!key) return;
+      if (!map[key]) map[key] = { tel: key, nom: c.client, echouees: 0, total: 0 };
+      map[key].total += 1;
+      if (c.statut === "echouee") map[key].echouees += 1;
+    });
+    return Object.values(map).filter((c) => c.echouees >= 3);
+  }, [commandes]);
+
   const anomaliesProduitZone = useMemo(() => {
     const traites = commandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
 
@@ -1539,6 +1551,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "18px 20px 14px", marginBottom: 16 }}>
           <div style={{ fontSize: 12, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>Évolution des commandes</div>
           <EvolutionChartSaas data={evolutionData} />
+        </div>
+      )}
+
+      {clientsSuspects.length > 0 && (
+        <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#D64933", marginBottom: 6 }}>⚠️ {clientsSuspects.length} client{clientsSuspects.length > 1 ? "s" : ""} avec 3+ échecs</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {clientsSuspects.slice(0, 5).map((c, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#B23A22" }}>
+                <strong>{c.nom}</strong> ({c.tel}) — {c.echouees} échec{c.echouees > 1 ? "s" : ""} sur {c.total} commande{c.total > 1 ? "s" : ""}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -2887,14 +2912,33 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
-      <div style={{ background: "#16231F", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
+    <div className="rv-saas-print-scope" style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
+      <style>{`
+        @media print {
+          .rv-saas-no-print { display: none !important; }
+          .rv-saas-print-only { display: block !important; }
+          body { background: white !important; }
+          * { box-shadow: none !important; }
+        }
+      `}</style>
+
+      <div className="rv-saas-no-print" style={{ background: "#16231F", color: "white", padding: 20, borderRadius: 14, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 13, opacity: 0.75 }}>🧮 Comptabilité — {workspace.name}</div>
-          <button onClick={() => supabase.auth.signOut()} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
-            Déconnexion
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => window.print()} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+              🖨️
+            </button>
+            <button onClick={() => supabase.auth.signOut()} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+              Déconnexion
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div className="rv-saas-print-only" style={{ display: "none", marginBottom: 16 }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20 }}>Rapport comptable — {workspace.name}</div>
+        <div style={{ fontSize: 12, color: "#6B7168" }}>Édité le {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
       </div>
 
       <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>

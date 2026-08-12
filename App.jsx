@@ -219,6 +219,12 @@ function Centered({ children }) {
 }
 
 function LandingPage() {
+  const [plans, setPlans] = useState([]);
+
+  useEffect(() => {
+    supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
+  }, []);
+
   const fonctionnalites = [
     { icon: "📋", titre: "Commandes & suivi", desc: "Statuts en temps réel, historique complet, jamais un client oublié." },
     { icon: "🚚", titre: "Livreurs avec GPS", desc: "Suis leur tournée en direct, commissions calculées automatiquement." },
@@ -259,6 +265,37 @@ function LandingPage() {
           ))}
         </div>
       </div>
+
+      {plans.length > 0 && (
+        <div style={{ background: "white", padding: "50px 24px", borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC" }}>
+          <div style={{ textAlign: "center", marginBottom: 36 }}>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Des tarifs simples et transparents</div>
+            <div style={{ fontSize: 14, color: "#6B7168", marginTop: 8 }}>7 jours gratuits sur n'importe quel plan, sans engagement.</div>
+          </div>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            {plans.map((p, i) => (
+              <div key={p.id} style={{ border: i === 1 ? "2px solid #1a7a3c" : "1px solid #ECE8DC", borderRadius: 16, padding: 22, position: "relative", background: i === 1 ? "#FAFAF7" : "white" }}>
+                {i === 1 && (
+                  <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: "#1a7a3c", color: "white", fontSize: 10.5, fontWeight: 700, padding: "3px 12px", borderRadius: 999 }}>
+                    LE PLUS CHOISI
+                  </div>
+                )}
+                <div style={{ fontWeight: 700, fontSize: 16, marginTop: i === 1 ? 6 : 0 }}>{p.nom}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, marginTop: 8, color: "#1a7a3c" }}>
+                  {Number(p.prix).toLocaleString("fr-FR")} <span style={{ fontSize: 12, fontWeight: 500, color: "#8A9089" }}>{p.devise}/mois</span>
+                </div>
+                <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 12, lineHeight: 1.7 }}>
+                  {p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes illimitées"}<br />
+                  {p.max_membres ? `${p.max_membres} membres max` : "Membres illimités"}
+                </div>
+                <a href="?auth=1" style={{ display: "block", textAlign: "center", marginTop: 18, background: i === 1 ? "#1a7a3c" : "white", color: i === 1 ? "white" : "#1a7a3c", border: i === 1 ? "none" : "1px solid #1a7a3c", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                  Commencer
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ background: "#16231F", color: "white", padding: "50px 24px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, marginBottom: 10 }}>Prêt à essayer ?</div>

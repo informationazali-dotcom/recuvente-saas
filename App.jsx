@@ -196,6 +196,9 @@ export default function App() {
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
 
+  const resetPwParam = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("resetpw") === "1";
+  if (resetPwParam && session) return <NouveauMotDePasseScreen />;
+
   const pageParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("page") : null;
   if (pageParam === "cgu" || pageParam === "confidentialite") return <PageLegale page={pageParam} />;
 
@@ -427,6 +430,7 @@ function AuthScreen() {
   const [mode, setMode] = useState("signup");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetEnvoye, setResetEnvoye] = useState(false);
 
   async function submit() {
     setError("");
@@ -434,6 +438,12 @@ function AuthScreen() {
     if (mode === "signup") {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) setError(error.message);
+    } else if (mode === "reset") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "?resetpw=1",
+      });
+      if (error) setError(error.message);
+      else setResetEnvoye(true);
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
@@ -446,18 +456,95 @@ function AuthScreen() {
       <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 340 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 4 }}>RecuVente <span style={{ color: "#e8920a" }}>SaaS</span></div>
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-          {mode === "signup" ? "Crée ton compte et ton espace" : "Connexion"}
+          {mode === "signup" ? "Crée ton compte et ton espace" : mode === "reset" ? "Réinitialiser ton mot de passe" : "Connexion"}
         </div>
-        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-        <input placeholder="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+
+        {mode === "reset" && resetEnvoye ? (
+          <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "14px 12px", fontSize: 13, color: "#3B6D11", marginBottom: 14 }}>
+            ✅ Un lien de réinitialisation a été envoyé à <strong>{email}</strong>. Vérifie ta boîte mail (et les spams).
+          </div>
+        ) : (
+          <>
+            <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+            {mode !== "reset" && (
+              <input placeholder="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+            )}
+            {error && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+            <button onClick={submit} disabled={loading} style={btnStyle}>
+              {loading ? "..." : mode === "signup" ? "Créer mon compte" : mode === "reset" ? "Envoyer le lien" : "Se connecter"}
+            </button>
+          </>
+        )}
+
+        {mode !== "reset" && (
+          <div style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: "#6B7168", cursor: "pointer" }} onClick={() => setMode(mode === "signup" ? "login" : "signup")}>
+            {mode === "signup" ? "Déjà un compte ? Se connecter" : "Pas de compte ? S'inscrire"}
+          </div>
+        )}
+        {mode === "login" && (
+          <div style={{ textAlign: "center", marginTop: 8, fontSize: 12, color: "#8A9089", cursor: "pointer", textDecoration: "underline" }} onClick={() => { setMode("reset"); setError(""); setResetEnvoye(false); }}>
+            Mot de passe oublié ?
+          </div>
+        )}
+        {mode === "reset" && (
+          <div style={{ textAlign: "center", marginTop: 8, fontSize: 12.5, color: "#6B7168", cursor: "pointer", textDecoration: "underline" }} onClick={() => { setMode("login"); setError(""); setResetEnvoye(false); }}>
+            ← Retour à la connexion
+          </div>
+        )}
+        <a href="?" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "#8A9089" }}>← Retour à l'accueil</a>
+      </div>
+    </Centered>
+  );
+}
+
+function NouveauMotDePasseScreen() {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [succes, setSucces] = useState(false);
+
+  async function submit() {
+    setError("");
+    if (password.length < 6) {
+      setError("Le mot de passe doit faire au moins 6 caractères.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) setError(error.message);
+    else setSucces(true);
+    setLoading(false);
+  }
+
+  if (succes) {
+    return (
+      <Centered>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 340, textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>✅</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Mot de passe mis à jour</div>
+          <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>Tu peux maintenant te reconnecter.</div>
+          <a href="?auth=1" style={{ ...btnStyle, display: "block", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>Se connecter</a>
+        </div>
+      </Centered>
+    );
+  }
+
+  return (
+    <Centered>
+      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 340 }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, marginBottom: 4 }}>Nouveau mot de passe</div>
+        <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>Choisis un nouveau mot de passe pour ton compte.</div>
+        <input placeholder="Nouveau mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+        <input placeholder="Confirme le mot de passe" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} style={inputStyle} />
         {error && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
         <button onClick={submit} disabled={loading} style={btnStyle}>
-          {loading ? "..." : mode === "signup" ? "Créer mon compte" : "Se connecter"}
+          {loading ? "..." : "Enregistrer"}
         </button>
-        <div style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: "#6B7168", cursor: "pointer" }} onClick={() => setMode(mode === "signup" ? "login" : "signup")}>
-          {mode === "signup" ? "Déjà un compte ? Se connecter" : "Pas de compte ? S'inscrire"}
-        </div>
-        <a href="?" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "#8A9089" }}>← Retour à l'accueil</a>
       </div>
     </Centered>
   );

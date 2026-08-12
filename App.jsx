@@ -1762,7 +1762,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
 function AddCommandeModal({ onClose, onAdd, currency }) {
   const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "" });
-  const canSubmit = form.client && form.montant;
+  const montantValide = Number(form.montant) > 0;
+  const canSubmit = form.client.trim() && montantValide;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
@@ -1775,9 +1776,13 @@ function AddCommandeModal({ onClose, onAdd, currency }) {
             value={form[f]}
             onChange={(e) => setForm({ ...form, [f]: e.target.value })}
             type={f === "montant" ? "number" : "text"}
+            min={f === "montant" ? "1" : undefined}
             style={inputStyle}
           />
         ))}
+        {form.montant && !montantValide && (
+          <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
+        )}
         <button onClick={() => canSubmit && onAdd(form)} disabled={!canSubmit} style={btnStyle}>
           Ajouter
         </button>

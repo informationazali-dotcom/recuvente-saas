@@ -1349,6 +1349,23 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             {t.label}
           </button>
         ))}
+        {workspace.role === "owner" && (
+          <>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px" }} />
+            <button
+              onClick={() => setShowTeam(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              👥 Gérer l'équipe
+            </button>
+            <button
+              onClick={() => setShowAbonnement(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              💳 Mon abonnement
+            </button>
+          </>
+        )}
         <div style={{ marginTop: "auto" }}>
           <button onClick={() => supabase.auth.signOut()} style={{ width: "100%", padding: "8px 0", borderRadius: 9, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: 12.5, cursor: "pointer" }}>
             Déconnexion
@@ -1414,16 +1431,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
           {(workspace.role === "owner" || workspace.role === "admin") && (
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              {workspace.role === "owner" && (
-                <>
-                  <button onClick={() => setShowTeam(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                    👥 Gérer l'équipe
-                  </button>
-                  <button onClick={() => setShowAbonnement(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                    💳 Mon abonnement
-                  </button>
-                </>
-              )}
               <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 🚚 Livreurs
               </button>
@@ -1501,6 +1508,22 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           >
             🧮 Compta
           </button>
+        )}
+        {workspace.role === "owner" && (
+          <>
+            <button
+              onClick={() => setShowTeam(true)}
+              style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              👥 Équipe
+            </button>
+            <button
+              onClick={() => setShowAbonnement(true)}
+              style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              💳 Abonnement
+            </button>
+          </>
         )}
       </div>
 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { jsPDF } from "jspdf";
 import { supabase } from "./supabaseClient";
 
 function cleanPhoneForWhatsApp(tel) {
@@ -18,7 +17,8 @@ function numeroFacture(commande) {
   return `F-${y}${m}-${short}`;
 }
 
-function genererFacturePDF(commande, workspace) {
+async function genererFacturePDF(commande, workspace) {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const green = [26, 122, 60];
   const orange = [232, 146, 10];

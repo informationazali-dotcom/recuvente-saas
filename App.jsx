@@ -191,6 +191,11 @@ export default function App() {
     await supabase.from("workspace_members").insert([
       { workspace_id: ws.id, user_id: session.user.id, role: "owner" },
     ]);
+    fetch("/api/send-welcome-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: session.user.email, workspaceName: nom }),
+    }).catch(() => {}); // silencieux si l'email échoue, ne bloque jamais l'inscription
     await loadWorkspace();
     setLoadingWorkspace(false);
   }

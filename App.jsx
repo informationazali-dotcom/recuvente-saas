@@ -1270,21 +1270,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }
 
   if (workspace.role === "comptable") {
-    return (
-      <ComptablePortalSaas
-        workspace={workspace}
-        beneficeReel={beneficeReel}
-        caConfirme={caConfirme}
-        confirmees={confirmees}
-        coutLivraisons={coutLivraisons}
-        coutProduitsInfo={coutProduitsInfo}
-        COUT_LIVRAISON={COUT_LIVRAISON}
-        depotsParLivreur={depotsParLivreur}
-        totalCommission={totalCommission}
-        totalADeposer={totalADeposer}
-        livreurs={livreurs}
-      />
-    );
+    return <ComptablePortalSaas workspace={workspace} commandes={commandes} livreurs={livreurs} produits={produits} />;
   }
 
   const monProfilCloser = closers.find((c) => c.email && c.email.toLowerCase() === session.user.email.toLowerCase());
@@ -2014,7 +2000,7 @@ function AddCommandeModal({ onClose, onAdd, currency }) {
   const canSubmit = form.client.trim() && montantValide;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360 }}>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>Nouvelle commande</div>
         {["client", "tel", "produit", "montant", "zone"].map((f) => (
@@ -2080,7 +2066,7 @@ function TeamModal({ workspace, onClose }) {
   const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>Équipe</div>
@@ -2174,7 +2160,7 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 10 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 55 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340 }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Inviter quelqu'un</div>
         <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
@@ -2369,7 +2355,7 @@ function AbonnementModal({ workspace, subscription, onClose }) {
   const planActuel = subscription?.subscription_plans?.nom;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>Mon abonnement</div>
@@ -2723,7 +2709,7 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, maxHeight: "80vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>{titre}</div>
@@ -2784,7 +2770,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, quantites
   const totalLivre = produits.reduce((s, p) => s + (quantitesParProduit[p.nom]?.livrees || 0), 0);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>Catalogue & Stock</div>
@@ -3060,13 +3046,103 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   );
 }
 
-function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, coutLivraisons, coutProduitsInfo, COUT_LIVRAISON, depotsParLivreur, totalCommission, totalADeposer, livreurs }) {
+function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
+  const [datePreset, setDatePreset] = useState("semaine");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start, end;
+    if (datePreset === "aujourdhui") {
+      start = startOfToday;
+      end = new Date(startOfToday.getTime() + 86400000);
+    } else if (datePreset === "hier") {
+      start = new Date(startOfToday.getTime() - 86400000);
+      end = startOfToday;
+    } else if (datePreset === "avanthier") {
+      start = new Date(startOfToday.getTime() - 2 * 86400000);
+      end = new Date(startOfToday.getTime() - 86400000);
+    } else if (datePreset === "semaine") {
+      const day = startOfToday.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      start = new Date(startOfToday.getTime() - diff * 86400000);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "mois") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "personnalise" && customStart && customEnd) {
+      start = new Date(customStart + "T00:00:00");
+      end = new Date(customEnd + "T23:59:59");
+    } else {
+      start = new Date(0);
+      end = new Date(now.getTime() + 60000);
+    }
+    return { start, end };
+  }, [datePreset, customStart, customEnd]);
+
+  const periodLabel = { aujourdhui: "Aujourd'hui", hier: "Hier", avanthier: "Avant-hier", semaine: "Cette semaine", mois: "Ce mois", personnalise: "Période personnalisée" }[datePreset];
+
   function parseProduitTexteLocal(texte) {
     if (!texte) return { nom: "", quantite: 1 };
     const match = texte.match(/^(.*?)\s*x\s*(\d+)\s*$/i);
     if (match) return { nom: match[1].trim(), quantite: Number(match[2]) || 1 };
     return { nom: texte.trim(), quantite: 1 };
   }
+
+  const commandesInRange = useMemo(() => {
+    return commandes.filter((c) => {
+      const d = new Date(c.created_at);
+      return d >= dateRange.start && d < dateRange.end;
+    });
+  }, [commandes, dateRange]);
+
+  const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
+  const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
+  const COUT_LIVRAISON = 1500;
+  const coutLivraisons = confirmees.length * COUT_LIVRAISON;
+
+  const coutProduitsInfo = useMemo(() => {
+    let coutTotal = 0, nbInconnu = 0, montantInconnu = 0;
+    confirmees.forEach((c) => {
+      const { nom, quantite } = parseProduitTexteLocal(c.produit);
+      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
+      if (!trouve) {
+        nbInconnu += 1;
+        montantInconnu += Number(c.montant);
+      } else {
+        coutTotal += trouve.cout_achat * quantite;
+      }
+    });
+    return { coutTotal, nbInconnu, montantInconnu };
+  }, [confirmees, produits]);
+
+  const beneficeReel = caConfirme - coutLivraisons - coutProduitsInfo.coutTotal;
+
+  const depotsParLivreur = useMemo(() => {
+    return livreurs
+      .map((l) => {
+        const mesLivrees = confirmees.filter((c) => c.livreur === l.nom);
+        const montantRecupere = mesLivrees.reduce((s, c) => s + Number(c.montant), 0);
+        const commission = mesLivrees.length * COUT_LIVRAISON;
+        return { nom: l.nom, livrees: mesLivrees.length, montantRecupere, commission, aDeposer: montantRecupere - commission };
+      })
+      .filter((l) => l.livrees > 0)
+      .sort((a, b) => b.aDeposer - a.aDeposer);
+  }, [livreurs, confirmees]);
+
+  const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
+  const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
+
+  const livreursAvecCommandes = useMemo(() => {
+    const map = {};
+    commandesInRange.forEach((c) => {
+      if (!c.livreur) return;
+      map[c.livreur] = (map[c.livreur] || 0) + 1;
+    });
+    return Object.entries(map).map(([nom, total]) => ({ nom, total })).sort((a, b) => b.total - a.total);
+  }, [commandesInRange]);
 
   const produitsParLivreur = {};
   depotsParLivreur.forEach((l) => {
@@ -3110,7 +3186,38 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
 
       <div className="rv-saas-print-only" style={{ display: "none", marginBottom: 16 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20 }}>Rapport comptable — {workspace.name}</div>
-        <div style={{ fontSize: 12, color: "#6B7168" }}>Édité le {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+        <div style={{ fontSize: 12, color: "#6B7168" }}>Édité le {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} — {periodLabel}</div>
+      </div>
+
+      <div className="rv-saas-no-print" style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto" }}>
+        {[
+          { key: "aujourdhui", label: "Aujourd'hui" },
+          { key: "hier", label: "Hier" },
+          { key: "avanthier", label: "Avant-hier" },
+          { key: "semaine", label: "Cette semaine" },
+          { key: "mois", label: "Ce mois" },
+          { key: "personnalise", label: "Personnalisé" },
+        ].map((d) => (
+          <button
+            key={d.key}
+            onClick={() => setDatePreset(d.key)}
+            style={{ padding: "6px 13px", borderRadius: 999, border: `1px solid ${datePreset === d.key ? "#1a7a3c" : "#DDD8CC"}`, background: datePreset === d.key ? "#1a7a3c" : "white", color: datePreset === d.key ? "white" : "#16231F", fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0, cursor: "pointer" }}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {datePreset === "personnalise" && (
+        <div className="rv-saas-no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+          <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }} />
+          <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>
+          <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }} />
+        </div>
+      )}
+
+      <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "3px 10px", borderRadius: 999, marginBottom: 12 }}>
+        📊 {periodLabel}
       </div>
 
       <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
@@ -3141,13 +3248,27 @@ function ComptablePortalSaas({ workspace, beneficeReel, caConfirme, confirmees, 
       </div>
 
       {livreurs.some((l) => l.en_tournee) && (
-        <div style={{ marginBottom: 20 }}>
+        <div className="rv-saas-no-print" style={{ marginBottom: 20 }}>
           <CarteLivreursSaas livreurs={livreurs} />
         </div>
       )}
 
+      {livreursAvecCommandes.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>📊 Résumé — commandes reçues par livreur ({periodLabel})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {livreursAvecCommandes.map((l) => (
+              <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "9px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13 }}><strong>{l.nom}</strong> a reçu</span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: "#1a7a3c" }}>{l.total} commande{l.total > 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Détail par livreur</div>
-      {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
+      {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée sur cette période.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {depotsParLivreur.map((l) => (
           <LivreurDetailComptableSaas key={l.nom} l={l} produits={produitsParLivreur[l.nom] || []} currency={workspace.currency} />
@@ -3196,9 +3317,45 @@ function LivreurDetailComptableSaas({ l, produits, currency }) {
 }
 
 function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChanged }) {
-  const mesCommandes = commandes.filter((c) => c.closer === closer.nom);
-  const actives = mesCommandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
-  const confirmees = mesCommandes.filter((c) => c.statut === "confirmee");
+  const [datePreset, setDatePreset] = useState("toutes");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start, end;
+    if (datePreset === "aujourdhui") {
+      start = startOfToday;
+      end = new Date(startOfToday.getTime() + 86400000);
+    } else if (datePreset === "hier") {
+      start = new Date(startOfToday.getTime() - 86400000);
+      end = startOfToday;
+    } else if (datePreset === "avanthier") {
+      start = new Date(startOfToday.getTime() - 2 * 86400000);
+      end = new Date(startOfToday.getTime() - 86400000);
+    } else if (datePreset === "semaine") {
+      const day = startOfToday.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      start = new Date(startOfToday.getTime() - diff * 86400000);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "personnalise" && customStart && customEnd) {
+      start = new Date(customStart + "T00:00:00");
+      end = new Date(customEnd + "T23:59:59");
+    } else {
+      start = new Date(0);
+      end = new Date(now.getTime() + 60000);
+    }
+    return { start, end };
+  }, [datePreset, customStart, customEnd]);
+
+  const mesCommandesToutes = commandes.filter((c) => c.closer === closer.nom);
+  const actives = mesCommandesToutes.filter((c) => {
+    if (c.statut !== "en_cours" && c.statut !== "echouee") return false;
+    const d = new Date(c.created_at);
+    return d >= dateRange.start && d < dateRange.end;
+  });
+  const confirmees = mesCommandesToutes.filter((c) => c.statut === "confirmee");
   const nonAssignees = commandes.filter((c) => !c.closer && (c.statut === "en_cours" || c.statut === "echouee"));
   const [selected, setSelected] = useState(null);
 
@@ -3285,6 +3442,37 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
             </div>
           </div>
         )}
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
+          {[
+            { key: "toutes", label: "Toutes" },
+            { key: "aujourdhui", label: "Aujourd'hui" },
+            { key: "hier", label: "Hier" },
+            { key: "avanthier", label: "Avant-hier" },
+            { key: "semaine", label: "Cette semaine" },
+            { key: "personnalise", label: "Personnalisé" },
+          ].map((d) => (
+            <button
+              key={d.key}
+              onClick={() => setDatePreset(d.key)}
+              style={{ padding: "6px 13px", borderRadius: 999, border: `1px solid ${datePreset === d.key ? "#1a7a3c" : "#DDD8CC"}`, background: datePreset === d.key ? "#1a7a3c" : "white", color: datePreset === d.key ? "white" : "#16231F", fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0, cursor: "pointer" }}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+
+        {datePreset === "personnalise" && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
+            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }} />
+            <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>
+            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }} />
+          </div>
+        )}
+
+        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 10 }}>
+          {actives.length} commande{actives.length > 1 ? "s" : ""} à traiter{datePreset !== "toutes" ? " sur cette période" : ""}
+        </div>
 
         {actives.length === 0 ? (
           <div style={{ textAlign: "center", padding: "50px 20px", color: "#8A9089" }}>

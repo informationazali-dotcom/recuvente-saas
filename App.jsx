@@ -2433,6 +2433,33 @@ function AbonnementModal({ workspace, subscription, onClose }) {
   const [demandes, setDemandes] = useState([]);
   const [loading, setLoading] = useState(null);
   const [message, setMessage] = useState("");
+  const [exportEnCours, setExportEnCours] = useState(false);
+
+  async function exporterMesDonnees() {
+    setExportEnCours(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const res = await fetch(`/api/export-my-data?workspaceId=${workspace.id}`, {
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || "Erreur lors de l'export");
+        setExportEnCours(false);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${workspace.name}-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Erreur: " + e.message);
+    }
+    setExportEnCours(false);
+  }
 
   async function load() {
     const { data: p } = await supabase.from("subscription_plans").select("*").order("prix");
@@ -2512,6 +2539,19 @@ function AbonnementModal({ workspace, subscription, onClose }) {
               </button>
             </div>
           ))}
+        </div>
+
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #F0EEE6" }}>
+          <button
+            onClick={exporterMesDonnees}
+            disabled={exportEnCours}
+            style={{ width: "100%", background: "#FAFAF7", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 0", borderRadius: 10, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
+          >
+            {exportEnCours ? "Export en cours..." : "💾 Télécharger toutes mes données"}
+          </button>
+          <div style={{ fontSize: 11, color: "#8A9089", marginTop: 6, textAlign: "center" }}>
+            Commandes, clients, équipe — au format que tu peux garder.
+          </div>
         </div>
       </div>
     </div>

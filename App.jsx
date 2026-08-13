@@ -2541,6 +2541,32 @@ function AbonnementModal({ workspace, subscription, onClose }) {
           ))}
         </div>
 
+        {demandes.length > 0 && (
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #F0EEE6" }}>
+            <div style={{ fontSize: 11, color: "#8A9089", textTransform: "uppercase", marginBottom: 8 }}>Historique</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {demandes.map((d) => {
+                const statutInfo = {
+                  en_attente: { label: "⏳ En attente", couleur: "#8A6412", fond: "#FBF3E3" },
+                  confirmee: { label: "✅ Confirmé", couleur: "#3B6D11", fond: "#EAF3DE" },
+                  refuse: { label: "❌ Refusé", couleur: "#B23A22", fond: "#FBEAE6" },
+                }[d.statut] || { label: d.statut, couleur: "#6B7168", fond: "#FAFAF7" };
+                return (
+                  <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "8px 10px", background: "#FAFAF7", borderRadius: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{d.subscription_plans?.nom || "Plan"}</div>
+                      <div style={{ fontSize: 11, color: "#8A9089" }}>{new Date(d.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: statutInfo.couleur, background: statutInfo.fond, padding: "3px 9px", borderRadius: 999 }}>
+                      {statutInfo.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #F0EEE6" }}>
           <button
             onClick={exporterMesDonnees}

@@ -350,6 +350,12 @@ function LandingPage() {
           <a href="?page=cgu" style={{ color: "#8A9089", textDecoration: "underline" }}>Conditions d'utilisation</a>
           <a href="?page=confidentialite" style={{ color: "#8A9089", textDecoration: "underline" }}>Confidentialité</a>
         </div>
+        <button
+          onClick={() => { throw new Error("Test bouton Sentry - RecuVente SaaS"); }}
+          style={{ marginTop: 14, background: "#FBEAE6", border: "1px solid #F0B8AC", color: "#D64933", padding: "6px 14px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}
+        >
+          🧪 Test Sentry (temporaire)
+        </button>
       </div>
     </div>
   );

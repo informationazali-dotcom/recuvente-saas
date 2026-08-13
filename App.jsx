@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 function cleanPhoneForWhatsApp(tel) {
@@ -1347,6 +1348,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         .rv-saas-sidebar { display: none; }
         .rv-saas-content { }
         .rv-saas-tabs-mobile { }
+        .rv-saas-bottomnav { display: flex; }
+        .rv-saas-content { padding-bottom: 76px; }
         @media (min-width: 900px) {
           .rv-saas-sidebar {
             display: flex;
@@ -1366,6 +1369,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             padding: 0 32px;
           }
           .rv-saas-tabs-mobile { display: none !important; }
+          .rv-saas-bottomnav { display: none !important; }
         }
       `}</style>
 
@@ -1441,6 +1445,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
+            <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ marginLeft: "auto", background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              ⏻ Déconnexion
+            </button>
           </div>
           <div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 700 }}>{workspace.name}</div>
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
@@ -1528,41 +1535,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
         </div>
       )}
-
-      <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
-        <button
-          onClick={() => setVue("aujourdhui")}
-          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "aujourdhui" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "aujourdhui" ? "#1a7a3c" : "white", color: vue === "aujourdhui" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          Aujourd'hui
-        </button>
-        <button
-          onClick={() => setVue("commandes")}
-          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          Commandes
-        </button>
-        <button
-          onClick={() => setVue("validations")}
-          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "validations" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "validations" ? "#1a7a3c" : "white", color: vue === "validations" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          Validations
-        </button>
-        <button
-          onClick={() => setVue("clients")}
-          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "clients" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "clients" ? "#1a7a3c" : "white", color: vue === "clients" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          Clients ({clients.length})
-        </button>
-        {(workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setVue("compta")}
-            style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "compta" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "compta" ? "#1a7a3c" : "white", color: vue === "compta" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-          >
-            🧮 Compta
-          </button>
-        )}
-      </div>
 
       {workspace.role === "owner" && (
         <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -1968,11 +1940,54 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <button onClick={() => supabase.auth.signOut()} className="rv-saas-tabs-mobile" style={{ ...btnStyle, marginTop: 20, background: "white", color: "#16231F", border: "1px solid #DDD8CC" }}>
-        Déconnexion
-      </button>
-
       </div>
+      </div>
+
+      <div
+        className="rv-saas-bottomnav"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "white",
+          borderTop: "1px solid #ECE8DC",
+          padding: "8px 12px",
+          paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
+          zIndex: 20,
+        }}
+      >
+        {[
+          { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
+          { key: "commandes", label: "Commandes", icon: Package },
+          { key: "validations", label: "Validations", icon: CheckCheck },
+          { key: "clients", label: "Clients", icon: Users },
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
+        ].map((t) => {
+          const Icon = t.icon;
+          const active = vue === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setVue(t.key)}
+              style={{
+                flex: 1,
+                background: "none",
+                border: "none",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 3,
+                padding: "6px 0",
+                color: active ? "#1a7a3c" : "#8A9089",
+                cursor: "pointer",
+              }}
+            >
+              <Icon size={19} strokeWidth={active ? 2.4 : 2} />
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 500 }}>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}

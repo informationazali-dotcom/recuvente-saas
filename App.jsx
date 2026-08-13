@@ -1445,9 +1445,21 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
-            <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ marginLeft: "auto", background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-              ⏻ Déconnexion
-            </button>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              {workspace.role === "owner" && (
+                <>
+                  <button onClick={() => setShowTeam(true)} aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    👥
+                  </button>
+                  <button onClick={() => setShowAbonnement(true)} aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    💳
+                  </button>
+                </>
+              )}
+              <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                ⏻ Déconnexion
+              </button>
+            </div>
           </div>
           <div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 700 }}>{workspace.name}</div>
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
@@ -1533,23 +1545,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
           <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>
           <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
-        </div>
-      )}
-
-      {workspace.role === "owner" && (
-        <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <button
-            onClick={() => setShowTeam(true)}
-            style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-          >
-            👥 Équipe
-          </button>
-          <button
-            onClick={() => setShowAbonnement(true)}
-            style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-          >
-            💳 Abonnement
-          </button>
         </div>
       )}
 
@@ -1787,7 +1782,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
 
       {vue === "validations" && (
-        <ValidationsViewSaas validationsParJour={validationsParJour} nonValideesParJour={nonValideesParJour} currency={workspace.currency} />
+        <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
       )}
 
       {vue === "clients" && (
@@ -3644,8 +3639,77 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
   );
 }
 
-function ValidationsViewSaas({ validationsParJour, nonValideesParJour, currency }) {
+function ValidationsViewSaas({ commandes, currency }) {
   const [tab, setTab] = useState("validees");
+  const [datePreset, setDatePreset] = useState("semaine");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start, end;
+    if (datePreset === "aujourdhui") {
+      start = startOfToday;
+      end = new Date(startOfToday.getTime() + 86400000);
+    } else if (datePreset === "hier") {
+      start = new Date(startOfToday.getTime() - 86400000);
+      end = startOfToday;
+    } else if (datePreset === "avanthier") {
+      start = new Date(startOfToday.getTime() - 2 * 86400000);
+      end = new Date(startOfToday.getTime() - 86400000);
+    } else if (datePreset === "semaine") {
+      const day = startOfToday.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      start = new Date(startOfToday.getTime() - diff * 86400000);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "mois") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getTime() + 60000);
+    } else if (datePreset === "personnalise" && customStart && customEnd) {
+      start = new Date(customStart + "T00:00:00");
+      end = new Date(customEnd + "T23:59:59");
+    } else {
+      start = new Date(0);
+      end = new Date(now.getTime() + 60000);
+    }
+    return { start, end };
+  }, [datePreset, customStart, customEnd]);
+
+  const validationsParJour = useMemo(() => {
+    const confirmeesAvecDate = commandes.filter((c) => {
+      if (c.statut !== "confirmee" || !c.confirmed_at) return false;
+      const d = new Date(c.confirmed_at);
+      return d >= dateRange.start && d < dateRange.end;
+    });
+    const map = {};
+    confirmeesAvecDate.forEach((c) => {
+      const dValidation = new Date(c.confirmed_at);
+      const keyValidation = dValidation.toISOString().slice(0, 10);
+      const dCreation = new Date(c.created_at);
+      const keyCreation = dCreation.toISOString().slice(0, 10);
+      const memeJour = keyValidation === keyCreation;
+      if (!map[keyValidation]) map[keyValidation] = { date: keyValidation, label: dValidation.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), orders: [] };
+      map[keyValidation].orders.push({ ...c, memeJour, labelCreation: dCreation.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) });
+    });
+    return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [commandes, dateRange]);
+
+  const nonValideesParJour = useMemo(() => {
+    const nonValidees = commandes.filter((c) => {
+      if (c.statut !== "en_cours" && c.statut !== "echouee") return false;
+      const d = new Date(c.created_at);
+      return d >= dateRange.start && d < dateRange.end;
+    });
+    const map = {};
+    nonValidees.forEach((c) => {
+      const d = new Date(c.created_at);
+      const key = d.toISOString().slice(0, 10);
+      if (!map[key]) map[key] = { date: key, label: d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), orders: [] };
+      map[key].orders.push(c);
+    });
+    return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [commandes, dateRange]);
 
   return (
     <div>
@@ -3653,6 +3717,33 @@ function ValidationsViewSaas({ validationsParJour, nonValideesParJour, currency 
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 14 }}>
         Ce qui a été confirmé, jour par jour — et ce qui attend encore.
       </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
+        {[
+          { key: "aujourdhui", label: "Aujourd'hui" },
+          { key: "hier", label: "Hier" },
+          { key: "avanthier", label: "Avant-hier" },
+          { key: "semaine", label: "Cette semaine" },
+          { key: "mois", label: "Ce mois" },
+          { key: "personnalise", label: "Personnalisé" },
+        ].map((d) => (
+          <button
+            key={d.key}
+            onClick={() => setDatePreset(d.key)}
+            style={{ padding: "6px 13px", borderRadius: 999, border: `1px solid ${datePreset === d.key ? "#1a7a3c" : "#DDD8CC"}`, background: datePreset === d.key ? "#1a7a3c" : "white", color: datePreset === d.key ? "white" : "#16231F", fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0, cursor: "pointer" }}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {datePreset === "personnalise" && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
+          <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }} />
+          <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>
+          <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }} />
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         <button

@@ -1529,56 +1529,57 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
       )}
 
-      <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
         <button
           onClick={() => setVue("aujourdhui")}
-          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "aujourdhui" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "aujourdhui" ? "#1a7a3c" : "white", color: vue === "aujourdhui" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "aujourdhui" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "aujourdhui" ? "#1a7a3c" : "white", color: vue === "aujourdhui" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
         >
           Aujourd'hui
         </button>
         <button
           onClick={() => setVue("commandes")}
-          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "commandes" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "commandes" ? "#1a7a3c" : "white", color: vue === "commandes" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
         >
           Commandes
         </button>
         <button
           onClick={() => setVue("validations")}
-          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "validations" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "validations" ? "#1a7a3c" : "white", color: vue === "validations" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "validations" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "validations" ? "#1a7a3c" : "white", color: vue === "validations" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
         >
           Validations
         </button>
         <button
           onClick={() => setVue("clients")}
-          style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "clients" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "clients" ? "#1a7a3c" : "white", color: vue === "clients" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "clients" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "clients" ? "#1a7a3c" : "white", color: vue === "clients" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
         >
           Clients ({clients.length})
         </button>
         {(workspace.role === "owner" || workspace.role === "admin") && (
           <button
             onClick={() => setVue("compta")}
-            style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${vue === "compta" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "compta" ? "#1a7a3c" : "white", color: vue === "compta" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 9, border: `1px solid ${vue === "compta" ? "#1a7a3c" : "#DDD8CC"}`, background: vue === "compta" ? "#1a7a3c" : "white", color: vue === "compta" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
           >
             🧮 Compta
           </button>
         )}
-        {workspace.role === "owner" && (
-          <>
-            <button
-              onClick={() => setShowTeam(true)}
-              style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-            >
-              👥 Équipe
-            </button>
-            <button
-              onClick={() => setShowAbonnement(true)}
-              style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-            >
-              💳 Abonnement
-            </button>
-          </>
-        )}
       </div>
+
+      {workspace.role === "owner" && (
+        <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <button
+            onClick={() => setShowTeam(true)}
+            style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          >
+            👥 Équipe
+          </button>
+          <button
+            onClick={() => setShowAbonnement(true)}
+            style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "1px solid #DDD8CC", background: "white", color: "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          >
+            💳 Abonnement
+          </button>
+        </div>
+      )}
 
       {vue === "aujourdhui" && (
         <div>

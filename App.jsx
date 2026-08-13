@@ -1441,6 +1441,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
                   <button onClick={() => setShowAbonnement(true)} aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
                   </button>
+                  <button onClick={() => setShowIntegrations(true)} aria-label="Intégrations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    🔌
+                  </button>
                 </>
               )}
               <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
@@ -1490,11 +1493,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               <button onClick={() => setShowCampagne(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 📣 Campagne
               </button>
-              {workspace.role === "owner" && (
-                <button onClick={() => setShowIntegrations(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                  🔌 Intégrations
-                </button>
-              )}
             </div>
           )}
         </div>

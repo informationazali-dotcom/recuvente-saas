@@ -2236,6 +2236,33 @@ function AdminPanel({ session }) {
   const [debug, setDebug] = useState("");
   const [recherche, setRecherche] = useState("");
   const [actionEnCours, setActionEnCours] = useState(null);
+  const [exportEnCours, setExportEnCours] = useState(false);
+
+  async function exporterSauvegarde() {
+    setExportEnCours(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const res = await fetch("/api/backup-export", {
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || "Erreur lors de l'export");
+        setExportEnCours(false);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `recuvente-saas-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Erreur: " + e.message);
+    }
+    setExportEnCours(false);
+  }
 
   async function load() {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -2289,7 +2316,15 @@ function AdminPanel({ session }) {
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22 }}>Admin RecuVente</div>
         <a href="?" style={{ fontSize: 12.5, color: "#1a7a3c", textDecoration: "underline" }}>← Mon espace</a>
       </div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>Connecté en tant que {session.user.email}</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 12 }}>Connecté en tant que {session.user.email}</div>
+
+      <button
+        onClick={exporterSauvegarde}
+        disabled={exportEnCours}
+        style={{ background: "#16231F", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", marginBottom: 20 }}
+      >
+        {exportEnCours ? "Export en cours..." : "💾 Télécharger une sauvegarde complète"}
+      </button>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
         <div style={{ background: "#16231F", color: "white", borderRadius: 12, padding: 16 }}>

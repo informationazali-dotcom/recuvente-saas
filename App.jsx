@@ -2229,6 +2229,8 @@ function AdminPanel({ session }) {
   const [data, setData] = useState(undefined);
   const [error, setError] = useState("");
   const [debug, setDebug] = useState("");
+  const [recherche, setRecherche] = useState("");
+  const [actionEnCours, setActionEnCours] = useState(null);
 
   async function load() {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -2240,6 +2242,20 @@ function AdminPanel({ session }) {
       setError(json.error || "Erreur");
       setDebug(json.debug || "");
     } else setData(json);
+  }
+
+  async function toggleStatus(workspaceId, action) {
+    setActionEnCours(workspaceId);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const res = await fetch("/api/toggle-workspace-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+      body: JSON.stringify({ workspaceId, action }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) alert(json.error || "Erreur");
+    else await load();
+    setActionEnCours(null);
   }
 
   useEffect(() => {
@@ -2296,19 +2312,44 @@ function AdminPanel({ session }) {
         </div>
       )}
 
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Toutes les entreprises</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>Toutes les entreprises</div>
+        <input
+          type="text"
+          placeholder="Rechercher..."
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, width: 160 }}
+        />
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {data.workspaces.map((ws) => (
-          <div key={ws.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{ws.name}</div>
-              <div style={{ fontSize: 11.5, color: "#6B7168" }}>{ws.ownerEmail} · {ws.nbMembres} membre{ws.nbMembres > 1 ? "s" : ""} · {ws.country}</div>
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 600 }}>
-              {ws.subscription ? statusLabels[ws.subscription.status] || ws.subscription.status : "—"}
-            </div>
-          </div>
-        ))}
+        {data.workspaces
+          .filter((ws) => !recherche.trim() || ws.name.toLowerCase().includes(recherche.toLowerCase()) || ws.ownerEmail.toLowerCase().includes(recherche.toLowerCase()))
+          .map((ws) => {
+            const suspendu = ws.subscription?.status === "suspended";
+            return (
+              <div key={ws.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{ws.name}</div>
+                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>{ws.ownerEmail} · {ws.nbMembres} membre{ws.nbMembres > 1 ? "s" : ""} · {ws.country}</div>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>
+                    {ws.subscription ? statusLabels[ws.subscription.status] || ws.subscription.status : "—"}
+                  </div>
+                </div>
+                {ws.subscription && (
+                  <button
+                    onClick={() => toggleStatus(ws.id, suspendu ? "reactiver" : "suspendre")}
+                    disabled={actionEnCours === ws.id}
+                    style={{ marginTop: 8, background: suspendu ? "#1a7a3c" : "#FBEAE6", color: suspendu ? "white" : "#D64933", border: suspendu ? "none" : "1px solid #F0B8AC", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    {actionEnCours === ws.id ? "..." : suspendu ? "✅ Réactiver" : "🔒 Suspendre"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         {data.workspaces.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune entreprise inscrite pour l'instant.</div>}
       </div>
     </div>

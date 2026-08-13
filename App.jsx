@@ -146,7 +146,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -615,6 +615,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showLivreurs, setShowLivreurs] = useState(false);
   const [showClosers, setShowClosers] = useState(false);
   const [showCampagne, setShowCampagne] = useState(false);
+  const [showIntegrations, setShowIntegrations] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showProduits, setShowProduits] = useState(false);
 
@@ -1489,6 +1490,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               <button onClick={() => setShowCampagne(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 📣 Campagne
               </button>
+              {workspace.role === "owner" && (
+                <button onClick={() => setShowIntegrations(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                  🔌 Intégrations
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1976,6 +1982,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
+      {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showBatch && (
         <BatchRelanceModalSaas
           orders={[...todoAujourdhui.aRelivrer, ...todoAujourdhui.jamaisContactees, ...todoAujourdhui.sansNouvelles]}
@@ -4152,6 +4159,68 @@ function CarteLivreursSaas({ livreurs }) {
       {enTourneeAvecPosition.length === 0 && (
         <div style={{ fontSize: 12, color: "#8A9089", marginTop: 6 }}>Aucun livreur en tournée pour le moment.</div>
       )}
+    </div>
+  );
+}
+
+function IntegrationsModal({ workspace, onClose }) {
+  const [copie, setCopie] = useState(false);
+  const webhookUrl = `${window.location.origin}/api/shopify-webhook?secret=${workspace.webhook_secret}`;
+
+  function copier() {
+    navigator.clipboard.writeText(webhookUrl);
+    setCopie(true);
+    setTimeout(() => setCopie(false), 2000);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🔌 Intégrations</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
+          Connecte ta boutique Shopify pour que chaque nouvelle commande arrive **automatiquement** ici, sans rien taper à la main.
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: "#8A9089", textTransform: "uppercase", marginBottom: 8 }}>Ton lien unique — ne le partage à personne</div>
+          <div style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 8, padding: "10px 12px", fontSize: 11.5, fontFamily: "monospace", wordBreak: "break-all", marginBottom: 10 }}>
+            {webhookUrl}
+          </div>
+          <button
+            onClick={copier}
+            style={{ width: "100%", background: copie ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+          >
+            {copie ? "✅ Copié !" : "📋 Copier le lien"}
+          </button>
+        </div>
+
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Comment l'installer sur Shopify</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {[
+            { n: 1, texte: "Sur ta boutique Shopify, va dans Paramètres → Notifications" },
+            { n: 2, texte: "Descends jusqu'à \"Webhooks\", clique \"Créer un webhook\"" },
+            { n: 3, texte: "Événement : \"Création de commande\" (Order creation)" },
+            { n: 4, texte: "Format : JSON" },
+            { n: 5, texte: "URL : colle le lien copié ci-dessus" },
+            { n: 6, texte: "Enregistre — chaque nouvelle commande Shopify apparaîtra automatiquement dans RecuVente" },
+          ].map((etape) => (
+            <div key={etape.n} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#EAF3DE", color: "#1a7a3c", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {etape.n}
+              </div>
+              <div style={{ fontSize: 12.5, color: "#16231F", lineHeight: 1.4 }}>{etape.texte}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginTop: 16, fontSize: 12, color: "#8A6412" }}>
+          ⚠️ Ce lien est unique à ton entreprise — les commandes créées via ce lien arrivent uniquement dans ton espace, jamais chez une autre entreprise.
+        </div>
+      </div>
     </div>
   );
 }

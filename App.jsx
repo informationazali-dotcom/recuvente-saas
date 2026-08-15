@@ -245,69 +245,194 @@ function Centered({ children }) {
 function LandingPage() {
   const [plans, setPlans] = useState([]);
   const [faqOuverte, setFaqOuverte] = useState(null);
+  const [profil, setProfil] = useState("cod");
 
   useEffect(() => {
     supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
   }, []);
 
+  const contenuParProfil = {
+    cod: {
+      badge: "🏍️ Vente en ligne, paiement à la livraison",
+      titre: "Ton COD, enfin sous contrôle — du premier appel à l'argent dans la poche",
+      sousTitre: "Fini les commandes perdues dans WhatsApp, les livreurs qu'on ne sait plus payer, et les ventes qu'on ne sait jamais vraiment si elles ont abouti.",
+      captureLignes: [
+        { label: "Argent récupéré", valeur: "1 240 500 FCFA", couleur: "#e8920a" },
+        { label: "En cours", valeur: "18", couleur: "white" },
+        { label: "Taux de livraison", valeur: "87%", couleur: "white" },
+      ],
+      avantages: [
+        { icon: "📋", titre: "Chaque commande, du premier contact à la livraison", desc: "Statut en temps réel — en cours, confirmée, échouée — jamais un client qui se perd dans les échanges WhatsApp." },
+        { icon: "🚚", titre: "Tes livreurs, suivis en direct", desc: "Position GPS pendant leur tournée, commission calculée automatiquement, montant exact à déposer chaque jour." },
+        { icon: "🎧", titre: "Une équipe de closers, sans doublons", desc: "Chaque commande non assignée est prise par un seul closer à la fois — fini les deux personnes qui rappellent le même client." },
+        { icon: "🧮", titre: "Le bénéfice réel, pas juste le chiffre d'affaires", desc: "Coût produit, commission livreur, tout déduit automatiquement — tu sais enfin ce qu'il te reste vraiment." },
+        { icon: "📦", titre: "Le stock, avant la rupture", desc: "Alerte automatique par email quand un produit descend sous le seuil — plus jamais surpris." },
+        { icon: "🔄", titre: "Le réachat, sans y penser", desc: "L'app détecte le rythme d'achat de chaque client et te dit qui relancer, et quand." },
+      ],
+    },
+    retail: {
+      badge: "🏪 Boutique / Commerce physique",
+      titre: "Ta boutique, organisée comme une vraie entreprise",
+      sousTitre: "Vente sur place ou avec livraison, acompte ou paiement complet, stock en temps réel — sans cahier, sans Excel, sans rien oublier.",
+      captureLignes: [
+        { label: "Ventes du jour", valeur: "340 000 FCFA", couleur: "#e8920a" },
+        { label: "Acomptes en attente", valeur: "5", couleur: "white" },
+        { label: "Produits en stock", valeur: "142", couleur: "white" },
+      ],
+      avantages: [
+        { icon: "🏪", titre: "Vente sur place ou livraison, en un clic", desc: "Choisis comment le produit sort du magasin — payé en entier sur place, ou remis à un livreur." },
+        { icon: "💰", titre: "L'acompte, suivi jusqu'au dernier franc", desc: "Un client paie en plusieurs fois avant de retirer ? Le solde restant s'affiche clairement, jusqu'à ce qu'il soit réglé." },
+        { icon: "📦", titre: "Le stock, produit par produit", desc: "Sais exactement ce qu'il te reste, ce qui est déjà vendu, ce qui va bientôt manquer." },
+        { icon: "🧮", titre: "Le bénéfice réel de ta boutique", desc: "Coût produit déduit automatiquement, sans les frais de livraison inutiles pour une vente sur place." },
+        { icon: "🧾", titre: "Une facture professionnelle, en un clic", desc: "PDF prêt à envoyer, avec le détail exact de l'acompte et du solde restant si besoin." },
+        { icon: "📊", titre: "Toute ton équipe, un seul endroit", desc: "Vendeurs, comptable, chacun son rôle et son accès — plus de confusion sur qui a fait quoi." },
+      ],
+    },
+  };
+
+  const c = contenuParProfil[profil];
+
   const faq = [
     { q: "Comment fonctionne l'essai gratuit ?", r: "7 jours d'accès complet dès l'inscription, sur le plan Pro. Aucune carte bancaire requise. Tu peux annuler ou continuer à tout moment." },
-    { q: "Comment se fait le paiement ?", r: "Par Mobile Money. Tu demandes le plan de ton choix depuis l'app, effectues le transfert, et l'accès s'active dès la confirmation reçue." },
+    { q: "Comment se fait le paiement ?", r: "En ligne, directement dans l'app, activé automatiquement dès la confirmation du paiement." },
     { q: "Mes données sont-elles visibles par d'autres entreprises ?", r: "Non, jamais. Chaque entreprise a son espace complètement isolé et sécurisé — personne d'autre ne peut voir tes commandes, clients ou finances." },
     { q: "Puis-je changer de plan plus tard ?", r: "Oui, à tout moment, selon la croissance de ton activité." },
-    { q: "Ça fonctionne pour quel type de commerce ?", r: "Pensé pour la vente en paiement à la livraison (COD) — tout commerce avec des livreurs et une équipe de vente peut l'utiliser." },
-  ];
-
-  const fonctionnalites = [
-    { icon: "📋", titre: "Commandes & suivi", desc: "Statuts en temps réel, historique complet, jamais un client oublié." },
-    { icon: "🚚", titre: "Livreurs avec GPS", desc: "Suis leur tournée en direct, commissions calculées automatiquement." },
-    { icon: "🎧", titre: "Équipe de closers", desc: "Rôles restreints, répartition équitable, aucun doublon d'appel." },
-    { icon: "🧮", titre: "Comptabilité claire", desc: "Bénéfice réel, dépôts par livreur, coût produit — sans surprise." },
-    { icon: "📦", titre: "Stock & produits", desc: "Sais exactement combien il te reste, avant la rupture." },
-    { icon: "🔄", titre: "Réachat automatique", desc: "L'app te dit qui relancer, et quand, selon leur rythme d'achat." },
+    { q: "RecuVente fonctionne pour quel type de commerce ?", r: "Deux profils au choix dès l'inscription : la vente en ligne avec paiement à la livraison (COD), ou la boutique physique avec vente sur place et acompte. Choisis celui qui te correspond." },
+    { q: "Puis-je connecter ma boutique Shopify ?", r: "Oui — une intégration directe permet à tes commandes Shopify d'arriver automatiquement dans RecuVente, sans rien taper à la main." },
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');`}</style>
+    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F", overflowX: "hidden" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+        .rv-lp-toggle-btn { transition: all 0.25s ease; }
+        .rv-lp-fade { animation: rvLpFadeIn 0.35s ease; }
+        @keyframes rvLpFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .rv-lp-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(22,35,31,0.08); }
+        .rv-lp-card { transition: all 0.2s ease; }
+      `}</style>
 
-      <div style={{ background: "#1a7a3c", color: "white", padding: "60px 24px 70px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 30 }}>
-          RECU<span style={{ color: "#e8920a" }}>VENTE</span>
+      {/* HERO avec bascule de profil */}
+      <div style={{ background: "linear-gradient(160deg, #16231F 0%, #1a7a3c 130%)", color: "white", padding: "48px 24px 0", position: "relative", overflow: "hidden" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 28, letterSpacing: "0.02em" }}>
+            RECU<span style={{ color: "#e8920a" }}>VENTE</span>
+          </div>
+
+          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Quel est ton profil ?
+          </div>
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.1)", borderRadius: 999, padding: 4, marginBottom: 30 }}>
+            <button
+              className="rv-lp-toggle-btn"
+              onClick={() => setProfil("cod")}
+              style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "cod" ? "white" : "transparent", color: profil === "cod" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            >
+              🏍️ Je vends en ligne
+            </button>
+            <button
+              className="rv-lp-toggle-btn"
+              onClick={() => setProfil("retail")}
+              style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "retail" ? "white" : "transparent", color: profil === "retail" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            >
+              🏪 J'ai une boutique
+            </button>
+          </div>
+
+          <div key={profil} className="rv-lp-fade">
+            <div style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, color: "#e8920a", background: "rgba(232,146,10,0.15)", padding: "5px 14px", borderRadius: 999, marginBottom: 18 }}>
+              {c.badge}
+            </div>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 32, lineHeight: 1.2, marginBottom: 14 }}>
+              {c.titre}
+            </div>
+            <div style={{ fontSize: 15, opacity: 0.85, maxWidth: 460, margin: "0 auto 30px", lineHeight: 1.5 }}>
+              {c.sousTitre}
+            </div>
+          </div>
+
+          <a href="?auth=1" style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 8px 20px rgba(232,146,10,0.35)" }}>
+            Essayer gratuitement — 7 jours
+          </a>
+          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>Sans carte bancaire · Accès complet dès l'inscription</div>
+
+          {/* Aperçu visuel du tableau de bord, façon capture */}
+          <div key={profil + "-preview"} className="rv-lp-fade" style={{ marginTop: 36, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px 16px 0 0", padding: "18px 20px 0", maxWidth: 480, margin: "36px auto 0" }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              {c.captureLignes.map((l, i) => (
+                <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 10px", textAlign: "left" }}>
+                  <div style={{ fontSize: 9.5, opacity: 0.7, marginBottom: 4 }}>{l.label}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: l.couleur }}>{l.valeur}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 34, lineHeight: 1.25, maxWidth: 480, margin: "0 auto" }}>
-          Le logiciel qui organise ton e-commerce en paiement à la livraison
-        </div>
-        <div style={{ fontSize: 15, opacity: 0.85, marginTop: 16, maxWidth: 420, margin: "16px auto 0" }}>
-          Commandes, livreurs, closers, comptabilité — tout au même endroit, pensé pour le COD en Afrique de l'Ouest.
-        </div>
-        <a href="?auth=1" style={{ display: "inline-block", marginTop: 28, background: "#e8920a", color: "white", padding: "14px 32px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
-          Essayer gratuitement — 7 jours
-        </a>
-        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 10 }}>Sans carte bancaire</div>
       </div>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "50px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
-          {fonctionnalites.map((f, i) => (
-            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 22 }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>{f.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 15.5, marginBottom: 6 }}>{f.titre}</div>
-              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>{f.desc}</div>
+      {/* Points de douleur — reconnaissance du problème */}
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "44px 24px 10px", textAlign: "center" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 28 }}>
+          Ça te parle ?
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, textAlign: "left" }}>
+          {[
+            "Des commandes perdues quelque part dans WhatsApp",
+            "Un cahier ou un Excel qu'on ne remplit plus à jour",
+            "Impossible de savoir combien un livreur doit vraiment déposer",
+            "Aucune idée du vrai bénéfice à la fin du mois",
+          ].map((point, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#6B7168" }}>
+              <span style={{ color: "#D64933", flexShrink: 0 }}>✕</span>
+              {point}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Avantages détaillés, selon le profil choisi */}
+      <div key={profil + "-avantages"} className="rv-lp-fade" style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>
+            Tout ce dont {profil === "cod" ? "ta vente en ligne" : "ta boutique"} a besoin
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+          {c.avantages.map((f, i) => (
+            <div key={i} className="rv-lp-card" style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 22 }}>
+              <div style={{ fontSize: 26, marginBottom: 10 }}>{f.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{f.titre}</div>
+              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sécurité / confiance */}
+      <div style={{ background: "white", borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC", padding: "36px 24px" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20, textAlign: "center" }}>
+          {[
+            { icon: "🔒", txt: "Tes données, isolées et privées" },
+            { icon: "⚡", txt: "Activation immédiate du paiement" },
+            { icon: "📱", txt: "Fonctionne sur mobile comme sur ordinateur" },
+          ].map((item, i) => (
+            <div key={i}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{item.icon}</div>
+              <div style={{ fontSize: 12.5, color: "#6B7168", fontWeight: 500 }}>{item.txt}</div>
             </div>
           ))}
         </div>
       </div>
 
       {plans.length > 0 && (
-        <div style={{ background: "white", padding: "50px 24px", borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC" }}>
+        <div style={{ background: "#FAFAF7", padding: "50px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 36 }}>
             <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Des tarifs simples et transparents</div>
             <div style={{ fontSize: 14, color: "#6B7168", marginTop: 8 }}>7 jours gratuits sur n'importe quel plan, sans engagement.</div>
           </div>
           <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {plans.map((p, i) => (
-              <div key={p.id} style={{ border: i === 1 ? "2px solid #1a7a3c" : "1px solid #ECE8DC", borderRadius: 16, padding: 22, position: "relative", background: i === 1 ? "#FAFAF7" : "white" }}>
+              <div key={p.id} className="rv-lp-card" style={{ border: i === 1 ? "2px solid #1a7a3c" : "1px solid #ECE8DC", borderRadius: 16, padding: 22, position: "relative", background: i === 1 ? "white" : "white" }}>
                 {i === 1 && (
                   <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: "#1a7a3c", color: "white", fontSize: 10.5, fontWeight: 700, padding: "3px 12px", borderRadius: 999 }}>
                     LE PLUS CHOISI
@@ -352,10 +477,12 @@ function LandingPage() {
         </div>
       </div>
 
-      <div style={{ background: "#16231F", color: "white", padding: "50px 24px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, marginBottom: 10 }}>Prêt à essayer ?</div>
-        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 24 }}>7 jours gratuits, aucune carte requise.</div>
-        <a href="?auth=1" style={{ display: "inline-block", background: "#1a7a3c", color: "white", padding: "14px 32px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+      <div style={{ background: "#16231F", color: "white", padding: "56px 24px", textAlign: "center" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26, marginBottom: 10 }}>
+          {profil === "cod" ? "Ta prochaine commande mérite d'être suivie correctement" : "Ta boutique mérite mieux qu'un cahier"}
+        </div>
+        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 26 }}>7 jours gratuits, aucune carte requise.</div>
+        <a href="?auth=1" style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
           Créer mon espace
         </a>
       </div>

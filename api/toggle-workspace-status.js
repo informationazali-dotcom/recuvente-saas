@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -22,8 +22,31 @@ export default async function handler(req, res) {
   }
 
   const { workspaceId, action } = req.body;
-  if (!workspaceId || !["suspendre", "reactiver"].includes(action)) {
+  if (!workspaceId || !["suspendre", "reactiver", "supprimer"].includes(action)) {
     return res.status(400).json({ error: "Paramètres invalides" });
+  }
+
+  // ===== SUPPRESSION DÉFINITIVE =====
+  if (action === "supprimer") {
+    const { data: commandesIds } = await supabaseAdmin.from("commandes").select("id").eq("workspace_id", workspaceId);
+    const ids = (commandesIds || []).map((c) => c.id);
+    if (ids.length > 0) {
+      await supabaseAdmin.from("relances").delete().in("commande_id", ids);
+    }
+
+    await supabaseAdmin.from("commandes").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("livreurs").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("closers").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("produits").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("push_subscriptions").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("upgrade_requests").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("subscriptions").delete().eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("workspace_members").delete().eq("workspace_id", workspaceId);
+
+    const { error: deleteError } = await supabaseAdmin.from("workspaces").delete().eq("id", workspaceId);
+    if (deleteError) return res.status(400).json({ error: deleteError.message });
+
+    return res.status(200).json({ success: true, supprime: true });
   }
 
   const nouveauStatut = action === "suspendre" ? "suspended" : "active";

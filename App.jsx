@@ -254,8 +254,8 @@ function LandingPage() {
   const contenuParProfil = {
     cod: {
       badge: "🏍️ Vente en ligne, paiement à la livraison",
-      titre: "Ton COD, enfin sous contrôle — du premier appel à l'argent dans la poche",
-      sousTitre: "Fini les commandes perdues dans WhatsApp, les livreurs qu'on ne sait plus payer, et les ventes qu'on ne sait jamais vraiment si elles ont abouti.",
+      titre: "Arrête de perdre de l'argent sur des commandes que tu ne suis même plus",
+      sousTitre: "Chaque commande oubliée dans WhatsApp, c'est de l'argent qui t'échappe. RecuVente suit tout, du premier appel jusqu'à l'argent réellement dans ta poche — sans que rien ne t'échappe.",
       captureLignes: [
         { label: "Argent récupéré", valeur: "1 240 500 FCFA", couleur: "#e8920a" },
         { label: "En cours", valeur: "18", couleur: "white" },
@@ -272,8 +272,8 @@ function LandingPage() {
     },
     retail: {
       badge: "🏪 Boutique / Commerce physique",
-      titre: "Ta boutique, organisée comme une vraie entreprise",
-      sousTitre: "Vente sur place ou avec livraison, acompte ou paiement complet, stock en temps réel — sans cahier, sans Excel, sans rien oublier.",
+      titre: "Ta boutique mérite mieux qu'un cahier qu'on remplit à moitié",
+      sousTitre: "Chaque vente non notée, chaque acompte oublié, c'est de l'argent que tu perds de vue. RecuVente organise ta boutique comme une vraie entreprise — sans cahier, sans Excel, sans rien oublier.",
       captureLignes: [
         { label: "Ventes du jour", valeur: "340 000 FCFA", couleur: "#e8920a" },
         { label: "Acomptes en attente", valeur: "5", couleur: "white" },
@@ -352,9 +352,9 @@ function LandingPage() {
           </div>
 
           <a href="?auth=1" style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 8px 20px rgba(232,146,10,0.35)" }}>
-            Essayer gratuitement — 7 jours
+            Je démarre maintenant, gratuitement
           </a>
-          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>Sans carte bancaire · Accès complet dès l'inscription</div>
+          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
 
           {/* Aperçu visuel du tableau de bord, façon capture */}
           <div key={profil + "-preview"} className="rv-lp-fade" style={{ marginTop: 36, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px 16px 0 0", padding: "18px 20px 0", maxWidth: 480, margin: "36px auto 0" }}>
@@ -370,10 +370,13 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* Points de douleur — reconnaissance du problème */}
+      {/* Points de douleur — reconnaissance du problème, avec vrai enjeu financier */}
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "44px 24px 10px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 28 }}>
-          Ça te parle ?
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 10 }}>
+          Chaque jour sans système, tu perds de l'argent — pas dans 6 mois, aujourd'hui
+        </div>
+        <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 28, maxWidth: 480, margin: "0 auto 28px" }}>
+          Une commande oubliée, un acompte non suivi, un livreur qu'on ne peut pas contrôler — ce n'est pas un détail. C'est de l'argent qui t'échappe, chaque jour, sans que tu le voies.
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, textAlign: "left" }}>
           {[
@@ -424,11 +427,32 @@ function LandingPage() {
         </div>
       </div>
 
+      {/* Levée d'objections — répond aux vraies hésitations avant qu'elles bloquent */}
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "10px 24px 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22 }}>
+            "Oui, mais..."
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {[
+            { objection: "\"Je ne suis pas doué avec la technologie\"", reponse: "Si tu sais utiliser WhatsApp, tu sais utiliser RecuVente. Pensé pour être compris en quelques minutes, sans formation." },
+            { objection: "\"Je n'ai pas le temps d'apprendre un nouvel outil\"", reponse: "C'est justement le temps que tu perds à chercher une commande dans WhatsApp que RecuVente te redonne." },
+            { objection: "\"Ça doit être compliqué à mettre en place\"", reponse: "Créer ton espace prend moins de 2 minutes. Ta première commande peut être ajoutée tout de suite après." },
+          ].map((item, i) => (
+            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 5, color: "#16231F" }}>{item.objection}</div>
+              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>{item.reponse}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {plans.length > 0 && (
         <div style={{ background: "#FAFAF7", padding: "50px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Des tarifs simples et transparents</div>
-            <div style={{ fontSize: 14, color: "#6B7168", marginTop: 8 }}>7 jours gratuits sur n'importe quel plan, sans engagement.</div>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Choisis ton plan, commence en 2 minutes</div>
+            <div style={{ fontSize: 14, color: "#6B7168", marginTop: 8 }}>7 jours gratuits sur n'importe quel plan. Tu ne payes que si RecuVente te convainc.</div>
           </div>
           <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {plans.map((p, i) => (
@@ -481,10 +505,13 @@ function LandingPage() {
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26, marginBottom: 10 }}>
           {profil === "cod" ? "Ta prochaine commande mérite d'être suivie correctement" : "Ta boutique mérite mieux qu'un cahier"}
         </div>
-        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 26 }}>7 jours gratuits, aucune carte requise.</div>
+        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 26, maxWidth: 400, margin: "0 auto 26px" }}>
+          Chaque jour que tu attends, c'est une commande de plus qui risque de se perdre. Commence maintenant — c'est gratuit, et ça prend 2 minutes.
+        </div>
         <a href="?auth=1" style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
-          Créer mon espace
+          Créer mon espace gratuitement
         </a>
+        <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: 14 }}>Aucune carte bancaire · Annule à tout moment</div>
       </div>
 
       <div style={{ textAlign: "center", padding: "20px 24px", fontSize: 12, color: "#8A9089" }}>

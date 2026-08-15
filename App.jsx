@@ -2540,14 +2540,28 @@ function AbonnementModal({ workspace, subscription, onClose }) {
 
   async function demander(planId) {
     setLoading(planId);
-    const { error } = await supabase.from("upgrade_requests").insert([
-      { workspace_id: workspace.id, plan_id: planId },
-    ]);
-    if (error) {
-      setMessage("Erreur: " + error.message);
-    } else {
+    setMessage("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const res = await fetch("/api/chariow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ planId }),
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json.url) {
+        window.location.href = json.url;
+        return;
+      }
+
+      // Secours : si le paiement en ligne n'est pas encore configuré pour ce plan,
+      // on garde l'ancien système manuel plutôt que de bloquer le client
+      await supabase.from("upgrade_requests").insert([{ workspace_id: workspace.id, plan_id: planId }]);
       setMessage("✅ Demande envoyée ! Effectue le paiement Mobile Money et contacte le support pour confirmation.");
       await load();
+    } catch (e) {
+      setMessage("Erreur: " + e.message);
     }
     setLoading(null);
   }

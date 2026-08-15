@@ -650,6 +650,15 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [celebration, setCelebration] = useState(null);
+  const [retourPaiement, setRetourPaiement] = useState(
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("paiement") === "succes"
+  );
+
+  useEffect(() => {
+    if (retourPaiement && typeof window !== "undefined") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [retourPaiement]);
 
   function playCelebrationSound() {
     try {
@@ -1579,6 +1588,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       </div>
 
       <div style={{ padding: "0 20px 8px" }}>
+      {retourPaiement && (
+        <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#3B6D11" }}>
+          ✅ Paiement reçu ! Ton abonnement s'active automatiquement, ça peut prendre quelques instants.
+        </div>
+      )}
       <SubscriptionBanner subscription={subscription} />
 
       {notifPermission === "default" && (

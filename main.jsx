@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App.jsx";
 import SuiviPublic from "./SuiviPublic.jsx";
+import CommanderPublic from "./CommanderPublic.jsx";
 
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
@@ -13,11 +14,12 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 }
 
 const suiviId = new URLSearchParams(window.location.search).get("suivi");
+const commanderId = new URLSearchParams(window.location.search).get("commander");
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
-      {suiviId ? <SuiviPublic commandeId={suiviId} /> : <App />}
+      {suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <CommanderPublic workspaceId={commanderId} /> : <App />}
     </Sentry.ErrorBoundary>
   </React.StrictMode>
 );

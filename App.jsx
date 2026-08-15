@@ -157,7 +157,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -873,6 +873,16 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   async function updateProduitCout(id, cout) {
     await supabase.from("produits").update({ cout_achat: Number(cout) || 0 }).eq("id", id);
+    await loadProduits();
+  }
+
+  async function updateProduitPrixVente(id, prix) {
+    await supabase.from("produits").update({ prix_vente: Number(prix) || 0 }).eq("id", id);
+    await loadProduits();
+  }
+
+  async function updateProduitPhoto(id, url) {
+    await supabase.from("produits").update({ photo_url: url || null }).eq("id", id);
     await loadProduits();
   }
 
@@ -2269,7 +2279,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
     </div>
   );
 }
@@ -3355,13 +3365,17 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
 }
 
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, quantitesParProduit, onDelete, currency, onClose }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, quantitesParProduit, onDelete, currency, onClose }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [editStockId, setEditStockId] = useState(null);
   const [editStockValue, setEditStockValue] = useState("");
+  const [editPrixId, setEditPrixId] = useState(null);
+  const [editPrixValue, setEditPrixValue] = useState("");
+  const [editPhotoId, setEditPhotoId] = useState(null);
+  const [editPhotoValue, setEditPhotoValue] = useState("");
 
   async function ajouter() {
     if (!nom.trim()) return;
@@ -3432,6 +3446,26 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, quantites
                     ) : (
                       <button onClick={() => { setEditId(p.id); setEditValue(String(p.cout_achat)); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
                         Coût : {Number(p.cout_achat).toLocaleString("fr-FR")} {currency}
+                      </button>
+                    )}
+                    {editPrixId === p.id ? (
+                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+                        <input type="number" value={editPrixValue} onChange={(e) => setEditPrixValue(e.target.value)} autoFocus placeholder="Prix de vente" style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                        <button onClick={() => { onUpdatePrixVente(p.id, editPrixValue); setEditPrixId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditPrixId(p.id); setEditPrixValue(String(p.prix_vente || "")); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: p.prix_vente ? "#1a7a3c" : "#D64933", textDecoration: "underline", cursor: "pointer" }}>
+                        {p.prix_vente ? `Prix de vente : ${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : "⚠️ Ajouter un prix de vente (pour le catalogue)"}
+                      </button>
+                    )}
+                    {editPhotoId === p.id ? (
+                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+                        <input type="text" value={editPhotoValue} onChange={(e) => setEditPhotoValue(e.target.value)} autoFocus placeholder="Lien de la photo (URL)" style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                        <button onClick={() => { onUpdatePhoto(p.id, editPhotoValue); setEditPhotoId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditPhotoId(p.id); setEditPhotoValue(p.photo_url || ""); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
+                        {p.photo_url ? "📷 Changer la photo" : "📷 Ajouter une photo (optionnel)"}
                       </button>
                     )}
                   </div>
@@ -4723,8 +4757,13 @@ function CarteLivreursSaas({ livreurs }) {
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
   const [copieCommande, setCopieCommande] = useState(false);
+  const [copieCatalogue, setCopieCatalogue] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState(workspace.whatsapp_number || "");
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
+  const [whatsappSaved, setWhatsappSaved] = useState(false);
   const webhookUrl = `${window.location.origin}/api/shopify-webhook?secret=${workspace.webhook_secret}`;
   const lienCommande = `${window.location.origin}/?commander=${workspace.id}`;
+  const lienCatalogue = `${window.location.origin}/?catalogue=${workspace.id}`;
 
   function copier() {
     navigator.clipboard.writeText(webhookUrl);
@@ -4736,6 +4775,20 @@ function IntegrationsModal({ workspace, onClose }) {
     navigator.clipboard.writeText(lienCommande);
     setCopieCommande(true);
     setTimeout(() => setCopieCommande(false), 2000);
+  }
+
+  function copierLienCatalogue() {
+    navigator.clipboard.writeText(lienCatalogue);
+    setCopieCatalogue(true);
+    setTimeout(() => setCopieCatalogue(false), 2000);
+  }
+
+  async function sauvegarderWhatsapp() {
+    setSavingWhatsapp(true);
+    await supabase.from("workspaces").update({ whatsapp_number: whatsappNumber.trim() }).eq("id", workspace.id);
+    setSavingWhatsapp(false);
+    setWhatsappSaved(true);
+    setTimeout(() => setWhatsappSaved(false), 2000);
   }
 
   return (
@@ -4762,6 +4815,46 @@ function IntegrationsModal({ workspace, onClose }) {
           >
             {copieCommande ? "✅ Copié !" : "📋 Copier mon lien de commande"}
           </button>
+        </div>
+
+        <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#3B6D11", marginBottom: 4 }}>
+            🛍️ Ta mini-boutique en ligne
+          </div>
+          <div style={{ fontSize: 12.5, color: "#3B6D11", marginBottom: 12, lineHeight: 1.5 }}>
+            Une page avec tes produits, prix et photos — mets-la en bio Facebook/WhatsApp. Un clic sur un produit ouvre WhatsApp avec un message déjà rempli.
+          </div>
+
+          <div style={{ fontSize: 11.5, color: "#3B6D11", marginBottom: 4 }}>Ton numéro WhatsApp (pour recevoir les commandes)</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            <input
+              value={whatsappNumber}
+              onChange={(e) => setWhatsappNumber(e.target.value)}
+              placeholder="Ex: 07 00 00 00 00"
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C7DDA3", fontSize: 13 }}
+            />
+            <button
+              onClick={sauvegarderWhatsapp}
+              disabled={savingWhatsapp}
+              style={{ background: whatsappSaved ? "#1F9D6E" : "#3B6D11", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {whatsappSaved ? "✅" : savingWhatsapp ? "..." : "Enregistrer"}
+            </button>
+          </div>
+
+          <div style={{ background: "white", border: "1px solid #C7DDA3", borderRadius: 8, padding: "10px 12px", fontSize: 11.5, fontFamily: "monospace", wordBreak: "break-all", marginBottom: 10 }}>
+            {lienCatalogue}
+          </div>
+          <button
+            onClick={copierLienCatalogue}
+            disabled={!workspace.whatsapp_number && !whatsappSaved}
+            style={{ width: "100%", background: copieCatalogue ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: (!workspace.whatsapp_number && !whatsappSaved) ? 0.5 : 1 }}
+          >
+            {copieCatalogue ? "✅ Copié !" : "📋 Copier le lien de ma boutique"}
+          </button>
+          {(!workspace.whatsapp_number && !whatsappSaved) && (
+            <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>
+          )}
         </div>
 
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>

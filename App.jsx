@@ -202,10 +202,10 @@ export default function App() {
     await supabase.from("workspace_members").insert([
       { workspace_id: ws.id, user_id: session.user.id, role: "owner" },
     ]);
-    fetch("/api/send-welcome-email", {
+    fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: session.user.email, workspaceName: nom }),
+      body: JSON.stringify({ type: "welcome", email: session.user.email, workspaceName: nom }),
     }).catch(() => {}); // silencieux si l'email échoue, ne bloque jamais l'inscription
     await loadWorkspace();
     setLoadingWorkspace(false);
@@ -4722,12 +4722,20 @@ function CarteLivreursSaas({ livreurs }) {
 
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
+  const [copieCommande, setCopieCommande] = useState(false);
   const webhookUrl = `${window.location.origin}/api/shopify-webhook?secret=${workspace.webhook_secret}`;
+  const lienCommande = `${window.location.origin}/?commander=${workspace.id}`;
 
   function copier() {
     navigator.clipboard.writeText(webhookUrl);
     setCopie(true);
     setTimeout(() => setCopie(false), 2000);
+  }
+
+  function copierLienCommande() {
+    navigator.clipboard.writeText(lienCommande);
+    setCopieCommande(true);
+    setTimeout(() => setCopieCommande(false), 2000);
   }
 
   return (
@@ -4736,6 +4744,24 @@ function IntegrationsModal({ workspace, onClose }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>🔌 Intégrations</div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#3B6D11", marginBottom: 4 }}>
+            📲 Tu vends via WhatsApp, sans boutique en ligne ?
+          </div>
+          <div style={{ fontSize: 12.5, color: "#3B6D11", marginBottom: 12, lineHeight: 1.5 }}>
+            Partage ce lien à tes clients sur WhatsApp — ils remplissent eux-mêmes leur commande, tu n'as plus rien à taper.
+          </div>
+          <div style={{ background: "white", border: "1px solid #C7DDA3", borderRadius: 8, padding: "10px 12px", fontSize: 11.5, fontFamily: "monospace", wordBreak: "break-all", marginBottom: 10 }}>
+            {lienCommande}
+          </div>
+          <button
+            onClick={copierLienCommande}
+            style={{ width: "100%", background: copieCommande ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+          >
+            {copieCommande ? "✅ Copié !" : "📋 Copier mon lien de commande"}
+          </button>
         </div>
 
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>

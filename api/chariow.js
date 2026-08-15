@@ -94,6 +94,7 @@ export default async function handler(req, res) {
         first_name: firstName,
         last_name: lastName,
         phone: { number: phone, country_code: "CI" },
+        redirect_url: "https://recuvente-saas.vercel.app?paiement=succes",
       }),
     });
 

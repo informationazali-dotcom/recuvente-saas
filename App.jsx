@@ -146,7 +146,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -176,11 +176,11 @@ export default function App() {
     if (session) loadWorkspace();
   }, [session]);
 
-  async function creerWorkspace(nom) {
+  async function creerWorkspace(nom, activityType) {
     setLoadingWorkspace(true);
     const { data: ws, error } = await supabase
       .from("workspaces")
-      .insert([{ owner_id: session.user.id, name: nom }])
+      .insert([{ owner_id: session.user.id, name: nom, activity_type: activityType || "cod_ecommerce" }])
       .select()
       .single();
     if (error) {
@@ -564,20 +564,65 @@ function NouveauMotDePasseScreen() {
 
 function CreateWorkspaceScreen({ onCreate, loading }) {
   const [nom, setNom] = useState("");
+  const [activityType, setActivityType] = useState("cod_ecommerce");
+  const [etape, setEtape] = useState(1);
+
+  const types = [
+    { key: "cod_ecommerce", icon: "📦", titre: "Vente en ligne (paiement à la livraison)", desc: "Commandes, livreurs, closers — comme Azali Express" },
+    { key: "retail", icon: "🏪", titre: "Boutique / Commerce", desc: "Vente directe en magasin, avec suivi de stock" },
+  ];
+
   return (
     <Centered>
-      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 340 }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Bienvenue 👋</div>
-        <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-          Nomme ton entreprise pour créer ton espace privé.
-        </div>
-        <input placeholder="Ex: Azali Express" value={nom} onChange={(e) => setNom(e.target.value)} style={inputStyle} />
-        <button onClick={() => nom.trim() && onCreate(nom.trim())} disabled={loading || !nom.trim()} style={btnStyle}>
-          {loading ? "Création..." : "Créer mon espace"}
-        </button>
+      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 360 }}>
+        {etape === 1 ? (
+          <>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Bienvenue 👋</div>
+            <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>
+              Quel type d'activité gères-tu ?
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+              {types.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActivityType(t.key)}
+                  style={{
+                    textAlign: "left", padding: "14px 16px", borderRadius: 12,
+                    border: `2px solid ${activityType === t.key ? "#1a7a3c" : "#ECE8DC"}`,
+                    background: activityType === t.key ? "#EAF3DE" : "white", cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16231F" }}>{t.titre}</div>
+                  <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{t.desc}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setEtape(2)} style={btnStyle}>
+              Continuer
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Presque fini</div>
+            <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
+              Nomme ton entreprise pour créer ton espace privé.
+            </div>
+            <input placeholder="Ex: Azali Express" value={nom} onChange={(e) => setNom(e.target.value)} style={inputStyle} autoFocus />
+            <button onClick={() => nom.trim() && onCreate(nom.trim(), activityType)} disabled={loading || !nom.trim()} style={btnStyle}>
+              {loading ? "Création..." : "Créer mon espace"}
+            </button>
+            <button
+              onClick={() => setEtape(1)}
+              style={{ width: "100%", marginTop: 10, padding: "10px 0", borderRadius: 10, border: "1px solid #DDD8CC", background: "white", color: "#6B7168", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              ← Retour
+            </button>
+          </>
+        )}
         <button
           onClick={() => supabase.auth.signOut()}
-          style={{ width: "100%", marginTop: 10, padding: "10px 0", borderRadius: 10, border: "1px solid #DDD8CC", background: "white", color: "#6B7168", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          style={{ width: "100%", marginTop: 10, padding: "10px 0", borderRadius: 10, border: "none", background: "none", color: "#8A9089", fontWeight: 500, fontSize: 12, cursor: "pointer" }}
         >
           Déconnexion
         </button>
@@ -1172,8 +1217,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       alert("Quota de commandes du mois atteint pour ton plan. Passe à un plan supérieur pour continuer.");
       return;
     }
+    const statutInitial = workspace.activity_type === "retail" ? "confirmee" : "en_cours";
     const { error } = await supabase.from("commandes").insert([
-      { ...form, montant: Number(form.montant), workspace_id: workspace.id },
+      { ...form, montant: Number(form.montant), workspace_id: workspace.id, statut: statutInitial, confirmed_at: statutInitial === "confirmee" ? new Date().toISOString() : null, confirmed_by: statutInitial === "confirmee" ? session.user.email.split("@")[0] : null },
     ]);
     if (error) {
       alert("Erreur: " + error.message);
@@ -1371,7 +1417,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         </div>
         {[
           { key: "aujourdhui", label: "Aujourd'hui" },
-          { key: "commandes", label: "Commandes" },
+          { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : "Commandes" },
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
@@ -1403,6 +1449,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               💳 Mon abonnement
+            </button>
+            <button
+              onClick={() => setShowIntegrations(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              🔌 Intégrations
             </button>
           </>
         )}
@@ -1438,19 +1490,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-              {workspace.role === "owner" && (
-                <>
-                  <button onClick={() => setShowTeam(true)} aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    👥
-                  </button>
-                  <button onClick={() => setShowAbonnement(true)} aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    💳
-                  </button>
-                  <button onClick={() => setShowIntegrations(true)} aria-label="Intégrations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🔌
-                  </button>
-                </>
-              )}
               <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                 ⏻ Déconnexion
               </button>
@@ -1489,9 +1528,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
           {(workspace.role === "owner" || workspace.role === "admin") && (
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                🚚 Livreurs
-              </button>
+              {workspace.activity_type !== "retail" && (
+                <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                  🚚 Livreurs
+                </button>
+              )}
               <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 🎧 Closers
               </button>
@@ -2008,7 +2049,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       </div>
 
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
@@ -2031,7 +2072,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   );
 }
 
-function AddCommandeModal({ onClose, onAdd, currency }) {
+function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
+  const estRetail = activityType === "retail";
+  const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
   const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "" });
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
@@ -2039,11 +2082,13 @@ function AddCommandeModal({ onClose, onAdd, currency }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360 }}>
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>Nouvelle commande</div>
-        {["client", "tel", "produit", "montant", "zone"].map((f) => (
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{estRetail ? "Nouvelle vente" : "Nouvelle commande"}</div>
+        {estRetail && <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 14 }}>Enregistrée comme payée immédiatement.</div>}
+        {!estRetail && <div style={{ marginBottom: 14 }} />}
+        {champs.map((f) => (
           <input
             key={f}
-            placeholder={f === "montant" ? `Montant (${currency})` : f}
+            placeholder={f === "montant" ? `Montant (${currency})` : f === "produit" && estRetail ? "Produit vendu" : f}
             value={form[f]}
             onChange={(e) => setForm({ ...form, [f]: e.target.value })}
             type={f === "montant" ? "number" : "text"}
@@ -2055,7 +2100,7 @@ function AddCommandeModal({ onClose, onAdd, currency }) {
           <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
         )}
         <button onClick={() => canSubmit && onAdd(form)} disabled={!canSubmit} style={btnStyle}>
-          Ajouter
+          {estRetail ? "Enregistrer la vente" : "Ajouter"}
         </button>
       </div>
     </div>
@@ -2073,7 +2118,7 @@ function TeamModal({ workspace, onClose }) {
 
   async function loadMembers() {
     const { data: sessionData } = await supabase.auth.getSession();
-    const res = await fetch(`/api/list-members?workspaceId=${workspace.id}`, {
+    const res = await fetch(`/api/team?workspaceId=${workspace.id}`, {
       headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
     });
     const json = await res.json();
@@ -2089,10 +2134,10 @@ function TeamModal({ workspace, onClose }) {
     if (!window.confirm(`Retirer ${email} de l'équipe ? Cette personne perdra immédiatement l'accès.`)) return;
     setRetraitEnCours(memberUserId);
     const { data: sessionData } = await supabase.auth.getSession();
-    const res = await fetch("/api/remove-member", {
+    const res = await fetch("/api/team", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-      body: JSON.stringify({ workspaceId: workspace.id, memberUserId }),
+      body: JSON.stringify({ action: "remove", workspaceId: workspace.id, memberUserId }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) alert(json.error || "Erreur lors du retrait");
@@ -2177,10 +2222,10 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
     setError("");
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      const res = await fetch("/api/invite-member", {
+      const res = await fetch("/api/team", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ workspaceId: workspace.id, email, password, role }),
+        body: JSON.stringify({ action: "invite", workspaceId: workspace.id, email, password, role }),
       });
       const json = await res.json().catch(() => ({ error: `Réponse invalide du serveur (code ${res.status})` }));
       if (!res.ok) setError(json.error || `Erreur (${res.status})`);

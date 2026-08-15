@@ -2654,10 +2654,10 @@ function AbonnementModal({ workspace, subscription, onClose }) {
               </div>
               <button
                 onClick={() => demander(p.id)}
-                disabled={loading === p.id || !!demandeEnAttente}
+                disabled={loading === p.id || demandeEnAttente?.plan_id === p.id}
                 style={{ width: "100%", marginTop: 10, padding: "9px 0", borderRadius: 8, border: "none", background: p.nom === planActuel ? "#DDD8CC" : "#1a7a3c", color: "white", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
               >
-                {loading === p.id ? "..." : p.nom === planActuel ? "Plan actuel" : "Demander ce plan"}
+                {loading === p.id ? "..." : demandeEnAttente?.plan_id === p.id ? "⏳ En attente" : p.nom === planActuel ? "Plan actuel" : "Demander ce plan"}
               </button>
             </div>
           ))}

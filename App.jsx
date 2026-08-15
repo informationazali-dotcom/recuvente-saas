@@ -2592,6 +2592,8 @@ function AbonnementModal({ workspace, subscription, onClose }) {
       console.error("Erreur paiement Chariow — statut:", res.status, "contenu:", texteBrut);
       setMessage(`⚠️ Échec (code ${res.status}) : ${detailErreur}. Bascule sur le système manuel.`);
 
+      // Une seule demande active à la fois par entreprise — on annule les anciennes avant d'en créer une nouvelle
+      await supabase.from("upgrade_requests").update({ statut: "annule" }).eq("workspace_id", workspace.id).eq("statut", "en_attente");
       await supabase.from("upgrade_requests").insert([{ workspace_id: workspace.id, plan_id: planId }]);
       await load();
       setPlanEnAttenteInfos(null);
@@ -2680,6 +2682,7 @@ function AbonnementModal({ workspace, subscription, onClose }) {
                   en_attente: { label: "⏳ En attente", couleur: "#8A6412", fond: "#FBF3E3" },
                   confirmee: { label: "✅ Confirmé", couleur: "#3B6D11", fond: "#EAF3DE" },
                   refuse: { label: "❌ Refusé", couleur: "#B23A22", fond: "#FBEAE6" },
+                  annule: { label: "Remplacée par une autre demande", couleur: "#8A9089", fond: "#FAFAF7" },
                 }[d.statut] || { label: d.statut, couleur: "#6B7168", fond: "#FAFAF7" };
                 return (
                   <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "8px 10px", background: "#FAFAF7", borderRadius: 8 }}>

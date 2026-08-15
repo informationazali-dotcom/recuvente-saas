@@ -104,7 +104,23 @@ export default async function handler(req, res) {
     }
 
     // L'URL de paiement se trouve dans data.url (ou équivalent selon la réponse Chariow)
-    return res.status(200).json({ url: chariowJson.data?.url || chariowJson.data?.checkout_url });
+    const step = chariowJson.data?.step;
+
+    if (step === "already_purchased") {
+      return res.status(200).json({ error: "Tu as déjà ce plan actif." });
+    }
+
+    if (step === "completed") {
+      // Produit gratuit — normalement pas notre cas, mais on gère proprement
+      return res.status(200).json({ url: null, complete: true });
+    }
+
+    const checkoutUrl = chariowJson.data?.payment?.checkout_url;
+    if (!checkoutUrl) {
+      return res.status(200).json({ error: chariowJson.message || "Chariow n'a pas renvoyé de lien de paiement." });
+    }
+
+    return res.status(200).json({ url: checkoutUrl });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

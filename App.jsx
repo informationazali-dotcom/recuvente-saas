@@ -2455,15 +2455,30 @@ function AdminPanel({ session }) {
                     {ws.subscription ? statusLabels[ws.subscription.status] || ws.subscription.status : "—"}
                   </div>
                 </div>
-                {ws.subscription && (
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  {ws.subscription && (
+                    <button
+                      onClick={() => toggleStatus(ws.id, suspendu ? "reactiver" : "suspendre")}
+                      disabled={actionEnCours === ws.id}
+                      style={{ background: suspendu ? "#1a7a3c" : "#FBEAE6", color: suspendu ? "white" : "#D64933", border: suspendu ? "none" : "1px solid #F0B8AC", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {actionEnCours === ws.id ? "..." : suspendu ? "✅ Réactiver" : "🔒 Suspendre"}
+                    </button>
+                  )}
                   <button
-                    onClick={() => toggleStatus(ws.id, suspendu ? "reactiver" : "suspendre")}
+                    onClick={() => {
+                      if (window.confirm(`Supprimer définitivement "${ws.name}" ?\n\nToutes ses commandes, clients et données seront perdues pour toujours. Cette action est IRRÉVERSIBLE.`)) {
+                        if (window.confirm(`Dernière confirmation — es-tu vraiment sûr de vouloir supprimer "${ws.name}" ?`)) {
+                          toggleStatus(ws.id, "supprimer");
+                        }
+                      }
+                    }}
                     disabled={actionEnCours === ws.id}
-                    style={{ marginTop: 8, background: suspendu ? "#1a7a3c" : "#FBEAE6", color: suspendu ? "white" : "#D64933", border: suspendu ? "none" : "1px solid #F0B8AC", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: "white", color: "#8A9089", border: "1px solid #DDD8CC", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
                   >
-                    {actionEnCours === ws.id ? "..." : suspendu ? "✅ Réactiver" : "🔒 Suspendre"}
+                    🗑️ Supprimer
                   </button>
-                )}
+                </div>
               </div>
             );
           })}

@@ -568,7 +568,7 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
   const [etape, setEtape] = useState(1);
 
   const types = [
-    { key: "cod_ecommerce", icon: "📦", titre: "Vente en ligne (paiement à la livraison)", desc: "Commandes, livreurs, closers — comme Azali Express" },
+    { key: "cod_ecommerce", icon: "📦", titre: "Vente en ligne (paiement à la livraison)", desc: "Commandes, livreurs, closers, suivi de livraison" },
     { key: "retail", icon: "🏪", titre: "Boutique / Commerce", desc: "Vente directe en magasin, avec suivi de stock" },
   ];
 

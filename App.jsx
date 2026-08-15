@@ -100,7 +100,10 @@ async function genererFacturePDF(commande, workspace) {
   doc.text(montantTxt, 195, y, { align: "right" });
 
   y += 12;
-  const statutPaiement = commande.statut === "confirmee" ? "PAYÉE (à la livraison)" : "EN ATTENTE DE PAIEMENT";
+  const estRetailFacture = workspace.activity_type === "retail";
+  const soldeRestant = Number(commande.montant) - Number(commande.montant_paye || 0);
+  const paiementPartiel = estRetailFacture && commande.montant_paye && soldeRestant > 0 && commande.statut !== "confirmee";
+  const statutPaiement = commande.statut === "confirmee" ? (estRetailFacture ? "PAYÉE" : "PAYÉE (à la livraison)") : paiementPartiel ? "ACOMPTE VERSÉ" : "EN ATTENTE DE PAIEMENT";
   const couleurStatut = commande.statut === "confirmee" ? green : orange;
   doc.setFillColor(...couleurStatut);
   doc.roundedRect(15, y, 75, 9, 2, 2, "F");
@@ -108,6 +111,14 @@ async function genererFacturePDF(commande, workspace) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text(statutPaiement, 52.5, y + 6, { align: "center" });
+
+  if (paiementPartiel) {
+    doc.setTextColor(...dark);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Déjà payé : ${Number(commande.montant_paye).toLocaleString("fr-FR")} ${workspace.currency} — Solde restant : ${soldeRestant.toLocaleString("fr-FR")} ${workspace.currency}`, 15, y + 16);
+    y += 8;
+  }
 
   doc.setTextColor(...gray);
   doc.setFontSize(9);
@@ -1024,10 +1035,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }, [commandesAffichees]);
 
   function exportCSV() {
-    const headers = ["Client", "Téléphone", "Produit", "Montant", "Zone", "Statut", "Livreur", "Date"];
-    const rows = commandesAffichees.map((c) => [
-      c.client, c.tel, c.produit, c.montant, c.zone || "", STATUTS[c.statut]?.label || c.statut, c.livreur || "", new Date(c.created_at).toLocaleDateString("fr-FR"),
-    ]);
+    const estRetail = workspace.activity_type === "retail";
+    const headers = estRetail
+      ? ["Client", "Téléphone", "Produit", "Montant", "Zone", "Statut", "Livreur", "Mode de vente", "Montant payé", "Solde restant", "Date"]
+      : ["Client", "Téléphone", "Produit", "Montant", "Zone", "Statut", "Livreur", "Date"];
+    const rows = commandesAffichees.map((c) => {
+      const base = [c.client, c.tel, c.produit, c.montant, c.zone || "", STATUTS[c.statut]?.label || c.statut, c.livreur || ""];
+      if (estRetail) {
+        const paye = Number(c.montant_paye || 0);
+        base.push(c.mode_vente === "livraison" ? "Livraison" : "Sur place", paye, Number(c.montant) - paye);
+      }
+      base.push(new Date(c.created_at).toLocaleDateString("fr-FR"));
+      return base;
+    });
     function neutraliser(valeur) {
       const s = String(valeur ?? "");
       // Empêche l'injection de formule (=, +, -, @ en début de cellule) si le fichier est ouvert dans Excel
@@ -2805,12 +2825,12 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone });
+  const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
 
   async function enregistrerInfos() {
     setLoading(true);
-    const infos = { client: form.client, tel: form.tel, produit: form.produit, montant: Number(form.montant), zone: form.zone };
+    const infos = { client: form.client, tel: form.tel, produit: form.produit, montant: Number(form.montant), zone: form.zone, mode_vente: form.mode_vente, montant_paye: Number(form.montant_paye) || 0 };
     const { error } = await supabase.from("commandes").update(infos).eq("id", commande.id);
     if (error) {
       alert("Erreur: " + error.message);
@@ -2875,6 +2895,31 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               style={{ ...inputStyle, marginBottom: 6, padding: "7px 9px", fontSize: 13 }}
             />
           ))}
+          {workspace?.activity_type === "retail" && (
+            <>
+              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <button
+                  onClick={() => setForm({ ...form, mode_vente: "sur_place" })}
+                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "sur_place" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente === "sur_place" ? "#EAF3DE" : "white", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                >
+                  🏪 Sur place
+                </button>
+                <button
+                  onClick={() => setForm({ ...form, mode_vente: "livraison" })}
+                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "livraison" ? "#e8920a" : "#DDD8CC"}`, background: form.mode_vente === "livraison" ? "#FBF3E3" : "white", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                >
+                  🚚 Livraison
+                </button>
+              </div>
+              <input
+                placeholder="Montant payé"
+                value={form.montant_paye}
+                onChange={(e) => setForm({ ...form, montant_paye: e.target.value })}
+                type="number"
+                style={{ ...inputStyle, marginBottom: 6, padding: "7px 9px", fontSize: 13 }}
+              />
+            </>
+          )}
           <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
             <button onClick={enregistrerInfos} disabled={loading} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>
               {loading ? "..." : "Enregistrer"}

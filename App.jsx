@@ -2507,6 +2507,10 @@ function AbonnementModal({ workspace, subscription, onClose }) {
   const [loading, setLoading] = useState(null);
   const [message, setMessage] = useState("");
   const [exportEnCours, setExportEnCours] = useState(false);
+  const [planEnAttenteInfos, setPlanEnAttenteInfos] = useState(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
 
   async function exporterMesDonnees() {
     setExportEnCours(true);
@@ -2551,7 +2555,16 @@ function AbonnementModal({ workspace, subscription, onClose }) {
 
   const demandeEnAttente = demandes.find((d) => d.statut === "en_attente");
 
-  async function demander(planId) {
+  function demander(planId) {
+    setPlanEnAttenteInfos(planId);
+  }
+
+  async function confirmerEtPayer() {
+    if (!firstName.trim() || !lastName.trim() || !phone.trim()) {
+      setMessage("Remplis ton prénom, nom et téléphone pour continuer.");
+      return;
+    }
+    const planId = planEnAttenteInfos;
     setLoading(planId);
     setMessage("");
     try {
@@ -2559,7 +2572,7 @@ function AbonnementModal({ workspace, subscription, onClose }) {
       const res = await fetch("/api/chariow", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId, firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim() }),
       });
       const json = await res.json().catch(() => ({ error: `Réponse invalide (code ${res.status})` }));
 
@@ -2568,12 +2581,12 @@ function AbonnementModal({ workspace, subscription, onClose }) {
         return;
       }
 
-      // Affiche la vraie erreur pour comprendre ce qui bloque, avant de basculer sur le secours
       console.error("Erreur paiement Chariow:", json);
       setMessage(`⚠️ Paiement en ligne indisponible pour l'instant (${json.error || "erreur inconnue"}). Bascule sur le système manuel.`);
 
       await supabase.from("upgrade_requests").insert([{ workspace_id: workspace.id, plan_id: planId }]);
       await load();
+      setPlanEnAttenteInfos(null);
     } catch (e) {
       setMessage("Erreur: " + e.message);
     }
@@ -2590,6 +2603,27 @@ function AbonnementModal({ workspace, subscription, onClose }) {
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
+        {planEnAttenteInfos ? (
+          <div>
+            <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 14 }}>
+              Quelques infos nécessaires pour le paiement en ligne.
+            </div>
+            <input placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={inputStyle} />
+            <input placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} style={inputStyle} />
+            <input placeholder="Téléphone (ex: 0708090910)" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
+            {message && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{message}</div>}
+            <button onClick={confirmerEtPayer} disabled={loading === planEnAttenteInfos} style={btnStyle}>
+              {loading === planEnAttenteInfos ? "..." : "Continuer vers le paiement"}
+            </button>
+            <button
+              onClick={() => setPlanEnAttenteInfos(null)}
+              style={{ width: "100%", marginTop: 8, padding: "10px 0", borderRadius: 10, border: "1px solid #DDD8CC", background: "white", color: "#6B7168", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              ← Retour
+            </button>
+          </div>
+        ) : (
+        <>
         {planActuel && (
           <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: "#3B6D11" }}>
             Plan actuel : <strong>{planActuel}</strong> — statut : {subscription.status}
@@ -2667,6 +2701,8 @@ function AbonnementModal({ workspace, subscription, onClose }) {
             Commandes, clients, équipe — au format que tu peux garder.
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -2548,17 +2548,18 @@ function AbonnementModal({ workspace, subscription, onClose }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
         body: JSON.stringify({ planId }),
       });
-      const json = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => ({ error: `Réponse invalide (code ${res.status})` }));
 
       if (res.ok && json.url) {
         window.location.href = json.url;
         return;
       }
 
-      // Secours : si le paiement en ligne n'est pas encore configuré pour ce plan,
-      // on garde l'ancien système manuel plutôt que de bloquer le client
+      // Affiche la vraie erreur pour comprendre ce qui bloque, avant de basculer sur le secours
+      console.error("Erreur paiement Chariow:", json);
+      setMessage(`⚠️ Paiement en ligne indisponible pour l'instant (${json.error || "erreur inconnue"}). Bascule sur le système manuel.`);
+
       await supabase.from("upgrade_requests").insert([{ workspace_id: workspace.id, plan_id: planId }]);
-      setMessage("✅ Demande envoyée ! Effectue le paiement Mobile Money et contacte le support pour confirmation.");
       await load();
     } catch (e) {
       setMessage("Erreur: " + e.message);

@@ -1217,9 +1217,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       alert("Quota de commandes du mois atteint pour ton plan. Passe à un plan supérieur pour continuer.");
       return;
     }
-    const statutInitial = workspace.activity_type === "retail" ? "confirmee" : "en_cours";
+    const montantTotal = Number(form.montant);
+    const montantDejaPaye = workspace.activity_type === "retail" ? (form.montant_paye === "" ? montantTotal : Number(form.montant_paye)) : 0;
+    const payeEnEntier = workspace.activity_type === "retail" ? montantDejaPaye >= montantTotal : false;
+    const statutInitial = workspace.activity_type === "retail" ? (payeEnEntier ? "confirmee" : "en_cours") : "en_cours";
     const { error } = await supabase.from("commandes").insert([
-      { ...form, montant: Number(form.montant), workspace_id: workspace.id, statut: statutInitial, confirmed_at: statutInitial === "confirmee" ? new Date().toISOString() : null, confirmed_by: statutInitial === "confirmee" ? session.user.email.split("@")[0] : null },
+      { ...form, montant: montantTotal, montant_paye: montantDejaPaye, workspace_id: workspace.id, statut: statutInitial, confirmed_at: statutInitial === "confirmee" ? new Date().toISOString() : null, confirmed_by: statutInitial === "confirmee" ? session.user.email.split("@")[0] : null },
     ]);
     if (error) {
       alert("Erreur: " + error.message);
@@ -1239,7 +1242,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
 
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = workspace.activity_type === "retail" ? 0 : confirmees.length * COUT_LIVRAISON;
+  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0;
@@ -1541,11 +1544,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
           {(workspace.role === "owner" || workspace.role === "admin") && (
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              {workspace.activity_type !== "retail" && (
-                <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                  🚚 Livreurs
-                </button>
-              )}
+              <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                🚚 Livreurs
+              </button>
               <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                 🎧 Closers
               </button>
@@ -2088,20 +2089,43 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
   const estRetail = activityType === "retail";
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
-  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "" });
+  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: "sur_place", montant_paye: "" });
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
+  const montantPayeValide = form.montant_paye === "" || Number(form.montant_paye) <= Number(form.montant || 0);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{estRetail ? "Nouvelle vente" : "Nouvelle commande"}</div>
-        {estRetail && <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 14 }}>Enregistrée comme payée immédiatement.</div>}
         {!estRetail && <div style={{ marginBottom: 14 }} />}
+
+        {estRetail && (
+          <>
+            <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 14 }}>Comment ce produit sort-il du magasin ?</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <button
+                onClick={() => setForm({ ...form, mode_vente: "sur_place" })}
+                style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${form.mode_vente === "sur_place" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente === "sur_place" ? "#EAF3DE" : "white", textAlign: "left", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 12.5 }}>🏪 Sur place</div>
+                <div style={{ fontSize: 10.5, color: "#6B7168" }}>Retrait en magasin</div>
+              </button>
+              <button
+                onClick={() => setForm({ ...form, mode_vente: "livraison" })}
+                style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${form.mode_vente === "livraison" ? "#e8920a" : "#DDD8CC"}`, background: form.mode_vente === "livraison" ? "#FBF3E3" : "white", textAlign: "left", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 12.5 }}>🚚 Livraison</div>
+                <div style={{ fontSize: 10.5, color: "#6B7168" }}>Remis à un livreur</div>
+              </button>
+            </div>
+          </>
+        )}
+
         {champs.map((f) => (
           <input
             key={f}
-            placeholder={f === "montant" ? `Montant (${currency})` : f === "produit" && estRetail ? "Produit vendu" : f}
+            placeholder={f === "montant" ? `Montant total (${currency})` : f === "produit" && estRetail ? "Produit vendu" : f}
             value={form[f]}
             onChange={(e) => setForm({ ...form, [f]: e.target.value })}
             type={f === "montant" ? "number" : "text"}
@@ -2112,7 +2136,27 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
         {form.montant && !montantValide && (
           <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
         )}
-        <button onClick={() => canSubmit && onAdd(form)} disabled={!canSubmit} style={btnStyle}>
+
+        {estRetail && (
+          <div>
+            <label style={{ fontSize: 12, color: "#6B7168", display: "block", marginBottom: 4 }}>Montant déjà payé (FCFA)</label>
+            <input
+              value={form.montant_paye}
+              onChange={(e) => setForm({ ...form, montant_paye: e.target.value })}
+              type="number"
+              placeholder={`Laisse vide si payé en entier (${form.montant || 0})`}
+              style={inputStyle}
+            />
+            {!montantPayeValide && (
+              <div style={{ color: "#D64933", fontSize: 11.5, marginTop: -6, marginBottom: 10 }}>Le montant payé ne peut pas dépasser le montant total.</div>
+            )}
+            <div style={{ fontSize: 11, color: "#8A9089", marginTop: -4, marginBottom: 10 }}>
+              Laisse vide ou égal au montant total si le client a payé en entier — sinon indique l'acompte reçu.
+            </div>
+          </div>
+        )}
+
+        <button onClick={() => canSubmit && montantPayeValide && onAdd(form)} disabled={!canSubmit || !montantPayeValide} style={btnStyle}>
           {estRetail ? "Enregistrer la vente" : "Ajouter"}
         </button>
       </div>
@@ -2779,6 +2823,10 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   }
 
   async function changerStatut(nouveauStatut) {
+    if (nouveauStatut === "confirmee" && workspace?.activity_type === "retail" && Number(commande.montant_paye || 0) < Number(commande.montant)) {
+      alert("⛔ Impossible de confirmer : le solde n'est pas entièrement payé.");
+      return;
+    }
     setLoading(true);
     const ancienStatut = commande.statut;
     const vraimentRecuperee = nouveauStatut === "confirmee" && ancienStatut === "echouee";
@@ -2795,6 +2843,21 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     }
     setLoading(false);
     setOpen(false);
+  }
+
+  async function enregistrerPaiement() {
+    const montant = prompt("Montant reçu maintenant (FCFA) :");
+    if (!montant || Number(montant) <= 0) return;
+    const nouveauMontantPaye = Number(commande.montant_paye || 0) + Number(montant);
+    setLoading(true);
+    const { error } = await supabase.from("commandes").update({ montant_paye: nouveauMontantPaye }).eq("id", commande.id);
+    if (error) {
+      alert("Erreur: " + error.message);
+    } else {
+      await supabase.from("relances").insert([{ commande_id: commande.id, note: `💰 Paiement reçu : ${Number(montant).toLocaleString("fr-FR")} FCFA (total payé : ${nouveauMontantPaye.toLocaleString("fr-FR")})` }]);
+      await onStatusChanged();
+    }
+    setLoading(false);
   }
 
   return (
@@ -2840,6 +2903,11 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             {commande.statut === "confirmee" && commande.confirmed_by && (
               <span style={{ fontSize: 10.5, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>✅ validé par {commande.confirmed_by}</span>
             )}
+            {workspace?.activity_type === "retail" && commande.statut === "en_cours" && Number(commande.montant_paye || 0) < Number(commande.montant) && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B23A22", background: "#FBEAE6", padding: "2px 8px", borderRadius: 999 }}>
+                💰 Solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
@@ -2869,6 +2937,16 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               </button>
             ))}
           </div>
+
+          {workspace?.activity_type === "retail" && Number(commande.montant_paye || 0) < Number(commande.montant) && (
+            <button
+              onClick={enregistrerPaiement}
+              disabled={loading}
+              style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 10 }}
+            >
+              💰 Enregistrer un paiement (solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency})
+            </button>
+          )}
 
           {(livreurs.length > 0 || closers.length > 0) && (
             <div style={{ display: "flex", gap: 8 }}>
@@ -3415,7 +3493,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = workspace.activity_type === "retail" ? 0 : confirmees.length * COUT_LIVRAISON;
+  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0, nbInconnu = 0, montantInconnu = 0;

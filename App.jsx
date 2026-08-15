@@ -1239,7 +1239,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
 
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = confirmees.length * COUT_LIVRAISON;
+  const coutLivraisons = workspace.activity_type === "retail" ? 0 : confirmees.length * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0;
@@ -3415,7 +3415,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = confirmees.length * COUT_LIVRAISON;
+  const coutLivraisons = workspace.activity_type === "retail" ? 0 : confirmees.length * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0, nbInconnu = 0, montantInconnu = 0;

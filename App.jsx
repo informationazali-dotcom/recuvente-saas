@@ -2574,21 +2574,29 @@ function AbonnementModal({ workspace, subscription, onClose }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
         body: JSON.stringify({ planId, firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim() }),
       });
-      const json = await res.json().catch(() => ({ error: `Réponse invalide (code ${res.status})` }));
 
-      if (res.ok && json.url) {
+      const texteBrut = await res.text();
+      let json;
+      try {
+        json = JSON.parse(texteBrut);
+      } catch {
+        json = null;
+      }
+
+      if (res.ok && json?.url) {
         window.location.href = json.url;
         return;
       }
 
-      console.error("Erreur paiement Chariow:", json);
-      setMessage(`⚠️ Paiement en ligne indisponible pour l'instant (${json.error || "erreur inconnue"}). Bascule sur le système manuel.`);
+      const detailErreur = json?.error || texteBrut.slice(0, 200) || "aucun détail";
+      console.error("Erreur paiement Chariow — statut:", res.status, "contenu:", texteBrut);
+      setMessage(`⚠️ Échec (code ${res.status}) : ${detailErreur}. Bascule sur le système manuel.`);
 
       await supabase.from("upgrade_requests").insert([{ workspace_id: workspace.id, plan_id: planId }]);
       await load();
       setPlanEnAttenteInfos(null);
     } catch (e) {
-      setMessage("Erreur: " + e.message);
+      setMessage("Erreur réseau: " + e.message);
     }
     setLoading(null);
   }

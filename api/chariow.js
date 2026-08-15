@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -72,8 +72,9 @@ export default async function handler(req, res) {
   const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
   if (userError || !userData.user) return res.status(401).json({ error: "Session invalide" });
 
-  const { planId } = req.body;
+  const { planId, firstName, lastName, phone } = req.body;
   if (!planId) return res.status(400).json({ error: "planId manquant" });
+  if (!firstName || !lastName || !phone) return res.status(400).json({ error: "Prénom, nom et téléphone requis" });
 
   const { data: plan } = await supabaseAdmin.from("subscription_plans").select("*").eq("id", planId).single();
   if (!plan || !plan.chariow_product_id) {
@@ -90,6 +91,9 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         product_id: plan.chariow_product_id,
         email: userData.user.email,
+        first_name: firstName,
+        last_name: lastName,
+        phone: { number: phone, country_code: "CI" },
       }),
     });
 

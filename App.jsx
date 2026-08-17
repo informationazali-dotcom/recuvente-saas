@@ -4988,7 +4988,53 @@ function IntegrationsModal({ workspace, onClose }) {
             {copieCatalogue ? "✅ Copié !" : "📋 Copier le lien de ma boutique"}
           </button>
           {(!workspace.whatsapp_number && !whatsappSaved) && (
-            <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>
+            <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#8A6412", marginBottom: 4 }}>
+            🎨 Personnalise ta boutique
+          </div>
+          <div style={{ fontSize: 12.5, color: "#8A6412", marginBottom: 14, lineHeight: 1.5 }}>
+            Logo, bannière et couleur — pour que ta boutique publique te ressemble vraiment.
+          </div>
+
+          <div style={{ fontSize: 11.5, color: "#8A6412", marginBottom: 4 }}>Logo</div>
+          {personnalisation.logo_url && (
+            <img src={personnalisation.logo_url} alt="Logo" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", marginBottom: 8, border: "1px solid #F0DDA8" }} />
+          )}
+          <label style={{ display: "inline-block", background: "white", border: "1px solid #F0DDA8", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "#8A6412", cursor: "pointer", marginBottom: 14 }}>
+            {envoiEnCoursType === "logo" ? "Envoi..." : personnalisation.logo_url ? "Changer le logo" : "Ajouter un logo"}
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => envoyerImage("logo", e.target.files?.[0])} />
+          </label>
+
+          <div style={{ fontSize: 11.5, color: "#8A6412", marginBottom: 4 }}>Bannière (image large en haut de la boutique)</div>
+          {personnalisation.banniere_url && (
+            <img src={personnalisation.banniere_url} alt="Bannière" style={{ width: "100%", height: 70, borderRadius: 10, objectFit: "cover", marginBottom: 8, border: "1px solid #F0DDA8" }} />
+          )}
+          <label style={{ display: "inline-block", background: "white", border: "1px solid #F0DDA8", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "#8A6412", cursor: "pointer", marginBottom: 14 }}>
+            {envoiEnCoursType === "banniere" ? "Envoi..." : personnalisation.banniere_url ? "Changer la bannière" : "Ajouter une bannière"}
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => envoyerImage("banniere", e.target.files?.[0])} />
+          </label>
+
+          <div style={{ fontSize: 11.5, color: "#8A6412", marginBottom: 4 }}>Couleur de ta marque</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {["#1a7a3c", "#e8920a", "#D64933", "#2452E8", "#8A2BE2", "#16231F"].map((coul) => (
+              <button
+                key={coul}
+                onClick={() => sauvegarderCouleur(coul)}
+                style={{ width: 30, height: 30, borderRadius: "50%", background: coul, border: personnalisation.couleur_marque === coul ? "3px solid #16231F" : "1px solid #DDD8CC", cursor: "pointer" }}
+              />
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11.5, color: "#8A6412", marginBottom: 4 }}>Description courte (optionnel)</div>
+          <textarea
+            value={personnalisation.description_boutique || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, description_boutique: e.target.value })}
+            onBlur={sauvegarderDescription}
+            placeholder="Ex: Vêtements et accessoires de qualité, livraison rapide à Abidjan"
+            rows={2}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #F0DDA8", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
+          />
+        </div>
           )}
         </div>
 

@@ -2288,14 +2288,61 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
   const estRetail = activityType === "retail";
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
   const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: "sur_place", montant_paye: "" });
+  const [modeRapide, setModeRapide] = useState(false);
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
   const montantPayeValide = form.montant_paye === "" || Number(form.montant_paye) <= Number(form.montant || 0);
+  const champsRapides = ["client", "tel", "produit", "montant"];
+  const inputRefs = useRef({});
+
+  function focusNext(index) {
+    const nextField = champsRapides[index + 1];
+    if (nextField && inputRefs.current[nextField]) {
+      inputRefs.current[nextField].focus();
+    } else if (!nextField) {
+      if (form.client.trim() && montantValide) onAdd({ ...form, mode_vente: "sur_place", montant_paye: "" });
+    }
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, maxHeight: "88vh", overflowY: "auto" }}>
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{estRetail ? "Nouvelle vente" : "Nouvelle commande"}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{estRetail ? "Nouvelle vente" : "Nouvelle commande"}</div>
+          <button
+            onClick={() => setModeRapide(!modeRapide)}
+            style={{ background: modeRapide ? "#1a7a3c" : "#EEF0EA", color: modeRapide ? "white" : "#16231F", border: "none", borderRadius: 20, padding: "5px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}
+          >
+            ⚡ Rapide
+          </button>
+        </div>
+
+        {modeRapide ? (
+          <>
+            <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 14 }}>Tape, appuie sur Entrée pour passer au champ suivant.</div>
+            {champsRapides.map((f, i) => (
+              <input
+                key={f}
+                ref={(el) => (inputRefs.current[f] = el)}
+                autoFocus={i === 0}
+                placeholder={f === "montant" ? `Montant (${currency})` : f === "produit" ? "Produit" : f === "tel" ? "Téléphone" : "Nom du client"}
+                value={form[f]}
+                onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusNext(i); } }}
+                type={f === "montant" ? "number" : "text"}
+                min={f === "montant" ? "1" : undefined}
+                style={inputStyle}
+              />
+            ))}
+            {form.montant && !montantValide && (
+              <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
+            )}
+            <button onClick={() => canSubmit && onAdd({ ...form, mode_vente: "sur_place", montant_paye: "" })} disabled={!canSubmit} style={btnStyle}>
+              ⚡ Enregistrer
+            </button>
+          </>
+        ) : (
+          <>
         {!estRetail && <div style={{ marginBottom: 14 }} />}
 
         {estRetail && (
@@ -2357,6 +2404,8 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
         <button onClick={() => canSubmit && montantPayeValide && onAdd(form)} disabled={!canSubmit || !montantPayeValide} style={btnStyle}>
           {estRetail ? "Enregistrer la vente" : "Ajouter"}
         </button>
+          </>
+        )}
       </div>
     </div>
   );

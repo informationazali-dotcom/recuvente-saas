@@ -5079,8 +5079,6 @@ function IntegrationsModal({ workspace, onClose }) {
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginTop: 16, fontSize: 12, color: "#8A6412" }}>
           ⚠️ Ce lien est unique à ton entreprise — les commandes créées via ce lien arrivent uniquement dans ton espace, jamais chez une autre entreprise.
+     />
         </div>
-      </div>
-    </div>
-  );
-}
+         </div>

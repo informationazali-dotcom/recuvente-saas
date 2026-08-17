@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { Resend } from "resend";
 
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #1a7a3c; font-size: 22px;">Bienvenue sur RecuVente 👋</h1>
             <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
-              Ton espace <strong>${workspaceName || ""}</strong> est prêt. Tu as 7 jours d'essai gratuit, accès complet, sans carte bancaire.
+              Ton espace <strong>${workspaceName || ""}</strong> est prêt, avec un accès complet pendant 7 jours pour tout tester.
             </p>
             <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
               Pour bien démarrer :

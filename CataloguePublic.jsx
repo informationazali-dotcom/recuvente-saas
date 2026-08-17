@@ -23,7 +23,15 @@ export default function CataloguePublic({ workspaceId }) {
         setErreur("Ce catalogue est introuvable ou vide.");
         return;
       }
-      setEntreprise({ nom: data[0].entreprise_nom, devise: data[0].devise, whatsapp: data[0].whatsapp_number });
+      setEntreprise({
+        nom: data[0].entreprise_nom,
+        devise: data[0].devise,
+        whatsapp: data[0].whatsapp_number,
+        logo: data[0].logo_url,
+        banniere: data[0].banniere_url,
+        couleur: data[0].couleur_marque || "#1a7a3c",
+        description: data[0].description_boutique,
+      });
       setProduits(data.filter((p) => p.produit_nom));
     });
   }, [workspaceId]);
@@ -80,155 +88,183 @@ export default function CataloguePublic({ workspaceId }) {
     setEnvoye(true);
   }
 
-  return (
-    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif", padding: "24px 16px 90px" }}>
-      <div style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
-        {entreprise === undefined && !erreur && (
-          <div style={{ textAlign: "center", color: "#8A9089", marginTop: 60 }}>Chargement…</div>
-        )}
+  const couleur = entreprise?.couleur || "#1a7a3c";
 
-        {erreur && (
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 26, textAlign: "center", marginTop: 60 }}>
+  return (
+    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif", paddingBottom: 90 }}>
+      {entreprise === undefined && !erreur && (
+        <div style={{ textAlign: "center", color: "#8A9089", marginTop: 60 }}>Chargement…</div>
+      )}
+
+      {erreur && (
+        <div style={{ maxWidth: 480, margin: "60px auto 0", padding: "0 16px" }}>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 26, textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
             <div style={{ color: "#6B7168", fontSize: 14 }}>{erreur}</div>
           </div>
-        )}
+        </div>
+      )}
 
-        {entreprise && !erreur && envoye && (
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, textAlign: "center", marginTop: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Commande envoyée !</div>
-            <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.5 }}>
-              {entreprise.nom} va te contacter au {form.tel} pour confirmer ta commande.
+      {entreprise && !erreur && (
+        <>
+          {/* En-tête visuel de la boutique */}
+          {entreprise.banniere ? (
+            <div style={{ width: "100%", height: 140, position: "relative", overflow: "hidden" }}>
+              <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.35))" }} />
             </div>
-          </div>
-        )}
+          ) : (
+            <div style={{ width: "100%", height: 90, background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
+          )}
 
-        {entreprise && !erreur && !envoye && !vuePanier && (
-          <>
-            <div style={{ textAlign: "center", marginBottom: 22 }}>
-              <div style={{ fontWeight: 700, fontSize: 21 }}>{entreprise.nom}</div>
-              <div style={{ fontSize: 12.5, color: "#8A9089", marginTop: 2 }}>Ajoute des produits à ton panier, puis commande en une fois</div>
-            </div>
-
-            {produits.length === 0 && (
-              <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40 }}>
-                Aucun produit disponible pour le moment.
+          <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 16px" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginTop: entreprise.logo ? -36 : 20, marginBottom: 18, position: "relative", zIndex: 1 }}>
+              {entreprise.logo ? (
+                <img
+                  src={entreprise.logo}
+                  alt={entreprise.nom}
+                  style={{ width: 72, height: 72, borderRadius: 16, objectFit: "cover", border: "3px solid white", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "white", flexShrink: 0 }}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              ) : null}
+              <div style={{ paddingBottom: 4 }}>
+                <div style={{ fontWeight: 700, fontSize: 21, color: "#16231F" }}>{entreprise.nom}</div>
+                {entreprise.description && <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 2 }}>{entreprise.description}</div>}
               </div>
+            </div>
+
+            {!vuePanier && !envoye && (
+              <>
+                {produits.length === 0 && (
+                  <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40 }}>
+                    Aucun produit disponible pour le moment.
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {produits.map((p) => (
+                    <div
+                      key={p.produit_id}
+                      style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12 }}
+                    >
+                      {p.photo_url ? (
+                        <img
+                          src={p.photo_url}
+                          alt={p.produit_nom}
+                          style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0, background: "#EEF0EA" }}
+                          onError={(e) => { e.target.style.display = "none"; }}
+                        />
+                      ) : (
+                        <div style={{ width: 64, height: 64, borderRadius: 10, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+                          📦
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.produit_nom}</div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: couleur, marginTop: 2 }}>
+                          {Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+                        </div>
+                      </div>
+                      {panier[p.produit_id] ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                          <button onClick={() => retirerDuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #DDD8CC", background: "white", fontSize: 15, cursor: "pointer" }}>−</button>
+                          <div style={{ fontWeight: 700, fontSize: 14, minWidth: 14, textAlign: "center" }}>{panier[p.produit_id]}</div>
+                          <button onClick={() => ajouterAuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: couleur, color: "white", fontSize: 15, cursor: "pointer" }}>+</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => ajouterAuPanier(p.produit_id)}
+                          style={{ background: couleur, color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", flexShrink: 0 }}
+                        >
+                          Ajouter
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ textAlign: "center", fontSize: 11, color: "#8A9089", marginTop: 26 }}>
+                  Propulsé par RecuVente
+                </div>
+              </>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {produits.map((p) => (
-                <div
-                  key={p.produit_id}
-                  style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12 }}
+            {vuePanier && !envoye && (
+              <>
+                <button onClick={() => setVuePanier(false)} style={{ background: "none", border: "none", color: couleur, fontSize: 13.5, fontWeight: 600, cursor: "pointer", marginBottom: 16, padding: 0 }}>
+                  ← Retour au catalogue
+                </button>
+                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>Ton panier</div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+                  {articlesPanier.map((a) => (
+                    <div key={a.produit_id} style={{ display: "flex", justifyContent: "space-between", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{a.produit_nom}</div>
+                        <div style={{ fontSize: 12, color: "#8A9089" }}>{a.quantite} × {Number(a.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{(a.quantite * Number(a.prix_vente)).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 20, padding: "0 4px" }}>
+                  <div>Total</div>
+                  <div>{totalMontant.toLocaleString("fr-FR")} {entreprise.devise}</div>
+                </div>
+
+                <input
+                  placeholder="Ton nom"
+                  value={form.client}
+                  onChange={(e) => setForm({ ...form, client: e.target.value })}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Ton numéro de téléphone"
+                  value={form.tel}
+                  onChange={(e) => setForm({ ...form, tel: e.target.value })}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Quartier / adresse de livraison (optionnel)"
+                  value={form.zone}
+                  onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                  style={inputStyle}
+                />
+
+                {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
+
+                <button
+                  onClick={envoyerCommande}
+                  disabled={envoi}
+                  style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14.5, cursor: "pointer", opacity: envoi ? 0.6 : 1 }}
                 >
-                  {p.photo_url ? (
-                    <img
-                      src={p.photo_url}
-                      alt={p.produit_nom}
-                      style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0, background: "#EEF0EA" }}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                  ) : (
-                    <div style={{ width: 64, height: 64, borderRadius: 10, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
-                      📦
-                    </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.produit_nom}</div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#1a7a3c", marginTop: 2 }}>
-                      {Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
-                    </div>
-                  </div>
-                  {panier[p.produit_id] ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                      <button onClick={() => retirerDuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #DDD8CC", background: "white", fontSize: 15, cursor: "pointer" }}>−</button>
-                      <div style={{ fontWeight: 700, fontSize: 14, minWidth: 14, textAlign: "center" }}>{panier[p.produit_id]}</div>
-                      <button onClick={() => ajouterAuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "#1a7a3c", color: "white", fontSize: 15, cursor: "pointer" }}>+</button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => ajouterAuPanier(p.produit_id)}
-                      style={{ background: "#1a7a3c", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", flexShrink: 0 }}
-                    >
-                      Ajouter
-                    </button>
-                  )}
+                  {envoi ? "Envoi..." : "Confirmer la commande"}
+                </button>
+              </>
+            )}
+
+            {envoye && (
+              <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, textAlign: "center", marginTop: 20 }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Commande envoyée !</div>
+                <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.5 }}>
+                  {entreprise.nom} va te contacter au {form.tel} pour confirmer ta commande.
                 </div>
-              ))}
-            </div>
-
-            <div style={{ textAlign: "center", fontSize: 11, color: "#8A9089", marginTop: 26 }}>
-              Propulsé par RecuVente
-            </div>
-          </>
-        )}
-
-        {entreprise && !erreur && !envoye && vuePanier && (
-          <>
-            <button onClick={() => setVuePanier(false)} style={{ background: "none", border: "none", color: "#1a7a3c", fontSize: 13.5, fontWeight: 600, cursor: "pointer", marginBottom: 16, padding: 0 }}>
-              ← Retour au catalogue
-            </button>
-            <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>Ton panier</div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
-              {articlesPanier.map((a) => (
-                <div key={a.produit_id} style={{ display: "flex", justifyContent: "space-between", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{a.produit_nom}</div>
-                    <div style={{ fontSize: 12, color: "#8A9089" }}>{a.quantite} × {Number(a.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{(a.quantite * Number(a.prix_vente)).toLocaleString("fr-FR")} {entreprise.devise}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 20, padding: "0 4px" }}>
-              <div>Total</div>
-              <div>{totalMontant.toLocaleString("fr-FR")} {entreprise.devise}</div>
-            </div>
-
-            <input
-              placeholder="Ton nom"
-              value={form.client}
-              onChange={(e) => setForm({ ...form, client: e.target.value })}
-              style={inputStyle}
-            />
-            <input
-              placeholder="Ton numéro de téléphone"
-              value={form.tel}
-              onChange={(e) => setForm({ ...form, tel: e.target.value })}
-              style={inputStyle}
-            />
-            <input
-              placeholder="Quartier / adresse de livraison (optionnel)"
-              value={form.zone}
-              onChange={(e) => setForm({ ...form, zone: e.target.value })}
-              style={inputStyle}
-            />
-
-            {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
-
-            <button
-              onClick={envoyerCommande}
-              disabled={envoi}
-              style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14.5, cursor: "pointer", opacity: envoi ? 0.6 : 1 }}
-            >
-              {envoi ? "Envoi..." : "Confirmer la commande"}
-            </button>
-          </>
-        )}
-      </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {totalArticles > 0 && !vuePanier && !envoye && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#1a7a3c", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -4px 16px rgba(0,0,0,0.12)" }}>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: couleur, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -4px 16px rgba(0,0,0,0.12)" }}>
           <div style={{ color: "white", fontWeight: 600, fontSize: 13.5 }}>
             {totalArticles} article{totalArticles > 1 ? "s" : ""} · {totalMontant.toLocaleString("fr-FR")} {entreprise?.devise}
           </div>
           <button
             onClick={() => setVuePanier(true)}
-            style={{ background: "white", color: "#1a7a3c", border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            style={{ background: "white", color: couleur, border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
           >
             Voir le panier →
           </button>

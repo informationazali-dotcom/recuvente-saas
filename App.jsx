@@ -798,6 +798,7 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
 
 function WorkspaceDashboard({ workspace, session, subscription }) {
   const [commandes, setCommandes] = useState([]);
+  const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
   const [closers, setClosers] = useState([]);
   const [produits, setProduits] = useState([]);
@@ -1059,6 +1060,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       knownOrderIds.current = new Set(list.map((c) => c.id));
       setCommandes(list);
     }
+    const { data: items } = await supabase.from("commande_items").select("*").eq("workspace_id", workspace.id);
+    setCommandeItems(items || []);
     setLoaded(true);
     loadAllRelances();
   }
@@ -1241,15 +1244,25 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 
   const quantitesParProduit = useMemo(() => {
     const map = {};
+    const commandesAvecItems = new Set(commandeItems.map((it) => it.commande_id));
     commandes.forEach((c) => {
+      if (commandesAvecItems.has(c.id)) return; // traité via commande_items ci-dessous
       const { nom, quantite } = parseProduitTexte(c.produit);
       if (!nom) return;
       if (!map[nom]) map[nom] = { commandees: 0, livrees: 0 };
       if (c.statut !== "echouee") map[nom].commandees += quantite;
       if (c.statut === "confirmee") map[nom].livrees += quantite;
     });
+    const commandesById = Object.fromEntries(commandes.map((c) => [c.id, c]));
+    commandeItems.forEach((it) => {
+      const c = commandesById[it.commande_id];
+      if (!c || !it.produit_nom) return;
+      if (!map[it.produit_nom]) map[it.produit_nom] = { commandees: 0, livrees: 0 };
+      if (c.statut !== "echouee") map[it.produit_nom].commandees += it.quantite;
+      if (c.statut === "confirmee") map[it.produit_nom].livrees += it.quantite;
+    });
     return map;
-  }, [commandes]);
+  }, [commandes, commandeItems]);
 
   const validationsParJour = useMemo(() => {
     const confirmeesAvecDate = commandes.filter((c) => c.statut === "confirmee" && c.confirmed_at);
@@ -1631,6 +1644,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             {t.label}
           </button>
         ))}
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowProduits(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            📦 Catalogue
+          </button>
+        )}
         {workspace.role === "owner" && (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px" }} />
@@ -1690,6 +1711,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
                 <>
                   <button onClick={() => setShowTeam(true)} className="rv-saas-tabs-mobile" aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     👥
+                  </button>
+                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    📦
                   </button>
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
@@ -3425,6 +3449,27 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
   const [editPrixValue, setEditPrixValue] = useState("");
   const [editPhotoId, setEditPhotoId] = useState(null);
   const [editPhotoValue, setEditPhotoValue] = useState("");
+  const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
+
+  async function envoyerPhoto(produitId, fichier) {
+    if (!fichier) return;
+    if (fichier.size > 5 * 1024 * 1024) {
+      alert("L'image est trop lourde (max 5 Mo). Choisis une photo plus légère.");
+      return;
+    }
+    setPhotoEnvoiId(produitId);
+    const extension = fichier.name.split(".").pop();
+    const chemin = `${produitId}-${Date.now()}.${extension}`;
+    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true });
+    if (erreurUpload) {
+      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
+      setPhotoEnvoiId(null);
+      return;
+    }
+    const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+    await onUpdatePhoto(produitId, data.publicUrl);
+    setPhotoEnvoiId(null);
+  }
 
   async function ajouter() {
     if (!nom.trim()) return;
@@ -3507,15 +3552,18 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                         {p.prix_vente ? `Prix de vente : ${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : "⚠️ Ajouter un prix de vente (pour le catalogue)"}
                       </button>
                     )}
-                    {editPhotoId === p.id ? (
-                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-                        <input type="text" value={editPhotoValue} onChange={(e) => setEditPhotoValue(e.target.value)} autoFocus placeholder="Lien de la photo (URL)" style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
-                        <button onClick={() => { onUpdatePhoto(p.id, editPhotoValue); setEditPhotoId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
-                      </div>
+                    {photoEnvoiId === p.id ? (
+                      <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 4 }}>Envoi de la photo...</div>
                     ) : (
-                      <button onClick={() => { setEditPhotoId(p.id); setEditPhotoValue(p.photo_url || ""); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
+                      <label style={{ display: "inline-block", marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
                         {p.photo_url ? "📷 Changer la photo" : "📷 Ajouter une photo (optionnel)"}
-                      </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={(e) => envoyerPhoto(p.id, e.target.files?.[0])}
+                        />
+                      </label>
                     )}
                   </div>
                   <button onClick={() => onDelete(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>

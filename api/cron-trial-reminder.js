@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 
 const supabaseAdmin = createClient(
@@ -42,12 +42,12 @@ export default async function handler(req, res) {
       await resend.emails.send({
         from: "RecuVente <onboarding@resend.dev>",
         to: email,
-        subject: `Ton essai gratuit se termine bientôt — ${sub.workspaces.name}`,
+        subject: `Ton accès RecuVente se termine bientôt — ${sub.workspaces.name}`,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours d'essai gratuit</h1>
+            <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours</h1>
             <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
-              Ton essai gratuit sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Passe sur un plan payant pour ne pas perdre l'accès à tes commandes.
+              Ton accès sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Choisis un plan pour continuer à utiliser tes commandes sans interruption.
             </p>
             <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
               Choisir mon plan

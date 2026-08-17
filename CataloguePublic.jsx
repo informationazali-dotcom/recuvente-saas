@@ -6,18 +6,16 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-function cleanPhoneForWhatsApp(tel) {
-  let digits = String(tel).replace(/\D/g, "");
-  if (digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.startsWith("225")) return digits;
-  digits = digits.replace(/^0/, "");
-  return "225" + digits;
-}
-
 export default function CataloguePublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
   const [erreur, setErreur] = useState(null);
+  const [panier, setPanier] = useState({}); // { produit_id: quantite }
+  const [vuePanier, setVuePanier] = useState(false);
+  const [form, setForm] = useState({ client: "", tel: "", zone: "" });
+  const [envoi, setEnvoi] = useState(false);
+  const [envoye, setEnvoye] = useState(false);
+  const [erreurEnvoi, setErreurEnvoi] = useState("");
 
   useEffect(() => {
     supabase.rpc("catalogue_public", { p_workspace_id: workspaceId }).then(({ data, error }) => {
@@ -30,14 +28,60 @@ export default function CataloguePublic({ workspaceId }) {
     });
   }, [workspaceId]);
 
-  function lienWhatsApp(produit) {
-    const numero = cleanPhoneForWhatsApp(entreprise.whatsapp);
-    const texte = `Bonjour 👋, je veux commander : ${produit.produit_nom} à ${Number(produit.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`;
-    return `https://wa.me/${numero}?text=${encodeURIComponent(texte)}`;
+  function ajouterAuPanier(produitId) {
+    setPanier((p) => ({ ...p, [produitId]: (p[produitId] || 0) + 1 }));
+  }
+
+  function retirerDuPanier(produitId) {
+    setPanier((p) => {
+      const copie = { ...p };
+      if (copie[produitId] > 1) copie[produitId] -= 1;
+      else delete copie[produitId];
+      return copie;
+    });
+  }
+
+  const articlesPanier = Object.entries(panier)
+    .map(([produitId, quantite]) => {
+      const produit = produits.find((p) => p.produit_id === produitId);
+      return produit ? { ...produit, quantite } : null;
+    })
+    .filter(Boolean);
+
+  const totalArticles = articlesPanier.reduce((s, a) => s + a.quantite, 0);
+  const totalMontant = articlesPanier.reduce((s, a) => s + a.quantite * Number(a.prix_vente), 0);
+
+  async function envoyerCommande() {
+    if (!form.client.trim() || !form.tel.trim()) {
+      setErreurEnvoi("Merci de renseigner ton nom et ton téléphone.");
+      return;
+    }
+    setEnvoi(true);
+    setErreurEnvoi("");
+    const items = articlesPanier.map((a) => ({
+      produit_id: a.produit_id,
+      produit_nom: a.produit_nom,
+      quantite: a.quantite,
+      prix_unitaire: Number(a.prix_vente),
+    }));
+    const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
+      p_workspace_id: workspaceId,
+      p_client: form.client,
+      p_tel: form.tel,
+      p_zone: form.zone,
+      p_items: items,
+    });
+    setEnvoi(false);
+    const resultat = data && data[0];
+    if (error || !resultat?.succes) {
+      setErreurEnvoi(resultat?.message || "Une erreur est survenue, réessaie.");
+      return;
+    }
+    setEnvoye(true);
   }
 
   return (
-    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif", padding: "24px 16px" }}>
+    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif", padding: "24px 16px 90px" }}>
       <div style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
         {entreprise === undefined && !erreur && (
           <div style={{ textAlign: "center", color: "#8A9089", marginTop: 60 }}>Chargement…</div>
@@ -50,11 +94,21 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         )}
 
-        {entreprise && !erreur && (
+        {entreprise && !erreur && envoye && (
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, textAlign: "center", marginTop: 60 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Commande envoyée !</div>
+            <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.5 }}>
+              {entreprise.nom} va te contacter au {form.tel} pour confirmer ta commande.
+            </div>
+          </div>
+        )}
+
+        {entreprise && !erreur && !envoye && !vuePanier && (
           <>
             <div style={{ textAlign: "center", marginBottom: 22 }}>
               <div style={{ fontWeight: 700, fontSize: 21 }}>{entreprise.nom}</div>
-              <div style={{ fontSize: 12.5, color: "#8A9089", marginTop: 2 }}>Clique sur un produit pour commander via WhatsApp</div>
+              <div style={{ fontSize: 12.5, color: "#8A9089", marginTop: 2 }}>Ajoute des produits à ton panier, puis commande en une fois</div>
             </div>
 
             {produits.length === 0 && (
@@ -64,23 +118,10 @@ export default function CataloguePublic({ workspaceId }) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {produits.map((p, i) => (
-                <a
-                  key={i}
-                  href={lienWhatsApp(p)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    background: "white",
-                    border: "1px solid #ECE8DC",
-                    borderRadius: 14,
-                    padding: 12,
-                    textDecoration: "none",
-                    color: "#16231F",
-                  }}
+              {produits.map((p) => (
+                <div
+                  key={p.produit_id}
+                  style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12 }}
                 >
                   {p.photo_url ? (
                     <img
@@ -100,10 +141,21 @@ export default function CataloguePublic({ workspaceId }) {
                       {Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
                     </div>
                   </div>
-                  <div style={{ background: "#1a7a3c", color: "white", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                    Commander
-                  </div>
-                </a>
+                  {panier[p.produit_id] ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      <button onClick={() => retirerDuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #DDD8CC", background: "white", fontSize: 15, cursor: "pointer" }}>−</button>
+                      <div style={{ fontWeight: 700, fontSize: 14, minWidth: 14, textAlign: "center" }}>{panier[p.produit_id]}</div>
+                      <button onClick={() => ajouterAuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "#1a7a3c", color: "white", fontSize: 15, cursor: "pointer" }}>+</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => ajouterAuPanier(p.produit_id)}
+                      style={{ background: "#1a7a3c", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", flexShrink: 0 }}
+                    >
+                      Ajouter
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
 
@@ -112,7 +164,78 @@ export default function CataloguePublic({ workspaceId }) {
             </div>
           </>
         )}
+
+        {entreprise && !erreur && !envoye && vuePanier && (
+          <>
+            <button onClick={() => setVuePanier(false)} style={{ background: "none", border: "none", color: "#1a7a3c", fontSize: 13.5, fontWeight: 600, cursor: "pointer", marginBottom: 16, padding: 0 }}>
+              ← Retour au catalogue
+            </button>
+            <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>Ton panier</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+              {articlesPanier.map((a) => (
+                <div key={a.produit_id} style={{ display: "flex", justifyContent: "space-between", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{a.produit_nom}</div>
+                    <div style={{ fontSize: 12, color: "#8A9089" }}>{a.quantite} × {Number(a.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{(a.quantite * Number(a.prix_vente)).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 20, padding: "0 4px" }}>
+              <div>Total</div>
+              <div>{totalMontant.toLocaleString("fr-FR")} {entreprise.devise}</div>
+            </div>
+
+            <input
+              placeholder="Ton nom"
+              value={form.client}
+              onChange={(e) => setForm({ ...form, client: e.target.value })}
+              style={inputStyle}
+            />
+            <input
+              placeholder="Ton numéro de téléphone"
+              value={form.tel}
+              onChange={(e) => setForm({ ...form, tel: e.target.value })}
+              style={inputStyle}
+            />
+            <input
+              placeholder="Quartier / adresse de livraison (optionnel)"
+              value={form.zone}
+              onChange={(e) => setForm({ ...form, zone: e.target.value })}
+              style={inputStyle}
+            />
+
+            {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
+
+            <button
+              onClick={envoyerCommande}
+              disabled={envoi}
+              style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14.5, cursor: "pointer", opacity: envoi ? 0.6 : 1 }}
+            >
+              {envoi ? "Envoi..." : "Confirmer la commande"}
+            </button>
+          </>
+        )}
       </div>
+
+      {totalArticles > 0 && !vuePanier && !envoye && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#1a7a3c", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -4px 16px rgba(0,0,0,0.12)" }}>
+          <div style={{ color: "white", fontWeight: 600, fontSize: 13.5 }}>
+            {totalArticles} article{totalArticles > 1 ? "s" : ""} · {totalMontant.toLocaleString("fr-FR")} {entreprise?.devise}
+          </div>
+          <button
+            onClick={() => setVuePanier(true)}
+            style={{ background: "white", color: "#1a7a3c", border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+          >
+            Voir le panier →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+const inputStyle = { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" };

@@ -4988,8 +4988,11 @@ function IntegrationsModal({ workspace, onClose }) {
             {copieCatalogue ? "✅ Copié !" : "📋 Copier le lien de ma boutique"}
           </button>
           {(!workspace.whatsapp_number && !whatsappSaved) && (
-            <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#8A6412", marginBottom: 4 }}>
+                        <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>
+          )}
+        </div>
+
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
             🎨 Personnalise ta boutique
           </div>
           <div style={{ fontSize: 12.5, color: "#8A6412", marginBottom: 14, lineHeight: 1.5 }}>

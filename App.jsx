@@ -4853,6 +4853,44 @@ function CarteLivreursSaas({ livreurs }) {
 
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
+  const [personnalisation, setPersonnalisation] = useState({
+    logo_url: workspace.logo_url || "",
+    banniere_url: workspace.banniere_url || "",
+    couleur_marque: workspace.couleur_marque || "#1a7a3c",
+    description_boutique: workspace.description_boutique || "",
+  });
+  const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
+
+  async function envoyerImage(type, fichier) {
+    if (!fichier) return;
+    if (fichier.size > 5 * 1024 * 1024) {
+      alert("L'image est trop lourde (max 5 Mo). Choisis une image plus légère.");
+      return;
+    }
+    setEnvoiEnCoursType(type);
+    const extension = fichier.name.split(".").pop();
+    const chemin = `${workspace.id}-${type}-${Date.now()}.${extension}`;
+    const { error: erreurUpload } = await supabase.storage.from("boutique").upload(chemin, fichier, { upsert: true });
+    if (erreurUpload) {
+      alert("Erreur lors de l'envoi : " + erreurUpload.message);
+      setEnvoiEnCoursType(null);
+      return;
+    }
+    const { data } = supabase.storage.from("boutique").getPublicUrl(chemin);
+    const champ = type === "logo" ? "logo_url" : "banniere_url";
+    await supabase.from("workspaces").update({ [champ]: data.publicUrl }).eq("id", workspace.id);
+    setPersonnalisation((p) => ({ ...p, [champ]: data.publicUrl }));
+    setEnvoiEnCoursType(null);
+  }
+
+  async function sauvegarderCouleur(couleur) {
+    setPersonnalisation((p) => ({ ...p, couleur_marque: couleur }));
+    await supabase.from("workspaces").update({ couleur_marque: couleur }).eq("id", workspace.id);
+  }
+
+  async function sauvegarderDescription() {
+    await supabase.from("workspaces").update({ description_boutique: personnalisation.description_boutique }).eq("id", workspace.id);
+  }
   const [copieCommande, setCopieCommande] = useState(false);
   const [copieCatalogue, setCopieCatalogue] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState(workspace.whatsapp_number || "");

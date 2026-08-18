@@ -1659,16 +1659,16 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
               👥 Gérer l'équipe
             </button>
             <button
+              onClick={() => setShowIntegrations(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              🛍️ Ma Boutique
+            </button>
+            <button
               onClick={() => setShowAbonnement(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               💳 Mon abonnement
-            </button>
-            <button
-              onClick={() => setShowIntegrations(true)}
-              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-            >
-              🔌 Intégrations
             </button>
           </>
         )}
@@ -1715,8 +1715,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
                   </button>
-                  <button onClick={() => setShowIntegrations(true)} className="rv-saas-tabs-mobile" aria-label="Intégrations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🔌
+                  <button onClick={() => setShowIntegrations(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    🛍️
                   </button>
                 </>
               )}
@@ -4955,9 +4955,18 @@ function IntegrationsModal({ workspace, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>🔌 Intégrations</div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🛍️ Ma Boutique</div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
+
+        <a
+          href={lienCatalogue}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "linear-gradient(135deg, #1a7a3c, #1F9D6E)", color: "white", border: "none", borderRadius: 12, padding: "14px 0", fontWeight: 700, fontSize: 14.5, textDecoration: "none", marginBottom: 20, boxSizing: "border-box" }}
+        >
+          👁️ Voir ma boutique en ligne
+        </a>
 
         <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5, color: "#3B6D11", marginBottom: 4 }}>

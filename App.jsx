@@ -4873,6 +4873,17 @@ function IntegrationsModal({ workspace, onClose }) {
     description_boutique: workspace.description_boutique || "",
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
+  const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
+  const [savingPixel, setSavingPixel] = useState(false);
+  const [pixelSaved, setPixelSaved] = useState(false);
+
+  async function sauvegarderPixel() {
+    setSavingPixel(true);
+    await supabase.from("workspaces").update({ facebook_pixel_id: pixelId.trim() || null }).eq("id", workspace.id);
+    setSavingPixel(false);
+    setPixelSaved(true);
+    setTimeout(() => setPixelSaved(false), 2000);
+  }
 
   async function envoyerImage(type, fichier) {
     if (!fichier) return;
@@ -5052,6 +5063,33 @@ function IntegrationsModal({ workspace, onClose }) {
             rows={2}
             style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #F0DDA8", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
           />
+        </div>
+
+        <div style={{ background: "#EAF0FB", border: "1px solid #C3D4F0", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#1E4B8C", marginBottom: 4 }}>
+            📊 Pixel Facebook — suis tes publicités
+          </div>
+          <div style={{ fontSize: 12.5, color: "#1E4B8C", marginBottom: 12, lineHeight: 1.5 }}>
+            Colle ton identifiant de Pixel Facebook pour voir combien de ventes viennent réellement de tes publicités.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={pixelId}
+              onChange={(e) => setPixelId(e.target.value)}
+              placeholder="Ex: 1761789765001953"
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C3D4F0", fontSize: 13 }}
+            />
+            <button
+              onClick={sauvegarderPixel}
+              disabled={savingPixel}
+              style={{ background: pixelSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {pixelSaved ? "✅" : savingPixel ? "..." : "Enregistrer"}
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
+            Trouve-le sur business.facebook.com → Gestionnaire d'événements. Suit automatiquement : visite, vue produit, ajout panier, et achat.
+          </div>
         </div>
 
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>

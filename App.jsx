@@ -881,6 +881,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     await loadProduits();
   }
 
+  async function updateProduitDescription(id, description) {
+    await supabase.from("produits").update({ description: description || null }).eq("id", id);
+    await loadProduits();
+  }
+
   async function updateProduitStock(id, stock) {
     await supabase.from("produits").update({ stock_initial: Number(stock) || 0 }).eq("id", id);
     await loadProduits();
@@ -2295,7 +2300,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
     </div>
   );
 }
@@ -3428,7 +3433,7 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, quantitesParProduit, onDelete, currency, onClose }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, quantitesParProduit, onDelete, currency, onClose }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -3439,6 +3444,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
   const [editPrixValue, setEditPrixValue] = useState("");
   const [editPhotoId, setEditPhotoId] = useState(null);
   const [editPhotoValue, setEditPhotoValue] = useState("");
+  const [editDescId, setEditDescId] = useState(null);
+  const [editDescValue, setEditDescValue] = useState("");
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
 
   async function envoyerPhoto(produitId, fichier) {
@@ -3554,6 +3561,23 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                           onChange={(e) => envoyerPhoto(p.id, e.target.files?.[0])}
                         />
                       </label>
+                    )}
+                    {editDescId === p.id ? (
+                      <div style={{ marginTop: 6 }}>
+                        <textarea
+                          value={editDescValue}
+                          onChange={(e) => setEditDescValue(e.target.value)}
+                          autoFocus
+                          rows={2}
+                          placeholder="Description visible par les clients en boutique"
+                          style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box", fontFamily: "inherit" }}
+                        />
+                        <button onClick={() => { onUpdateDescription(p.id, editDescValue); setEditDescId(null); }} style={{ marginTop: 4, background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditDescId(p.id); setEditDescValue(p.description || ""); }} style={{ display: "block", background: "none", border: "none", padding: 0, marginTop: 4, fontSize: 12, color: p.description ? "#6B7168" : "#D64933", textDecoration: "underline", cursor: "pointer", textAlign: "left" }}>
+                        {p.description ? "📝 " + p.description.slice(0, 40) + (p.description.length > 40 ? "..." : "") : "📝 Ajouter une description (pour la boutique)"}
+                      </button>
                     )}
                   </div>
                   <button onClick={() => onDelete(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>

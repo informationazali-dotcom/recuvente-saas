@@ -18,6 +18,32 @@ export default function CataloguePublic({ workspaceId }) {
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
 
+  function chargerPixelFacebook(pixelId) {
+    if (!pixelId || window.fbq) return;
+    !(function (f, b, e, v, n, t, s) {
+      if (f.fbq) return;
+      n = f.fbq = function () {
+        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = !0;
+      n.version = "2.0";
+      n.queue = [];
+      t = b.createElement(e);
+      t.async = !0;
+      t.src = v;
+      s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s);
+    })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+    window.fbq("init", pixelId);
+    window.fbq("track", "PageView");
+  }
+
+  function trackEvenement(nom, params) {
+    if (window.fbq) window.fbq("track", nom, params);
+  }
+
   useEffect(() => {
     supabase.rpc("catalogue_public", { p_workspace_id: workspaceId }).then(({ data, error }) => {
       if (error || !data || data.length === 0) {
@@ -33,11 +59,16 @@ export default function CataloguePublic({ workspaceId }) {
         couleur: data[0].couleur_marque || "#1a7a3c",
         description: data[0].description_boutique,
       });
+      chargerPixelFacebook(data[0].facebook_pixel_id);
       setProduits(data.filter((p) => p.produit_nom));
     });
   }, [workspaceId]);
 
   function ajouterAuPanier(produitId) {
+    const produit = produits.find((p) => p.produit_id === produitId);
+    if (produit) {
+      trackEvenement("AddToCart", { content_ids: [produitId], content_name: produit.produit_nom, value: Number(produit.prix_vente), currency: entreprise?.devise || "XOF" });
+    }
     setPanier((p) => ({ ...p, [produitId]: (p[produitId] || 0) + 1 }));
   }
 
@@ -86,6 +117,12 @@ export default function CataloguePublic({ workspaceId }) {
       setErreurEnvoi(resultat?.message || "Une erreur est survenue, réessaie.");
       return;
     }
+    trackEvenement("Purchase", {
+      content_ids: items.map((it) => it.produit_id),
+      contents: items.map((it) => ({ id: it.produit_id, quantity: it.quantite })),
+      value: totalMontant,
+      currency: entreprise?.devise || "XOF",
+    });
     setEnvoye(true);
   }
 
@@ -146,7 +183,10 @@ export default function CataloguePublic({ workspaceId }) {
                   {produits.map((p) => (
                     <div
                       key={p.produit_id}
-                      onClick={() => setProduitOuvert(p)}
+                      onClick={() => {
+                        trackEvenement("ViewContent", { content_ids: [p.produit_id], content_name: p.produit_nom, value: Number(p.prix_vente), currency: entreprise?.devise || "XOF" });
+                        setProduitOuvert(p);
+                      }}
                       style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12, cursor: "pointer" }}
                     >
                       {p.photo_url ? (
@@ -265,7 +305,10 @@ export default function CataloguePublic({ workspaceId }) {
             {totalArticles} article{totalArticles > 1 ? "s" : ""} · {totalMontant.toLocaleString("fr-FR")} {entreprise?.devise}
           </div>
           <button
-            onClick={() => setVuePanier(true)}
+            onClick={() => {
+              trackEvenement("InitiateCheckout", { value: totalMontant, currency: entreprise?.devise || "XOF", num_items: totalArticles });
+              setVuePanier(true);
+            }}
             style={{ background: "white", color: couleur, border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
           >
             Voir le panier →

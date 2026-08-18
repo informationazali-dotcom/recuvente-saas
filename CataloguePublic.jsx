@@ -12,6 +12,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [erreur, setErreur] = useState(null);
   const [panier, setPanier] = useState({}); // { produit_id: quantite }
   const [vuePanier, setVuePanier] = useState(false);
+  const [produitOuvert, setProduitOuvert] = useState(null);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
@@ -145,7 +146,8 @@ export default function CataloguePublic({ workspaceId }) {
                   {produits.map((p) => (
                     <div
                       key={p.produit_id}
-                      style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12 }}
+                      onClick={() => setProduitOuvert(p)}
+                      style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12, cursor: "pointer" }}
                     >
                       {p.photo_url ? (
                         <img
@@ -166,14 +168,14 @@ export default function CataloguePublic({ workspaceId }) {
                         </div>
                       </div>
                       {panier[p.produit_id] ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                        <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                           <button onClick={() => retirerDuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #DDD8CC", background: "white", fontSize: 15, cursor: "pointer" }}>−</button>
                           <div style={{ fontWeight: 700, fontSize: 14, minWidth: 14, textAlign: "center" }}>{panier[p.produit_id]}</div>
                           <button onClick={() => ajouterAuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: couleur, color: "white", fontSize: 15, cursor: "pointer" }}>+</button>
                         </div>
                       ) : (
                         <button
-                          onClick={() => ajouterAuPanier(p.produit_id)}
+                          onClick={(e) => { e.stopPropagation(); ajouterAuPanier(p.produit_id); }}
                           style={{ background: couleur, color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", flexShrink: 0 }}
                         >
                           Ajouter
@@ -257,7 +259,7 @@ export default function CataloguePublic({ workspaceId }) {
         </>
       )}
 
-      {totalArticles > 0 && !vuePanier && !envoye && (
+      {totalArticles > 0 && !vuePanier && !envoye && !produitOuvert && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: couleur, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -4px 16px rgba(0,0,0,0.12)" }}>
           <div style={{ color: "white", fontWeight: 600, fontSize: 13.5 }}>
             {totalArticles} article{totalArticles > 1 ? "s" : ""} · {totalMontant.toLocaleString("fr-FR")} {entreprise?.devise}
@@ -268,6 +270,60 @@ export default function CataloguePublic({ workspaceId }) {
           >
             Voir le panier →
           </button>
+        </div>
+      )}
+
+      {produitOuvert && (
+        <div style={{ position: "fixed", inset: 0, background: "white", zIndex: 50, overflowY: "auto" }}>
+          {produitOuvert.photo_url ? (
+            <img
+              src={produitOuvert.photo_url}
+              alt={produitOuvert.produit_nom}
+              style={{ width: "100%", height: 280, objectFit: "cover", background: "#EEF0EA" }}
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          ) : (
+            <div style={{ width: "100%", height: 280, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+          )}
+
+          <button
+            onClick={() => setProduitOuvert(null)}
+            style={{ position: "absolute", top: 16, left: 16, background: "white", border: "none", borderRadius: "50%", width: 36, height: 36, fontSize: 18, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+          >
+            ←
+          </button>
+
+          <div style={{ maxWidth: 480, margin: "0 auto", padding: "20px 16px 100px" }}>
+            <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6 }}>{produitOuvert.produit_nom}</div>
+            <div style={{ fontWeight: 700, fontSize: 22, color: couleur, marginBottom: 16 }}>
+              {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+            </div>
+
+            {produitOuvert.produit_description ? (
+              <div style={{ fontSize: 14, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {produitOuvert.produit_description}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic" }}>Aucune description disponible pour ce produit.</div>
+            )}
+
+            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 16px" }}>
+              {panier[produitOuvert.produit_id] ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                  <button onClick={() => retirerDuPanier(produitOuvert.produit_id)} style={{ width: 40, height: 40, borderRadius: 10, border: "1px solid #DDD8CC", background: "white", fontSize: 18, cursor: "pointer" }}>−</button>
+                  <div style={{ fontWeight: 700, fontSize: 17, minWidth: 20, textAlign: "center" }}>{panier[produitOuvert.produit_id]}</div>
+                  <button onClick={() => ajouterAuPanier(produitOuvert.produit_id)} style={{ width: 40, height: 40, borderRadius: 10, border: "none", background: couleur, color: "white", fontSize: 18, cursor: "pointer" }}>+</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => ajouterAuPanier(produitOuvert.produit_id)}
+                  style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}
+                >
+                  Ajouter au panier
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

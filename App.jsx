@@ -157,7 +157,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -312,7 +312,6 @@ function LandingPage() {
         .rv-lp-card { transition: all 0.2s ease; }
       `}</style>
 
-      {/* HERO avec bascule de profil */}
       <div style={{ background: "linear-gradient(160deg, #16231F 0%, #1a7a3c 130%)", color: "white", padding: "48px 24px 0", position: "relative", overflow: "hidden" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
           <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 28, letterSpacing: "0.02em" }}>
@@ -356,7 +355,6 @@ function LandingPage() {
           </a>
           <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
 
-          {/* Aperçu visuel du tableau de bord, façon capture */}
           <div key={profil + "-preview"} className="rv-lp-fade" style={{ marginTop: 36, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px 16px 0 0", padding: "18px 20px 0", maxWidth: 480, margin: "36px auto 0" }}>
             <div style={{ display: "flex", gap: 10 }}>
               {c.captureLignes.map((l, i) => (
@@ -370,7 +368,6 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* Points de douleur — reconnaissance du problème, avec vrai enjeu financier */}
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "44px 24px 10px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 10 }}>
           Chaque jour sans système, tu perds de l'argent — pas dans 6 mois, aujourd'hui
@@ -393,7 +390,6 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* Avantages détaillés, selon le profil choisi */}
       <div key={profil + "-avantages"} className="rv-lp-fade" style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>
@@ -411,7 +407,6 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* Sécurité / confiance */}
       <div style={{ background: "white", borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC", padding: "36px 24px" }}>
         <div style={{ maxWidth: 700, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20, textAlign: "center" }}>
           {[
@@ -427,7 +422,6 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* Levée d'objections — répond aux vraies hésitations avant qu'elles bloquent */}
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "10px 24px 40px" }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22 }}>
@@ -952,7 +946,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }, []);
 
   const accesBloque = (() => {
-    if (subscription === undefined || subscription === null) return false; // pas encore chargé ou pas d'abonnement du tout (ancien workspace) : ne rien bloquer
+    if (subscription === undefined || subscription === null) return false;
     if (subscription.status === "active") return false;
     if (subscription.status === "trial") {
       const finEssai = new Date(subscription.trial_ends_at);
@@ -1083,7 +1077,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     loadCommandes();
     loadAllRelances();
 
-    // Détection instantanée des nouvelles commandes de CET espace uniquement
     const channel = supabase
       .channel(`commandes-${workspace.id}`)
       .on(
@@ -1226,7 +1219,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     });
     function neutraliser(valeur) {
       const s = String(valeur ?? "");
-      // Empêche l'injection de formule (=, +, -, @ en début de cellule) si le fichier est ouvert dans Excel
       if (/^[=+\-@\t\r]/.test(s)) return "'" + s;
       return s;
     }
@@ -1246,7 +1238,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     const map = {};
     const commandesAvecItems = new Set(commandeItems.map((it) => it.commande_id));
     commandes.forEach((c) => {
-      if (commandesAvecItems.has(c.id)) return; // traité via commande_items ci-dessous
+      if (commandesAvecItems.has(c.id)) return;
       const { nom, quantite } = parseProduitTexte(c.produit);
       if (!nom) return;
       if (!map[nom]) map[nom] = { commandees: 0, livrees: 0 };
@@ -2907,7 +2899,6 @@ function AbonnementModal({ workspace, subscription, onClose }) {
       console.error("Erreur paiement Chariow — statut:", res.status, "contenu:", texteBrut);
       setMessage(`⚠️ Échec (code ${res.status}) : ${detailErreur}. Bascule sur le système manuel.`);
 
-      // Une seule demande active à la fois par entreprise — on annule les anciennes avant d'en créer une nouvelle
       await supabase.from("upgrade_requests").update({ statut: "annule" }).eq("workspace_id", workspace.id).eq("statut", "en_attente");
       await supabase.from("upgrade_requests").insert([{ workspace_id: workspace.id, plan_id: planId }]);
       await load();
@@ -3436,7 +3427,6 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
     </div>
   );
 }
-
 
 function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, quantitesParProduit, onDelete, currency, onClose }) {
   const [nom, setNom] = useState("");
@@ -4850,7 +4840,6 @@ function CarteLivreursSaas({ livreurs }) {
     </div>
   );
 }
-
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
   const [personnalisation, setPersonnalisation] = useState({
@@ -4891,6 +4880,7 @@ function IntegrationsModal({ workspace, onClose }) {
   async function sauvegarderDescription() {
     await supabase.from("workspaces").update({ description_boutique: personnalisation.description_boutique }).eq("id", workspace.id);
   }
+
   const [copieCommande, setCopieCommande] = useState(false);
   const [copieCatalogue, setCopieCatalogue] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState(workspace.whatsapp_number || "");
@@ -4988,11 +4978,12 @@ function IntegrationsModal({ workspace, onClose }) {
             {copieCatalogue ? "✅ Copié !" : "📋 Copier le lien de ma boutique"}
           </button>
           {(!workspace.whatsapp_number && !whatsappSaved) && (
-                        <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>
+            <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>
           )}
         </div>
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#8A6412", marginBottom: 4 }}>
             🎨 Personnalise ta boutique
           </div>
           <div style={{ fontSize: 12.5, color: "#8A6412", marginBottom: 14, lineHeight: 1.5 }}>
@@ -5038,8 +5029,6 @@ function IntegrationsModal({ workspace, onClose }) {
             style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #F0DDA8", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
           />
         </div>
-          )}
-        </div>
 
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
           Connecte ta boutique Shopify pour que chaque nouvelle commande arrive **automatiquement** ici, sans rien taper à la main.
@@ -5079,6 +5068,8 @@ function IntegrationsModal({ workspace, onClose }) {
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginTop: 16, fontSize: 12, color: "#8A6412" }}>
           ⚠️ Ce lien est unique à ton entreprise — les commandes créées via ce lien arrivent uniquement dans ton espace, jamais chez une autre entreprise.
-     />
         </div>
-         </div>
+      </div>
+    </div>
+  );
+}

@@ -10,8 +10,6 @@ export default function CataloguePublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
   const [erreur, setErreur] = useState(null);
-  const [panier, setPanier] = useState({}); // { produit_id: quantite }
-  const [vuePanier, setVuePanier] = useState(false);
   const [produitOuvert, setProduitOuvert] = useState(null);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [envoi, setEnvoi] = useState(false);
@@ -53,7 +51,6 @@ export default function CataloguePublic({ workspaceId }) {
       setEntreprise({
         nom: data[0].entreprise_nom,
         devise: data[0].devise,
-        whatsapp: data[0].whatsapp_number,
         logo: data[0].logo_url,
         banniere: data[0].banniere_url,
         couleur: data[0].couleur_marque || "#1a7a3c",
@@ -64,32 +61,13 @@ export default function CataloguePublic({ workspaceId }) {
     });
   }, [workspaceId]);
 
-  function ajouterAuPanier(produitId) {
-    const produit = produits.find((p) => p.produit_id === produitId);
-    if (produit) {
-      trackEvenement("AddToCart", { content_ids: [produitId], content_name: produit.produit_nom, value: Number(produit.prix_vente), currency: entreprise?.devise || "XOF" });
-    }
-    setPanier((p) => ({ ...p, [produitId]: (p[produitId] || 0) + 1 }));
+  function ouvrirProduit(p) {
+    trackEvenement("ViewContent", { content_ids: [p.produit_id], content_name: p.produit_nom, value: Number(p.prix_vente), currency: entreprise?.devise || "XOF" });
+    setProduitOuvert(p);
+    setForm({ client: "", tel: "", zone: "" });
+    setEnvoye(false);
+    setErreurEnvoi("");
   }
-
-  function retirerDuPanier(produitId) {
-    setPanier((p) => {
-      const copie = { ...p };
-      if (copie[produitId] > 1) copie[produitId] -= 1;
-      else delete copie[produitId];
-      return copie;
-    });
-  }
-
-  const articlesPanier = Object.entries(panier)
-    .map(([produitId, quantite]) => {
-      const produit = produits.find((p) => p.produit_id === produitId);
-      return produit ? { ...produit, quantite } : null;
-    })
-    .filter(Boolean);
-
-  const totalArticles = articlesPanier.reduce((s, a) => s + a.quantite, 0);
-  const totalMontant = articlesPanier.reduce((s, a) => s + a.quantite * Number(a.prix_vente), 0);
 
   async function envoyerCommande() {
     if (!form.client.trim() || !form.tel.trim()) {
@@ -98,12 +76,12 @@ export default function CataloguePublic({ workspaceId }) {
     }
     setEnvoi(true);
     setErreurEnvoi("");
-    const items = articlesPanier.map((a) => ({
-      produit_id: a.produit_id,
-      produit_nom: a.produit_nom,
-      quantite: a.quantite,
-      prix_unitaire: Number(a.prix_vente),
-    }));
+    const items = [{
+      produit_id: produitOuvert.produit_id,
+      produit_nom: produitOuvert.produit_nom,
+      quantite: 1,
+      prix_unitaire: Number(produitOuvert.prix_vente),
+    }];
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
@@ -118,9 +96,8 @@ export default function CataloguePublic({ workspaceId }) {
       return;
     }
     trackEvenement("Purchase", {
-      content_ids: items.map((it) => it.produit_id),
-      contents: items.map((it) => ({ id: it.produit_id, quantity: it.quantite })),
-      value: totalMontant,
+      content_ids: [produitOuvert.produit_id],
+      value: Number(produitOuvert.prix_vente),
       currency: entreprise?.devise || "XOF",
     });
     setEnvoye(true);
@@ -128,249 +105,176 @@ export default function CataloguePublic({ workspaceId }) {
 
   const couleur = entreprise?.couleur || "#1a7a3c";
 
-  return (
-    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif", paddingBottom: 90 }}>
-      {entreprise === undefined && !erreur && (
-        <div style={{ textAlign: "center", color: "#8A9089", marginTop: 60 }}>Chargement…</div>
-      )}
+  if (entreprise === undefined && !erreur) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#8A9089", fontFamily: "sans-serif" }}>
+        Chargement…
+      </div>
+    );
+  }
 
-      {erreur && (
-        <div style={{ maxWidth: 480, margin: "60px auto 0", padding: "0 16px" }}>
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 26, textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-            <div style={{ color: "#6B7168", fontSize: 14 }}>{erreur}</div>
-          </div>
+  if (erreur) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "sans-serif" }}>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 26, textAlign: "center", maxWidth: 340 }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+          <div style={{ color: "#6B7168", fontSize: 14 }}>{erreur}</div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {entreprise && !erreur && (
-        <>
-          {/* En-tête visuel de la boutique */}
-          {entreprise.banniere ? (
-            <div style={{ width: "100%", height: 140, position: "relative", overflow: "hidden" }}>
-              <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.35))" }} />
-            </div>
-          ) : (
-            <div style={{ width: "100%", height: 90, background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
-          )}
-
-          <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 16px" }}>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginTop: entreprise.logo ? -36 : 20, marginBottom: 18, position: "relative", zIndex: 1 }}>
-              {entreprise.logo ? (
-                <img
-                  src={entreprise.logo}
-                  alt={entreprise.nom}
-                  style={{ width: 72, height: 72, borderRadius: 16, objectFit: "cover", border: "3px solid white", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "white", flexShrink: 0 }}
-                  onError={(e) => { e.target.style.display = "none"; }}
-                />
-              ) : null}
-              <div style={{ paddingBottom: 4 }}>
-                <div style={{ fontWeight: 700, fontSize: 21, color: "#16231F" }}>{entreprise.nom}</div>
-                {entreprise.description && <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 2 }}>{entreprise.description}</div>}
-              </div>
-            </div>
-
-            {!vuePanier && !envoye && (
-              <>
-                {produits.length === 0 && (
-                  <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40 }}>
-                    Aucun produit disponible pour le moment.
-                  </div>
-                )}
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {produits.map((p) => (
-                    <div
-                      key={p.produit_id}
-                      onClick={() => {
-                        trackEvenement("ViewContent", { content_ids: [p.produit_id], content_name: p.produit_nom, value: Number(p.prix_vente), currency: entreprise?.devise || "XOF" });
-                        setProduitOuvert(p);
-                      }}
-                      style={{ display: "flex", alignItems: "center", gap: 14, background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 12, cursor: "pointer" }}
-                    >
-                      {p.photo_url ? (
-                        <img
-                          src={p.photo_url}
-                          alt={p.produit_nom}
-                          style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0, background: "#EEF0EA" }}
-                          onError={(e) => { e.target.style.display = "none"; }}
-                        />
-                      ) : (
-                        <div style={{ width: 64, height: 64, borderRadius: 10, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
-                          📦
-                        </div>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.produit_nom}</div>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: couleur, marginTop: 2 }}>
-                          {Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
-                        </div>
-                      </div>
-                      {panier[p.produit_id] ? (
-                        <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                          <button onClick={() => retirerDuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #DDD8CC", background: "white", fontSize: 15, cursor: "pointer" }}>−</button>
-                          <div style={{ fontWeight: 700, fontSize: 14, minWidth: 14, textAlign: "center" }}>{panier[p.produit_id]}</div>
-                          <button onClick={() => ajouterAuPanier(p.produit_id)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: couleur, color: "white", fontSize: 15, cursor: "pointer" }}>+</button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); ajouterAuPanier(p.produit_id); }}
-                          style={{ background: couleur, color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", flexShrink: 0 }}
-                        >
-                          Ajouter
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ textAlign: "center", fontSize: 11, color: "#8A9089", marginTop: 26 }}>
-                  Propulsé par RecuVente
-                </div>
-              </>
-            )}
-
-            {vuePanier && !envoye && (
-              <>
-                <button onClick={() => setVuePanier(false)} style={{ background: "none", border: "none", color: couleur, fontSize: 13.5, fontWeight: 600, cursor: "pointer", marginBottom: 16, padding: 0 }}>
-                  ← Retour au catalogue
-                </button>
-                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>Ton panier</div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
-                  {articlesPanier.map((a) => (
-                    <div key={a.produit_id} style={{ display: "flex", justifyContent: "space-between", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{a.produit_nom}</div>
-                        <div style={{ fontSize: 12, color: "#8A9089" }}>{a.quantite} × {Number(a.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{(a.quantite * Number(a.prix_vente)).toLocaleString("fr-FR")} {entreprise.devise}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 20, padding: "0 4px" }}>
-                  <div>Total</div>
-                  <div>{totalMontant.toLocaleString("fr-FR")} {entreprise.devise}</div>
-                </div>
-
-                <input
-                  placeholder="Ton nom"
-                  value={form.client}
-                  onChange={(e) => setForm({ ...form, client: e.target.value })}
-                  style={inputStyle}
-                />
-                <input
-                  placeholder="Ton numéro de téléphone"
-                  value={form.tel}
-                  onChange={(e) => setForm({ ...form, tel: e.target.value })}
-                  style={inputStyle}
-                />
-                <input
-                  placeholder="Quartier / adresse de livraison (optionnel)"
-                  value={form.zone}
-                  onChange={(e) => setForm({ ...form, zone: e.target.value })}
-                  style={inputStyle}
-                />
-
-                {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
-
-                <button
-                  onClick={envoyerCommande}
-                  disabled={envoi}
-                  style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14.5, cursor: "pointer", opacity: envoi ? 0.6 : 1 }}
-                >
-                  {envoi ? "Envoi..." : "Confirmer la commande"}
-                </button>
-              </>
-            )}
-
-            {envoye && (
-              <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, textAlign: "center", marginTop: 20 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Commande envoyée !</div>
-                <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.5 }}>
-                  {entreprise.nom} va te contacter au {form.tel} pour confirmer ta commande.
-                </div>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {totalArticles > 0 && !vuePanier && !envoye && !produitOuvert && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: couleur, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -4px 16px rgba(0,0,0,0.12)" }}>
-          <div style={{ color: "white", fontWeight: 600, fontSize: 13.5 }}>
-            {totalArticles} article{totalArticles > 1 ? "s" : ""} · {totalMontant.toLocaleString("fr-FR")} {entreprise?.devise}
-          </div>
-          <button
-            onClick={() => {
-              trackEvenement("InitiateCheckout", { value: totalMontant, currency: entreprise?.devise || "XOF", num_items: totalArticles });
-              setVuePanier(true);
-            }}
-            style={{ background: "white", color: couleur, border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-          >
-            Voir le panier →
-          </button>
-        </div>
-      )}
-
-      {produitOuvert && (
-        <div style={{ position: "fixed", inset: 0, background: "white", zIndex: 50, overflowY: "auto" }}>
+  // ===== ÉCRAN FICHE PRODUIT (commande directe) =====
+  if (produitOuvert) {
+    return (
+      <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
+        <div style={{ position: "relative" }}>
           {produitOuvert.photo_url ? (
             <img
               src={produitOuvert.photo_url}
               alt={produitOuvert.produit_nom}
-              style={{ width: "100%", height: 280, objectFit: "cover", background: "#EEF0EA" }}
+              style={{ width: "100%", height: 260, objectFit: "cover", background: "#EEF0EA", display: "block" }}
               onError={(e) => { e.target.style.display = "none"; }}
             />
           ) : (
-            <div style={{ width: "100%", height: 280, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+            <div style={{ width: "100%", height: 260, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
           )}
-
           <button
             onClick={() => setProduitOuvert(null)}
-            style={{ position: "absolute", top: 16, left: 16, background: "white", border: "none", borderRadius: "50%", width: 36, height: 36, fontSize: 18, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+            style={{ position: "absolute", top: 16, left: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 18, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
           >
             ←
           </button>
+        </div>
 
-          <div style={{ maxWidth: 480, margin: "0 auto", padding: "20px 16px 100px" }}>
-            <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6 }}>{produitOuvert.produit_nom}</div>
-            <div style={{ fontWeight: 700, fontSize: 22, color: couleur, marginBottom: 16 }}>
-              {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+        <div style={{ maxWidth: 480, margin: "0 auto", padding: "22px 18px 140px" }}>
+          <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
+          <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 6, marginBottom: 18 }}>
+            {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+          </div>
+
+          {produitOuvert.produit_description ? (
+            <div style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26, whiteSpace: "pre-wrap" }}>
+              {produitOuvert.produit_description}
             </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
+          )}
 
-            {produitOuvert.produit_description ? (
-              <div style={{ fontSize: 14, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                {produitOuvert.produit_description}
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic" }}>Aucune description disponible pour ce produit.</div>
-            )}
-
-            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 16px" }}>
-              {panier[produitOuvert.produit_id] ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
-                  <button onClick={() => retirerDuPanier(produitOuvert.produit_id)} style={{ width: 40, height: 40, borderRadius: 10, border: "1px solid #DDD8CC", background: "white", fontSize: 18, cursor: "pointer" }}>−</button>
-                  <div style={{ fontWeight: 700, fontSize: 17, minWidth: 20, textAlign: "center" }}>{panier[produitOuvert.produit_id]}</div>
-                  <button onClick={() => ajouterAuPanier(produitOuvert.produit_id)} style={{ width: 40, height: 40, borderRadius: 10, border: "none", background: couleur, color: "white", fontSize: 18, cursor: "pointer" }}>+</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => ajouterAuPanier(produitOuvert.produit_id)}
-                  style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}
-                >
-                  Ajouter au panier
-                </button>
-              )}
+          {envoye ? (
+            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 22, textAlign: "center" }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: "#3B6D11" }}>Commande envoyée !</div>
+              <div style={{ fontSize: 13, color: "#3B6D11" }}>{entreprise.nom} va te contacter au {form.tel} pour confirmer.</div>
             </div>
+          ) : (
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Passer commande</div>
+              <input
+                placeholder="Ton nom"
+                value={form.client}
+                onChange={(e) => setForm({ ...form, client: e.target.value })}
+                style={inputStyle}
+              />
+              <input
+                placeholder="Ton numéro de téléphone"
+                value={form.tel}
+                onChange={(e) => setForm({ ...form, tel: e.target.value })}
+                style={inputStyle}
+              />
+              <input
+                placeholder="Quartier / adresse (optionnel)"
+                value={form.zone}
+                onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                style={inputStyle}
+              />
+              {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
+            </div>
+          )}
+        </div>
+
+        {!envoye && (
+          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
+            <button
+              onClick={envoyerCommande}
+              disabled={envoi}
+              style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1 }}
+            >
+              {envoi ? "Envoi..." : `Commander — ${Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ===== ÉCRAN CATALOGUE (liste des produits) =====
+  return (
+    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
+      {entreprise.banniere ? (
+        <div style={{ width: "100%", height: 140, position: "relative", overflow: "hidden" }}>
+          <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.35))" }} />
+        </div>
+      ) : (
+        <div style={{ width: "100%", height: 90, background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
+      )}
+
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 16px" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginTop: entreprise.logo ? -36 : 20, marginBottom: 20, position: "relative", zIndex: 1 }}>
+          {entreprise.logo ? (
+            <img
+              src={entreprise.logo}
+              alt={entreprise.nom}
+              style={{ width: 72, height: 72, borderRadius: 16, objectFit: "cover", border: "3px solid white", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "white", flexShrink: 0 }}
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          ) : null}
+          <div style={{ paddingBottom: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 21, color: "#16231F" }}>{entreprise.nom}</div>
+            {entreprise.description && <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 2 }}>{entreprise.description}</div>}
           </div>
         </div>
-      )}
+
+        {produits.length === 0 && (
+          <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40, paddingBottom: 40 }}>
+            Aucun produit disponible pour le moment.
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingBottom: 30 }}>
+          {produits.map((p) => (
+            <button
+              key={p.produit_id}
+              onClick={() => ouvrirProduit(p)}
+              style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
+            >
+              {p.photo_url ? (
+                <img
+                  src={p.photo_url}
+                  alt={p.produit_nom}
+                  style={{ width: "100%", height: 120, objectFit: "cover", background: "#EEF0EA", display: "block" }}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              ) : (
+                <div style={{ width: "100%", height: 120, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
+              )}
+              <div style={{ padding: "10px 12px 14px" }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>
+                  {Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ textAlign: "center", fontSize: 11, color: "#8A9089", paddingBottom: 24 }}>
+          Propulsé par RecuVente
+        </div>
+      </div>
     </div>
   );
 }
 
-const inputStyle = { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" };
+const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };

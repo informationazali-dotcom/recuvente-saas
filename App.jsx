@@ -2884,6 +2884,11 @@ function AbonnementModal({ workspace, subscription, onClose }) {
       setMessage("Remplis ton prénom, nom et téléphone pour continuer.");
       return;
     }
+    const chiffresTelephone = phone.replace(/\D/g, "");
+    if (chiffresTelephone.length < 10) {
+      setMessage("Le numéro de téléphone semble incomplet (10 chiffres attendus, ex: 0708090910). Vérifie-le et réessaie.");
+      return;
+    }
     const planId = planEnAttenteInfos;
     setLoading(planId);
     setMessage("");
@@ -3042,6 +3047,10 @@ function DemandeCard({ demande, onConfirmed }) {
   const [loading, setLoading] = useState(false);
 
   async function confirmer() {
+    const confirme = window.confirm(
+      `⚠️ Confirmes-tu avoir reçu ${Number(demande.subscription_plans?.prix).toLocaleString("fr-FR")} ${demande.subscription_plans?.devise} de la part de "${demande.workspaceName}" ?\n\nCette demande apparaît uniquement parce que le paiement automatique (Chariow) a échoué pour ce client. Ne clique "OK" que si tu as vraiment reçu l'argent (Mobile Money, virement, etc.) — sinon annule et vérifie d'abord avec le client.`
+    );
+    if (!confirme) return;
     setLoading(true);
     const { data: sessionData } = await supabase.auth.getSession();
     const res = await fetch("/api/confirmer-paiement", {

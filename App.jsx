@@ -837,6 +837,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showProduits, setShowProduits] = useState(false);
+  const [showAide, setShowAide] = useState(false);
 
   async function loadLivreurs() {
     const { data } = await supabase.from("livreurs").select("*").eq("workspace_id", workspace.id).order("nom");
@@ -1670,6 +1671,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             >
               💳 Mon abonnement
             </button>
+            <button
+              onClick={() => setShowAide(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              ❓ Aide
+            </button>
           </>
         )}
         <div style={{ marginTop: "auto" }}>
@@ -2287,6 +2294,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
+      {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBatch && (
         <BatchRelanceModalSaas
           orders={[...todoAujourdhui.aRelivrer, ...todoAujourdhui.jamaisContactees, ...todoAujourdhui.sansNouvelles]}
@@ -4864,6 +4872,61 @@ function CarteLivreursSaas({ livreurs }) {
     </div>
   );
 }
+function AideModal({ onClose }) {
+  const lienWhatsapp = "https://wa.me/2250509281403";
+  const lienGuidePdf = "https://jlrvtwnbtvpurhjdtzly.supabase.co/storage/v1/object/public/boutique/guide-recuvente.pdf";
+  const lienQrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(lienWhatsapp)}`;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>❓ Aide</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20, lineHeight: 1.5 }}>
+          Une question, un blocage ? Contacte directement le support, ou consulte le guide complet.
+        </div>
+
+        <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 20, marginBottom: 16, textAlign: "center" }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#3B6D11", marginBottom: 14 }}>
+            📲 Contacter le support sur WhatsApp
+          </div>
+          <img
+            src={lienQrCode}
+            alt="QR Code WhatsApp"
+            style={{ width: 160, height: 160, borderRadius: 10, border: "1px solid #C7DDA3", marginBottom: 14 }}
+          />
+          <div style={{ fontSize: 11.5, color: "#3B6D11", marginBottom: 14 }}>
+            Scanne ce code, ou clique sur le bouton ci-dessous
+          </div>
+          <a
+            href={lienWhatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "block", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+          >
+            💬 Ouvrir WhatsApp
+          </a>
+        </div>
+
+        <a
+          href={lienGuidePdf}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 10, padding: "13px 0", fontWeight: 600, fontSize: 13.5, textDecoration: "none", boxSizing: "border-box" }}
+        >
+          📄 Télécharger le guide complet (PDF)
+        </a>
+        <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, textAlign: "center" }}>
+          Toutes les fonctionnalités expliquées en détail — équipe, comptabilité, boutique.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
   const [personnalisation, setPersonnalisation] = useState({

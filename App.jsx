@@ -1218,7 +1218,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       const base = [c.client, c.tel, c.produit, c.montant, c.zone || "", STATUTS[c.statut]?.label || c.statut, c.livreur || ""];
       if (estRetail) {
         const paye = Number(c.montant_paye || 0);
-        base.push(c.mode_vente === "livraison" ? "Livraison" : "Sur place", paye, Number(c.montant) - paye);
+        base.push(c.mode_vente === "expedition" ? "Expédition" : c.mode_vente === "livraison" ? "Livraison" : "Sur place", paye, Number(c.montant) - paye);
       }
       base.push(new Date(c.created_at).toLocaleDateString("fr-FR"));
       return base;
@@ -1446,7 +1446,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
 
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
+  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0;
@@ -2377,22 +2377,38 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
         {estRetail && (
           <>
             <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 14 }}>Comment ce produit sort-il du magasin ?</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
               <button
                 onClick={() => setForm({ ...form, mode_vente: "sur_place" })}
-                style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${form.mode_vente === "sur_place" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente === "sur_place" ? "#EAF3DE" : "white", textAlign: "left", cursor: "pointer" }}
+                style={{ flex: 1, padding: "10px 6px", borderRadius: 10, border: `2px solid ${form.mode_vente === "sur_place" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente === "sur_place" ? "#EAF3DE" : "white", textAlign: "left", cursor: "pointer" }}
               >
-                <div style={{ fontWeight: 700, fontSize: 12.5 }}>🏪 Sur place</div>
-                <div style={{ fontSize: 10.5, color: "#6B7168" }}>Retrait en magasin</div>
+                <div style={{ fontWeight: 700, fontSize: 12 }}>🏪 Sur place</div>
+                <div style={{ fontSize: 10, color: "#6B7168" }}>Retrait magasin</div>
               </button>
               <button
                 onClick={() => setForm({ ...form, mode_vente: "livraison" })}
-                style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${form.mode_vente === "livraison" ? "#e8920a" : "#DDD8CC"}`, background: form.mode_vente === "livraison" ? "#FBF3E3" : "white", textAlign: "left", cursor: "pointer" }}
+                style={{ flex: 1, padding: "10px 6px", borderRadius: 10, border: `2px solid ${form.mode_vente === "livraison" ? "#e8920a" : "#DDD8CC"}`, background: form.mode_vente === "livraison" ? "#FBF3E3" : "white", textAlign: "left", cursor: "pointer" }}
               >
-                <div style={{ fontWeight: 700, fontSize: 12.5 }}>🚚 Livraison</div>
-                <div style={{ fontSize: 10.5, color: "#6B7168" }}>Remis à un livreur</div>
+                <div style={{ fontWeight: 700, fontSize: 12 }}>🚚 Livraison</div>
+                <div style={{ fontSize: 10, color: "#6B7168" }}>Livreur (Abidjan)</div>
+              </button>
+              <button
+                onClick={() => setForm({ ...form, mode_vente: "expedition" })}
+                style={{ flex: 1, padding: "10px 6px", borderRadius: 10, border: `2px solid ${form.mode_vente === "expedition" ? "#2452E8" : "#DDD8CC"}`, background: form.mode_vente === "expedition" ? "#EAF0FB" : "white", textAlign: "left", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 12 }}>📦 Expédition</div>
+                <div style={{ fontSize: 10, color: "#6B7168" }}>Hors Abidjan</div>
               </button>
             </div>
+
+            {form.mode_vente === "expedition" && (
+              <input
+                placeholder="Ville de destination"
+                value={form.ville_expedition || ""}
+                onChange={(e) => setForm({ ...form, ville_expedition: e.target.value })}
+                style={inputStyle}
+              />
+            )}
           </>
         )}
 
@@ -3089,12 +3105,12 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "" });
+  const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
 
   async function enregistrerInfos() {
     setLoading(true);
-    const infos = { client: form.client, tel: form.tel, produit: form.produit, montant: Number(form.montant), zone: form.zone, mode_vente: form.mode_vente, montant_paye: Number(form.montant_paye) || 0 };
+    const infos = { client: form.client, tel: form.tel, produit: form.produit, montant: Number(form.montant), zone: form.zone, mode_vente: form.mode_vente, montant_paye: Number(form.montant_paye) || 0, ville_expedition: form.ville_expedition || null };
     const { error } = await supabase.from("commandes").update(infos).eq("id", commande.id);
     if (error) {
       alert("Erreur: " + error.message);
@@ -3144,6 +3160,18 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     setLoading(false);
   }
 
+  async function confirmerDepotRecu() {
+    setLoading(true);
+    const { error } = await supabase.from("commandes").update({ depot_recu_closer: true }).eq("id", commande.id);
+    if (error) {
+      alert("Erreur: " + error.message);
+    } else {
+      await supabase.from("relances").insert([{ commande_id: commande.id, note: `📦 Dépôt reçu du client, colis prêt pour expédition${commande.ville_expedition ? ` vers ${commande.ville_expedition}` : ""}` }]);
+      await onStatusChanged();
+    }
+    setLoading(false);
+  }
+
   return (
     <div style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: "12px 14px" }}>
       {editing ? (
@@ -3164,17 +3192,31 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                 <button
                   onClick={() => setForm({ ...form, mode_vente: "sur_place" })}
-                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "sur_place" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente === "sur_place" ? "#EAF3DE" : "white", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "sur_place" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente === "sur_place" ? "#EAF3DE" : "white", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                 >
                   🏪 Sur place
                 </button>
                 <button
                   onClick={() => setForm({ ...form, mode_vente: "livraison" })}
-                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "livraison" ? "#e8920a" : "#DDD8CC"}`, background: form.mode_vente === "livraison" ? "#FBF3E3" : "white", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "livraison" ? "#e8920a" : "#DDD8CC"}`, background: form.mode_vente === "livraison" ? "#FBF3E3" : "white", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                 >
                   🚚 Livraison
                 </button>
+                <button
+                  onClick={() => setForm({ ...form, mode_vente: "expedition" })}
+                  style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${form.mode_vente === "expedition" ? "#2452E8" : "#DDD8CC"}`, background: form.mode_vente === "expedition" ? "#EAF0FB" : "white", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                >
+                  📦 Expédition
+                </button>
               </div>
+              {form.mode_vente === "expedition" && (
+                <input
+                  placeholder="Ville de destination"
+                  value={form.ville_expedition || ""}
+                  onChange={(e) => setForm({ ...form, ville_expedition: e.target.value })}
+                  style={{ ...inputStyle, marginBottom: 6, padding: "7px 9px", fontSize: 13 }}
+                />
+              )}
               <input
                 placeholder="Montant payé"
                 value={form.montant_paye}
@@ -3255,6 +3297,42 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             >
               💰 Enregistrer un paiement (solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency})
             </button>
+          )}
+
+          {workspace?.activity_type === "retail" && commande.mode_vente === "expedition" && (
+            <>
+              {!commande.depot_recu_closer ? (
+                <button
+                  onClick={confirmerDepotRecu}
+                  disabled={loading}
+                  style={{ width: "100%", background: "#2452E8", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 10 }}
+                >
+                  📦 Confirmer dépôt reçu du client{commande.ville_expedition ? ` (→ ${commande.ville_expedition})` : ""}
+                </button>
+              ) : (
+                <div style={{ background: "#EAF0FB", border: "1px solid #C3D4F0", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 12, color: "#1E4B8C", fontWeight: 600 }}>
+                  ✅ Dépôt reçu — colis remis au livreur pour {commande.ville_expedition || "expédition"}
+                </div>
+              )}
+
+              {commande.photo_recu_expedition && (
+                <>
+                  <img
+                    src={commande.photo_recu_expedition}
+                    alt="Reçu d'expédition"
+                    style={{ width: "100%", borderRadius: 8, marginBottom: 8, border: "1px solid #ECE8DC" }}
+                  />
+                  <a
+                    href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]} 👋, voici votre reçu d'expédition pour retirer votre colis à ${commande.ville_expedition || "destination"} :\n\n${commande.photo_recu_expedition}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "block", textAlign: "center", width: "100%", background: "#1F9D6E", color: "white", padding: "9px 0", borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10, textDecoration: "none", boxSizing: "border-box" }}
+                  >
+                    💬 Envoyer le reçu au client (WhatsApp)
+                  </a>
+                </>
+              )}
+            </>
           )}
 
           {(livreurs.length > 0 || closers.length > 0) && (
@@ -3693,7 +3771,11 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   }, []);
 
   const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+  const actives_livraison = actives.filter((c) => c.mode_vente !== "expedition");
+  const actives_expedition = actives.filter((c) => c.mode_vente === "expedition");
   const confirmees = commandes.filter((c) => c.statut === "confirmee");
+  const [ongletActif, setOngletActif] = useState("livraison");
+  const [envoiPhotoId, setEnvoiPhotoId] = useState(null);
 
   const bilanParJour = React.useMemo(() => {
     const map = {};
@@ -3714,6 +3796,35 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom } : {};
     await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
     await onStatusChanged();
+  }
+
+  async function confirmerExpedition(commandeId, fichierPhoto) {
+    if (!fichierPhoto) return;
+    if (fichierPhoto.size > 5 * 1024 * 1024) {
+      alert("La photo est trop lourde (max 5 Mo). Choisis une photo plus légère.");
+      return;
+    }
+    setEnvoiPhotoId(commandeId);
+    const extension = fichierPhoto.name.split(".").pop();
+    const chemin = `${commandeId}-${Date.now()}.${extension}`;
+    const { error: erreurUpload } = await supabase.storage.from("expeditions").upload(chemin, fichierPhoto, { upsert: true });
+    if (erreurUpload) {
+      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
+      setEnvoiPhotoId(null);
+      return;
+    }
+    const { data } = supabase.storage.from("expeditions").getPublicUrl(chemin);
+    await supabase.from("commandes").update({
+      photo_recu_expedition: data.publicUrl,
+      expedition_confirmee: true,
+      expedition_confirmee_le: new Date().toISOString(),
+      statut: "confirmee",
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: livreur.nom,
+    }).eq("id", commandeId);
+    await supabase.from("relances").insert([{ commande_id: commandeId, note: `📦 Expédition confirmée par ${livreur.nom}, reçu photographié` }]);
+    await onStatusChanged();
+    setEnvoiPhotoId(null);
   }
 
   return (
@@ -3780,14 +3891,32 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
       </div>
 
       <div style={{ padding: "18px 20px" }}>
-        {actives.length === 0 ? (
+        {actives_expedition.length > 0 && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <button
+              onClick={() => setOngletActif("livraison")}
+              style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${ongletActif === "livraison" ? "#1a7a3c" : "#DDD8CC"}`, background: ongletActif === "livraison" ? "#1a7a3c" : "white", color: ongletActif === "livraison" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              🚚 Livraisons ({actives_livraison.length})
+            </button>
+            <button
+              onClick={() => setOngletActif("expedition")}
+              style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${ongletActif === "expedition" ? "#2452E8" : "#DDD8CC"}`, background: ongletActif === "expedition" ? "#2452E8" : "white", color: ongletActif === "expedition" ? "white" : "#16231F", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              📦 Expéditions ({actives_expedition.length})
+            </button>
+          </div>
+        )}
+
+        {ongletActif === "livraison" && (
+        actives_livraison.length === 0 ? (
           <div style={{ textAlign: "center", padding: "50px 20px", color: "#8A9089" }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
             <div style={{ fontSize: 14 }}>Aucune commande à traiter pour le moment.</div>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {actives.map((c) => (
+            {actives_livraison.map((c) => (
               <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{c.client}</div>
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
@@ -3807,6 +3936,52 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
               </div>
             ))}
           </div>
+        )
+        )}
+
+        {ongletActif === "expedition" && (
+          actives_expedition.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "50px 20px", color: "#8A9089" }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
+              <div style={{ fontSize: 14 }}>Aucun colis à expédier pour le moment.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {actives_expedition.map((c) => (
+                <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: "4px solid #2452E8", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontWeight: 700, fontSize: 15.5 }}>{c.client}</div>
+                  <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
+                  <div style={{ fontSize: 13, color: "#2452E8", marginTop: 2, fontWeight: 600 }}>📦 Destination : {c.ville_expedition || "non précisée"}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 17, marginTop: 8, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+
+                  {!c.depot_recu_closer && (
+                    <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "8px 10px", marginTop: 10, fontSize: 11.5, color: "#8A6412" }}>
+                      ⏳ En attente — le closer doit d'abord confirmer avoir reçu le dépôt du client.
+                    </div>
+                  )}
+
+                  {c.depot_recu_closer && !c.expedition_confirmee && (
+                    <label style={{ display: "block", textAlign: "center", width: "100%", background: "#2452E8", color: "white", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginTop: 12, boxSizing: "border-box" }}>
+                      {envoiPhotoId === c.id ? "Envoi en cours..." : "📷 Confirmer l'expédition (photo du reçu)"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        style={{ display: "none" }}
+                        onChange={(e) => confirmerExpedition(c.id, e.target.files?.[0])}
+                      />
+                    </label>
+                  )}
+
+                  {c.expedition_confirmee && (
+                    <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginTop: 10, fontSize: 12.5, color: "#3B6D11", fontWeight: 600, textAlign: "center" }}>
+                      ✅ Expédition confirmée
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>
@@ -3868,7 +4043,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
+  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0, nbInconnu = 0, montantInconnu = 0;

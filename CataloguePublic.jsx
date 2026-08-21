@@ -11,6 +11,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [produits, setProduits] = useState([]);
   const [erreur, setErreur] = useState(null);
   const [produitOuvert, setProduitOuvert] = useState(null);
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
@@ -64,6 +65,7 @@ export default function CataloguePublic({ workspaceId }) {
   function ouvrirProduit(p) {
     trackEvenement("ViewContent", { content_ids: [p.produit_id], content_name: p.produit_nom, value: Number(p.prix_vente), currency: entreprise?.devise || "XOF" });
     setProduitOuvert(p);
+    setAfficherFormulaire(false);
     setForm({ client: "", tel: "", zone: "" });
     setEnvoye(false);
     setErreurEnvoi("");
@@ -161,19 +163,48 @@ export default function CataloguePublic({ workspaceId }) {
             <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
           )}
 
-          {envoye ? (
+          {envoye && (
             <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 22, textAlign: "center" }}>
               <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
               <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: "#3B6D11" }}>Commande envoyée !</div>
               <div style={{ fontSize: 13, color: "#3B6D11" }}>{entreprise.nom} va te contacter au {form.tel} pour confirmer.</div>
             </div>
-          ) : (
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Passer commande</div>
+          )}
+        </div>
+
+        {!envoye && (
+          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
+            <button
+              onClick={() => setAfficherFormulaire(true)}
+              style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+            >
+              {`Commander — ${Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`}
+            </button>
+          </div>
+        )}
+
+        {afficherFormulaire && !envoye && (
+          <div
+            onClick={() => setAfficherFormulaire(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", zIndex: 50 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: "white", width: "100%", borderRadius: "18px 18px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto" }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ fontWeight: 700, fontSize: 17 }}>Tes coordonnées</div>
+                <button onClick={() => setAfficherFormulaire(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+              </div>
+              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
+                Pour qu'on puisse te contacter et te livrer.
+              </div>
+
               <input
                 placeholder="Ton nom"
                 value={form.client}
                 onChange={(e) => setForm({ ...form, client: e.target.value })}
+                autoFocus
                 style={inputStyle}
               />
               <input
@@ -189,19 +220,15 @@ export default function CataloguePublic({ workspaceId }) {
                 style={inputStyle}
               />
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
-            </div>
-          )}
-        </div>
 
-        {!envoye && (
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
-            <button
-              onClick={envoyerCommande}
-              disabled={envoi}
-              style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1 }}
-            >
-              {envoi ? "Envoi..." : `Commander — ${Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`}
-            </button>
+              <button
+                onClick={envoyerCommande}
+                disabled={envoi}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1, marginTop: 4 }}
+              >
+                {envoi ? "Envoi..." : "Confirmer la commande"}
+              </button>
+            </div>
           </div>
         )}
       </div>

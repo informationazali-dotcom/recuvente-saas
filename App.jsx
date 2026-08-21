@@ -2316,7 +2316,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
 function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
   const estRetail = activityType === "retail";
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
-  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: "sur_place", montant_paye: "" });
+  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "" });
   const [modeRapide, setModeRapide] = useState(false);
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
@@ -2372,7 +2372,35 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
           </>
         ) : (
           <>
-        {!estRetail && <div style={{ marginBottom: 14 }} />}
+        {!estRetail && (
+          <>
+            <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 14 }}>Comment ce colis part-il ?</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <button
+                onClick={() => setForm({ ...form, mode_vente: "livraison" })}
+                style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${form.mode_vente !== "expedition" ? "#1a7a3c" : "#DDD8CC"}`, background: form.mode_vente !== "expedition" ? "#EAF3DE" : "white", textAlign: "left", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 12.5 }}>🏍️ Abidjan</div>
+                <div style={{ fontSize: 10.5, color: "#6B7168" }}>Livraison classique</div>
+              </button>
+              <button
+                onClick={() => setForm({ ...form, mode_vente: "expedition" })}
+                style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${form.mode_vente === "expedition" ? "#2452E8" : "#DDD8CC"}`, background: form.mode_vente === "expedition" ? "#EAF0FB" : "white", textAlign: "left", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 12.5 }}>📦 Expédition</div>
+                <div style={{ fontSize: 10.5, color: "#6B7168" }}>Hors Abidjan</div>
+              </button>
+            </div>
+            {form.mode_vente === "expedition" && (
+              <input
+                placeholder="Ville de destination"
+                value={form.ville_expedition}
+                onChange={(e) => setForm({ ...form, ville_expedition: e.target.value })}
+                style={inputStyle}
+              />
+            )}
+          </>
+        )}
 
         {estRetail && (
           <>
@@ -3299,7 +3327,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             </button>
           )}
 
-          {workspace?.activity_type === "retail" && commande.mode_vente === "expedition" && (
+          {commande.mode_vente === "expedition" && (
             <>
               {!commande.depot_recu_closer ? (
                 <button

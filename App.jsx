@@ -3202,6 +3202,20 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     setLoading(false);
   }
 
+  async function marquerAExpedier() {
+    const ville = prompt("Vers quelle ville faut-il expédier ce colis ?");
+    if (ville === null) return;
+    setLoading(true);
+    const { error } = await supabase.from("commandes").update({ mode_vente: "expedition", ville_expedition: ville.trim() || null }).eq("id", commande.id);
+    if (error) {
+      alert("Erreur: " + error.message);
+    } else {
+      await supabase.from("relances").insert([{ commande_id: commande.id, note: `📦 Commande marquée à expédier${ville.trim() ? ` vers ${ville.trim()}` : ""}` }]);
+      await onStatusChanged();
+    }
+    setLoading(false);
+  }
+
   return (
     <div style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: "12px 14px" }}>
       {editing ? (
@@ -3326,6 +3340,16 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 10 }}
             >
               💰 Enregistrer un paiement (solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency})
+            </button>
+          )}
+
+          {commande.mode_vente !== "expedition" && commande.statut !== "confirmee" && (
+            <button
+              onClick={marquerAExpedier}
+              disabled={loading}
+              style={{ width: "100%", background: "white", border: "1px solid #2452E8", color: "#2452E8", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+            >
+              📦 Marquer à expédier (hors Abidjan)
             </button>
           )}
 
@@ -3992,7 +4016,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
 
                   {c.depot_recu_closer && !c.expedition_confirmee && (
                     <label style={{ display: "block", textAlign: "center", width: "100%", background: "#2452E8", color: "white", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginTop: 12, boxSizing: "border-box" }}>
-                      {envoiPhotoId === c.id ? "Envoi en cours..." : "📷 Confirmer l'expédition (photo du reçu)"}
+                      {envoiPhotoId === c.id ? "Envoi en cours..." : "📷 Confirmer produit expédié (photo du reçu)"}
                       <input
                         type="file"
                         accept="image/*"

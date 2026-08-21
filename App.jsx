@@ -221,6 +221,8 @@ export default function App() {
 
   if (!session) {
     const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
+    const wantsLogin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1";
+    if (wantsLogin) return <AuthScreen modeInitial="login" />;
     if (!wantsAuth) return <LandingPage />;
     return <AuthScreen />;
   }
@@ -589,10 +591,10 @@ Avec votre autorisation explicite, RecuVente peut vous envoyer des notifications
   );
 }
 
-function AuthScreen() {
+function AuthScreen({ modeInitial }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("signup");
+  const [mode, setMode] = useState(modeInitial || "signup");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetEnvoye, setResetEnvoye] = useState(false);

@@ -72,8 +72,8 @@ export default function CataloguePublic({ workspaceId }) {
   }
 
   async function envoyerCommande() {
-    if (!form.client.trim() || !form.tel.trim()) {
-      setErreurEnvoi("Merci de renseigner ton nom et ton téléphone.");
+    if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
+      setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
       return;
     }
     setEnvoi(true);
@@ -214,7 +214,7 @@ export default function CataloguePublic({ workspaceId }) {
                 style={inputStyle}
               />
               <input
-                placeholder="Quartier / adresse (optionnel)"
+                placeholder="Ta ville et ton quartier"
                 value={form.zone}
                 onChange={(e) => setForm({ ...form, zone: e.target.value })}
                 style={inputStyle}
@@ -223,8 +223,8 @@ export default function CataloguePublic({ workspaceId }) {
 
               <button
                 onClick={envoyerCommande}
-                disabled={envoi}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1, marginTop: 4 }}
+                disabled={envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim()}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim()) ? 0.5 : 1, marginTop: 4 }}
               >
                 {envoi ? "Envoi..." : "Confirmer la commande"}
               </button>

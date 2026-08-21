@@ -3451,6 +3451,29 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               >
                 🧾 Facture PDF
               </button>
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <a
+                  href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]} 👋, nous confirmons votre commande "${commande.produit}" (${Number(commande.montant).toLocaleString("fr-FR")} ${workspace.currency}). Un livreur passera bientôt.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#1F9D6E", color: "white", padding: "10px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                >
+                  💬 WhatsApp
+                </a>
+                <a
+                  href={`sms:${commande.tel}?body=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]}, votre commande ${commande.produit} (${Number(commande.montant).toLocaleString("fr-FR")} ${workspace.currency}) sera livrée bientôt. Merci de rester joignable.`)}`}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#1a7a3c", color: "white", padding: "10px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                >
+                  ✉️ SMS
+                </a>
+                <a
+                  href={`tel:${commande.tel}`}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 16px", borderRadius: 8, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                >
+                  📞
+                </a>
+              </div>
             </>
           )}
 

@@ -156,9 +156,10 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
 
           {produitOuvert.produit_description ? (
-            <div style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26, whiteSpace: "pre-wrap" }}>
-              {produitOuvert.produit_description}
-            </div>
+            <div
+              style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
+              dangerouslySetInnerHTML={{ __html: produitOuvert.produit_description }}
+            />
           ) : (
             <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
           )}

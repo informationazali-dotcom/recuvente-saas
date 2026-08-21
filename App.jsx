@@ -2310,7 +2310,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onClose={() => setShowProduits(false)} />}
     </div>
   );
 }
@@ -3605,7 +3605,73 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, quantitesParProduit, onDelete, currency, onClose }) {
+function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
+  const editeurRef = useRef(null);
+  const [envoiImage, setEnvoiImage] = useState(false);
+  const [initialise, setInitialise] = useState(false);
+
+  useEffect(() => {
+    if (editeurRef.current && !initialise) {
+      editeurRef.current.innerHTML = valeur || "";
+      setInitialise(true);
+    }
+  }, [valeur, initialise]);
+
+  function appliquer(commande, arg) {
+    editeurRef.current.focus();
+    document.execCommand(commande, false, arg);
+    onChange(editeurRef.current.innerHTML);
+  }
+
+  async function inserer_image(fichier) {
+    if (!fichier) return;
+    if (fichier.size > 5 * 1024 * 1024) {
+      alert("L'image est trop lourde (max 5 Mo). Choisis une image plus légère.");
+      return;
+    }
+    setEnvoiImage(true);
+    const extension = fichier.name.split(".").pop();
+    const chemin = `${workspaceId}-desc-${Date.now()}.${extension}`;
+    const { error } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true });
+    if (error) {
+      alert("Erreur lors de l'envoi de l'image : " + error.message);
+      setEnvoiImage(false);
+      return;
+    }
+    const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+    editeurRef.current.focus();
+    document.execCommand("insertHTML", false, `<img src="${data.publicUrl}" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;" />`);
+    onChange(editeurRef.current.innerHTML);
+    setEnvoiImage(false);
+  }
+
+  return (
+    <div style={{ border: "1px solid #DDD8CC", borderRadius: 8, overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap" }}>
+        <button type="button" onClick={() => appliquer("bold")} style={boutonEditeurStyle}><b>G</b></button>
+        <button type="button" onClick={() => appliquer("italic")} style={boutonEditeurStyle}><i>I</i></button>
+        <button type="button" onClick={() => appliquer("insertUnorderedList")} style={boutonEditeurStyle}>• Liste</button>
+        <label style={{ ...boutonEditeurStyle, cursor: "pointer" }}>
+          {envoiImage ? "Envoi..." : "🖼️ Image"}
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
+        </label>
+      </div>
+      <div
+        ref={editeurRef}
+        contentEditable
+        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        data-placeholder={placeholder}
+        style={{ minHeight: 90, padding: "10px 12px", fontSize: 13, lineHeight: 1.5, outline: "none" }}
+        className="rv-editeur-riche"
+      />
+      <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; }`}</style>
+    </div>
+  );
+}
+
+const boutonEditeurStyle = { background: "white", border: "1px solid #DDD8CC", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#16231F" };
+
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, quantitesParProduit, onDelete, currency, workspaceId, onClose }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -3736,19 +3802,17 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                     )}
                     {editDescId === p.id ? (
                       <div style={{ marginTop: 6 }}>
-                        <textarea
-                          value={editDescValue}
-                          onChange={(e) => setEditDescValue(e.target.value)}
-                          autoFocus
-                          rows={2}
+                        <EditeurRiche
+                          valeur={editDescValue}
+                          onChange={setEditDescValue}
+                          workspaceId={workspaceId}
                           placeholder="Description visible par les clients en boutique"
-                          style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box", fontFamily: "inherit" }}
                         />
-                        <button onClick={() => { onUpdateDescription(p.id, editDescValue); setEditDescId(null); }} style={{ marginTop: 4, background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
+                        <button onClick={() => { onUpdateDescription(p.id, editDescValue); setEditDescId(null); }} style={{ marginTop: 6, background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Enregistrer</button>
                       </div>
                     ) : (
                       <button onClick={() => { setEditDescId(p.id); setEditDescValue(p.description || ""); }} style={{ display: "block", background: "none", border: "none", padding: 0, marginTop: 4, fontSize: 12, color: p.description ? "#6B7168" : "#D64933", textDecoration: "underline", cursor: "pointer", textAlign: "left" }}>
-                        {p.description ? "📝 " + p.description.slice(0, 40) + (p.description.length > 40 ? "..." : "") : "📝 Ajouter une description (pour la boutique)"}
+                        {p.description ? "📝 " + p.description.replace(/<[^>]*>/g, " ").trim().slice(0, 40) + "..." : "📝 Ajouter une description (pour la boutique)"}
                       </button>
                     )}
                   </div>

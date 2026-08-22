@@ -870,21 +870,40 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   }
 
   async function importerProduitsCSV(lignes) {
-    const produitsAImporter = lignes.map((l) => ({
-      workspace_id: workspace.id,
-      nom: l.nom,
-      description: l.description || null,
-      prix_vente: l.prix_vente ? Number(l.prix_vente) : null,
-      photo_url: l.photo_url || null,
-      cout_achat: 0,
-    }));
-    const { error } = await supabase.from("produits").insert(produitsAImporter);
+    const nomsExistants = new Set(produits.map((p) => p.nom.toLowerCase().trim()));
+    const nomsDejaVusDansCeCSV = new Set();
+    const produitsAImporter = [];
+    let ignores = 0;
+
+    for (const l of lignes) {
+      const nomNormalise = (l.nom || "").toLowerCase().trim();
+      if (!nomNormalise || nomsExistants.has(nomNormalise) || nomsDejaVusDansCeCSV.has(nomNormalise)) {
+        ignores += 1;
+        continue;
+      }
+      nomsDejaVusDansCeCSV.add(nomNormalise);
+      produitsAImporter.push({
+        workspace_id: workspace.id,
+        nom: l.nom,
+        description: l.description || null,
+        prix_vente: l.prix_vente ? Number(l.prix_vente) : null,
+        photo_url: l.photo_url || null,
+        cout_achat: 0,
+      });
+    }
+
+    if (produitsAImporter.length === 0) {
+      return { succes: false, importes: 0, ignores, message: "Aucun nouveau produit à importer — tous existent déjà dans ton catalogue." };
+    }
+
+    const { error } = await supabase
+      .from("produits")
+      .upsert(produitsAImporter, { onConflict: "workspace_id,nom", ignoreDuplicates: true });
     if (error) {
-      alert("Erreur lors de l'import : " + error.message);
-      return false;
+      return { succes: false, importes: 0, ignores: 0, message: "Erreur : " + error.message };
     }
     await loadProduits();
-    return true;
+    return { succes: true, importes: produitsAImporter.length, ignores };
   }
 
   async function updateProduitCout(id, cout) {
@@ -3836,8 +3855,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                 if (mappe.length === 0) {
                   setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier. Vérifie qu'il contient bien une colonne \"Title\" (Shopify) ou \"nom\"." });
                 } else {
-                  const ok = await onImportCSV(mappe);
-                  setResultatImport(ok ? { succes: true, message: `${mappe.length} produit${mappe.length > 1 ? "s" : ""} importé${mappe.length > 1 ? "s" : ""} avec succès.` } : { succes: false, message: "Erreur lors de l'import, réessaie." });
+                  const resultat = await onImportCSV(mappe);
+                  if (resultat.succes) {
+                    setResultatImport({ succes: true, message: `${resultat.importes} produit${resultat.importes > 1 ? "s" : ""} importé${resultat.importes > 1 ? "s" : ""}.${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré${resultat.ignores > 1 ? "s" : ""} (déjà présents dans ton catalogue).` : ""}` });
+                  } else {
+                    setResultatImport({ succes: false, message: resultat.message || "Erreur lors de l'import, réessaie." });
+                  }
                 }
               } catch (err) {
                 setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + err.message });

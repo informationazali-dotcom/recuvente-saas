@@ -6,7 +6,6 @@ function cleanPhoneForWhatsApp(tel) {
   let digits = String(tel).replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.startsWith("225")) return digits;
-  digits = digits.replace(/^0/, "");
   return "225" + digits;
 }
 

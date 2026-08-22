@@ -869,6 +869,24 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     else await loadProduits();
   }
 
+  async function importerProduitsCSV(lignes) {
+    const produitsAImporter = lignes.map((l) => ({
+      workspace_id: workspace.id,
+      nom: l.nom,
+      description: l.description || null,
+      prix_vente: l.prix_vente ? Number(l.prix_vente) : null,
+      photo_url: l.photo_url || null,
+      cout_achat: 0,
+    }));
+    const { error } = await supabase.from("produits").insert(produitsAImporter);
+    if (error) {
+      alert("Erreur lors de l'import : " + error.message);
+      return false;
+    }
+    await loadProduits();
+    return true;
+  }
+
   async function updateProduitCout(id, cout) {
     await supabase.from("produits").update({ cout_achat: Number(cout) || 0 }).eq("id", id);
     await loadProduits();
@@ -2310,7 +2328,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
     </div>
   );
 }
@@ -3671,7 +3689,56 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
 
 const boutonEditeurStyle = { background: "white", border: "1px solid #DDD8CC", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#16231F" };
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, quantitesParProduit, onDelete, currency, workspaceId, onClose }) {
+function parserCSV(texte) {
+  const lignes = [];
+  let ligne = [];
+  let champ = "";
+  let dansGuillemets = false;
+  const chars = texte.replace(/\r\n/g, "\n");
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (dansGuillemets) {
+      if (c === '"') {
+        if (chars[i + 1] === '"') { champ += '"'; i++; }
+        else dansGuillemets = false;
+      } else champ += c;
+    } else {
+      if (c === '"') dansGuillemets = true;
+      else if (c === ",") { ligne.push(champ); champ = ""; }
+      else if (c === "\n") { ligne.push(champ); lignes.push(ligne); ligne = []; champ = ""; }
+      else champ += c;
+    }
+  }
+  if (champ.length > 0 || ligne.length > 0) { ligne.push(champ); lignes.push(ligne); }
+  if (lignes.length === 0) return [];
+  const entetes = lignes[0].map((h) => h.trim());
+  return lignes.slice(1).filter((l) => l.some((v) => v.trim() !== "")).map((l) => {
+    const obj = {};
+    entetes.forEach((h, i) => { obj[h] = (l[i] || "").trim(); });
+    return obj;
+  });
+}
+
+function mapperColonnesShopify(lignesBrutes) {
+  const dejaVus = new Set();
+  const resultat = [];
+  for (const l of lignesBrutes) {
+    const nom = l["Title"] || l["nom"] || l["Nom"] || l["name"] || "";
+    if (!nom.trim()) continue;
+    const handle = l["Handle"] || nom;
+    if (dejaVus.has(handle)) continue; // Shopify exporte une ligne par variante, on ne garde que la première
+    dejaVus.add(handle);
+    resultat.push({
+      nom: nom.trim(),
+      description: (l["Body (HTML)"] || l["description"] || l["Description"] || "").trim(),
+      prix_vente: l["Variant Price"] || l["prix_vente"] || l["Prix"] || l["price"] || "",
+      photo_url: l["Image Src"] || l["photo_url"] || l["Photo"] || l["image"] || "",
+    });
+  }
+  return resultat;
+}
+
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -3685,6 +3752,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
   const [editDescId, setEditDescId] = useState(null);
   const [editDescValue, setEditDescValue] = useState("");
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
+  const [importEnCours, setImportEnCours] = useState(false);
+  const [resultatImport, setResultatImport] = useState(null);
 
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
@@ -3748,6 +3817,44 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
             </div>
           </div>
         )}
+
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer", marginBottom: 8, boxSizing: "border-box" }}>
+          {importEnCours ? "Import en cours..." : "📥 Importer un catalogue (CSV Shopify ou autre)"}
+          <input
+            type="file"
+            accept=".csv"
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const fichier = e.target.files?.[0];
+              if (!fichier) return;
+              setImportEnCours(true);
+              setResultatImport(null);
+              try {
+                const texte = await fichier.text();
+                const brut = parserCSV(texte);
+                const mappe = mapperColonnesShopify(brut);
+                if (mappe.length === 0) {
+                  setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier. Vérifie qu'il contient bien une colonne \"Title\" (Shopify) ou \"nom\"." });
+                } else {
+                  const ok = await onImportCSV(mappe);
+                  setResultatImport(ok ? { succes: true, message: `${mappe.length} produit${mappe.length > 1 ? "s" : ""} importé${mappe.length > 1 ? "s" : ""} avec succès.` } : { succes: false, message: "Erreur lors de l'import, réessaie." });
+                }
+              } catch (err) {
+                setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + err.message });
+              }
+              setImportEnCours(false);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {resultatImport && (
+          <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAE6", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#F0B8AC"}`, borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: resultatImport.succes ? "#3B6D11" : "#D64933" }}>
+            {resultatImport.succes ? "✅ " : "⚠️ "}{resultatImport.message}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: "#8A9089", marginTop: -4, marginBottom: 14 }}>
+          Le coût d'achat sera à 0 par défaut après import — pense à le renseigner ensuite pour chaque produit.
+        </div>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           <input placeholder="Nom du produit" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />

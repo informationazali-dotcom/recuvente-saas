@@ -312,35 +312,17 @@ export default function CataloguePublic({ workspaceId }) {
             )}
 
             {!envoye && (
-              <>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
-                    <span style={{ fontSize: 15 }}>💵</span> Paiement à la livraison — sans risque
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
-                    <span style={{ fontSize: 15 }}>🚚</span> Livraison rapide, où que tu sois
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
-                    <span style={{ fontSize: 15 }}>✅</span> Tu vérifies ton colis avant de payer
-                  </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
+                  <span style={{ fontSize: 15 }}>💵</span> Paiement à la livraison — sans risque
                 </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginBottom: 20 }}>
-                  <button
-                    onClick={() => setQuantite((q) => Math.max(1, q - 1))}
-                    style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #DDD8CC", background: "white", fontSize: 18, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
-                  >
-                    −
-                  </button>
-                  <div style={{ fontWeight: 700, fontSize: 17, minWidth: 24, textAlign: "center" }}>{quantite}</div>
-                  <button
-                    onClick={() => setQuantite((q) => q + 1)}
-                    style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #DDD8CC", background: "white", fontSize: 18, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
-                  >
-                    +
-                  </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
+                  <span style={{ fontSize: 15 }}>🚚</span> Livraison rapide, où que tu sois
                 </div>
-              </>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
+                  <span style={{ fontSize: 15 }}>✅</span> Tu vérifies ton colis avant de payer
+                </div>
+              </div>
             )}
 
             {!envoye && (
@@ -392,6 +374,26 @@ export default function CataloguePublic({ workspaceId }) {
                 onChange={(e) => setForm({ ...form, zone: e.target.value })}
                 style={inputStyle}
               />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <span style={{ fontSize: 13, color: "#6B7168" }}>Quantité</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    onClick={() => setQuantite((q) => Math.max(1, q - 1))}
+                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                  >
+                    −
+                  </button>
+                  <div style={{ fontWeight: 700, fontSize: 16, minWidth: 20, textAlign: "center" }}>{quantite}</div>
+                  <button
+                    onClick={() => setQuantite((q) => q + 1)}
+                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>

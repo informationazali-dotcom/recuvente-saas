@@ -157,7 +157,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -5389,6 +5389,9 @@ function IntegrationsModal({ workspace, onClose }) {
     banniere_url: workspace.banniere_url || "",
     couleur_marque: workspace.couleur_marque || "#1a7a3c",
     description_boutique: workspace.description_boutique || "",
+    politique_livraison: workspace.politique_livraison || "",
+    politique_retours: workspace.politique_retours || "",
+    politique_confidentialite: workspace.politique_confidentialite || "",
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
@@ -5589,6 +5592,45 @@ function IntegrationsModal({ workspace, onClose }) {
             placeholder="Ex: Vêtements et accessoires de qualité, livraison rapide à Abidjan"
             rows={2}
             style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #F0DDA8", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
+          />
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            📄 Politiques de ta boutique
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Elles apparaîtront dans le pied de page de ta boutique publique, pour rassurer tes clients.
+          </div>
+
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Politique de livraison</div>
+          <textarea
+            value={personnalisation.politique_livraison || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, politique_livraison: e.target.value })}
+            onBlur={() => supabase.from("workspaces").update({ politique_livraison: personnalisation.politique_livraison }).eq("id", workspace.id)}
+            placeholder="Ex: Livraison en 24-48h à Abidjan, paiement à la réception."
+            rows={3}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
+          />
+
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Politique de retours</div>
+          <textarea
+            value={personnalisation.politique_retours || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, politique_retours: e.target.value })}
+            onBlur={() => supabase.from("workspaces").update({ politique_retours: personnalisation.politique_retours }).eq("id", workspace.id)}
+            placeholder="Ex: Retour possible sous 48h si le produit est défectueux."
+            rows={3}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
+          />
+
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Politique de confidentialité</div>
+          <textarea
+            value={personnalisation.politique_confidentialite || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, politique_confidentialite: e.target.value })}
+            onBlur={() => supabase.from("workspaces").update({ politique_confidentialite: personnalisation.politique_confidentialite }).eq("id", workspace.id)}
+            placeholder="Ex: Tes informations ne sont utilisées que pour te livrer, jamais partagées."
+            rows={3}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
           />
         </div>
 

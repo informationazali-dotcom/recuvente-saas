@@ -127,12 +127,22 @@ async function genererFacturePDF(commande, workspace) {
 
   const nomFichier = `Facture-${numeroFacture(commande)}.pdf`;
   const blob = doc.output("blob");
-  const fichier = new File([blob], nomFichier, { type: "application/pdf" });
 
-  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-    navigator.share({ files: [fichier], title: nomFichier }).catch(() => doc.save(nomFichier));
-  } else {
-    doc.save(nomFichier);
+  try {
+    const chemin = `factures/${commande.id}-${Date.now()}.pdf`;
+    const { error: erreurUpload } = await supabase.storage.from("boutique").upload(chemin, blob, { contentType: "application/pdf", upsert: true });
+    if (erreurUpload) throw erreurUpload;
+    const { data } = supabase.storage.from("boutique").getPublicUrl(chemin);
+    const message = `Bonjour ${(commande.client || "").split(" ")[0]} 🙏, voici votre facture pour la commande "${commande.produit}" :\n\n${data.publicUrl}`;
+    window.open(`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(message)}`, "_blank");
+  } catch (e) {
+    // En cas d'échec de l'envoi en ligne, on revient au comportement précédent (téléchargement/partage local)
+    const fichier = new File([blob], nomFichier, { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+      navigator.share({ files: [fichier], title: nomFichier }).catch(() => doc.save(nomFichier));
+    } else {
+      doc.save(nomFichier);
+    }
   }
 }
 

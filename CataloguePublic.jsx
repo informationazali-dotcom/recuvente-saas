@@ -17,6 +17,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
   const [lienCopie, setLienCopie] = useState(false);
+  const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
 
   function chargerPixelFacebook(pixelId) {
     if (!pixelId || window.fbq) return;
@@ -57,6 +58,9 @@ export default function CataloguePublic({ workspaceId }) {
         banniere: data[0].banniere_url,
         couleur: data[0].couleur_marque || "#1a7a3c",
         description: data[0].description_boutique,
+        politiqueLivraison: data[0].politique_livraison,
+        politiqueRetours: data[0].politique_retours,
+        politiqueConfidentialite: data[0].politique_confidentialite,
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       const listeProduits = data.filter((p) => p.produit_nom);
@@ -156,7 +160,7 @@ export default function CataloguePublic({ workspaceId }) {
             <img
               src={produitOuvert.photo_url}
               alt={produitOuvert.produit_nom}
-              style={{ width: "100%", height: 260, objectFit: "cover", background: "#EEF0EA", display: "block" }}
+              style={{ width: "100%", height: 260, objectFit: "contain", background: "#EEF0EA", display: "block" }}
               onError={(e) => { e.target.style.display = "none"; }}
             />
           ) : (
@@ -328,10 +332,46 @@ export default function CataloguePublic({ workspaceId }) {
           ))}
         </div>
 
+        {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, paddingTop: 20, paddingBottom: 10, borderTop: "1px solid #ECE8DC" }}>
+            {entreprise.politiqueLivraison && (
+              <button onClick={() => setPolitiqueOuverte("livraison")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Livraison</button>
+            )}
+            {entreprise.politiqueRetours && (
+              <button onClick={() => setPolitiqueOuverte("retours")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Retours</button>
+            )}
+            {entreprise.politiqueConfidentialite && (
+              <button onClick={() => setPolitiqueOuverte("confidentialite")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Confidentialité</button>
+            )}
+          </div>
+        )}
+
         <div style={{ textAlign: "center", fontSize: 11, color: "#8A9089", paddingBottom: 24 }}>
           Propulsé par RecuVente
         </div>
       </div>
+
+      {politiqueOuverte && (
+        <div
+          onClick={() => setPolitiqueOuverte(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", zIndex: 60 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "white", width: "100%", borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>
+                {politiqueOuverte === "livraison" ? "Politique de livraison" : politiqueOuverte === "retours" ? "Politique de retours" : "Politique de confidentialité"}
+              </div>
+              <button onClick={() => setPolitiqueOuverte(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+            </div>
+            <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+              {politiqueOuverte === "livraison" ? entreprise.politiqueLivraison : politiqueOuverte === "retours" ? entreprise.politiqueRetours : entreprise.politiqueConfidentialite}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

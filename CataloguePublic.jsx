@@ -14,6 +14,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [quantite, setQuantite] = useState(1);
+  const [photoActive, setPhotoActive] = useState(0);
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
@@ -87,6 +88,7 @@ export default function CataloguePublic({ workspaceId }) {
     setAfficherFormulaire(false);
     setForm({ client: "", tel: "", zone: "" });
     setQuantite(1);
+    setPhotoActive(0);
     setEnvoye(false);
     setErreurEnvoi("");
     const url = new URL(window.location.href);
@@ -178,17 +180,38 @@ export default function CataloguePublic({ workspaceId }) {
 
         <div className="rv-shop-produit-wrap">
           <div className="rv-shop-produit-photo-col" style={{ position: "relative" }}>
-            {produitOuvert.photo_url ? (
-              <img
-                className="rv-shop-produit-photo"
-                src={produitOuvert.photo_url}
-                alt={produitOuvert.produit_nom}
-                style={{ width: "100%", objectFit: "contain", background: "#EEF0EA", display: "block" }}
-                onError={(e) => { e.target.style.display = "none"; }}
-              />
-            ) : (
-              <div className="rv-shop-produit-photo" style={{ width: "100%", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
-            )}
+            {(() => {
+              const toutesLesPhotos = [produitOuvert.photo_url, ...(produitOuvert.photos_galerie || [])].filter(Boolean);
+              const photoAffichee = toutesLesPhotos[photoActive] || toutesLesPhotos[0];
+              return (
+                <>
+                  {photoAffichee ? (
+                    <img
+                      className="rv-shop-produit-photo"
+                      src={photoAffichee}
+                      alt={produitOuvert.produit_nom}
+                      style={{ width: "100%", objectFit: "contain", background: "#EEF0EA", display: "block" }}
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="rv-shop-produit-photo" style={{ width: "100%", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+                  )}
+                  {toutesLesPhotos.length > 1 && (
+                    <div style={{ display: "flex", gap: 8, padding: "10px 16px", overflowX: "auto" }}>
+                      {toutesLesPhotos.map((url, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setPhotoActive(i)}
+                          style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 8, overflow: "hidden", padding: 0, border: i === photoActive ? `2px solid ${couleur}` : "1px solid #ECE8DC", cursor: "pointer", background: "none" }}
+                        >
+                          <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <button
               className="rv-shop-produit-back"
               onClick={fermerProduit}

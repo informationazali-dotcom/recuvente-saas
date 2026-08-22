@@ -921,6 +921,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     await loadProduits();
   }
 
+  async function updateProduitGalerie(id, photosGalerie) {
+    await supabase.from("produits").update({ photos_galerie: photosGalerie }).eq("id", id);
+    await loadProduits();
+  }
+
   async function updateProduitDescription(id, description) {
     await supabase.from("produits").update({ description: description || null }).eq("id", id);
     await loadProduits();
@@ -2347,7 +2352,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
     </div>
   );
 }
@@ -3757,7 +3762,7 @@ function mapperColonnesShopify(lignesBrutes) {
   return resultat;
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -3771,6 +3776,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
   const [editDescId, setEditDescId] = useState(null);
   const [editDescValue, setEditDescValue] = useState("");
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
+  const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
 
@@ -3792,6 +3798,32 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
     const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
     await onUpdatePhoto(produitId, data.publicUrl);
     setPhotoEnvoiId(null);
+  }
+
+  async function ajouterPhotoGalerie(produit, fichier) {
+    if (!fichier) return;
+    if (fichier.size > 5 * 1024 * 1024) {
+      alert("L'image est trop lourde (max 5 Mo). Choisis une photo plus légère.");
+      return;
+    }
+    setGalerieEnvoiId(produit.id);
+    const extension = fichier.name.split(".").pop();
+    const chemin = `${produit.id}-galerie-${Date.now()}.${extension}`;
+    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true });
+    if (erreurUpload) {
+      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
+      setGalerieEnvoiId(null);
+      return;
+    }
+    const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+    const nouvelleGalerie = [...(produit.photos_galerie || []), data.publicUrl];
+    await onUpdateGalerie(produit.id, nouvelleGalerie);
+    setGalerieEnvoiId(null);
+  }
+
+  async function retirerPhotoGalerie(produit, urlARetirer) {
+    const nouvelleGalerie = (produit.photos_galerie || []).filter((u) => u !== urlARetirer);
+    await onUpdateGalerie(produit.id, nouvelleGalerie);
   }
 
   async function ajouter() {
@@ -3921,7 +3953,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                       <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 4 }}>Envoi de la photo...</div>
                     ) : (
                       <label style={{ display: "inline-block", marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
-                        {p.photo_url ? "📷 Changer la photo" : "📷 Ajouter une photo (optionnel)"}
+                        {p.photo_url ? "📷 Changer la photo principale" : "📷 Ajouter une photo principale (optionnel)"}
                         <input
                           type="file"
                           accept="image/*"
@@ -3930,6 +3962,34 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                         />
                       </label>
                     )}
+
+                    <div style={{ marginTop: 8 }}>
+                      {(p.photos_galerie || []).length > 0 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                          {p.photos_galerie.map((url) => (
+                            <div key={url} style={{ position: "relative" }}>
+                              <img src={url} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: "cover", border: "1px solid #DDD8CC" }} />
+                              <button
+                                onClick={() => retirerPhotoGalerie(p, url)}
+                                style={{ position: "absolute", top: -5, right: -5, width: 16, height: 16, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 10, lineHeight: 1, cursor: "pointer" }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label style={{ display: "inline-block", fontSize: 11.5, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
+                        {galerieEnvoiId === p.id ? "Envoi..." : `🖼️ Ajouter une photo à la galerie (${(p.photos_galerie || []).length}/6)`}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          disabled={(p.photos_galerie || []).length >= 6}
+                          onChange={(e) => ajouterPhotoGalerie(p, e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
                     {editDescId === p.id ? (
                       <div style={{ marginTop: 6 }}>
                         <EditeurRiche

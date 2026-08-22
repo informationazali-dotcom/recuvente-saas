@@ -580,16 +580,16 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
       onClick={() => onOpen(p)}
       style={{ width: "100%", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
     >
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
         {p.photo_url ? (
           <img
             src={p.photo_url}
             alt={p.produit_nom}
-            style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", background: "#EEF0EA", display: "block" }}
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             onError={(e) => { e.target.style.display = "none"; }}
           />
         ) : (
-          <div style={{ width: "100%", aspectRatio: "1 / 1", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
+          <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
         )}
         {p.nb_ventes > 0 && (
           <div style={{ position: "absolute", top: 6, left: 6, background: "#8A6412", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>

@@ -173,8 +173,8 @@ export default function CataloguePublic({ workspaceId }) {
             .rv-shop-produit-photo-col { position: sticky; top: 24px; }
             .rv-shop-produit-photo { height: 460px; border-radius: 16px; }
             .rv-shop-produit-back { display: none !important; }
-            .rv-shop-produit-info { padding: 0 !important; }
-            .rv-shop-cta-bar { position: static !important; box-shadow: none !important; border-top: none !important; padding: 24px 0 0 !important; }
+            .rv-shop-produit-info { padding: 0 0 100px !important; }
+            .rv-shop-cta-bar-inner { max-width: 1000px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }
           }
         `}</style>
 
@@ -326,13 +326,15 @@ export default function CataloguePublic({ workspaceId }) {
             )}
 
             {!envoye && (
-              <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
-                <button
-                  onClick={() => setAfficherFormulaire(true)}
-                  style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
-                >
-                  {`Commander — ${(Number(produitOuvert.prix_vente) * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
-                </button>
+              <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)", zIndex: 20 }}>
+                <div className="rv-shop-cta-bar-inner">
+                  <button
+                    onClick={() => setAfficherFormulaire(true)}
+                    style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                  >
+                    {`Commander — ${(Number(produitOuvert.prix_vente) * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                  </button>
+                </div>
               </div>
             )}
           </div>

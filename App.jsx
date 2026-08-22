@@ -839,6 +839,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showProduits, setShowProduits] = useState(false);
+  const [showAvis, setShowAvis] = useState(false);
   const [showAide, setShowAide] = useState(false);
 
   async function loadLivreurs() {
@@ -1694,6 +1695,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             📦 Catalogue
           </button>
         )}
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowAvis(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            ⭐ Avis clients
+          </button>
+        )}
         {workspace.role === "owner" && (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px" }} />
@@ -2353,6 +2362,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
     </div>
   );
 }
@@ -3769,6 +3779,93 @@ function mapperColonnesShopify(lignesBrutes) {
     });
   }
   return resultat;
+}
+
+function AvisModal({ workspaceId, onClose }) {
+  const [avis, setAvis] = useState(null);
+  const [produitsMap, setProduitsMap] = useState({});
+
+  async function charger() {
+    const { data: produitsData } = await supabase.from("produits").select("id, nom").eq("workspace_id", workspaceId);
+    const map = {};
+    (produitsData || []).forEach((p) => { map[p.id] = p.nom; });
+    setProduitsMap(map);
+
+    const { data } = await supabase
+      .from("avis_produits")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false });
+    setAvis(data || []);
+  }
+
+  useEffect(() => {
+    charger();
+  }, []);
+
+  async function approuver(id) {
+    await supabase.from("avis_produits").update({ approuve: true }).eq("id", id);
+    await charger();
+  }
+
+  async function supprimer(id) {
+    await supabase.from("avis_produits").delete().eq("id", id);
+    await charger();
+  }
+
+  const enAttente = (avis || []).filter((a) => !a.approuve);
+  const approuves = (avis || []).filter((a) => a.approuve);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>⭐ Avis clients</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        {avis === null && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+
+        {avis !== null && enAttente.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#8A6412", marginBottom: 10 }}>⏳ En attente d'approbation ({enAttente.length})</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {enAttente.map((a) => (
+                <div key={a.id} style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, color: "#8A6412", marginBottom: 4 }}>{produitsMap[a.produit_id] || "Produit"}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{a.client_nom}</span>
+                    <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
+                  </div>
+                  {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{a.commentaire}</div>}
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button onClick={() => approuver(a.id)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Approuver</button>
+                    <button onClick={() => supprimer(a.id)} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#D64933", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🗑️ Rejeter</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>✅ Publiés ({approuves.length})</div>
+        {approuves.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucun avis publié pour l'instant.</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {approuves.map((a) => (
+            <div key={a.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>{produitsMap[a.produit_id] || "Produit"}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{a.client_nom}</span>
+                <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
+              </div>
+              {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{a.commentaire}</div>}
+              <button onClick={() => supprimer(a.id)} style={{ marginTop: 6, background: "none", border: "none", color: "#D64933", fontSize: 11.5, cursor: "pointer", padding: 0 }}>🗑️ Retirer</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {

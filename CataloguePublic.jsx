@@ -15,6 +15,11 @@ export default function CataloguePublic({ workspaceId }) {
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [quantite, setQuantite] = useState(1);
   const [photoActive, setPhotoActive] = useState(0);
+  const [avisListe, setAvisListe] = useState([]);
+  const [afficherFormAvis, setAfficherFormAvis] = useState(false);
+  const [formAvis, setFormAvis] = useState({ nom: "", note: 5, commentaire: "" });
+  const [envoiAvis, setEnvoiAvis] = useState(false);
+  const [avisEnvoye, setAvisEnvoye] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
@@ -91,10 +96,33 @@ export default function CataloguePublic({ workspaceId }) {
     setPhotoActive(0);
     setEnvoye(false);
     setErreurEnvoi("");
+    setAvisListe([]);
+    setAfficherFormAvis(false);
+    setFormAvis({ nom: "", note: 5, commentaire: "" });
+    setAvisEnvoye(false);
+    supabase.rpc("avis_produit_public", { p_produit_id: p.produit_id }).then(({ data }) => {
+      setAvisListe(data || []);
+    });
     const url = new URL(window.location.href);
     url.searchParams.set("produit", p.produit_id);
     window.history.pushState({}, "", url);
     window.scrollTo(0, 0);
+  }
+
+  async function soumettreAvis() {
+    if (!formAvis.nom.trim()) return;
+    setEnvoiAvis(true);
+    const { data, error } = await supabase.rpc("soumettre_avis_public", {
+      p_workspace_id: workspaceId,
+      p_produit_id: produitOuvert.produit_id,
+      p_client_nom: formAvis.nom,
+      p_note: formAvis.note,
+      p_commentaire: formAvis.commentaire,
+    });
+    setEnvoiAvis(false);
+    if (!error && data?.[0]?.succes) {
+      setAvisEnvoye(true);
+    }
   }
 
   function fermerProduit() {
@@ -238,9 +266,27 @@ export default function CataloguePublic({ workspaceId }) {
               </div>
             )}
             <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
-            <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 6, marginBottom: 18 }}>
+
+            {produitOuvert.note_moyenne && (
+              <button
+                onClick={() => document.getElementById("rv-shop-avis-section")?.scrollIntoView({ behavior: "smooth" })}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, marginTop: 6, cursor: "pointer" }}
+              >
+                <span style={{ color: "#e8920a", fontSize: 14 }}>{"★".repeat(Math.round(produitOuvert.note_moyenne))}{"☆".repeat(5 - Math.round(produitOuvert.note_moyenne))}</span>
+                <span style={{ fontSize: 12.5, color: "#6B7168", textDecoration: "underline" }}>{produitOuvert.note_moyenne}/5 ({produitOuvert.nb_avis} avis)</span>
+              </button>
+            )}
+
+            <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 10, marginBottom: 8 }}>
               {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
             </div>
+
+            {produitOuvert.stock_initial > 0 && produitOuvert.stock_initial <= 5 && (
+              <div style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#D64933", background: "#FBEAE6", padding: "4px 10px", borderRadius: 999, marginBottom: 18 }}>
+                ⚡ Plus que {produitOuvert.stock_initial} en stock
+              </div>
+            )}
+            {!(produitOuvert.stock_initial > 0 && produitOuvert.stock_initial <= 5) && <div style={{ marginBottom: 10 }} />}
 
             {produitOuvert.produit_description ? (
               <>
@@ -302,6 +348,75 @@ export default function CataloguePublic({ workspaceId }) {
             ) : (
               <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
             )}
+
+            <div id="rv-shop-avis-section" style={{ borderTop: "1px solid #ECE8DC", paddingTop: 20, marginBottom: 26 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>Avis clients {avisListe.length > 0 && `(${avisListe.length})`}</div>
+                {!afficherFormAvis && !avisEnvoye && (
+                  <button onClick={() => setAfficherFormAvis(true)} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                    Laisser un avis
+                  </button>
+                )}
+              </div>
+
+              {avisEnvoye && (
+                <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "12px 14px", marginBottom: 14, fontSize: 13, color: "#3B6D11" }}>
+                  ✅ Merci pour ton avis ! Il sera visible après vérification.
+                </div>
+              )}
+
+              {afficherFormAvis && !avisEnvoye && (
+                <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 14 }}>
+                  <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setFormAvis({ ...formAvis, note: n })}
+                        style={{ background: "none", border: "none", padding: 0, fontSize: 24, cursor: "pointer", color: n <= formAvis.note ? "#e8920a" : "#DDD8CC" }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    placeholder="Ton nom"
+                    value={formAvis.nom}
+                    onChange={(e) => setFormAvis({ ...formAvis, nom: e.target.value })}
+                    style={{ ...inputStyle, marginBottom: 8 }}
+                  />
+                  <textarea
+                    placeholder="Ton commentaire (optionnel)"
+                    value={formAvis.commentaire}
+                    onChange={(e) => setFormAvis({ ...formAvis, commentaire: e.target.value })}
+                    rows={3}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }}
+                  />
+                  <button
+                    onClick={soumettreAvis}
+                    disabled={envoiAvis || !formAvis.nom.trim()}
+                    style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: (envoiAvis || !formAvis.nom.trim()) ? 0.5 : 1 }}
+                  >
+                    {envoiAvis ? "Envoi..." : "Envoyer mon avis"}
+                  </button>
+                </div>
+              )}
+
+              {avisListe.length === 0 ? (
+                <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic" }}>Aucun avis pour le moment. Sois le premier !</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {avisListe.map((a, i) => (
+                    <div key={i} style={{ background: "#FAFAF7", borderRadius: 10, padding: "10px 14px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{a.client_nom}</span>
+                        <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
+                      </div>
+                      {a.commentaire && <div style={{ fontSize: 13, color: "#16231F", marginTop: 4, lineHeight: 1.5 }}>{a.commentaire}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {envoye && (
               <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 22, textAlign: "center" }}>

@@ -370,7 +370,7 @@ export default function CataloguePublic({ workspaceId }) {
         @media (min-width: 700px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
           .rv-shop-banner { height: 220px; }
-          .rv-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+          .rv-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 230px)); gap: 20px; justify-content: start; }
           .rv-shop-collection-scroll { flex-wrap: wrap; overflow: visible; }
           .rv-shop-collection-card { flex: 0 0 200px; }
         }

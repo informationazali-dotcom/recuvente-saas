@@ -13,6 +13,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [produitOuvert, setProduitOuvert] = useState(null);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
+  const [quantite, setQuantite] = useState(1);
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
@@ -85,6 +86,7 @@ export default function CataloguePublic({ workspaceId }) {
     setProduitOuvert(p);
     setAfficherFormulaire(false);
     setForm({ client: "", tel: "", zone: "" });
+    setQuantite(1);
     setEnvoye(false);
     setErreurEnvoi("");
     const url = new URL(window.location.href);
@@ -110,7 +112,7 @@ export default function CataloguePublic({ workspaceId }) {
     const items = [{
       produit_id: produitOuvert.produit_id,
       produit_nom: produitOuvert.produit_nom,
-      quantite: 1,
+      quantite: quantite,
       prix_unitaire: Number(produitOuvert.prix_vente),
     }];
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
@@ -128,7 +130,7 @@ export default function CataloguePublic({ workspaceId }) {
     }
     trackEvenement("Purchase", {
       content_ids: [produitOuvert.produit_id],
-      value: Number(produitOuvert.prix_vente),
+      value: Number(produitOuvert.prix_vente) * quantite,
       currency: entreprise?.devise || "XOF",
     });
     setEnvoye(true);
@@ -287,12 +289,44 @@ export default function CataloguePublic({ workspaceId }) {
             )}
 
             {!envoye && (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
+                    <span style={{ fontSize: 15 }}>💵</span> Paiement à la livraison — sans risque
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
+                    <span style={{ fontSize: 15 }}>🚚</span> Livraison rapide, où que tu sois
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
+                    <span style={{ fontSize: 15 }}>✅</span> Tu vérifies ton colis avant de payer
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginBottom: 20 }}>
+                  <button
+                    onClick={() => setQuantite((q) => Math.max(1, q - 1))}
+                    style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #DDD8CC", background: "white", fontSize: 18, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                  >
+                    −
+                  </button>
+                  <div style={{ fontWeight: 700, fontSize: 17, minWidth: 24, textAlign: "center" }}>{quantite}</div>
+                  <button
+                    onClick={() => setQuantite((q) => q + 1)}
+                    style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #DDD8CC", background: "white", fontSize: 18, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                  >
+                    +
+                  </button>
+                </div>
+              </>
+            )}
+
+            {!envoye && (
               <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
                 <button
                   onClick={() => setAfficherFormulaire(true)}
                   style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                 >
-                  {`Commander — ${Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                  {`Commander — ${(Number(produitOuvert.prix_vente) * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
                 </button>
               </div>
             )}
@@ -336,6 +370,11 @@ export default function CataloguePublic({ workspaceId }) {
                 style={inputStyle}
               />
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
+                <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
+                <span style={{ fontWeight: 700, color: couleur }}>{(Number(produitOuvert.prix_vente) * quantite).toLocaleString("fr-FR")} {entreprise.devise}</span>
+              </div>
 
               <button
                 onClick={envoyerCommande}

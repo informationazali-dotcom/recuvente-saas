@@ -419,10 +419,61 @@ export default function CataloguePublic({ workspaceId }) {
             </div>
 
             {envoye && (
-              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 22, textAlign: "center" }}>
-                <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: "#3B6D11" }}>Commande envoyée !</div>
-                <div style={{ fontSize: 13, color: "#3B6D11" }}>{entreprise.nom} va te contacter au {form.tel} pour confirmer.</div>
+              <div style={{ textAlign: "center", padding: "10px 0 30px" }}>
+                <div style={{ fontSize: 52, marginBottom: 10 }}>🎉</div>
+                <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: "#16231F" }}>Commande envoyée !</div>
+                <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 24, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
+                  Merci {form.client.split(" ")[0]} 🙏 — {entreprise.nom} va te contacter au <strong>{form.tel}</strong> pour confirmer ta commande.
+                </div>
+
+                <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, textAlign: "left", marginBottom: 18 }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid #ECE8DC" }}>
+                    {produitOuvert.photo_url ? (
+                      <img src={produitOuvert.photo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 48, height: 48, borderRadius: 8, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📦</div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{quantite} × {produitOuvert.produit_nom}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{(Number(produitOuvert.prix_vente) * quantite).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "#6B7168", lineHeight: 1.7 }}>
+                    <div><strong style={{ color: "#16231F" }}>Livraison à :</strong> {form.zone}</div>
+                    <div><strong style={{ color: "#16231F" }}>Téléphone :</strong> {form.tel}</div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "left", marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Et maintenant ?</div>
+                  {[
+                    { n: "1", texte: "On te contacte pour confirmer ta commande" },
+                    { n: "2", texte: "Ton colis est préparé et remis au livreur" },
+                    { n: "3", texte: "Tu payes à la réception, une fois satisfait" },
+                  ].map((etape) => (
+                    <div key={etape.n} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#EAF3DE", color: "#3B6D11", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{etape.n}</div>
+                      <div style={{ fontSize: 12.5, color: "#16231F" }}>{etape.texte}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {entreprise.whatsapp && (
+                  <a
+                    href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(`Bonjour, j'ai une question sur ma commande de "${produitOuvert.produit_nom}".`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "block", background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, textDecoration: "none", marginBottom: 10 }}
+                  >
+                    💬 Une question ? Contacte-nous
+                  </a>
+                )}
+                <button
+                  onClick={fermerProduit}
+                  style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                >
+                  ← Continuer mes achats
+                </button>
               </div>
             )}
 

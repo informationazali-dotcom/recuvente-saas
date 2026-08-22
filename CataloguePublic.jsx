@@ -237,6 +237,35 @@ export default function CataloguePublic({ workspaceId }) {
                     display: block !important;
                     overflow-x: auto !important;
                   }
+                  .rv-description-riche h1, .rv-description-riche h2, .rv-description-riche h3, .rv-description-riche h4 {
+                    font-size: 16px !important;
+                    font-weight: 700 !important;
+                    color: #16231F !important;
+                    margin: 22px 0 10px !important;
+                    line-height: 1.4 !important;
+                  }
+                  .rv-description-riche h1:first-child, .rv-description-riche h2:first-child, .rv-description-riche h3:first-child {
+                    margin-top: 0 !important;
+                  }
+                  .rv-description-riche p {
+                    margin: 0 0 12px !important;
+                    line-height: 1.65 !important;
+                  }
+                  .rv-description-riche strong, .rv-description-riche b {
+                    font-weight: 700 !important;
+                    color: #16231F !important;
+                  }
+                  .rv-description-riche ul, .rv-description-riche ol {
+                    margin: 0 0 14px !important;
+                    padding-left: 20px !important;
+                  }
+                  .rv-description-riche li {
+                    margin-bottom: 7px !important;
+                    line-height: 1.55 !important;
+                  }
+                  .rv-description-riche a {
+                    color: ${couleur} !important;
+                  }
                 `}</style>
                 <div
                   className="rv-description-riche"

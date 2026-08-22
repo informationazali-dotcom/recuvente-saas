@@ -16,6 +16,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
+  const [lienCopie, setLienCopie] = useState(false);
 
   function chargerPixelFacebook(pixelId) {
     if (!pixelId || window.fbq) return;
@@ -58,7 +59,17 @@ export default function CataloguePublic({ workspaceId }) {
         description: data[0].description_boutique,
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
-      setProduits(data.filter((p) => p.produit_nom));
+      const listeProduits = data.filter((p) => p.produit_nom);
+      setProduits(listeProduits);
+
+      const idProduitDansUrl = new URLSearchParams(window.location.search).get("produit");
+      if (idProduitDansUrl) {
+        const trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl);
+        if (trouve) {
+          setProduitOuvert(trouve);
+          setForm({ client: "", tel: "", zone: "" });
+        }
+      }
     });
   }, [workspaceId]);
 
@@ -69,6 +80,16 @@ export default function CataloguePublic({ workspaceId }) {
     setForm({ client: "", tel: "", zone: "" });
     setEnvoye(false);
     setErreurEnvoi("");
+    const url = new URL(window.location.href);
+    url.searchParams.set("produit", p.produit_id);
+    window.history.pushState({}, "", url);
+  }
+
+  function fermerProduit() {
+    setProduitOuvert(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("produit");
+    window.history.pushState({}, "", url);
   }
 
   async function envoyerCommande() {
@@ -142,10 +163,20 @@ export default function CataloguePublic({ workspaceId }) {
             <div style={{ width: "100%", height: 260, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
           )}
           <button
-            onClick={() => setProduitOuvert(null)}
+            onClick={fermerProduit}
             style={{ position: "absolute", top: 16, left: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 18, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
           >
             ←
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setLienCopie(true);
+              setTimeout(() => setLienCopie(false), 2000);
+            }}
+            style={{ position: "absolute", top: 16, right: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 16, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
+          >
+            {lienCopie ? "✅" : "🔗"}
           </button>
         </div>
 

@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -24,21 +24,24 @@ export default async function handler(req, res) {
   const urlFinale = `/?catalogue=${catalogue}&produit=${produit}`;
 
   try {
-    const { data } = await supabaseAdmin.rpc("catalogue_public", { p_workspace_id: catalogue });
-    const ligne = (data || []).find((p) => p.produit_id === produit);
+    // Requête directe et légère — juste ce qu'il faut pour l'aperçu, rien de plus
+    const [{ data: workspaceData }, { data: produitData }] = await Promise.all([
+      supabaseAdmin.from("workspaces").select("name, currency").eq("id", catalogue).single(),
+      supabaseAdmin.from("produits").select("nom, prix_vente, photo_url, description").eq("id", produit).single(),
+    ]);
 
-    if (!ligne) {
+    if (!produitData || !workspaceData) {
       res.setHeader("Location", urlFinale);
       return res.status(302).end();
     }
 
-    const titre = echapperHtml(ligne.produit_nom);
-    const prix = `${Number(ligne.prix_vente).toLocaleString("fr-FR")} ${ligne.devise || "XOF"}`;
-    const nomBoutique = echapperHtml(ligne.entreprise_nom);
+    const titre = echapperHtml(produitData.nom);
+    const prix = `${Number(produitData.prix_vente).toLocaleString("fr-FR")} ${workspaceData.currency || "XOF"}`;
+    const nomBoutique = echapperHtml(workspaceData.name);
     const description = echapperHtml(
-      (ligne.produit_description || "").replace(/<[^>]*>/g, " ").trim().slice(0, 150) || `Disponible chez ${nomBoutique}`
+      (produitData.description || "").replace(/<[^>]*>/g, " ").trim().slice(0, 150) || `Disponible chez ${nomBoutique}`
     );
-    const image = ligne.photo_url || "";
+    const image = produitData.photo_url || "";
 
     const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -48,7 +51,9 @@ export default async function handler(req, res) {
   <meta property="og:type" content="product" />
   <meta property="og:title" content="${titre} — ${prix}" />
   <meta property="og:description" content="${description}" />
-  ${image ? `<meta property="og:image" content="${echapperHtml(image)}" />` : ""}
+  ${image ? `<meta property="og:image" content="${echapperHtml(image)}" />
+  <meta property="og:image:width" content="800" />
+  <meta property="og:image:height" content="800" />` : ""}
   <meta property="og:site_name" content="${nomBoutique}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta http-equiv="refresh" content="0; url=${urlFinale}" />

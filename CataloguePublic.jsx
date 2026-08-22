@@ -392,7 +392,7 @@ export default function CataloguePublic({ workspaceId }) {
   }
 
   // ===== ÉCRAN CATALOGUE (accueil) =====
-  const NOMBRE_OPTIMAL_PAR_COLLECTION = 6;
+  const NOMBRE_OPTIMAL_PAR_COLLECTION = 5;
   const meilleuresVentesToutes = [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes);
   const nouveautesToutes = produits.filter((p) => p.est_nouveau);
   const meilleuresVentes = meilleuresVentesToutes.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION);
@@ -415,18 +415,18 @@ export default function CataloguePublic({ workspaceId }) {
           .rv-shop-content { max-width: 720px; padding: 0 24px; }
           .rv-shop-banner { height: 160px; }
           .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
-          .rv-shop-collection-scroll { flex-wrap: wrap; overflow: visible; }
-          .rv-shop-collection-card { flex: 0 0 auto; width: calc((100% - 32px) / 3); }
+          .rv-shop-collection-scroll { display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; gap: 16px; }
+          .rv-shop-collection-card { flex: none; width: auto; }
         }
         @media (min-width: 960px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
           .rv-shop-banner { height: 220px; }
           .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
-          .rv-shop-collection-card { width: calc((100% - 60px) / 4); }
+          .rv-shop-collection-scroll { grid-template-columns: repeat(4, 1fr); gap: 20px; }
         }
         @media (min-width: 1280px) {
           .rv-shop-grid { grid-template-columns: repeat(5, 1fr); }
-          .rv-shop-collection-card { width: calc((100% - 80px) / 5); }
+          .rv-shop-collection-scroll { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
 

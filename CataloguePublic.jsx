@@ -19,6 +19,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [lienCopie, setLienCopie] = useState(false);
   const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
   const [recherche, setRecherche] = useState("");
+  const [collectionOuverte, setCollectionOuverte] = useState(null);
 
   function chargerPixelFacebook(pixelId) {
     if (!pixelId || window.fbq) return;
@@ -350,9 +351,52 @@ export default function CataloguePublic({ workspaceId }) {
     );
   }
 
+  // ===== ÉCRAN COLLECTION COMPLÈTE =====
+  if (collectionOuverte) {
+    const listeCollection = collectionOuverte === "bestseller"
+      ? [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes)
+      : produits.filter((p) => p.est_nouveau);
+    const titreCollection = collectionOuverte === "bestseller" ? "🔥 Meilleures ventes" : "✨ Nouveautés";
+
+    return (
+      <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
+        <style>{`
+          .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+          .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+          @media (min-width: 960px) { .rv-shop-content { max-width: 1100px; padding: 0 32px; } .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
+          @media (min-width: 1280px) { .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
+        `}</style>
+
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => setCollectionOuverte(null)} />
+
+        <div className="rv-shop-content" style={{ paddingTop: 20 }}>
+          <button
+            onClick={() => setCollectionOuverte(null)}
+            style={{ background: "none", border: "none", color: "#6B7168", fontSize: 13, cursor: "pointer", marginBottom: 10, padding: 0 }}
+          >
+            ← Retour à l'accueil
+          </button>
+          <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 18 }}>{titreCollection} ({listeCollection.length})</div>
+
+          <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
+            {listeCollection.map((p) => (
+              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+            ))}
+          </div>
+        </div>
+
+        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} />
+      </div>
+    );
+  }
+
   // ===== ÉCRAN CATALOGUE (accueil) =====
-  const meilleuresVentes = [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes).slice(0, 8);
-  const nouveautes = produits.filter((p) => p.est_nouveau);
+  const NOMBRE_OPTIMAL_PAR_COLLECTION = 6;
+  const meilleuresVentesToutes = [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes);
+  const nouveautesToutes = produits.filter((p) => p.est_nouveau);
+  const meilleuresVentes = meilleuresVentesToutes.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION);
+  const nouveautes = nouveautesToutes.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION);
   const produitsFiltres = recherche.trim()
     ? produits.filter((p) => p.produit_nom.toLowerCase().includes(recherche.trim().toLowerCase()))
     : produits;
@@ -405,11 +449,25 @@ export default function CataloguePublic({ workspaceId }) {
         )}
 
         {!recherche.trim() && meilleuresVentes.length > 0 && (
-          <SectionCollection titre="🔥 Meilleures ventes" produits={meilleuresVentes} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+          <SectionCollection
+            titre="🔥 Meilleures ventes"
+            produits={meilleuresVentes}
+            couleur={couleur}
+            devise={entreprise.devise}
+            onOpen={ouvrirProduit}
+            voirTout={meilleuresVentesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("bestseller") : null}
+          />
         )}
 
         {!recherche.trim() && nouveautes.length > 0 && (
-          <SectionCollection titre="✨ Nouveautés" produits={nouveautes} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+          <SectionCollection
+            titre="✨ Nouveautés"
+            produits={nouveautes}
+            couleur={couleur}
+            devise={entreprise.devise}
+            onOpen={ouvrirProduit}
+            voirTout={nouveautesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("nouveautes") : null}
+          />
         )}
 
         <div style={{ fontWeight: 700, fontSize: 16, marginTop: 26, marginBottom: 14 }}>
@@ -494,10 +552,17 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   );
 }
 
-function SectionCollection({ titre, produits, couleur, devise, onOpen }) {
+function SectionCollection({ titre, produits, couleur, devise, onOpen, voirTout }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{titre}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{titre}</div>
+        {voirTout && (
+          <button onClick={voirTout} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+            Voir tout →
+          </button>
+        )}
+      </div>
       <div className="rv-shop-collection-scroll">
         {produits.map((p) => (
           <div key={p.produit_id} className="rv-shop-collection-card">

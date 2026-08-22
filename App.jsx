@@ -791,6 +791,77 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
   );
 }
 
+function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCritique, meilleurLivreur, beneficeReel, currency, onVoirAujourdhui }) {
+  const lignes = [];
+
+  if (todoAujourdhui.sansNouvelles.length > 0) {
+    const montant = todoAujourdhui.sansNouvelles.reduce((s, c) => s + Number(c.montant), 0);
+    lignes.push({
+      icone: "⚠️",
+      couleur: "#D64933",
+      texte: `${todoAujourdhui.sansNouvelles.length} commande${todoAujourdhui.sansNouvelles.length > 1 ? "s" : ""} sans nouvelles depuis 24h — ${montant.toLocaleString("fr-FR")} ${currency} à risque`,
+    });
+  }
+
+  if (clientsARelancer.length > 0) {
+    lignes.push({
+      icone: "🔄",
+      couleur: "#1a7a3c",
+      texte: `${clientsARelancer.length} client${clientsARelancer.length > 1 ? "s" : ""} en retard sur leur rythme de réachat habituel`,
+    });
+  }
+
+  if (produitStockCritique) {
+    lignes.push({
+      icone: "📦",
+      couleur: "#8A6412",
+      texte: `Le stock de "${produitStockCritique.nom}" descend à ${produitStockCritique.restant} pièce${produitStockCritique.restant > 1 ? "s" : ""}`,
+    });
+  }
+
+  if (meilleurLivreur && meilleurLivreur.total > 0) {
+    lignes.push({
+      icone: "🚀",
+      couleur: "#1F9D6E",
+      texte: `${meilleurLivreur.nom} reste ton livreur le plus fiable (${meilleurLivreur.taux}% de réussite)`,
+    });
+  }
+
+  if (typeof beneficeReel === "number") {
+    lignes.push({
+      icone: "💰",
+      couleur: "#16231F",
+      texte: `Bénéfice réel du mois : ${beneficeReel.toLocaleString("fr-FR")} ${currency}`,
+    });
+  }
+
+  if (lignes.length === 0) return null;
+
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 18px", margin: "14px 20px 0" }}>
+      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+        🧠 Ce matin chez vous
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {lignes.map((l, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: l.couleur, fontWeight: 600, lineHeight: 1.4 }}>
+            <span style={{ flexShrink: 0 }}>{l.icone}</span>
+            <span>{l.texte}</span>
+          </div>
+        ))}
+      </div>
+      {todoAujourdhui.total > 0 && (
+        <button
+          onClick={onVoirAujourdhui}
+          style={{ marginTop: 14, width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+        >
+          👉 Voir les {todoAujourdhui.total} commandes à traiter
+        </button>
+      )}
+    </div>
+  );
+}
+
 function WorkspaceDashboard({ workspace, session, subscription }) {
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
@@ -1305,6 +1376,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     });
     return map;
   }, [commandes, commandeItems]);
+
+  const produitStockCritique = useMemo(() => {
+    const candidats = produits
+      .map((p) => {
+        const stock = Number(p.stock_initial || 0);
+        const q = quantitesParProduit[p.nom] || { commandees: 0 };
+        const restant = stock - q.commandees;
+        return { nom: p.nom, stock, restant };
+      })
+      .filter((p) => p.stock > 0 && p.restant <= 5);
+    if (candidats.length === 0) return null;
+    return candidats.sort((a, b) => a.restant - b.restant)[0];
+  }, [produits, quantitesParProduit]);
 
   const validationsParJour = useMemo(() => {
     const confirmeesAvecDate = commandes.filter((c) => c.statut === "confirmee" && c.confirmed_at);
@@ -1830,6 +1914,18 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           )}
         </div>
       </div>
+
+      {(workspace.role === "owner" || workspace.role === "admin") && (
+        <ResumeIntelligent
+          todoAujourdhui={todoAujourdhui}
+          clientsARelancer={clientsARelancer}
+          produitStockCritique={produitStockCritique}
+          meilleurLivreur={meilleurLivreur}
+          beneficeReel={beneficeReel}
+          currency={workspace.currency}
+          onVoirAujourdhui={() => setVue("aujourdhui")}
+        />
+      )}
 
       <div style={{ padding: "0 20px 8px" }}>
       {retourPaiement && (

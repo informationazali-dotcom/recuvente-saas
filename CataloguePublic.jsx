@@ -18,6 +18,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [erreurEnvoi, setErreurEnvoi] = useState("");
   const [lienCopie, setLienCopie] = useState(false);
   const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
+  const [recherche, setRecherche] = useState("");
 
   function chargerPixelFacebook(pixelId) {
     if (!pixelId || window.fbq) return;
@@ -58,6 +59,7 @@ export default function CataloguePublic({ workspaceId }) {
         banniere: data[0].banniere_url,
         couleur: data[0].couleur_marque || "#1a7a3c",
         description: data[0].description_boutique,
+        whatsapp: data[0].whatsapp_number,
         politiqueLivraison: data[0].politique_livraison,
         politiqueRetours: data[0].politique_retours,
         politiqueConfidentialite: data[0].politique_confidentialite,
@@ -87,6 +89,7 @@ export default function CataloguePublic({ workspaceId }) {
     const url = new URL(window.location.href);
     url.searchParams.set("produit", p.produit_id);
     window.history.pushState({}, "", url);
+    window.scrollTo(0, 0);
   }
 
   function fermerProduit() {
@@ -155,11 +158,13 @@ export default function CataloguePublic({ workspaceId }) {
   if (produitOuvert) {
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} />
+
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
           .rv-shop-produit-photo { height: 260px; }
           @media (min-width: 900px) {
-            .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 40px; }
+            .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 24px; }
             .rv-shop-produit-photo-col { position: sticky; top: 24px; }
             .rv-shop-produit-photo { height: 460px; border-radius: 16px; }
             .rv-shop-produit-back { display: none !important; }
@@ -201,6 +206,11 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
 
           <div className="rv-shop-produit-info" style={{ padding: "22px 18px 140px" }}>
+            {produitOuvert.nb_ventes > 0 && (
+              <div style={{ display: "inline-block", fontSize: 11, fontWeight: 700, color: "#8A6412", background: "#FBF3E3", padding: "3px 10px", borderRadius: 999, marginBottom: 10 }}>
+                🔥 Best-seller — {produitOuvert.nb_ventes} vente{produitOuvert.nb_ventes > 1 ? "s" : ""}
+              </div>
+            )}
             <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
             <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 6, marginBottom: 18 }}>
               {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
@@ -311,21 +321,33 @@ export default function CataloguePublic({ workspaceId }) {
     );
   }
 
-  // ===== ÉCRAN CATALOGUE (liste des produits) =====
+  // ===== ÉCRAN CATALOGUE (accueil) =====
+  const meilleuresVentes = [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes).slice(0, 8);
+  const nouveautes = produits.filter((p) => p.est_nouveau);
+  const produitsFiltres = recherche.trim()
+    ? produits.filter((p) => p.produit_nom.toLowerCase().includes(recherche.trim().toLowerCase()))
+    : produits;
+
   return (
     <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <style>{`
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
         .rv-shop-banner { height: 90px; }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .rv-shop-header { display: flex; align-items: flex-end; gap: 14px; position: relative; z-index: 1; }
+        .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+        .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
+        .rv-shop-collection-scroll::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
+        .rv-shop-collection-card { flex: 0 0 140px; }
         @media (min-width: 700px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
           .rv-shop-banner { height: 220px; }
           .rv-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-          .rv-shop-header { align-items: center; padding: 28px 0 20px; }
+          .rv-shop-collection-scroll { flex-wrap: wrap; overflow: visible; }
+          .rv-shop-collection-card { flex: 0 0 200px; }
         }
       `}</style>
+
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} />
 
       {entreprise.banniere ? (
         <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
@@ -336,73 +358,39 @@ export default function CataloguePublic({ workspaceId }) {
         <div className="rv-shop-banner" style={{ width: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
       )}
 
-      <div className="rv-shop-content">
-        <div className="rv-shop-header" style={{ marginTop: entreprise.logo ? -36 : 20, marginBottom: 20 }}>
-          {entreprise.logo ? (
-            <img
-              src={entreprise.logo}
-              alt={entreprise.nom}
-              style={{ width: 72, height: 72, borderRadius: 16, objectFit: "cover", border: "3px solid white", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "white", flexShrink: 0 }}
-              onError={(e) => { e.target.style.display = "none"; }}
-            />
-          ) : null}
-          <div style={{ paddingBottom: 4 }}>
-            <div style={{ fontWeight: 700, fontSize: 21, color: "#16231F" }}>{entreprise.nom}</div>
-            {entreprise.description && <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 2 }}>{entreprise.description}</div>}
-          </div>
-        </div>
-
+      <div className="rv-shop-content" style={{ paddingTop: 20 }}>
         {produits.length === 0 && (
           <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40, paddingBottom: 40 }}>
             Aucun produit disponible pour le moment.
           </div>
         )}
 
-        <div className="rv-shop-grid" style={{ paddingBottom: 30 }}>
-          {produits.map((p) => (
-            <button
-              key={p.produit_id}
-              onClick={() => ouvrirProduit(p)}
-              style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
-            >
-              {p.photo_url ? (
-                <img
-                  src={p.photo_url}
-                  alt={p.produit_nom}
-                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", background: "#EEF0EA", display: "block" }}
-                  onError={(e) => { e.target.style.display = "none"; }}
-                />
-              ) : (
-                <div style={{ width: "100%", aspectRatio: "1 / 1", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
-              )}
-              <div style={{ padding: "10px 12px 14px" }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>
-                  {Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
-                </div>
-              </div>
-            </button>
-          ))}
+        {!recherche.trim() && meilleuresVentes.length > 0 && (
+          <SectionCollection titre="🔥 Meilleures ventes" produits={meilleuresVentes} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+        )}
+
+        {!recherche.trim() && nouveautes.length > 0 && (
+          <SectionCollection titre="✨ Nouveautés" produits={nouveautes} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+        )}
+
+        <div style={{ fontWeight: 700, fontSize: 16, marginTop: 26, marginBottom: 14 }}>
+          {recherche.trim() ? `Résultats pour "${recherche.trim()}"` : "Tous les produits"}
         </div>
 
-        {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, paddingTop: 20, paddingBottom: 10, borderTop: "1px solid #ECE8DC" }}>
-            {entreprise.politiqueLivraison && (
-              <button onClick={() => setPolitiqueOuverte("livraison")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Livraison</button>
-            )}
-            {entreprise.politiqueRetours && (
-              <button onClick={() => setPolitiqueOuverte("retours")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Retours</button>
-            )}
-            {entreprise.politiqueConfidentialite && (
-              <button onClick={() => setPolitiqueOuverte("confidentialite")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Confidentialité</button>
-            )}
+        {produitsFiltres.length === 0 && recherche.trim() && (
+          <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, padding: "20px 0 40px" }}>
+            Aucun produit ne correspond à ta recherche.
           </div>
         )}
 
-        <div style={{ textAlign: "center", fontSize: 11, color: "#8A9089", paddingBottom: 24 }}>
-          Propulsé par RecuVente
+        <div className="rv-shop-grid" style={{ paddingBottom: 30 }}>
+          {produitsFiltres.map((p) => (
+            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+          ))}
         </div>
       </div>
+
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} />
 
       {politiqueOuverte && (
         <div
@@ -425,6 +413,146 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick }) {
+  return (
+    <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <button
+          onClick={onLogoClick}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0 }}
+        >
+          {entreprise.logo ? (
+            <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+          ) : null}
+          <span style={{ fontWeight: 700, fontSize: 15, color: "#16231F" }}>{entreprise.nom}</span>
+        </button>
+
+        <div style={{ flex: 1, minWidth: 140, order: 3 }}>
+          <input
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher un produit..."
+            style={{ width: "100%", padding: "8px 12px", borderRadius: 999, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
+          />
+        </div>
+
+        {entreprise.whatsapp && (
+          <a
+            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "#EAF3DE", color: "#3B6D11", padding: "8px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", order: 2, marginLeft: "auto" }}
+          >
+            💬 Nous contacter
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionCollection({ titre, produits, couleur, devise, onOpen }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{titre}</div>
+      <div className="rv-shop-collection-scroll">
+        {produits.map((p) => (
+          <div key={p.produit_id} className="rv-shop-collection-card">
+            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CarteProduit({ p, couleur, devise, onOpen }) {
+  return (
+    <button
+      onClick={() => onOpen(p)}
+      style={{ width: "100%", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
+    >
+      <div style={{ position: "relative" }}>
+        {p.photo_url ? (
+          <img
+            src={p.photo_url}
+            alt={p.produit_nom}
+            style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", background: "#EEF0EA", display: "block" }}
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
+        ) : (
+          <div style={{ width: "100%", aspectRatio: "1 / 1", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
+        )}
+        {p.nb_ventes > 0 && (
+          <div style={{ position: "absolute", top: 6, left: 6, background: "#8A6412", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+            🔥 Best-seller
+          </div>
+        )}
+        {p.est_nouveau && (
+          <div style={{ position: "absolute", top: 6, right: 6, background: "#1a7a3c", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+            Nouveau
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "10px 12px 14px" }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>
+          {Number(p.prix_vente).toLocaleString("fr-FR")} {devise}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function PiedDePage({ entreprise, onOuvrirPolitique }) {
+  const anneeEnCours = new Date().getFullYear();
+  return (
+    <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 26 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "white", marginBottom: 10 }}>{entreprise.nom}</div>
+          {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>{entreprise.description}</div>}
+        </div>
+
+        {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Informations</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {entreprise.politiqueLivraison && (
+                <button onClick={() => onOuvrirPolitique("livraison")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Politique de livraison</button>
+              )}
+              {entreprise.politiqueRetours && (
+                <button onClick={() => onOuvrirPolitique("retours")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Politique de retours</button>
+              )}
+              {entreprise.politiqueConfidentialite && (
+                <button onClick={() => onOuvrirPolitique("confidentialite")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Confidentialité</button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {entreprise.whatsapp && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Contact</div>
+            <a
+              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, textDecoration: "none" }}
+            >
+              💬 Discuter sur WhatsApp
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "16px 20px", textAlign: "center", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
+        © {anneeEnCours} {entreprise.nom} — Propulsé par RecuVente
+      </div>
     </div>
   );
 }

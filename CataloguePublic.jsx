@@ -355,8 +355,10 @@ export default function CataloguePublic({ workspaceId }) {
   if (collectionOuverte) {
     const listeCollection = collectionOuverte === "bestseller"
       ? [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes)
-      : produits.filter((p) => p.est_nouveau);
-    const titreCollection = collectionOuverte === "bestseller" ? "🔥 Meilleures ventes" : "✨ Nouveautés";
+      : collectionOuverte === "nouveautes"
+        ? produits.filter((p) => p.est_nouveau)
+        : produits;
+    const titreCollection = collectionOuverte === "bestseller" ? "🔥 Meilleures ventes" : collectionOuverte === "nouveautes" ? "✨ Nouveautés" : "Tous les produits";
 
     return (
       <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -393,6 +395,7 @@ export default function CataloguePublic({ workspaceId }) {
 
   // ===== ÉCRAN CATALOGUE (accueil) =====
   const NOMBRE_OPTIMAL_PAR_COLLECTION = 5;
+  const NOMBRE_MAX_ACCUEIL = 10;
   const meilleuresVentesToutes = [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes);
   const nouveautesToutes = produits.filter((p) => p.est_nouveau);
   const meilleuresVentes = meilleuresVentesToutes.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION);
@@ -470,8 +473,15 @@ export default function CataloguePublic({ workspaceId }) {
           />
         )}
 
-        <div style={{ fontWeight: 700, fontSize: 16, marginTop: 26, marginBottom: 14 }}>
-          {recherche.trim() ? `Résultats pour "${recherche.trim()}"` : "Tous les produits"}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>
+            {recherche.trim() ? `Résultats pour "${recherche.trim()}"` : "Tous les produits"}
+          </div>
+          {!recherche.trim() && produitsFiltres.length > NOMBRE_MAX_ACCUEIL && (
+            <button onClick={() => setCollectionOuverte("tous")} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+              Voir tout →
+            </button>
+          )}
         </div>
 
         {produitsFiltres.length === 0 && recherche.trim() && (
@@ -480,11 +490,20 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         )}
 
-        <div className="rv-shop-grid" style={{ paddingBottom: 30 }}>
-          {produitsFiltres.map((p) => (
+        <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
+          {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p) => (
             <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
           ))}
         </div>
+
+        {!recherche.trim() && produitsFiltres.length > NOMBRE_MAX_ACCUEIL && (
+          <button
+            onClick={() => setCollectionOuverte("tous")}
+            style={{ display: "block", width: "100%", background: "white", border: `1px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginBottom: 20 }}
+          >
+            Voir tous les produits ({produitsFiltres.length}) →
+          </button>
+        )}
       </div>
 
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} />

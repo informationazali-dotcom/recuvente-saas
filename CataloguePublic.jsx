@@ -395,7 +395,7 @@ export default function CataloguePublic({ workspaceId }) {
 
   // ===== ÉCRAN CATALOGUE (accueil) =====
   const NOMBRE_OPTIMAL_PAR_COLLECTION = 5;
-  const NOMBRE_MAX_ACCUEIL = 10;
+  const NOMBRE_MAX_ACCUEIL = 20;
   const meilleuresVentesToutes = [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes);
   const nouveautesToutes = produits.filter((p) => p.est_nouveau);
   const meilleuresVentes = meilleuresVentesToutes.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION);

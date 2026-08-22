@@ -191,10 +191,33 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
 
           {produitOuvert.produit_description ? (
-            <div
-              style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
-              dangerouslySetInnerHTML={{ __html: produitOuvert.produit_description }}
-            />
+            <>
+              <style>{`
+                .rv-description-riche img {
+                  max-width: 100% !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  float: none !important;
+                  display: block !important;
+                  margin: 14px auto !important;
+                  border-radius: 8px !important;
+                  object-fit: contain !important;
+                }
+                .rv-description-riche * {
+                  max-width: 100% !important;
+                  box-sizing: border-box !important;
+                }
+                .rv-description-riche table {
+                  display: block !important;
+                  overflow-x: auto !important;
+                }
+              `}</style>
+              <div
+                className="rv-description-riche"
+                style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
+                dangerouslySetInnerHTML={{ __html: produitOuvert.produit_description }}
+              />
+            </>
           ) : (
             <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
           )}

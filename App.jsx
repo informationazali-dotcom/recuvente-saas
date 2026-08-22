@@ -3505,12 +3505,22 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                   🙏 Message de remerciement + reçu
                 </a>
               )}
-              <button
-                onClick={() => genererFacturePDF(commande, workspace)}
-                style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
-              >
-                🧾 Facture PDF
-              </button>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                <button
+                  onClick={() => genererFacturePDF(commande, workspace)}
+                  style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                >
+                  🧾 Facture PDF
+                </button>
+                <a
+                  href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", textDecoration: "none", textAlign: "center" }}
+                >
+                  💬 Ouvrir WhatsApp du client
+                </a>
+              </div>
 
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <a

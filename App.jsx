@@ -5395,6 +5395,12 @@ function IntegrationsModal({ workspace, onClose }) {
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
+  const [savingPolitiqueLivraison, setSavingPolitiqueLivraison] = useState(false);
+  const [savedPolitiqueLivraison, setSavedPolitiqueLivraison] = useState(false);
+  const [savingPolitiqueRetours, setSavingPolitiqueRetours] = useState(false);
+  const [savedPolitiqueRetours, setSavedPolitiqueRetours] = useState(false);
+  const [savingPolitiqueConfidentialite, setSavingPolitiqueConfidentialite] = useState(false);
+  const [savedPolitiqueConfidentialite, setSavedPolitiqueConfidentialite] = useState(false);
   const [savingPixel, setSavingPixel] = useState(false);
   const [pixelSaved, setPixelSaved] = useState(false);
 
@@ -5607,31 +5613,67 @@ function IntegrationsModal({ workspace, onClose }) {
           <textarea
             value={personnalisation.politique_livraison || ""}
             onChange={(e) => setPersonnalisation({ ...personnalisation, politique_livraison: e.target.value })}
-            onBlur={() => supabase.from("workspaces").update({ politique_livraison: personnalisation.politique_livraison }).eq("id", workspace.id)}
             placeholder="Ex: Livraison en 24-48h à Abidjan, paiement à la réception."
             rows={3}
-            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }}
           />
+          <button
+            onClick={async () => {
+              setSavingPolitiqueLivraison(true);
+              await supabase.from("workspaces").update({ politique_livraison: personnalisation.politique_livraison }).eq("id", workspace.id);
+              setSavingPolitiqueLivraison(false);
+              setSavedPolitiqueLivraison(true);
+              setTimeout(() => setSavedPolitiqueLivraison(false), 2000);
+            }}
+            disabled={savingPolitiqueLivraison}
+            style={{ background: savedPolitiqueLivraison ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}
+          >
+            {savedPolitiqueLivraison ? "✅ Enregistré" : savingPolitiqueLivraison ? "..." : "Enregistrer"}
+          </button>
 
           <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Politique de retours</div>
           <textarea
             value={personnalisation.politique_retours || ""}
             onChange={(e) => setPersonnalisation({ ...personnalisation, politique_retours: e.target.value })}
-            onBlur={() => supabase.from("workspaces").update({ politique_retours: personnalisation.politique_retours }).eq("id", workspace.id)}
             placeholder="Ex: Retour possible sous 48h si le produit est défectueux."
             rows={3}
-            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }}
           />
+          <button
+            onClick={async () => {
+              setSavingPolitiqueRetours(true);
+              await supabase.from("workspaces").update({ politique_retours: personnalisation.politique_retours }).eq("id", workspace.id);
+              setSavingPolitiqueRetours(false);
+              setSavedPolitiqueRetours(true);
+              setTimeout(() => setSavedPolitiqueRetours(false), 2000);
+            }}
+            disabled={savingPolitiqueRetours}
+            style={{ background: savedPolitiqueRetours ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}
+          >
+            {savedPolitiqueRetours ? "✅ Enregistré" : savingPolitiqueRetours ? "..." : "Enregistrer"}
+          </button>
 
           <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Politique de confidentialité</div>
           <textarea
             value={personnalisation.politique_confidentialite || ""}
             onChange={(e) => setPersonnalisation({ ...personnalisation, politique_confidentialite: e.target.value })}
-            onBlur={() => supabase.from("workspaces").update({ politique_confidentialite: personnalisation.politique_confidentialite }).eq("id", workspace.id)}
             placeholder="Ex: Tes informations ne sont utilisées que pour te livrer, jamais partagées."
             rows={3}
-            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 6 }}
           />
+          <button
+            onClick={async () => {
+              setSavingPolitiqueConfidentialite(true);
+              await supabase.from("workspaces").update({ politique_confidentialite: personnalisation.politique_confidentialite }).eq("id", workspace.id);
+              setSavingPolitiqueConfidentialite(false);
+              setSavedPolitiqueConfidentialite(true);
+              setTimeout(() => setSavedPolitiqueConfidentialite(false), 2000);
+            }}
+            disabled={savingPolitiqueConfidentialite}
+            style={{ background: savedPolitiqueConfidentialite ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          >
+            {savedPolitiqueConfidentialite ? "✅ Enregistré" : savingPolitiqueConfidentialite ? "..." : "Enregistrer"}
+          </button>
         </div>
 
         <div style={{ background: "#EAF0FB", border: "1px solid #C3D4F0", borderRadius: 12, padding: 16, marginBottom: 20 }}>

@@ -494,6 +494,9 @@ export default function CataloguePublic({ workspaceId }) {
             {!envoye && (
               <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)", zIndex: 20 }}>
                 <div className="rv-shop-cta-bar-inner">
+                  <div style={{ fontSize: 10.5, color: "#8A9089", textAlign: "center", marginBottom: 6 }}>
+                    ⚠️ Merci de ne commander que si tu es réellement intéressé(e)
+                  </div>
                   <button
                     onClick={() => {
                       trackEvenement("InitiateCheckout", {
@@ -574,6 +577,10 @@ export default function CataloguePublic({ workspaceId }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
                 <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
                 <span style={{ fontWeight: 700, color: couleur }}>{(Number(produitOuvert.prix_vente) * quantite).toLocaleString("fr-FR")} {entreprise.devise}</span>
+              </div>
+
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+                ⚠️ En confirmant, tu t'engages à réceptionner ce colis. Merci de ne pas commander "pour voir" si tu n'es pas certain(e) d'être intéressé(e).
               </div>
 
               <button

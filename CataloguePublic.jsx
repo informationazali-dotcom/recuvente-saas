@@ -410,13 +410,13 @@ export default function CataloguePublic({ workspaceId }) {
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
         .rv-shop-collection-scroll::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
-        .rv-shop-collection-card { flex: 0 0 140px; }
+        .rv-shop-collection-card { flex: 0 0 140px; min-width: 0; max-width: 140px; }
         @media (min-width: 640px) {
           .rv-shop-content { max-width: 720px; padding: 0 24px; }
           .rv-shop-banner { height: 160px; }
           .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
           .rv-shop-collection-scroll { display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; gap: 16px; }
-          .rv-shop-collection-card { flex: none; width: auto; }
+          .rv-shop-collection-card { flex: none; width: auto; min-width: 0; max-width: none; }
         }
         @media (min-width: 960px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
@@ -578,7 +578,7 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
   return (
     <button
       onClick={() => onOpen(p)}
-      style={{ width: "100%", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
+      style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
     >
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
         {p.photo_url ? (

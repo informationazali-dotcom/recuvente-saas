@@ -155,101 +155,118 @@ export default function CataloguePublic({ workspaceId }) {
   if (produitOuvert) {
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <div style={{ position: "relative" }}>
-          {produitOuvert.photo_url ? (
-            <img
-              src={produitOuvert.photo_url}
-              alt={produitOuvert.produit_nom}
-              style={{ width: "100%", height: 260, objectFit: "contain", background: "#EEF0EA", display: "block" }}
-              onError={(e) => { e.target.style.display = "none"; }}
-            />
-          ) : (
-            <div style={{ width: "100%", height: 260, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
-          )}
-          <button
-            onClick={fermerProduit}
-            style={{ position: "absolute", top: 16, left: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 18, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
-          >
-            ←
-          </button>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              setLienCopie(true);
-              setTimeout(() => setLienCopie(false), 2000);
-            }}
-            style={{ position: "absolute", top: 16, right: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 16, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
-          >
-            {lienCopie ? "✅" : "🔗"}
-          </button>
-        </div>
+        <style>{`
+          .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
+          .rv-shop-produit-photo { height: 260px; }
+          @media (min-width: 900px) {
+            .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 40px; }
+            .rv-shop-produit-photo-col { position: sticky; top: 24px; }
+            .rv-shop-produit-photo { height: 460px; border-radius: 16px; }
+            .rv-shop-produit-back { display: none !important; }
+            .rv-shop-produit-info { padding: 0 !important; }
+            .rv-shop-cta-bar { position: static !important; box-shadow: none !important; border-top: none !important; padding: 24px 0 0 !important; }
+          }
+        `}</style>
 
-        <div style={{ maxWidth: 480, margin: "0 auto", padding: "22px 18px 140px" }}>
-          <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 6, marginBottom: 18 }}>
-            {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
-          </div>
-
-          {produitOuvert.produit_description ? (
-            <>
-              <style>{`
-                .rv-description-riche img {
-                  max-width: 100% !important;
-                  width: 100% !important;
-                  height: auto !important;
-                  float: none !important;
-                  display: block !important;
-                  margin: 14px auto !important;
-                  border-radius: 8px !important;
-                  object-fit: contain !important;
-                }
-                .rv-description-riche * {
-                  max-width: 100% !important;
-                  box-sizing: border-box !important;
-                }
-                .rv-description-riche table {
-                  display: block !important;
-                  overflow-x: auto !important;
-                }
-              `}</style>
-              <div
-                className="rv-description-riche"
-                style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
-                dangerouslySetInnerHTML={{ __html: produitOuvert.produit_description }}
+        <div className="rv-shop-produit-wrap">
+          <div className="rv-shop-produit-photo-col" style={{ position: "relative" }}>
+            {produitOuvert.photo_url ? (
+              <img
+                className="rv-shop-produit-photo"
+                src={produitOuvert.photo_url}
+                alt={produitOuvert.produit_nom}
+                style={{ width: "100%", objectFit: "contain", background: "#EEF0EA", display: "block" }}
+                onError={(e) => { e.target.style.display = "none"; }}
               />
-            </>
-          ) : (
-            <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
-          )}
-
-          {envoye && (
-            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 22, textAlign: "center" }}>
-              <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: "#3B6D11" }}>Commande envoyée !</div>
-              <div style={{ fontSize: 13, color: "#3B6D11" }}>{entreprise.nom} va te contacter au {form.tel} pour confirmer.</div>
-            </div>
-          )}
-        </div>
-
-        {!envoye && (
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
+            ) : (
+              <div className="rv-shop-produit-photo" style={{ width: "100%", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+            )}
             <button
-              onClick={() => setAfficherFormulaire(true)}
-              style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+              className="rv-shop-produit-back"
+              onClick={fermerProduit}
+              style={{ position: "absolute", top: 16, left: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 18, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
             >
-              {`Commander — ${Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`}
+              ←
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                setLienCopie(true);
+                setTimeout(() => setLienCopie(false), 2000);
+              }}
+              style={{ position: "absolute", top: 16, right: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 16, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
+            >
+              {lienCopie ? "✅" : "🔗"}
             </button>
           </div>
-        )}
+
+          <div className="rv-shop-produit-info" style={{ padding: "22px 18px 140px" }}>
+            <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
+            <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 6, marginBottom: 18 }}>
+              {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+            </div>
+
+            {produitOuvert.produit_description ? (
+              <>
+                <style>{`
+                  .rv-description-riche img {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    float: none !important;
+                    display: block !important;
+                    margin: 14px auto !important;
+                    border-radius: 8px !important;
+                    object-fit: contain !important;
+                  }
+                  .rv-description-riche * {
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                  }
+                  .rv-description-riche table {
+                    display: block !important;
+                    overflow-x: auto !important;
+                  }
+                `}</style>
+                <div
+                  className="rv-description-riche"
+                  style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
+                  dangerouslySetInnerHTML={{ __html: produitOuvert.produit_description }}
+                />
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
+            )}
+
+            {envoye && (
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 14, padding: 22, textAlign: "center" }}>
+                <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: "#3B6D11" }}>Commande envoyée !</div>
+                <div style={{ fontSize: 13, color: "#3B6D11" }}>{entreprise.nom} va te contacter au {form.tel} pour confirmer.</div>
+              </div>
+            )}
+
+            {!envoye && (
+              <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
+                <button
+                  onClick={() => setAfficherFormulaire(true)}
+                  style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                >
+                  {`Commander — ${Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
         {afficherFormulaire && !envoye && (
           <div
             onClick={() => setAfficherFormulaire(false)}
-            style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", zIndex: 50 }}
+            style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50 }}
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ background: "white", width: "100%", borderRadius: "18px 18px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto" }}
+              style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto" }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <div style={{ fontWeight: 700, fontSize: 17 }}>Tes coordonnées</div>
@@ -297,17 +314,30 @@ export default function CataloguePublic({ workspaceId }) {
   // ===== ÉCRAN CATALOGUE (liste des produits) =====
   return (
     <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
+      <style>{`
+        .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+        .rv-shop-banner { height: 90px; }
+        .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .rv-shop-header { display: flex; align-items: flex-end; gap: 14px; position: relative; z-index: 1; }
+        @media (min-width: 700px) {
+          .rv-shop-content { max-width: 1100px; padding: 0 32px; }
+          .rv-shop-banner { height: 220px; }
+          .rv-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+          .rv-shop-header { align-items: center; padding: 28px 0 20px; }
+        }
+      `}</style>
+
       {entreprise.banniere ? (
-        <div style={{ width: "100%", height: 140, position: "relative", overflow: "hidden" }}>
+        <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
           <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.35))" }} />
         </div>
       ) : (
-        <div style={{ width: "100%", height: 90, background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
+        <div className="rv-shop-banner" style={{ width: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
       )}
 
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 16px" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginTop: entreprise.logo ? -36 : 20, marginBottom: 20, position: "relative", zIndex: 1 }}>
+      <div className="rv-shop-content">
+        <div className="rv-shop-header" style={{ marginTop: entreprise.logo ? -36 : 20, marginBottom: 20 }}>
           {entreprise.logo ? (
             <img
               src={entreprise.logo}
@@ -328,7 +358,7 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingBottom: 30 }}>
+        <div className="rv-shop-grid" style={{ paddingBottom: 30 }}>
           {produits.map((p) => (
             <button
               key={p.produit_id}
@@ -339,11 +369,11 @@ export default function CataloguePublic({ workspaceId }) {
                 <img
                   src={p.photo_url}
                   alt={p.produit_nom}
-                  style={{ width: "100%", height: 120, objectFit: "cover", background: "#EEF0EA", display: "block" }}
+                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", background: "#EEF0EA", display: "block" }}
                   onError={(e) => { e.target.style.display = "none"; }}
                 />
               ) : (
-                <div style={{ width: "100%", height: 120, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
+                <div style={{ width: "100%", aspectRatio: "1 / 1", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
               )}
               <div style={{ padding: "10px 12px 14px" }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
@@ -377,11 +407,11 @@ export default function CataloguePublic({ workspaceId }) {
       {politiqueOuverte && (
         <div
           onClick={() => setPolitiqueOuverte(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", zIndex: 60 }}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "white", width: "100%", borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}
+            style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 17 }}>

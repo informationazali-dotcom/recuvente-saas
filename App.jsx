@@ -157,7 +157,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -3210,6 +3210,15 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
       await supabase.from("relances").insert([
         { commande_id: commande.id, note: `📋 Statut : ${STATUTS[ancienStatut]?.label || ancienStatut} → ${STATUTS[nouveauStatut]?.label || nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${confirmateurNom || "Admin"}` : ""}` },
       ]);
+      if (nouveauStatut === "confirmee") {
+        supabase.auth.getSession().then(({ data: sessionData }) => {
+          fetch("/api/facebook-capi", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+            body: JSON.stringify({ commandeId: commande.id }),
+          }).catch(() => {}); // silencieux — ne bloque jamais la confirmation si Facebook échoue
+        });
+      }
       await onStatusChanged();
       if (vraimentRecuperee && onCelebrate) onCelebrate(commande.montant, commande.client);
     }
@@ -4126,6 +4135,15 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   async function changerStatut(commandeId, nouveauStatut) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom } : {};
     await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
+    if (nouveauStatut === "confirmee") {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        fetch("/api/facebook-capi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+          body: JSON.stringify({ commandeId }),
+        }).catch(() => {});
+      });
+    }
     await onStatusChanged();
   }
 
@@ -4639,6 +4657,15 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
     await supabase.from("relances").insert([
       { commande_id: commandeId, note: `📋 Statut : ${ancien} → ${nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${closer.nom}` : ""}` },
     ]);
+    if (nouveauStatut === "confirmee") {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        fetch("/api/facebook-capi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+          body: JSON.stringify({ commandeId }),
+        }).catch(() => {});
+      });
+    }
     await onStatusChanged();
     setSelected(null);
   }
@@ -5463,6 +5490,9 @@ function IntegrationsModal({ workspace, onClose }) {
   const [savedPolitiqueConfidentialite, setSavedPolitiqueConfidentialite] = useState(false);
   const [savingPixel, setSavingPixel] = useState(false);
   const [pixelSaved, setPixelSaved] = useState(false);
+  const [capiToken, setCapiToken] = useState(workspace.facebook_capi_token || "");
+  const [savingCapiToken, setSavingCapiToken] = useState(false);
+  const [capiTokenSaved, setCapiTokenSaved] = useState(false);
 
   async function sauvegarderPixel() {
     setSavingPixel(true);
@@ -5470,6 +5500,14 @@ function IntegrationsModal({ workspace, onClose }) {
     setSavingPixel(false);
     setPixelSaved(true);
     setTimeout(() => setPixelSaved(false), 2000);
+  }
+
+  async function sauvegarderCapiToken() {
+    setSavingCapiToken(true);
+    await supabase.from("workspaces").update({ facebook_capi_token: capiToken.trim() || null }).eq("id", workspace.id);
+    setSavingCapiToken(false);
+    setCapiTokenSaved(true);
+    setTimeout(() => setCapiTokenSaved(false), 2000);
   }
 
   async function envoyerImage(type, fichier) {
@@ -5760,6 +5798,34 @@ function IntegrationsModal({ workspace, onClose }) {
           </div>
           <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
             Trouve-le sur business.facebook.com → Gestionnaire d'événements. Suit automatiquement : visite, vue produit, ajout panier, et achat.
+          </div>
+
+          <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
+            🔒 Token Conversions API (recommandé, pour du COD)
+          </div>
+          <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
+            Permet d'envoyer le vrai signal "Achat" à Facebook uniquement quand une livraison est réellement confirmée — bien plus fiable que de suivre chaque simple commande.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={capiToken}
+              onChange={(e) => setCapiToken(e.target.value)}
+              placeholder="Colle ton token ici"
+              type="password"
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C3D4F0", fontSize: 13 }}
+            />
+            <button
+              onClick={sauvegarderCapiToken}
+              disabled={savingCapiToken}
+              style={{ background: capiTokenSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {capiTokenSaved ? "✅" : savingCapiToken ? "..." : "Enregistrer"}
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
+            Trouve-le sur business.facebook.com → Gestionnaire d'événements → ton pixel → onglet "API Conversions" → "Générer un token d'accès".
           </div>
         </div>
 

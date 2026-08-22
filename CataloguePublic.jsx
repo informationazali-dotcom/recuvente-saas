@@ -367,12 +367,22 @@ export default function CataloguePublic({ workspaceId }) {
         .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
         .rv-shop-collection-scroll::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
         .rv-shop-collection-card { flex: 0 0 140px; }
-        @media (min-width: 700px) {
+        @media (min-width: 640px) {
+          .rv-shop-content { max-width: 720px; padding: 0 24px; }
+          .rv-shop-banner { height: 160px; }
+          .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .rv-shop-collection-scroll { flex-wrap: wrap; overflow: visible; }
+          .rv-shop-collection-card { flex: 0 0 auto; width: calc((100% - 32px) / 3); }
+        }
+        @media (min-width: 960px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
           .rv-shop-banner { height: 220px; }
-          .rv-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 230px)); gap: 20px; justify-content: start; }
-          .rv-shop-collection-scroll { flex-wrap: wrap; overflow: visible; }
-          .rv-shop-collection-card { flex: 0 0 200px; }
+          .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+          .rv-shop-collection-card { width: calc((100% - 60px) / 4); }
+        }
+        @media (min-width: 1280px) {
+          .rv-shop-grid { grid-template-columns: repeat(5, 1fr); }
+          .rv-shop-collection-card { width: calc((100% - 80px) / 5); }
         }
       `}</style>
 

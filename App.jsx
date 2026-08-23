@@ -1086,6 +1086,8 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const quotaAtteint = maxCommandesMois !== null && commandesCeMois >= maxCommandesMois && !accesBloque;
 
   const knownOrderIds = React.useRef(null);
+  const debounceNouvellesCommandes = React.useRef(null);
+  const [toastNouvellesCommandes, setToastNouvellesCommandes] = useState(null);
 
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
@@ -1170,7 +1172,15 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       const list = data || [];
       if (knownOrderIds.current !== null) {
         const nouvelles = list.filter((c) => !knownOrderIds.current.has(c.id));
-        if (nouvelles.length > 0) playNotifSound();
+        if (nouvelles.length > 0) {
+          playNotifSound();
+          setToastNouvellesCommandes(
+            nouvelles.length === 1
+              ? `🔔 Nouvelle commande — ${nouvelles[0].client}`
+              : `🔔 ${nouvelles.length} nouvelles commandes sont arrivées`
+          );
+          setTimeout(() => setToastNouvellesCommandes(null), 4000);
+        }
       }
       knownOrderIds.current = new Set(list.map((c) => c.id));
       setCommandes(list);
@@ -1203,7 +1213,12 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "commandes", filter: `workspace_id=eq.${workspace.id}` },
-        () => loadCommandes()
+        () => {
+          // Regroupe les commandes arrivant en rafale (ex: après une pub qui performe bien)
+          // au lieu de recharger et notifier une fois par commande individuelle
+          clearTimeout(debounceNouvellesCommandes.current);
+          debounceNouvellesCommandes.current = setTimeout(() => loadCommandes(), 2000);
+        }
       )
       .subscribe();
 
@@ -2436,6 +2451,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         })}
       </div>
 
+      {toastNouvellesCommandes && (
+        <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#16231F", color: "white", padding: "11px 20px", borderRadius: 999, fontSize: 13, fontWeight: 600, zIndex: 90, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }}>
+          {toastNouvellesCommandes}
+        </div>
+      )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
@@ -3463,6 +3483,25 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
         </div>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
       </div>
+
+      {!open && commande.statut !== "confirmee" && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => changerStatut("confirmee")}
+            disabled={loading}
+            style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+          >
+            ✅ Confirmer
+          </button>
+          <button
+            onClick={() => changerStatut("echouee")}
+            disabled={loading || commande.statut === "echouee"}
+            style={{ flex: 1, background: commande.statut === "echouee" ? "#F0EEE6" : "#D64933", color: commande.statut === "echouee" ? "#8A9089" : "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: commande.statut === "echouee" ? "default" : "pointer" }}
+          >
+            ❌ Échoué
+          </button>
+        </div>
+      )}
 
       {open && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0EEE6" }}>

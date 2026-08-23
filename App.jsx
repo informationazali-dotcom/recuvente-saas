@@ -5029,11 +5029,27 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {actives.map((c) => (
               <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
-                <div onClick={() => setSelected(selected === c.id ? null : c.id)} style={{ cursor: "pointer" }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{c.client}</div>
-                  <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit} · {c.tel}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, marginTop: 6, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                <div onClick={() => setSelected(selected === c.id ? null : c.id)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{c.client}</div>
+                    <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit} · {c.tel}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                    <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3 }}>Appeler, historique... {selected === c.id ? "▲" : "▼"}</div>
+                  </div>
                 </div>
+
+                {selected !== c.id && (
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    <button onClick={() => changerStatut(c.id, "confirmee")} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                      ✅ Confirmer
+                    </button>
+                    <button onClick={() => changerStatut(c.id, "echouee")} style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                      ❌ Échoué
+                    </button>
+                  </div>
+                )}
 
                 {selected === c.id && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #F0EEE6" }}>

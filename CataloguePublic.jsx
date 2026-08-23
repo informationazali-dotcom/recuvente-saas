@@ -72,6 +72,9 @@ export default function CataloguePublic({ workspaceId }) {
         politiqueLivraison: data[0].politique_livraison,
         politiqueRetours: data[0].politique_retours,
         politiqueConfidentialite: data[0].politique_confidentialite,
+        facebook: data[0].facebook_url,
+        instagram: data[0].instagram_url,
+        tiktok: data[0].tiktok_url,
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       const listeProduits = data.filter((p) => p.produit_nom);
@@ -204,6 +207,7 @@ export default function CataloguePublic({ workspaceId }) {
   if (produitOuvert) {
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
+        <BarreConfiance couleur={couleur} />
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} />
 
         <style>{`
@@ -640,6 +644,7 @@ export default function CataloguePublic({ workspaceId }) {
           @media (min-width: 1280px) { .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
+        <BarreConfiance couleur={couleur} />
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => setCollectionOuverte(null)} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
@@ -703,6 +708,7 @@ export default function CataloguePublic({ workspaceId }) {
         }
       `}</style>
 
+      <BarreConfiance couleur={couleur} />
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} />
 
       {entreprise.banniere ? (
@@ -819,6 +825,36 @@ export default function CataloguePublic({ workspaceId }) {
   );
 }
 
+// ===== BARRE DE CONFIANCE (façon Azali Express) =====
+function BarreConfiance({ couleur }) {
+  const items = [
+    { icone: "🚚", texte: "Livraison rapide" },
+    { icone: "💵", texte: "Paiement à la livraison" },
+    { icone: "✅", texte: "Produits vérifiés" },
+    { icone: "🔒", texte: "Commande 100% sécurisée" },
+  ];
+  return (
+    <div style={{ background: couleur, color: "white" }}>
+      <style>{`
+        .rv-shop-trustbar { display: flex; gap: 20px; overflow-x: auto; padding: 8px 16px; -webkit-overflow-scrolling: touch; }
+        .rv-shop-trustbar::-webkit-scrollbar { display: none; }
+        .rv-shop-trustbar-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
+        @media (min-width: 900px) {
+          .rv-shop-trustbar { max-width: 1100px; margin: 0 auto; justify-content: center; overflow: visible; padding: 9px 32px; }
+        }
+      `}</style>
+      <div className="rv-shop-trustbar">
+        {items.map((item, i) => (
+          <div key={i} className="rv-shop-trustbar-item">
+            <span style={{ fontSize: 13 }}>{item.icone}</span>
+            <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.01em" }}>{item.texte}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick }) {
   return (
     <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
@@ -917,14 +953,73 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
   );
 }
 
+// ===== ICÔNES RÉSEAUX SOCIAUX (SVG inline, sans dépendance) =====
+function IconeFacebook() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.89h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
+    </svg>
+  );
+}
+function IconeInstagram() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2c2.72 0 3.06.01 4.12.06 1.06.05 1.79.22 2.42.46.66.26 1.22.6 1.77 1.15.55.55.89 1.11 1.15 1.77.24.63.41 1.36.46 2.42.05 1.06.06 1.4.06 4.12s-.01 3.06-.06 4.12c-.05 1.06-.22 1.79-.46 2.42-.26.66-.6 1.22-1.15 1.77-.55.55-1.11.89-1.77 1.15-.63.24-1.36.41-2.42.46-1.06.05-1.4.06-4.12.06s-3.06-.01-4.12-.06c-1.06-.05-1.79-.22-2.42-.46-.66-.26-1.22-.6-1.77-1.15-.55-.55-.89-1.11-1.15-1.77-.24-.63-.41-1.36-.46-2.42C2.01 15.06 2 14.72 2 12s.01-3.06.06-4.12c.05-1.06.22-1.79.46-2.42.26-.66.6-1.22 1.15-1.77.55-.55 1.11-.89 1.77-1.15.63-.24 1.36-.41 2.42-.46C8.94 2.01 9.28 2 12 2zm0 1.8c-2.67 0-2.99.01-4.04.06-.97.04-1.5.2-1.85.34-.46.18-.79.4-1.14.75s-.57.68-.75 1.14c-.14.35-.3.88-.34 1.85-.05 1.05-.06 1.37-.06 4.04s.01 2.99.06 4.04c.04.97.2 1.5.34 1.85.18.46.4.79.75 1.14s.68.57 1.14.75c.35.14.88.3 1.85.34 1.05.05 1.37.06 4.04.06s2.99-.01 4.04-.06c.97-.04 1.5-.2 1.85-.34.46-.18.79-.4 1.14-.75s.57-.68.75-1.14c.14-.35.3-.88.34-1.85.05-1.05.06-1.37.06-4.04s-.01-2.99-.06-4.04c-.04-.97-.2-1.5-.34-1.85-.18-.46-.4-.79-.75-1.14s-.68-.57-1.14-.75c-.35-.14-.88-.3-1.85-.34-1.05-.05-1.37-.06-4.04-.06zm0 3.65a4.55 4.55 0 110 9.1 4.55 4.55 0 010-9.1zm0 1.8a2.75 2.75 0 100 5.5 2.75 2.75 0 000-5.5zm5.79-1.99a1.06 1.06 0 11-2.12 0 1.06 1.06 0 012.12 0z" />
+    </svg>
+  );
+}
+function IconeTiktok() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16.6 2h-3.2v13.6a2.8 2.8 0 11-2.8-2.8c.28 0 .55.04.8.1V9.7a5.9 5.9 0 00-.8-.05A5.95 5.95 0 004.65 15.6 5.95 5.95 0 0010.6 21.5a5.95 5.95 0 005.95-5.95V8.8a8.1 8.1 0 004.75 1.53V7.1a4.85 4.85 0 01-4.7-5.1z" />
+    </svg>
+  );
+}
+
 function PiedDePage({ entreprise, onOuvrirPolitique }) {
   const anneeEnCours = new Date().getFullYear();
+  const reseauxSociaux = [
+    { url: entreprise.facebook, Icone: IconeFacebook, nom: "Facebook" },
+    { url: entreprise.instagram, Icone: IconeInstagram, nom: "Instagram" },
+    { url: entreprise.tiktok, Icone: IconeTiktok, nom: "TikTok" },
+  ].filter((r) => r.url);
+
   return (
     <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 26 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 15, color: "white", marginBottom: 10 }}>{entreprise.nom}</div>
-          {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>{entreprise.description}</div>}
+          {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 16 }}>{entreprise.description}</div>}
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            {[
+              { icone: "🚚", texte: "Livraison rapide" },
+              { icone: "💵", texte: "Paiement à la livraison" },
+              { icone: "✅", texte: "Produits vérifiés" },
+            ].map((badge, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 999, padding: "5px 10px", fontSize: 11 }}>
+                <span>{badge.icone}</span>
+                <span>{badge.texte}</span>
+              </div>
+            ))}
+          </div>
+
+          {reseauxSociaux.length > 0 && (
+            <div style={{ display: "flex", gap: 10 }}>
+              {reseauxSociaux.map(({ url, Icone, nom }) => (
+                <a
+                  key={nom}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={nom}
+                  style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none" }}
+                >
+                  <Icone />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (

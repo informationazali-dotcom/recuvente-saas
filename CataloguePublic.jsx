@@ -9,6 +9,7 @@ const supabase = createClient(
 export default function CataloguePublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
+  const [collectionsManuelles, setCollectionsManuelles] = useState([]);
   const [erreur, setErreur] = useState(null);
   const [produitOuvert, setProduitOuvert] = useState(null);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
@@ -75,6 +76,18 @@ export default function CataloguePublic({ workspaceId }) {
       chargerPixelFacebook(data[0].facebook_pixel_id);
       const listeProduits = data.filter((p) => p.produit_nom);
       setProduits(listeProduits);
+
+      supabase.rpc("collections_publiques", { p_workspace_id: workspaceId }).then(({ data: dataCollections }) => {
+        if (!dataCollections || dataCollections.length === 0) return;
+        const parCollection = {};
+        dataCollections.forEach((ligne) => {
+          if (!parCollection[ligne.collection_id]) {
+            parCollection[ligne.collection_id] = { id: ligne.collection_id, nom: ligne.collection_nom, ordre: ligne.ordre, produitIds: [] };
+          }
+          parCollection[ligne.collection_id].produitIds.push(ligne.produit_id);
+        });
+        setCollectionsManuelles(Object.values(parCollection).sort((a, b) => a.ordre - b.ordre));
+      });
 
       const idProduitDansUrl = new URLSearchParams(window.location.search).get("produit");
       if (idProduitDansUrl) {
@@ -249,7 +262,8 @@ export default function CataloguePublic({ workspaceId }) {
             </button>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
+                const lienAvecApercu = `${window.location.origin}/api/og-produit?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
+                navigator.clipboard.writeText(lienAvecApercu);
                 setLienCopie(true);
                 setTimeout(() => setLienCopie(false), 2000);
               }}
@@ -478,16 +492,19 @@ export default function CataloguePublic({ workspaceId }) {
             )}
 
             {!envoye && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
-                  <span style={{ fontSize: 15 }}>💵</span> Paiement à la livraison — sans risque
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
-                  <span style={{ fontSize: 15 }}>🚚</span> Livraison rapide, où que tu sois
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#3B6D11" }}>
-                  <span style={{ fontSize: 15 }}>✅</span> Tu vérifies ton colis avant de payer
-                </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
+                {[
+                  { icone: "💵", texte: "Paiement à la livraison" },
+                  { icone: "🚚", texte: "Livraison rapide" },
+                  { icone: "✅", texte: "Vérifie avant de payer" },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                      {item.icone}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "#3B6D11", fontWeight: 600, lineHeight: 1.3 }}>{item.texte}</div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -599,12 +616,19 @@ export default function CataloguePublic({ workspaceId }) {
 
   // ===== ÉCRAN COLLECTION COMPLÈTE =====
   if (collectionOuverte) {
-    const listeCollection = collectionOuverte === "bestseller"
-      ? [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes)
-      : collectionOuverte === "nouveautes"
-        ? produits.filter((p) => p.est_nouveau)
-        : produits;
-    const titreCollection = collectionOuverte === "bestseller" ? "🔥 Meilleures ventes" : collectionOuverte === "nouveautes" ? "✨ Nouveautés" : "Tous les produits";
+    const collectionManuelleActive = collectionOuverte.startsWith("manuelle-")
+      ? collectionsManuelles.find((c) => c.id === collectionOuverte.replace("manuelle-", ""))
+      : null;
+    const listeCollection = collectionManuelleActive
+      ? produits.filter((p) => collectionManuelleActive.produitIds.includes(p.produit_id))
+      : collectionOuverte === "bestseller"
+        ? [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes)
+        : collectionOuverte === "nouveautes"
+          ? produits.filter((p) => p.est_nouveau)
+          : produits;
+    const titreCollection = collectionManuelleActive
+      ? `📁 ${collectionManuelleActive.nom}`
+      : collectionOuverte === "bestseller" ? "🔥 Meilleures ventes" : collectionOuverte === "nouveautes" ? "✨ Nouveautés" : "Tous les produits";
 
     return (
       <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -718,6 +742,22 @@ export default function CataloguePublic({ workspaceId }) {
             voirTout={nouveautesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("nouveautes") : null}
           />
         )}
+
+        {!recherche.trim() && collectionsManuelles.map((col) => {
+          const produitsDeLaCollection = produits.filter((p) => col.produitIds.includes(p.produit_id));
+          if (produitsDeLaCollection.length === 0) return null;
+          return (
+            <SectionCollection
+              key={col.id}
+              titre={`📁 ${col.nom}`}
+              produits={produitsDeLaCollection.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION)}
+              couleur={couleur}
+              devise={entreprise.devise}
+              onOpen={ouvrirProduit}
+              voirTout={produitsDeLaCollection.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte(`manuelle-${col.id}`) : null}
+            />
+          );
+        })}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>

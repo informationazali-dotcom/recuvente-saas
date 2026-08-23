@@ -910,6 +910,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
   const [showBatch, setShowBatch] = useState(false);
   const [showProduits, setShowProduits] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
+  const [showCollections, setShowCollections] = useState(false);
   const [showAide, setShowAide] = useState(false);
 
   async function loadLivreurs() {
@@ -1801,6 +1802,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
             ⭐ Avis clients
           </button>
         )}
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowCollections(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            📁 Collections
+          </button>
+        )}
         {workspace.role === "owner" && (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px" }} />
@@ -2478,6 +2487,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
+      {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
   );
 }
@@ -3928,6 +3938,133 @@ function mapperColonnesShopify(lignesBrutes) {
     });
   }
   return resultat;
+}
+
+function CollectionsModal({ workspaceId, produits, onClose }) {
+  const [collections, setCollections] = useState(null);
+  const [nouveauNom, setNouveauNom] = useState("");
+  const [collectionOuverte, setCollectionOuverte] = useState(null);
+  const [produitsDeLaCollection, setProduitsDeLaCollection] = useState(new Set());
+
+  async function charger() {
+    const { data } = await supabase.from("collections").select("*").eq("workspace_id", workspaceId).order("ordre");
+    setCollections(data || []);
+  }
+
+  useEffect(() => {
+    charger();
+  }, []);
+
+  async function creerCollection() {
+    if (!nouveauNom.trim()) return;
+    const ordre = (collections || []).length;
+    await supabase.from("collections").insert([{ workspace_id: workspaceId, nom: nouveauNom.trim(), ordre }]);
+    setNouveauNom("");
+    await charger();
+  }
+
+  async function supprimerCollection(id) {
+    if (!window.confirm("Supprimer cette collection ? Les produits ne seront pas supprimés, juste retirés de cette collection.")) return;
+    await supabase.from("collections").delete().eq("id", id);
+    await charger();
+    if (collectionOuverte === id) setCollectionOuverte(null);
+  }
+
+  async function ouvrirGestionProduits(collectionId) {
+    setCollectionOuverte(collectionId);
+    const { data } = await supabase.from("collection_produits").select("produit_id").eq("collection_id", collectionId);
+    setProduitsDeLaCollection(new Set((data || []).map((r) => r.produit_id)));
+  }
+
+  async function toggleProduit(produitId) {
+    const dejaDedans = produitsDeLaCollection.has(produitId);
+    if (dejaDedans) {
+      await supabase.from("collection_produits").delete().eq("collection_id", collectionOuverte).eq("produit_id", produitId);
+    } else {
+      await supabase.from("collection_produits").insert([{ collection_id: collectionOuverte, produit_id: produitId }]);
+    }
+    const nouvelEnsemble = new Set(produitsDeLaCollection);
+    if (dejaDedans) nouvelEnsemble.delete(produitId);
+    else nouvelEnsemble.add(produitId);
+    setProduitsDeLaCollection(nouvelEnsemble);
+  }
+
+  const collectionOuverteNom = (collections || []).find((c) => c.id === collectionOuverte)?.nom;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>
+            {collectionOuverte ? `📁 ${collectionOuverteNom}` : "📁 Collections"}
+          </div>
+          <button onClick={collectionOuverte ? () => setCollectionOuverte(null) : onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>
+            {collectionOuverte ? "← Retour" : "×"}
+          </button>
+        </div>
+
+        {!collectionOuverte && (
+          <>
+            <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14 }}>
+              Regroupe tes produits par thème (Promo, Rentrée...) — visible sur ta boutique publique, en plus des collections automatiques.
+            </div>
+
+            <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+              <input
+                placeholder="Nom de la collection (ex: Promo)"
+                value={nouveauNom}
+                onChange={(e) => setNouveauNom(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && creerCollection()}
+                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+              />
+              <button onClick={creerCollection} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 18, cursor: "pointer" }}>+</button>
+            </div>
+
+            {collections === null && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+            {collections !== null && collections.length === 0 && (
+              <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Aucune collection pour l'instant.</div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(collections || []).map((c) => (
+                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>
+                    {c.nom}
+                  </button>
+                  <button onClick={() => supprimerCollection(c.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {collectionOuverte && (
+          <>
+            <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14 }}>
+              Coche les produits à inclure dans cette collection.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {produits.map((p) => (
+                <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "9px 12px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={produitsDeLaCollection.has(p.id)}
+                    onChange={() => toggleProduit(p.id)}
+                    style={{ width: 16, height: 16, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 13, flex: 1 }}>{p.nom}</span>
+                  {p.prix_vente && <span style={{ fontSize: 12, color: "#8A9089" }}>{Number(p.prix_vente).toLocaleString("fr-FR")}</span>}
+                </label>
+              ))}
+              {produits.length === 0 && (
+                <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Aucun produit dans ton catalogue.</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function AvisModal({ workspaceId, onClose }) {

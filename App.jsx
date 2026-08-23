@@ -3481,7 +3481,12 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             )}
           </div>
         </div>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
+          <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
+            Facture, WhatsApp... <span style={{ fontSize: 9 }}>{open ? "▲" : "▼"}</span>
+          </div>
+        </div>
       </div>
 
       {!open && commande.statut !== "confirmee" && (

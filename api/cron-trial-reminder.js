@@ -5,7 +5,6 @@ const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(req, res) {
@@ -20,6 +19,7 @@ export default async function handler(req, res) {
   const dansUnJour = new Date();
   dansUnJour.setDate(dansUnJour.getDate() + 1);
 
+  // ===== 1. Rappel au CLIENT — 2 jours avant la fin (existant, inchangé) =====
   const { data: subs, error } = await supabaseAdmin
     .from("subscriptions")
     .select("id, workspace_id, trial_ends_at, status, rappel_envoye, workspaces(name, owner_id)")
@@ -29,38 +29,75 @@ export default async function handler(req, res) {
     .gte("trial_ends_at", dansUnJour.toISOString());
 
   if (error) return res.status(500).json({ error: error.message });
-  if (!subs || subs.length === 0) return res.status(200).json({ envoyes: 0 });
 
   let envoyes = 0;
+  if (subs && subs.length > 0) {
+    for (const sub of subs) {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(sub.workspaces.owner_id);
+      const email = userData?.user?.email;
+      if (!email) continue;
+      try {
+        await resend.emails.send({
+          from: "RecuVente <onboarding@resend.dev>",
+          to: email,
+          subject: `Ton accès RecuVente se termine bientôt — ${sub.workspaces.name}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours</h1>
+              <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
+                Ton accès sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Choisis un plan pour continuer à utiliser tes commandes sans interruption.
+              </p>
+              <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+                Choisir mon plan
+              </a>
+            </div>
+          `,
+        });
+        await supabaseAdmin.from("subscriptions").update({ rappel_envoye: true }).eq("id", sub.id);
+        envoyes++;
+      } catch (e) {
+        console.error("Erreur envoi rappel:", e);
+      }
+    }
+  }
 
-  for (const sub of subs) {
-    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(sub.workspaces.owner_id);
-    const email = userData?.user?.email;
-    if (!email) continue;
+  // ===== 2. Notification à l'ADMIN (toi) — essais qui viennent d'expirer aujourd'hui =====
+  const aujourdhui = new Date();
+  aujourdhui.setHours(0, 0, 0, 0);
+  const hier = new Date(aujourdhui);
+  hier.setDate(hier.getDate() - 1);
 
+  const { data: essaisExpires } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id, trial_ends_at, workspaces(name)")
+    .eq("status", "trial")
+    .gte("trial_ends_at", hier.toISOString())
+    .lt("trial_ends_at", aujourdhui.toISOString());
+
+  let notifAdminEnvoyee = false;
+  if (essaisExpires && essaisExpires.length > 0 && process.env.RECUVENTE_ADMIN_EMAIL) {
     try {
+      const listeEntreprises = essaisExpires.map((s) => `<li>${s.workspaces.name}</li>`).join("");
       await resend.emails.send({
         from: "RecuVente <onboarding@resend.dev>",
-        to: email,
-        subject: `Ton accès RecuVente se termine bientôt — ${sub.workspaces.name}`,
+        to: process.env.RECUVENTE_ADMIN_EMAIL,
+        subject: `📋 ${essaisExpires.length} essai${essaisExpires.length > 1 ? "s" : ""} gratuit${essaisExpires.length > 1 ? "s" : ""} terminé${essaisExpires.length > 1 ? "s" : ""} aujourd'hui`,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours</h1>
-            <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
-              Ton accès sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Choisis un plan pour continuer à utiliser tes commandes sans interruption.
-            </p>
-            <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
-              Choisir mon plan
+            <h1 style="color: #16231F; font-size: 18px;">📋 Essais gratuits terminés aujourd'hui</h1>
+            <p style="color: #6B7168; font-size: 14px;">Ces entreprises ne peuvent plus ajouter de commandes tant qu'elles ne passent pas à un plan payant :</p>
+            <ul style="color: #16231F; font-size: 14px; line-height: 1.8;">${listeEntreprises}</ul>
+            <a href="https://recuvente-saas.vercel.app/?admin=1" style="display: inline-block; background: #1a7a3c; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+              Voir le panneau Admin
             </a>
           </div>
         `,
       });
-      await supabaseAdmin.from("subscriptions").update({ rappel_envoye: true }).eq("id", sub.id);
-      envoyes++;
+      notifAdminEnvoyee = true;
     } catch (e) {
-      console.error("Erreur envoi rappel:", e);
+      console.error("Erreur notification admin:", e);
     }
   }
 
-  return res.status(200).json({ envoyes });
+  return res.status(200).json({ envoyes, essaisExpiresAujourdhui: essaisExpires?.length || 0, notifAdminEnvoyee });
 }

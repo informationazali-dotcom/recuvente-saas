@@ -3577,6 +3577,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showAppel, setShowAppel] = useState(false);
   const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
 
@@ -3963,17 +3964,93 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
           )}
 
           <button
+            onClick={() => setShowAppel(true)}
+            style={{ width: "100%", background: "#EAF0FB", border: "1px solid #C3D4F0", color: "#1E4B8C", padding: "9px 0", borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+          >
+            📞 Enregistrer un appel
+          </button>
+
+          <button
             onClick={() => setEditing(true)}
             style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
           >
             ✏️ Modifier les informations
           </button>
 
+          <JournalAppels commandeId={commande.id} />
           <HistoriqueRelances commandeId={commande.id} />
         </div>
       )}
       </>
       )}
+
+      {showAppel && (
+        <div
+          onClick={() => setShowAppel(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Comment s'est passé l'appel ?</div>
+            <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>{commande.client} — {commande.tel}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { key: "confirme_telephone", label: "✅ Confirmé par téléphone", couleur: "#1F9D6E" },
+                { key: "pas_de_reponse", label: "📵 Pas de réponse", couleur: "#8A6412" },
+                { key: "rappeler_plus_tard", label: "🕒 Rappeler plus tard", couleur: "#8A6412" },
+                { key: "faux_numero", label: "🚫 Faux numéro", couleur: "#D64933" },
+                { key: "refuse", label: "❌ Refusé par le client", couleur: "#D64933" },
+              ].map((motif) => (
+                <button
+                  key={motif.key}
+                  onClick={async () => {
+                    await supabase.from("appels_commande").insert([{ workspace_id: workspace.id, commande_id: commande.id, motif: motif.key, appele_par: confirmateurNom || "Équipe" }]);
+                    setShowAppel(false);
+                    await onStatusChanged();
+                  }}
+                  style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "13px 16px", textAlign: "left", fontWeight: 600, fontSize: 14, cursor: "pointer", color: motif.couleur }}
+                >
+                  {motif.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowAppel(false)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JournalAppels({ commandeId }) {
+  const [appels, setAppels] = useState(null);
+
+  useEffect(() => {
+    supabase.from("appels_commande").select("*").eq("commande_id", commandeId).order("created_at", { ascending: false }).then(({ data }) => setAppels(data || []));
+  }, [commandeId]);
+
+  if (!appels || appels.length === 0) return null;
+
+  const labels = {
+    confirme_telephone: { texte: "✅ Confirmé par téléphone", couleur: "#1F9D6E" },
+    pas_de_reponse: { texte: "📵 Pas de réponse", couleur: "#8A6412" },
+    rappeler_plus_tard: { texte: "🕒 Rappeler plus tard", couleur: "#8A6412" },
+    faux_numero: { texte: "🚫 Faux numéro", couleur: "#D64933" },
+    refuse: { texte: "❌ Refusé", couleur: "#D64933" },
+  };
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", marginBottom: 6 }}>📞 Historique des appels</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {appels.map((a) => (
+          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, background: "#FAFAF7", borderRadius: 7, padding: "6px 10px" }}>
+            <span style={{ color: labels[a.motif]?.couleur || "#16231F", fontWeight: 600 }}>{labels[a.motif]?.texte || a.motif}</span>
+            <span style={{ color: "#8A9089" }}>{new Date(a.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -247,9 +247,13 @@ function LandingPage() {
   const [plans, setPlans] = useState([]);
   const [faqOuverte, setFaqOuverte] = useState(null);
   const [profil, setProfil] = useState("cod");
+  const [statsPlateforme, setStatsPlateforme] = useState(null);
 
   useEffect(() => {
     supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
+    supabase.rpc("statistiques_plateforme_publiques").then(({ data }) => {
+      if (data && data[0]) setStatsPlateforme(data[0]);
+    });
   }, []);
 
   useEffect(() => {
@@ -394,6 +398,9 @@ function LandingPage() {
               </div>
 
               <div key={profil} className="rv-lp-fade">
+                <div style={{ fontSize: 12.5, fontWeight: 500, opacity: 0.65, marginBottom: 12, letterSpacing: "0.01em" }}>
+                  Le logiciel qui gère tes commandes, tes livreurs et ta comptabilité — du premier contact jusqu'au paiement.
+                </div>
                 <div style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, color: "#e8920a", background: "rgba(232,146,10,0.15)", padding: "5px 14px", borderRadius: 999, marginBottom: 18 }}>
                   {c.badge}
                 </div>
@@ -475,6 +482,31 @@ function LandingPage() {
         </div>
       </div>
 
+      {statsPlateforme && Number(statsPlateforme.nb_commandes_confirmees) > 0 && (
+        <div style={{ maxWidth: 780, margin: "0 auto", padding: "0 24px 44px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, textAlign: "center" }}>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 12px" }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#1a7a3c" }}>
+                {Number(statsPlateforme.nb_commandes_confirmees).toLocaleString("fr-FR")}
+              </div>
+              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>commandes livrées via RecuVente</div>
+            </div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 12px" }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#e8920a" }}>
+                {Number(statsPlateforme.montant_total_confirme).toLocaleString("fr-FR")}
+              </div>
+              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>FCFA récupérés pour nos clients</div>
+            </div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 12px" }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#16231F" }}>
+                {Number(statsPlateforme.nb_entreprises_actives).toLocaleString("fr-FR")}
+              </div>
+              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>entreprises utilisent déjà RecuVente</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "10px 24px 40px" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>
@@ -551,6 +583,39 @@ function LandingPage() {
             <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "16px 18px" }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 5, color: "#16231F" }}>{item.objection}</div>
               <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>{item.reponse}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "10px 24px 50px" }}>
+        <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(22px, 3vw, 27px)" }}>
+            Ce que tu utilises aujourd'hui, face à RecuVente
+          </div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 18, overflow: "hidden", boxShadow: "0 20px 40px -20px rgba(15,27,22,0.15)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr" }}>
+            <div style={{ padding: "14px 16px", fontSize: 11.5, fontWeight: 700, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em" }} />
+            <div style={{ padding: "14px 10px", fontSize: 12.5, fontWeight: 700, color: "#8A9089", textAlign: "center" }}>WhatsApp + Excel</div>
+            <div style={{ padding: "14px 10px", fontSize: 12.5, fontWeight: 700, color: "white", textAlign: "center", background: "#1a7a3c" }}>RecuVente</div>
+          </div>
+          {[
+            { critere: "Retrouver une commande précise", avant: "Faire défiler des dizaines de messages", apres: "Recherchée en 1 seconde" },
+            { critere: "Savoir ce qu'un livreur doit déposer", avant: "Calcul manuel, souvent oublié", apres: "Calculé automatiquement" },
+            { critere: "Bénéfice réel par produit", avant: "Quasi impossible à suivre", apres: "Visible en un coup d'œil" },
+            { critere: "Relancer un client au bon moment", avant: "Ça dépend si on y pense", apres: "L'app te le rappelle chaque jour" },
+            { critere: "Boutique en ligne pour la pub Facebook", avant: "Un autre outil à payer et connecter", apres: "Déjà incluse" },
+            { critere: "Toute l'équipe sur les mêmes infos", avant: "Chacun son cahier, sa mémoire", apres: "Un seul endroit, à jour en temps réel" },
+          ].map((ligne, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", borderTop: "1px solid #ECE8DC" }}>
+              <div style={{ padding: "13px 16px", fontSize: 12.5, fontWeight: 600, color: "#16231F", display: "flex", alignItems: "center" }}>{ligne.critere}</div>
+              <div style={{ padding: "13px 10px", fontSize: 12, color: "#8A9089", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <span style={{ color: "#D64933" }}>✕</span> {ligne.avant}
+              </div>
+              <div style={{ padding: "13px 10px", fontSize: 12, color: "#16231F", textAlign: "center", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontWeight: 600 }}>
+                <span style={{ color: "#1a7a3c" }}>✓</span> {ligne.apres}
+              </div>
             </div>
           ))}
         </div>

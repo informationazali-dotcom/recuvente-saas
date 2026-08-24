@@ -281,21 +281,22 @@ function LandingPage() {
 
   const contenuParProfil = {
     cod: {
-      badge: "🏍️ Vente en ligne, paiement à la livraison",
-      titre: "L'app que ton business COD n'a jamais eue — et dont tu ne pourras plus te passer",
-      sousTitre: "Chaque commande oubliée dans WhatsApp, c'est de l'argent qui t'échappe. RecuVente ne se contente pas de tout suivre — elle travaille pour toi en arrière-plan, te dit chaque matin quoi faire, et te fait gagner des heures chaque semaine.",
+      badge: "🏍️ Vente en ligne — Shopify, WhatsApp, ou les deux",
+      titre: "Que tu vendes sur Shopify, WhatsApp, ou juste au téléphone — ton business COD mérite un vrai système",
+      sousTitre: "Boutique en ligne déjà en place, ou commandes prises à la main dans WhatsApp : chaque commande oubliée, c'est de l'argent qui t'échappe. RecuVente centralise tout, travaille pour toi en arrière-plan, et te dit chaque matin quoi faire.",
       captureLignes: [
         { label: "Argent récupéré", valeur: "1 240 500 FCFA", couleur: "#e8920a" },
         { label: "En cours", valeur: "18", couleur: "white" },
         { label: "Taux de livraison", valeur: "87%", couleur: "white" },
       ],
       avantages: [
+        { icon: "🔌", titre: "Déjà une boutique Shopify ? Connecte-la en 2 minutes", desc: "Tes commandes arrivent automatiquement dans RecuVente, sans rien taper à la main — tu gardes Shopify, tu ajoutes juste la puissance de gestion qui lui manque." },
+        { icon: "🛍️", titre: "Pas encore de boutique en ligne ? RecuVente en inclut une", desc: "Avis clients, collections, galerie photo, commande en un clic sans panier compliqué — prête à recevoir tes publicités Facebook, sans payer un abonnement Shopify en plus." },
         { icon: "🧠", titre: "\"Ce matin chez vous\" — ton assistant intelligent", desc: "Chaque jour, un résumé clair de ce qui compte vraiment : commandes à risque, stock bas, client à relancer. Zéro analyse à faire toi-même." },
         { icon: "📋", titre: "Chaque commande, du premier contact à la livraison", desc: "Statut en temps réel — en cours, confirmée, échouée — jamais un client qui se perd dans les échanges WhatsApp." },
         { icon: "🚚", titre: "Tes livreurs, suivis en direct", desc: "Position GPS pendant leur tournée, commission calculée automatiquement, montant exact à déposer chaque jour." },
         { icon: "🎧", titre: "Une équipe de closers, sans doublons", desc: "Chaque commande non assignée est prise par un seul closer à la fois — fini les deux personnes qui rappellent le même client." },
         { icon: "💵", titre: "Le bénéfice réel de CHAQUE produit", desc: "Pas juste ton chiffre d'affaires global — sais enfin lequel de tes produits te rapporte vraiment de l'argent, et lequel te fait perdre du temps pour rien." },
-        { icon: "🛍️", titre: "Une vraie boutique en ligne, incluse", desc: "Avis clients, collections, galerie photo, commande en un clic sans panier compliqué — prête à recevoir tes publicités Facebook." },
         { icon: "📊", titre: "La seule app pensée pour la pub Facebook en COD", desc: "Envoie le vrai signal \"Achat\" à Facebook uniquement quand la livraison est confirmée — pas juste quand quelqu'un commande. Tes publicités arrêtent enfin de te ramener des faux acheteurs." },
         { icon: "🔄", titre: "Le réachat, sans y penser", desc: "L'app détecte le rythme d'achat de chaque client et te dit qui relancer, et quand." },
       ],
@@ -367,15 +368,18 @@ function LandingPage() {
               onClick={() => setProfil("cod")}
               style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "cod" ? "white" : "transparent", color: profil === "cod" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
             >
-              🏍️ Je vends en ligne
+              🏍️ Vente en ligne (Shopify, WhatsApp...)
             </button>
             <button
               className="rv-lp-toggle-btn"
               onClick={() => setProfil("retail")}
               style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "retail" ? "white" : "transparent", color: profil === "retail" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
             >
-              🏪 J'ai une boutique
+              🏪 J'ai un magasin physique
             </button>
+          </div>
+          <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 24 }}>
+            Quel que soit ton choix, tu peux combiner boutique en ligne et vente physique — RecuVente s'adapte.
           </div>
 
           <div key={profil} className="rv-lp-fade">

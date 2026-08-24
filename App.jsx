@@ -3026,7 +3026,17 @@ function AdminPanel({ session }) {
                     )}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  {ws.whatsappNumber && (
+                    <a
+                      href={`https://wa.me/${String(ws.whatsappNumber).replace(/\D/g, "").replace(/^0/, "225")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, textDecoration: "none" }}
+                    >
+                      💬 WhatsApp
+                    </a>
+                  )}
                   {ws.subscription && (
                     <button
                       onClick={() => toggleStatus(ws.id, suspendu ? "reactiver" : "suspendre")}

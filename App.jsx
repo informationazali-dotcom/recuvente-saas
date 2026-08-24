@@ -347,90 +347,131 @@ function LandingPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
         .rv-lp-toggle-btn { transition: all 0.25s ease; }
-        .rv-lp-fade { animation: rvLpFadeIn 0.35s ease; }
-        @keyframes rvLpFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        .rv-lp-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(22,35,31,0.08); }
-        .rv-lp-card { transition: all 0.2s ease; }
+        .rv-lp-fade { animation: rvLpFadeIn 0.4s ease; }
+        @keyframes rvLpFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .rv-lp-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,27,22,0.14); border-color: rgba(26,122,60,0.25) !important; }
+        .rv-lp-card { transition: all 0.25s cubic-bezier(0.2,0.8,0.2,1); box-shadow: 0 2px 10px rgba(15,27,22,0.05); }
+        .rv-lp-hero-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: center; }
+        .rv-lp-mockup-wrap { display: none; }
+        @keyframes rvLpFloat { 0%, 100% { transform: rotate(3deg) translateY(0px); } 50% { transform: rotate(3deg) translateY(-14px); } }
+        @media (min-width: 880px) {
+          .rv-lp-hero-grid { grid-template-columns: 1.1fr 0.9fr; gap: 40px; text-align: left !important; }
+          .rv-lp-hero-text { text-align: left !important; }
+          .rv-lp-mockup-wrap { display: flex; justify-content: center; }
+        }
+        .rv-lp-mockup { animation: rvLpFloat 5.5s ease-in-out infinite; }
       `}</style>
 
-      <div style={{ background: "linear-gradient(160deg, #16231F 0%, #1a7a3c 130%)", color: "white", padding: "48px 24px 0", position: "relative", overflow: "hidden" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 28, letterSpacing: "0.02em" }}>
+      <div style={{ background: "radial-gradient(ellipse 900px 600px at 15% -10%, #2a5a3f 0%, transparent 60%), radial-gradient(ellipse 700px 500px at 100% 20%, rgba(232,146,10,0.18) 0%, transparent 55%), linear-gradient(170deg, #0F1B16 0%, #16231F 55%, #1a7a3c 160%)", color: "white", padding: "44px 24px 0", position: "relative", overflow: "hidden" }}>
+        <div style={{ maxWidth: 1080, margin: "0 auto", position: "relative", zIndex: 1 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 32, letterSpacing: "0.02em", textAlign: "center" }}>
             RECU<span style={{ color: "#e8920a" }}>VENTE</span>
           </div>
 
-          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Quel est ton profil ?
-          </div>
-          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.1)", borderRadius: 999, padding: 4, marginBottom: 30 }}>
-            <button
-              className="rv-lp-toggle-btn"
-              onClick={() => setProfil("cod")}
-              style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "cod" ? "white" : "transparent", color: profil === "cod" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-            >
-              🏍️ Vente en ligne (Shopify, WhatsApp...)
-            </button>
-            <button
-              className="rv-lp-toggle-btn"
-              onClick={() => setProfil("retail")}
-              style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "retail" ? "white" : "transparent", color: profil === "retail" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-            >
-              🏪 J'ai un magasin physique
-            </button>
-          </div>
-          <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 24 }}>
-            Quel que soit ton choix, tu peux combiner boutique en ligne et vente physique — RecuVente s'adapte.
-          </div>
+          <div className="rv-lp-hero-grid">
+            <div className="rv-lp-hero-text" style={{ textAlign: "center", paddingBottom: 40 }}>
+              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Quel est ton profil ?
+              </div>
+              <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.1)", borderRadius: 999, padding: 4, marginBottom: 20 }}>
+                <button
+                  className="rv-lp-toggle-btn"
+                  onClick={() => setProfil("cod")}
+                  style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "cod" ? "white" : "transparent", color: profil === "cod" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                >
+                  🏍️ Vente en ligne (Shopify, WhatsApp...)
+                </button>
+                <button
+                  className="rv-lp-toggle-btn"
+                  onClick={() => setProfil("retail")}
+                  style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "retail" ? "white" : "transparent", color: profil === "retail" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                >
+                  🏪 J'ai un magasin physique
+                </button>
+              </div>
+              <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 24 }}>
+                Quel que soit ton choix, tu peux combiner boutique en ligne et vente physique — RecuVente s'adapte.
+              </div>
 
-          <div key={profil} className="rv-lp-fade">
-            <div style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, color: "#e8920a", background: "rgba(232,146,10,0.15)", padding: "5px 14px", borderRadius: 999, marginBottom: 18 }}>
-              {c.badge}
-            </div>
-            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 32, lineHeight: 1.2, marginBottom: 14 }}>
-              {c.titre}
-            </div>
-            <div style={{ fontSize: 15, opacity: 0.85, maxWidth: 460, margin: "0 auto 30px", lineHeight: 1.5 }}>
-              {c.sousTitre}
-            </div>
-          </div>
-
-          <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 8px 20px rgba(232,146,10,0.35)" }}>
-            Je démarre maintenant, gratuitement
-          </a>
-          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
-
-          <div key={profil + "-preview"} className="rv-lp-fade" style={{ marginTop: 36, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px 16px 0 0", padding: "18px 20px 0", maxWidth: 480, margin: "36px auto 0" }}>
-            <div style={{ display: "flex", gap: 10 }}>
-              {c.captureLignes.map((l, i) => (
-                <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 10px", textAlign: "left" }}>
-                  <div style={{ fontSize: 9.5, opacity: 0.7, marginBottom: 4 }}>{l.label}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: l.couleur }}>{l.valeur}</div>
+              <div key={profil} className="rv-lp-fade">
+                <div style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, color: "#e8920a", background: "rgba(232,146,10,0.15)", padding: "5px 14px", borderRadius: 999, marginBottom: 18 }}>
+                  {c.badge}
                 </div>
-              ))}
+                <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(30px, 5vw, 44px)", lineHeight: 1.12, marginBottom: 16, letterSpacing: "-0.01em" }}>
+                  {c.titre}
+                </div>
+                <div style={{ fontSize: 15.5, opacity: 0.85, maxWidth: 460, margin: "0 auto 30px", lineHeight: 1.55 }}>
+                  {c.sousTitre}
+                </div>
+              </div>
+
+              <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "#16231F", padding: "16px 38px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 14px 34px rgba(232,146,10,0.4)" }}>
+                Je démarre maintenant, gratuitement
+              </a>
+              <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
+            </div>
+
+            <div className="rv-lp-mockup-wrap">
+              <div key={profil + "-mockup"} className="rv-lp-fade rv-lp-mockup" style={{ width: 300, background: "#0F1B16", borderRadius: 26, padding: 10, boxShadow: "0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)" }}>
+                <div style={{ background: "#16231F", borderRadius: 18, padding: "16px 14px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 12.5, color: "white" }}>RECU<span style={{ color: "#e8920a" }}>VENTE</span></div>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                  </div>
+
+                  <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "white", marginBottom: 8 }}>🧠 Ce matin chez vous</div>
+                    <div style={{ fontSize: 9, color: "#f0a0a0", fontWeight: 600, marginBottom: 5 }}>⚠️ 3 commandes à risque</div>
+                    <div style={{ fontSize: 9, color: "#7fd6a3", fontWeight: 600 }}>💰 Bénéfice réel : {c.captureLignes[0].valeur}</div>
+                  </div>
+
+                  <div style={{ background: "white", borderRadius: 12, padding: "11px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ fontWeight: 700, fontSize: 10.5, color: "#16231F" }}>Aminata K.</div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 10.5, color: "#1a7a3c" }}>15 000</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <div style={{ flex: 1, background: "#1F9D6E", color: "white", borderRadius: 6, padding: "5px 0", textAlign: "center", fontSize: 8.5, fontWeight: 700 }}>✅ Confirmer</div>
+                      <div style={{ flex: 1, background: "#F0EEE6", color: "#8A9089", borderRadius: 6, padding: "5px 0", textAlign: "center", fontSize: 8.5, fontWeight: 700 }}>❌ Échoué</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    {c.captureLignes.slice(1).map((l, i) => (
+                      <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: "8px 8px" }}>
+                        <div style={{ fontSize: 8, opacity: 0.6, color: "white", marginBottom: 2 }}>{l.label}</div>
+                        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 11, color: l.couleur }}>{l.valeur}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 700, margin: "0 auto", padding: "44px 24px 10px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, marginBottom: 10 }}>
-          Chaque jour sans système, tu perds de l'argent — pas dans 6 mois, aujourd'hui
-        </div>
-        <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 28, maxWidth: 480, margin: "0 auto 28px" }}>
-          Une commande oubliée, un acompte non suivi, un livreur qu'on ne peut pas contrôler — ce n'est pas un détail. C'est de l'argent qui t'échappe, chaque jour, sans que tu le voies.
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, textAlign: "left" }}>
-          {[
-            "Des commandes perdues quelque part dans WhatsApp",
-            "Un cahier ou un Excel qu'on ne remplit plus à jour",
-            "Impossible de savoir combien un livreur doit vraiment déposer",
-            "Aucune idée du vrai bénéfice à la fin du mois",
-          ].map((point, i) => (
-            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#6B7168" }}>
-              <span style={{ color: "#D64933", flexShrink: 0 }}>✕</span>
-              {point}
-            </div>
-          ))}
+      <div style={{ maxWidth: 780, margin: "-28px auto 0", padding: "0 24px 50px", position: "relative", zIndex: 2 }}>
+        <div style={{ background: "white", borderRadius: 22, padding: "40px 32px", boxShadow: "0 30px 60px -25px rgba(15,27,22,0.25)", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(21px, 3vw, 25px)", marginBottom: 10, letterSpacing: "-0.005em" }}>
+            Chaque jour sans système, tu perds de l'argent — pas dans 6 mois, aujourd'hui
+          </div>
+          <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 30, maxWidth: 480, margin: "0 auto 30px" }}>
+            Une commande oubliée, un acompte non suivi, un livreur qu'on ne peut pas contrôler — ce n'est pas un détail. C'est de l'argent qui t'échappe, chaque jour, sans que tu le voies.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 16, textAlign: "left" }}>
+            {[
+              "Des commandes perdues quelque part dans WhatsApp",
+              "Un cahier ou un Excel qu'on ne remplit plus à jour",
+              "Impossible de savoir combien un livreur doit vraiment déposer",
+              "Aucune idée du vrai bénéfice à la fin du mois",
+            ].map((point, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", fontSize: 13.5, color: "#3a3f3c", background: "#FBEAE6", borderRadius: 12, padding: "12px 14px" }}>
+                <span style={{ color: "#D64933", flexShrink: 0, fontWeight: 700, fontSize: 15 }}>✕</span>
+                {point}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -441,37 +482,42 @@ function LandingPage() {
           </div>
           <div style={{ fontSize: 13.5, color: "#6B7168", marginTop: 8 }}>3 étapes, moins de 2 minutes</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
-          {[
-            { num: "1", titre: "Crée ton espace", desc: "Nom de ton entreprise, ton profil (vente en ligne ou boutique), ton numéro WhatsApp. C'est tout." },
-            { num: "2", titre: "Ajoute ta première commande", desc: "Manuellement, ou connecte Shopify pour que tout arrive automatiquement, sans rien taper." },
-            { num: "3", titre: "Laisse RecuVente travailler", desc: "Suivi, relances, comptabilité, boutique en ligne — tout se met à jour seul, chaque jour." },
-          ].map((etape, i) => (
-            <div key={i} style={{ textAlign: "center" }}>
-              <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#1a7a3c", color: "white", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-                {etape.num}
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "absolute", top: 23, left: "16%", right: "16%", height: 2, background: "repeating-linear-gradient(90deg, #DDD8CC 0, #DDD8CC 6px, transparent 6px, transparent 12px)", zIndex: 0 }} className="rv-lp-mockup-wrap" />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20, position: "relative", zIndex: 1 }}>
+            {[
+              { num: "1", titre: "Crée ton espace", desc: "Nom de ton entreprise, ton profil (vente en ligne ou boutique), ton numéro WhatsApp. C'est tout." },
+              { num: "2", titre: "Ajoute ta première commande", desc: "Manuellement, ou connecte Shopify pour que tout arrive automatiquement, sans rien taper." },
+              { num: "3", titre: "Laisse RecuVente travailler", desc: "Suivi, relances, comptabilité, boutique en ligne — tout se met à jour seul, chaque jour." },
+            ].map((etape, i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#1a7a3c", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", boxShadow: "0 8px 18px rgba(26,122,60,0.3)" }}>
+                  {etape.num}
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{etape.titre}</div>
+                <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{etape.desc}</div>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{etape.titre}</div>
-              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{etape.desc}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
-      <div key={profil + "-avantages"} className="rv-lp-fade" style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>
-            Tout ce dont {profil === "cod" ? "ta vente en ligne" : "ta boutique"} a besoin
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
-          {c.avantages.map((f, i) => (
-            <div key={i} className="rv-lp-card" style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 22 }}>
-              <div style={{ fontSize: 26, marginBottom: 10 }}>{f.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{f.titre}</div>
-              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{f.desc}</div>
+      <div key={profil + "-avantages"} className="rv-lp-fade" style={{ background: "linear-gradient(180deg, #F0EEE3 0%, #FAFAF7 100%)", padding: "48px 24px" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 36 }}>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.2vw, 30px)" }}>
+              Tout ce dont {profil === "cod" ? "ta vente en ligne" : "ta boutique"} a besoin
             </div>
-          ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+            {c.avantages.map((f, i) => (
+              <div key={i} className="rv-lp-card" style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 24 }}>
+                <div style={{ width: 46, height: 46, borderRadius: 12, background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 14 }}>{f.icon}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{f.titre}</div>
+                <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -483,7 +529,7 @@ function LandingPage() {
             { icon: "📱", txt: "Fonctionne sur mobile comme sur ordinateur" },
           ].map((item, i) => (
             <div key={i}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{item.icon}</div>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#FAFAF7", border: "1px solid #ECE8DC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, margin: "0 auto 8px" }}>{item.icon}</div>
               <div style={{ fontSize: 12.5, color: "#6B7168", fontWeight: 500 }}>{item.txt}</div>
             </div>
           ))}
@@ -511,28 +557,38 @@ function LandingPage() {
       </div>
 
       {plans.length > 0 && (
-        <div style={{ background: "#FAFAF7", padding: "50px 24px" }}>
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Choisis ton plan, commence en 2 minutes</div>
+        <div style={{ background: "#FAFAF7", padding: "54px 24px" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.2vw, 30px)" }}>Choisis ton plan, commence en 2 minutes</div>
             <div style={{ fontSize: 14, color: "#6B7168", marginTop: 8 }}>7 jours gratuits sur n'importe quel plan. Tu ne payes que si RecuVente te convainc.</div>
           </div>
-          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 18 }}>
             {plans.map((p, i) => (
-              <div key={p.id} className="rv-lp-card" style={{ border: i === 1 ? "2px solid #1a7a3c" : "1px solid #ECE8DC", borderRadius: 16, padding: 22, position: "relative", background: i === 1 ? "white" : "white" }}>
+              <div
+                key={p.id}
+                className="rv-lp-card"
+                style={{
+                  border: i === 1 ? "2px solid #1a7a3c" : "1px solid #ECE8DC",
+                  borderRadius: 18, padding: i === 1 ? "30px 24px" : 24,
+                  position: "relative", background: "white",
+                  boxShadow: i === 1 ? "0 24px 48px -16px rgba(26,122,60,0.35)" : undefined,
+                  transform: i === 1 ? "translateY(-6px)" : undefined,
+                }}
+              >
                 {i === 1 && (
-                  <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: "#1a7a3c", color: "white", fontSize: 10.5, fontWeight: 700, padding: "3px 12px", borderRadius: 999 }}>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "#1a7a3c", color: "white", fontSize: 10.5, fontWeight: 700, padding: "4px 14px", borderRadius: 999, boxShadow: "0 4px 12px rgba(26,122,60,0.4)" }}>
                     LE PLUS CHOISI
                   </div>
                 )}
                 <div style={{ fontWeight: 700, fontSize: 16, marginTop: i === 1 ? 6 : 0 }}>{p.nom}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, marginTop: 8, color: "#1a7a3c" }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: i === 1 ? 30 : 24, marginTop: 8, color: "#1a7a3c" }}>
                   {Number(p.prix).toLocaleString("fr-FR")} <span style={{ fontSize: 12, fontWeight: 500, color: "#8A9089" }}>{p.devise}/mois</span>
                 </div>
                 <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 12, lineHeight: 1.7 }}>
                   {p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes illimitées"}<br />
                   {p.max_membres ? `${p.max_membres} membres max` : "Membres illimités"}
                 </div>
-                <a href="?auth=1" onClick={trackerInscription} style={{ display: "block", textAlign: "center", marginTop: 18, background: i === 1 ? "#1a7a3c" : "white", color: i === 1 ? "white" : "#1a7a3c", border: i === 1 ? "none" : "1px solid #1a7a3c", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                <a href="?auth=1" onClick={trackerInscription} style={{ display: "block", textAlign: "center", marginTop: 18, background: i === 1 ? "#1a7a3c" : "white", color: i === 1 ? "white" : "#1a7a3c", border: i === 1 ? "none" : "1px solid #1a7a3c", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
                   Commencer
                 </a>
               </div>
@@ -563,14 +619,14 @@ function LandingPage() {
         </div>
       </div>
 
-      <div style={{ background: "#16231F", color: "white", padding: "56px 24px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26, marginBottom: 10 }}>
+      <div style={{ background: "radial-gradient(ellipse 800px 500px at 85% 0%, rgba(232,146,10,0.15) 0%, transparent 55%), linear-gradient(170deg, #0F1B16 0%, #16231F 60%, #1a7a3c 200%)", color: "white", padding: "64px 24px", textAlign: "center" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.5vw, 32px)", marginBottom: 12, letterSpacing: "-0.01em" }}>
           {profil === "cod" ? "Ta prochaine commande mérite d'être suivie correctement" : "Ta boutique mérite mieux qu'un cahier"}
         </div>
-        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 26, maxWidth: 400, margin: "0 auto 26px" }}>
+        <div style={{ fontSize: 14.5, opacity: 0.8, marginBottom: 28, maxWidth: 420, margin: "0 auto 28px" }}>
           Chaque jour que tu attends, c'est une commande de plus qui risque de se perdre. Commence maintenant — c'est gratuit, et ça prend 2 minutes.
         </div>
-        <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+        <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "#16231F", padding: "16px 40px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 14px 34px rgba(232,146,10,0.4)" }}>
           Créer mon espace gratuitement
         </a>
         <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: 14 }}>Aucune carte bancaire · Annule à tout moment</div>

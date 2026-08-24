@@ -72,6 +72,9 @@ export default function CataloguePublic({ workspaceId }) {
         politiqueLivraison: data[0].politique_livraison,
         politiqueRetours: data[0].politique_retours,
         politiqueConfidentialite: data[0].politique_confidentialite,
+        facebookUrl: data[0].facebook_url,
+        instagramUrl: data[0].instagram_url,
+        tiktokUrl: data[0].tiktok_url,
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       const listeProduits = data.filter((p) => p.produit_nom);
@@ -145,6 +148,15 @@ export default function CataloguePublic({ workspaceId }) {
     window.history.pushState({}, "", url);
   }
 
+  function naviguerVersCollection(id) {
+    setProduitOuvert(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("produit");
+    window.history.pushState({}, "", url);
+    setCollectionOuverte(id);
+    window.scrollTo(0, 0);
+  }
+
   async function envoyerCommande() {
     if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
@@ -204,7 +216,7 @@ export default function CataloguePublic({ workspaceId }) {
   if (produitOuvert) {
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
@@ -640,7 +652,7 @@ export default function CataloguePublic({ workspaceId }) {
           @media (min-width: 1280px) { .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => setCollectionOuverte(null)} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
@@ -658,7 +670,7 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         </div>
 
-        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} />
+        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
       </div>
     );
   }
@@ -703,7 +715,7 @@ export default function CataloguePublic({ workspaceId }) {
         }
       `}</style>
 
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
 
       {entreprise.banniere ? (
         <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
@@ -792,7 +804,7 @@ export default function CataloguePublic({ workspaceId }) {
         )}
       </div>
 
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
 
       {politiqueOuverte && (
         <div
@@ -819,7 +831,9 @@ export default function CataloguePublic({ workspaceId }) {
   );
 }
 
-function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick }) {
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection }) {
+  const aDesLiensNav = aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
+
   return (
     <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -853,6 +867,38 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           </a>
         )}
       </div>
+
+      {aDesLiensNav && onNaviguerVersCollection && (
+        <div style={{ borderTop: "1px solid #F0EEE6", overflowX: "auto" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
+            <button
+              onClick={() => onNaviguerVersCollection(null)}
+              style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#16231F", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Accueil
+            </button>
+            {aDesBestSellers && (
+              <button onClick={() => onNaviguerVersCollection("bestseller")} style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}>
+                🔥 Meilleures ventes
+              </button>
+            )}
+            {aDesNouveautes && (
+              <button onClick={() => onNaviguerVersCollection("nouveautes")} style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}>
+                ✨ Nouveautés
+              </button>
+            )}
+            {collectionsManuelles.map((col) => (
+              <button
+                key={col.id}
+                onClick={() => onNaviguerVersCollection(`manuelle-${col.id}`)}
+                style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                {col.nom}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -917,15 +963,69 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
   );
 }
 
-function PiedDePage({ entreprise, onOuvrirPolitique }) {
+function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection }) {
   const anneeEnCours = new Date().getFullYear();
+  const reseaux = [
+    { url: entreprise.facebookUrl, icone: "📘", nom: "Facebook" },
+    { url: entreprise.instagramUrl, icone: "📷", nom: "Instagram" },
+    { url: entreprise.tiktokUrl, icone: "🎵", nom: "TikTok" },
+  ].filter((r) => r.url);
+
   return (
     <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+        {[
+          { icone: "🚚", texte: "Livraison rapide" },
+          { icone: "💵", texte: "Paiement à la livraison" },
+          { icone: "🔄", texte: "Retour facile" },
+          { icone: "🛡️", texte: "Achat sécurisé" },
+        ].map((badge, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>{badge.icone}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "white" }}>{badge.texte}</span>
+          </div>
+        ))}
+      </div>
+
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 26 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 15, color: "white", marginBottom: 10 }}>{entreprise.nom}</div>
-          {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>{entreprise.description}</div>}
+          {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 14 }}>{entreprise.description}</div>}
+          {reseaux.length > 0 && (
+            <div style={{ display: "flex", gap: 10 }}>
+              {reseaux.map((r) => (
+                <a
+                  key={r.nom}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={r.nom}
+                  style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, textDecoration: "none" }}
+                >
+                  {r.icone}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
+
+        {(aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0) && onNaviguerVersCollection && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Boutique</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button onClick={() => onNaviguerVersCollection(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Accueil</button>
+              {aDesBestSellers && (
+                <button onClick={() => onNaviguerVersCollection("bestseller")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>🔥 Meilleures ventes</button>
+              )}
+              {aDesNouveautes && (
+                <button onClick={() => onNaviguerVersCollection("nouveautes")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>✨ Nouveautés</button>
+              )}
+              {collectionsManuelles.map((col) => (
+                <button key={col.id} onClick={() => onNaviguerVersCollection(`manuelle-${col.id}`)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{col.nom}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (
           <div>
@@ -943,7 +1043,6 @@ function PiedDePage({ entreprise, onOuvrirPolitique }) {
             </div>
           </div>
         )}
-
         {entreprise.whatsapp && (
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Contact</div>

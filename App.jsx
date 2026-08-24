@@ -1772,6 +1772,30 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       return;
     }
     const montantTotal = Number(form.montant);
+
+    // Détecte une commande très similaire déjà passée récemment (même client, même produit)
+    // — évite d'envoyer deux livreurs pour la même personne par erreur
+    const deuxHeuresAvant = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { data: doublonsPotentiels } = await supabase
+      .from("commandes")
+      .select("id, produit, created_at, statut")
+      .eq("workspace_id", workspace.id)
+      .eq("tel", form.tel)
+      .neq("statut", "echouee")
+      .gte("created_at", deuxHeuresAvant);
+
+    const doublon = (doublonsPotentiels || []).find((d) =>
+      d.produit?.toLowerCase().includes((form.produit || "").toLowerCase().split(" ")[0])
+    );
+
+    if (doublon) {
+      const minutesEcoulees = Math.round((Date.now() - new Date(doublon.created_at).getTime()) / 60000);
+      const continuer = window.confirm(
+        `⚠️ Ce client a déjà une commande similaire en cours, passée il y a ${minutesEcoulees} min.\n\nContinuer quand même et créer une deuxième commande ?`
+      );
+      if (!continuer) return;
+    }
+
     const montantDejaPaye = workspace.activity_type === "retail" ? (form.montant_paye === "" ? montantTotal : Number(form.montant_paye)) : 0;
     const payeEnEntier = workspace.activity_type === "retail" ? montantDejaPaye >= montantTotal : false;
     const statutInitial = workspace.activity_type === "retail" ? (payeEnEntier ? "confirmee" : "en_cours") : "en_cours";
@@ -4688,6 +4712,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
 
 function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);
+  const [commandeAConfirmer, setCommandeAConfirmer] = useState(null);
   const [gpsErreur, setGpsErreur] = useState(null);
   const watchIdRef = React.useRef(null);
 
@@ -4756,8 +4781,8 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   }, [confirmees]);
   const [showBilan, setShowBilan] = useState(false);
 
-  async function changerStatut(commandeId, nouveauStatut) {
-    const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom } : {};
+  async function changerStatut(commandeId, nouveauStatut, modePaiement) {
+    const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom, mode_paiement: modePaiement || null } : {};
     await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
     if (nouveauStatut === "confirmee") {
       supabase.auth.getSession().then(({ data: sessionData }) => {
@@ -4899,7 +4924,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
                   📞 {c.tel}
                 </a>
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button onClick={() => changerStatut(c.id, "confirmee")} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+                  <button onClick={() => setCommandeAConfirmer(c)} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
                     ✅ Confirmer
                   </button>
                   <button onClick={() => changerStatut(c.id, "echouee")} style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
@@ -4957,6 +4982,38 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
           )
         )}
       </div>
+
+      {commandeAConfirmer && (
+        <div
+          onClick={() => setCommandeAConfirmer(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Comment le client a-t-il payé ?</div>
+            <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>{commandeAConfirmer.client} — {Number(commandeAConfirmer.montant).toLocaleString("fr-FR")} {currency}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { key: "cash", label: "💵 Cash (espèces)" },
+                { key: "orange_money", label: "🟠 Orange Money" },
+                { key: "wave", label: "🌊 Wave" },
+                { key: "mtn_money", label: "🟡 MTN Money" },
+                { key: "moov_money", label: "🔵 Moov Money" },
+              ].map((mode) => (
+                <button
+                  key={mode.key}
+                  onClick={() => { changerStatut(commandeAConfirmer.id, "confirmee", mode.key); setCommandeAConfirmer(null); }}
+                  style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "13px 16px", textAlign: "left", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setCommandeAConfirmer(null)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

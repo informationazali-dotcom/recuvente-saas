@@ -156,7 +156,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -5878,6 +5878,9 @@ function IntegrationsModal({ workspace, onClose }) {
     politique_livraison: workspace.politique_livraison || "",
     politique_retours: workspace.politique_retours || "",
     politique_confidentialite: workspace.politique_confidentialite || "",
+    facebook_url: workspace.facebook_url || "",
+    instagram_url: workspace.instagram_url || "",
+    tiktok_url: workspace.tiktok_url || "",
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
@@ -6226,6 +6229,42 @@ function IntegrationsModal({ workspace, onClose }) {
           <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
             Trouve-le sur business.facebook.com → Gestionnaire d'événements → ton pixel → onglet "API Conversions" → "Générer un token d'accès".
           </div>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🔗 Réseaux sociaux
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Affichés dans le pied de page de ta boutique publique.
+          </div>
+
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Facebook</div>
+          <input
+            value={personnalisation.facebook_url || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, facebook_url: e.target.value })}
+            onBlur={() => supabase.from("workspaces").update({ facebook_url: personnalisation.facebook_url || null }).eq("id", workspace.id)}
+            placeholder="https://facebook.com/tapage"
+            style={{ ...inputStyle, marginBottom: 10 }}
+          />
+
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Instagram</div>
+          <input
+            value={personnalisation.instagram_url || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, instagram_url: e.target.value })}
+            onBlur={() => supabase.from("workspaces").update({ instagram_url: personnalisation.instagram_url || null }).eq("id", workspace.id)}
+            placeholder="https://instagram.com/toncompte"
+            style={{ ...inputStyle, marginBottom: 10 }}
+          />
+
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>TikTok</div>
+          <input
+            value={personnalisation.tiktok_url || ""}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, tiktok_url: e.target.value })}
+            onBlur={() => supabase.from("workspaces").update({ tiktok_url: personnalisation.tiktok_url || null }).eq("id", workspace.id)}
+            placeholder="https://tiktok.com/@toncompte"
+            style={{ ...inputStyle, marginBottom: 0 }}
+          />
         </div>
 
         <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>

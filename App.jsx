@@ -355,13 +355,15 @@ function LandingPage() {
         @keyframes rvLpFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .rv-lp-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,27,22,0.14); border-color: rgba(26,122,60,0.25) !important; }
         .rv-lp-card { transition: all 0.25s cubic-bezier(0.2,0.8,0.2,1); box-shadow: 0 2px 10px rgba(15,27,22,0.05); }
-        .rv-lp-hero-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: center; }
-        .rv-lp-mockup-wrap { display: none; }
+        .rv-lp-hero-grid { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: center; }
+        .rv-lp-hero-mockup-wrap { display: flex; justify-content: center; margin: 8px 0 12px; }
+        .rv-lp-connector-line { display: none; }
         @keyframes rvLpFloat { 0%, 100% { transform: rotate(3deg) translateY(0px); } 50% { transform: rotate(3deg) translateY(-14px); } }
         @media (min-width: 880px) {
           .rv-lp-hero-grid { grid-template-columns: 1.1fr 0.9fr; gap: 40px; text-align: left !important; }
           .rv-lp-hero-text { text-align: left !important; }
-          .rv-lp-mockup-wrap { display: flex; justify-content: center; }
+          .rv-lp-hero-mockup-wrap { margin: 0; }
+          .rv-lp-connector-line { display: block; }
         }
         .rv-lp-mockup { animation: rvLpFloat 5.5s ease-in-out infinite; }
       `}</style>
@@ -418,8 +420,8 @@ function LandingPage() {
               <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
             </div>
 
-            <div className="rv-lp-mockup-wrap">
-              <div key={profil + "-mockup"} className="rv-lp-fade rv-lp-mockup" style={{ width: 300, background: "#0F1B16", borderRadius: 26, padding: 10, boxShadow: "0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)" }}>
+            <div className="rv-lp-hero-mockup-wrap">
+              <div key={profil + "-mockup"} className="rv-lp-fade rv-lp-mockup" style={{ width: "min(280px, 78vw)", background: "#0F1B16", borderRadius: 26, padding: 10, boxShadow: "0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)" }}>
                 <div style={{ background: "#16231F", borderRadius: 18, padding: "16px 14px", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                     <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 12.5, color: "white" }}>RECU<span style={{ color: "#e8920a" }}>VENTE</span></div>
@@ -515,7 +517,7 @@ function LandingPage() {
           <div style={{ fontSize: 13.5, color: "#6B7168", marginTop: 8 }}>3 étapes, moins de 2 minutes</div>
         </div>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 23, left: "16%", right: "16%", height: 2, background: "repeating-linear-gradient(90deg, #DDD8CC 0, #DDD8CC 6px, transparent 6px, transparent 12px)", zIndex: 0 }} className="rv-lp-mockup-wrap" />
+          <div style={{ position: "absolute", top: 23, left: "16%", right: "16%", height: 2, background: "repeating-linear-gradient(90deg, #DDD8CC 0, #DDD8CC 6px, transparent 6px, transparent 12px)", zIndex: 0 }} className="rv-lp-connector-line" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20, position: "relative", zIndex: 1 }}>
             {[
               { num: "1", titre: "Crée ton espace", desc: "Nom de ton entreprise, ton profil (vente en ligne ou boutique), ton numéro WhatsApp. C'est tout." },
@@ -1219,11 +1221,6 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       if (!confirmer) return;
     }
     await supabase.from("livreurs").delete().eq("id", id);
-    await loadLivreurs();
-  }
-
-  async function toggleModeSimplifieLivreur(id, valeurActuelle) {
-    await supabase.from("livreurs").update({ mode_simplifie: !valeurActuelle }).eq("id", id);
     await loadLivreurs();
   }
 
@@ -2728,7 +2725,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           }}
         />
       )}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail onToggleModeSimplifie={toggleModeSimplifieLivreur} />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
@@ -3582,7 +3579,6 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [showAppel, setShowAppel] = useState(false);
   const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
 
@@ -3969,93 +3965,17 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
           )}
 
           <button
-            onClick={() => setShowAppel(true)}
-            style={{ width: "100%", background: "#EAF0FB", border: "1px solid #C3D4F0", color: "#1E4B8C", padding: "9px 0", borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
-          >
-            📞 Enregistrer un appel
-          </button>
-
-          <button
             onClick={() => setEditing(true)}
             style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
           >
             ✏️ Modifier les informations
           </button>
 
-          <JournalAppels commandeId={commande.id} />
           <HistoriqueRelances commandeId={commande.id} />
         </div>
       )}
       </>
       )}
-
-      {showAppel && (
-        <div
-          onClick={() => setShowAppel(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Comment s'est passé l'appel ?</div>
-            <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>{commande.client} — {commande.tel}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {[
-                { key: "confirme_telephone", label: "✅ Confirmé par téléphone", couleur: "#1F9D6E" },
-                { key: "pas_de_reponse", label: "📵 Pas de réponse", couleur: "#8A6412" },
-                { key: "rappeler_plus_tard", label: "🕒 Rappeler plus tard", couleur: "#8A6412" },
-                { key: "faux_numero", label: "🚫 Faux numéro", couleur: "#D64933" },
-                { key: "refuse", label: "❌ Refusé par le client", couleur: "#D64933" },
-              ].map((motif) => (
-                <button
-                  key={motif.key}
-                  onClick={async () => {
-                    await supabase.from("appels_commande").insert([{ workspace_id: workspace.id, commande_id: commande.id, motif: motif.key, appele_par: confirmateurNom || "Équipe" }]);
-                    setShowAppel(false);
-                    await onStatusChanged();
-                  }}
-                  style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "13px 16px", textAlign: "left", fontWeight: 600, fontSize: 14, cursor: "pointer", color: motif.couleur }}
-                >
-                  {motif.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setShowAppel(false)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function JournalAppels({ commandeId }) {
-  const [appels, setAppels] = useState(null);
-
-  useEffect(() => {
-    supabase.from("appels_commande").select("*").eq("commande_id", commandeId).order("created_at", { ascending: false }).then(({ data }) => setAppels(data || []));
-  }, [commandeId]);
-
-  if (!appels || appels.length === 0) return null;
-
-  const labels = {
-    confirme_telephone: { texte: "✅ Confirmé par téléphone", couleur: "#1F9D6E" },
-    pas_de_reponse: { texte: "📵 Pas de réponse", couleur: "#8A6412" },
-    rappeler_plus_tard: { texte: "🕒 Rappeler plus tard", couleur: "#8A6412" },
-    faux_numero: { texte: "🚫 Faux numéro", couleur: "#D64933" },
-    refuse: { texte: "❌ Refusé", couleur: "#D64933" },
-  };
-
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", marginBottom: 6 }}>📞 Historique des appels</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        {appels.map((a) => (
-          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, background: "#FAFAF7", borderRadius: 7, padding: "6px 10px" }}>
-            <span style={{ color: labels[a.motif]?.couleur || "#16231F", fontWeight: 600 }}>{labels[a.motif]?.texte || a.motif}</span>
-            <span style={{ color: "#8A9089" }}>{new Date(a.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -4116,7 +4036,7 @@ function HistoriqueRelances({ commandeId }) {
   );
 }
 
-function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, onToggleModeSimplifie }) {
+function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
@@ -4157,26 +4077,13 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, onTogg
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {items.map((it) => (
-            <div key={it.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
-                  {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
-                  {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
-                </div>
-                <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+            <div key={it.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
+                {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
+                {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
               </div>
-              {onToggleModeSimplifie && (
-                <button
-                  onClick={() => onToggleModeSimplifie(it.id, it.mode_simplifie)}
-                  style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, marginTop: 8, cursor: "pointer", fontSize: 11.5, color: it.mode_simplifie ? "#1a7a3c" : "#8A9089", fontWeight: 600 }}
-                >
-                  <span style={{ width: 30, height: 17, borderRadius: 999, background: it.mode_simplifie ? "#1a7a3c" : "#DDD8CC", position: "relative", flexShrink: 0 }}>
-                    <span style={{ position: "absolute", top: 2, left: it.mode_simplifie ? 15 : 2, width: 13, height: 13, borderRadius: "50%", background: "white", transition: "left 0.15s" }} />
-                  </span>
-                  👁️ Mode simplifié (icônes, peu de lecture)
-                </button>
-              )}
+              <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
             </div>
           ))}
         </div>
@@ -4805,49 +4712,6 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
   );
 }
 
-function CarteCommandeSimplifiee({ c, currency, onConfirmer, onEchoue }) {
-  return (
-    <div style={{ background: "white", border: "2px solid #ECE8DC", borderRadius: 18, padding: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
-          👤
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>{c.client}</div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")}</div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#FAFAF7", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }}>
-        <span style={{ fontSize: 22 }}>📍</span>
-        <span style={{ fontSize: 15, fontWeight: 600 }}>{c.zone}</span>
-      </div>
-
-      <a
-        href={`tel:${c.tel}`}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, background: "#2452E8", color: "white", padding: "16px 0", borderRadius: 14, fontWeight: 700, fontSize: 18, textDecoration: "none", marginBottom: 10 }}
-      >
-        📞 {c.tel}
-      </a>
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <button
-          onClick={onConfirmer}
-          style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "20px 0", borderRadius: 14, fontSize: 32, cursor: "pointer" }}
-        >
-          ✅
-        </button>
-        <button
-          onClick={onEchoue}
-          style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "20px 0", borderRadius: 14, fontSize: 32, cursor: "pointer" }}
-        >
-          ❌
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);
   const [commandeAConfirmer, setCommandeAConfirmer] = useState(null);
@@ -5053,9 +4917,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {actives_livraison.map((c) => (
-              livreur.mode_simplifie ? (
-                <CarteCommandeSimplifiee key={c.id} c={c} currency={currency} onConfirmer={() => setCommandeAConfirmer(c)} onEchoue={() => changerStatut(c.id, "echouee")} />
-              ) : (
               <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{c.client}</div>
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
@@ -5073,7 +4934,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
                   </button>
                 </div>
               </div>
-              )
             ))}
           </div>
         )

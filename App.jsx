@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
@@ -1398,6 +1398,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     return map;
   }, [commandes, commandeItems]);
 
+  const produitsAvecBenefice = useMemo(() => {
+    return produits
+      .map((p) => {
+        const q = quantitesParProduit[p.nom] || { commandees: 0, livrees: 0 };
+        const coutAchat = Number(p.cout_achat) || 0;
+        const prixVente = Number(p.prix_vente) || 0;
+        const margeUnitaire = prixVente - coutAchat;
+        const beneficeRealise = margeUnitaire * q.livrees;
+        return { ...p, commandees: q.commandees, livrees: q.livrees, margeUnitaire, beneficeRealise };
+      })
+      .sort((a, b) => b.beneficeRealise - a.beneficeRealise);
+  }, [produits, quantitesParProduit]);
+
   const produitStockCritique = useMemo(() => {
     const candidats = produits
       .map((p) => {
@@ -1776,6 +1789,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : "Commandes" },
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
           <button
@@ -2265,6 +2279,14 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
         <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
       )}
 
+      {vue === "produits_vue" && (
+        <ProduitsViewSaas
+          produitsAvecBenefice={produitsAvecBenefice}
+          currency={workspace.currency}
+          onGererCatalogue={() => setShowProduits(true)}
+        />
+      )}
+
       {vue === "clients" && (
         <div>
           {clientsARelancer.length > 0 && (
@@ -2437,6 +2459,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           { key: "commandes", label: "Commandes", icon: Package },
           { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;
@@ -5551,6 +5574,102 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ProduitsViewSaas({ produitsAvecBenefice, currency, onGererCatalogue }) {
+  const totalBenefice = produitsAvecBenefice.reduce((s, p) => s + p.beneficeRealise, 0);
+  const maxBenefice = Math.max(...produitsAvecBenefice.map((p) => p.beneficeRealise), 1);
+  const produitsSansCout = produitsAvecBenefice.filter((p) => !p.cout_achat || Number(p.cout_achat) === 0);
+  const produitsSansPrix = produitsAvecBenefice.filter((p) => !p.prix_vente || Number(p.prix_vente) === 0);
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+        <div style={{ fontWeight: 700, fontSize: 22 }}>Produits</div>
+        <button
+          onClick={onGererCatalogue}
+          style={{ background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 9, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+        >
+          ⚙️ Gérer le catalogue
+        </button>
+      </div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>
+        {produitsAvecBenefice.length} produit{produitsAvecBenefice.length > 1 ? "s" : ""} · classés par bénéfice réalisé
+      </div>
+
+      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: "0.03em" }}>💰 Bénéfice total réalisé (toutes commandes livrées)</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: totalBenefice >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 4 }}>
+          {totalBenefice.toLocaleString("fr-FR")} {currency}
+        </div>
+      </div>
+
+      {(produitsSansCout.length > 0 || produitsSansPrix.length > 0) && (
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 20, fontSize: 12, color: "#8A6412", lineHeight: 1.6 }}>
+          {produitsSansCout.length > 0 && <div>⚠️ {produitsSansCout.length} produit{produitsSansCout.length > 1 ? "s" : ""} sans coût d'achat renseigné — bénéfice sous-estimé pour eux.</div>}
+          {produitsSansPrix.length > 0 && <div>⚠️ {produitsSansPrix.length} produit{produitsSansPrix.length > 1 ? "s" : ""} sans prix de vente renseigné — invisible sur ta boutique publique.</div>}
+        </div>
+      )}
+
+      {produitsAvecBenefice.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "#8A9089", fontSize: 14 }}>
+          Aucun produit dans ton catalogue.
+          <button onClick={onGererCatalogue} style={{ display: "block", margin: "14px auto 0", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Ajouter mon premier produit
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {produitsAvecBenefice.map((p, i) => (
+          <div key={p.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5, display: "flex", alignItems: "center", gap: 6 }}>
+                  {i < 3 && p.beneficeRealise > 0 && ["🥇", "🥈", "🥉"][i]}
+                  {p.nom}
+                </div>
+                <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>
+                  {p.commandees} commandée{p.commandees > 1 ? "s" : ""} · {p.livrees} livrée{p.livrees > 1 ? "s" : ""}
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, color: p.beneficeRealise >= 0 ? "#1a7a3c" : "#D64933" }}>
+                  {p.beneficeRealise.toLocaleString("fr-FR")} {currency}
+                </div>
+                <div style={{ fontSize: 10.5, color: "#8A9089" }}>bénéfice réalisé</div>
+              </div>
+            </div>
+
+            <div style={{ background: "#ECE8DC", borderRadius: 999, height: 6, overflow: "hidden", margin: "10px 0" }}>
+              <div style={{ width: `${Math.max(0, (p.beneficeRealise / maxBenefice) * 100)}%`, background: p.beneficeRealise >= 0 ? "#1a7a3c" : "#D64933", height: "100%", borderRadius: 999 }} />
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1, background: "#FBEAE6", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 9.5, color: "#B23A22", textTransform: "uppercase" }}>Prix d'achat</div>
+                <div style={{ fontWeight: 700, fontSize: 12.5, color: "#B23A22" }}>
+                  {p.cout_achat ? Number(p.cout_achat).toLocaleString("fr-FR") : "—"}
+                </div>
+              </div>
+              <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 9.5, color: "#3B6D11", textTransform: "uppercase" }}>Prix de vente</div>
+                <div style={{ fontWeight: 700, fontSize: 12.5, color: "#3B6D11" }}>
+                  {p.prix_vente ? Number(p.prix_vente).toLocaleString("fr-FR") : "—"}
+                </div>
+              </div>
+              <div style={{ flex: 1, background: "#EAF0FB", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 9.5, color: "#1E4B8C", textTransform: "uppercase" }}>Marge / pièce</div>
+                <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1E4B8C" }}>
+                  {p.margeUnitaire.toLocaleString("fr-FR")}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

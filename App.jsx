@@ -186,11 +186,11 @@ export default function App() {
     if (session) loadWorkspace();
   }, [session]);
 
-  async function creerWorkspace(nom, activityType) {
+  async function creerWorkspace(nom, activityType, whatsappNumber) {
     setLoadingWorkspace(true);
     const { data: ws, error } = await supabase
       .from("workspaces")
-      .insert([{ owner_id: session.user.id, name: nom, activity_type: activityType || "cod_ecommerce" }])
+      .insert([{ owner_id: session.user.id, name: nom, activity_type: activityType || "cod_ecommerce", whatsapp_number: whatsappNumber }])
       .select()
       .single();
     if (error) {
@@ -725,6 +725,7 @@ function NouveauMotDePasseScreen() {
 function CreateWorkspaceScreen({ onCreate, loading }) {
   const [nom, setNom] = useState("");
   const [activityType, setActivityType] = useState("cod_ecommerce");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [etape, setEtape] = useState(1);
 
   const types = [
@@ -769,7 +770,11 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
               Nomme ton entreprise pour créer ton espace privé.
             </div>
             <input placeholder="Ex: Azali Express" value={nom} onChange={(e) => setNom(e.target.value)} style={inputStyle} autoFocus />
-            <button onClick={() => nom.trim() && onCreate(nom.trim(), activityType)} disabled={loading || !nom.trim()} style={btnStyle}>
+            <input placeholder="Ton numéro WhatsApp (ex: 0708090910)" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} style={inputStyle} />
+            <div style={{ fontSize: 11, color: "#8A9089", marginTop: -6, marginBottom: 10 }}>
+              Pour qu'on puisse te contacter, et pour recevoir les commandes de ta future boutique en ligne.
+            </div>
+            <button onClick={() => nom.trim() && whatsappNumber.trim() && onCreate(nom.trim(), activityType, whatsappNumber.trim())} disabled={loading || !nom.trim() || !whatsappNumber.trim()} style={btnStyle}>
               {loading ? "Création..." : "Créer mon espace"}
             </button>
             <button

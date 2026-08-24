@@ -252,39 +252,70 @@ function LandingPage() {
     supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
   }, []);
 
+  useEffect(() => {
+    const pixelId = import.meta.env.VITE_RECUVENTE_PIXEL_ID;
+    if (!pixelId || window.fbq) return;
+    !(function (f, b, e, v, n, t, s) {
+      if (f.fbq) return;
+      n = f.fbq = function () {
+        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = !0;
+      n.version = "2.0";
+      n.queue = [];
+      t = b.createElement(e);
+      t.async = !0;
+      t.src = v;
+      s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s);
+    })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+    window.fbq("init", pixelId);
+    window.fbq("track", "PageView");
+  }, []);
+
+  function trackerInscription() {
+    if (window.fbq) window.fbq("track", "Lead");
+  }
+
   const contenuParProfil = {
     cod: {
       badge: "🏍️ Vente en ligne, paiement à la livraison",
-      titre: "Arrête de perdre de l'argent sur des commandes que tu ne suis même plus",
-      sousTitre: "Chaque commande oubliée dans WhatsApp, c'est de l'argent qui t'échappe. RecuVente suit tout, du premier appel jusqu'à l'argent réellement dans ta poche — sans que rien ne t'échappe.",
+      titre: "L'app que ton business COD n'a jamais eue — et dont tu ne pourras plus te passer",
+      sousTitre: "Chaque commande oubliée dans WhatsApp, c'est de l'argent qui t'échappe. RecuVente ne se contente pas de tout suivre — elle travaille pour toi en arrière-plan, te dit chaque matin quoi faire, et te fait gagner des heures chaque semaine.",
       captureLignes: [
         { label: "Argent récupéré", valeur: "1 240 500 FCFA", couleur: "#e8920a" },
         { label: "En cours", valeur: "18", couleur: "white" },
         { label: "Taux de livraison", valeur: "87%", couleur: "white" },
       ],
       avantages: [
+        { icon: "🧠", titre: "\"Ce matin chez vous\" — ton assistant intelligent", desc: "Chaque jour, un résumé clair de ce qui compte vraiment : commandes à risque, stock bas, client à relancer. Zéro analyse à faire toi-même." },
         { icon: "📋", titre: "Chaque commande, du premier contact à la livraison", desc: "Statut en temps réel — en cours, confirmée, échouée — jamais un client qui se perd dans les échanges WhatsApp." },
         { icon: "🚚", titre: "Tes livreurs, suivis en direct", desc: "Position GPS pendant leur tournée, commission calculée automatiquement, montant exact à déposer chaque jour." },
         { icon: "🎧", titre: "Une équipe de closers, sans doublons", desc: "Chaque commande non assignée est prise par un seul closer à la fois — fini les deux personnes qui rappellent le même client." },
-        { icon: "🧮", titre: "Le bénéfice réel, pas juste le chiffre d'affaires", desc: "Coût produit, commission livreur, tout déduit automatiquement — tu sais enfin ce qu'il te reste vraiment." },
-        { icon: "📦", titre: "Le stock, avant la rupture", desc: "Alerte automatique par email quand un produit descend sous le seuil — plus jamais surpris." },
+        { icon: "💵", titre: "Le bénéfice réel de CHAQUE produit", desc: "Pas juste ton chiffre d'affaires global — sais enfin lequel de tes produits te rapporte vraiment de l'argent, et lequel te fait perdre du temps pour rien." },
+        { icon: "🛍️", titre: "Une vraie boutique en ligne, incluse", desc: "Avis clients, collections, galerie photo, commande en un clic sans panier compliqué — prête à recevoir tes publicités Facebook." },
+        { icon: "📊", titre: "La seule app pensée pour la pub Facebook en COD", desc: "Envoie le vrai signal \"Achat\" à Facebook uniquement quand la livraison est confirmée — pas juste quand quelqu'un commande. Tes publicités arrêtent enfin de te ramener des faux acheteurs." },
         { icon: "🔄", titre: "Le réachat, sans y penser", desc: "L'app détecte le rythme d'achat de chaque client et te dit qui relancer, et quand." },
       ],
     },
     retail: {
       badge: "🏪 Boutique / Commerce physique",
       titre: "Ta boutique mérite mieux qu'un cahier qu'on remplit à moitié",
-      sousTitre: "Chaque vente non notée, chaque acompte oublié, c'est de l'argent que tu perds de vue. RecuVente organise ta boutique comme une vraie entreprise — sans cahier, sans Excel, sans rien oublier.",
+      sousTitre: "Chaque vente non notée, chaque acompte oublié, c'est de l'argent que tu perds de vue. RecuVente organise ta boutique comme une vraie entreprise structurée — et te fait gagner du temps chaque jour, pas juste enregistrer ton travail.",
       captureLignes: [
         { label: "Ventes du jour", valeur: "340 000 FCFA", couleur: "#e8920a" },
         { label: "Acomptes en attente", valeur: "5", couleur: "white" },
         { label: "Produits en stock", valeur: "142", couleur: "white" },
       ],
       avantages: [
-        { icon: "🏪", titre: "Vente sur place ou livraison, en un clic", desc: "Choisis comment le produit sort du magasin — payé en entier sur place, ou remis à un livreur." },
+        { icon: "🧠", titre: "\"Ce matin chez vous\" — ton assistant intelligent", desc: "Chaque jour, un résumé clair de ce qui compte : ventes à risque, stock bas, meilleur produit. Zéro analyse à faire toi-même." },
+        { icon: "🏪", titre: "Vente sur place, livraison, ou expédition", desc: "Choisis comment le produit sort du magasin — payé en entier sur place, remis à un livreur, ou expédié hors de ta ville." },
         { icon: "💰", titre: "L'acompte, suivi jusqu'au dernier franc", desc: "Un client paie en plusieurs fois avant de retirer ? Le solde restant s'affiche clairement, jusqu'à ce qu'il soit réglé." },
+        { icon: "💵", titre: "Le bénéfice réel de CHAQUE produit", desc: "Sais enfin lequel de tes produits te rapporte vraiment, pas juste ton chiffre d'affaires total." },
         { icon: "📦", titre: "Le stock, produit par produit", desc: "Sais exactement ce qu'il te reste, ce qui est déjà vendu, ce qui va bientôt manquer." },
-        { icon: "🧮", titre: "Le bénéfice réel de ta boutique", desc: "Coût produit déduit automatiquement, sans les frais de livraison inutiles pour une vente sur place." },
+        { icon: "🛍️", titre: "Une vraie boutique en ligne, incluse", desc: "Avis clients, collections, galerie photo — vends aussi en ligne sans changer d'outil." },
         { icon: "🧾", titre: "Une facture professionnelle, en un clic", desc: "PDF prêt à envoyer, avec le détail exact de l'acompte et du solde restant si besoin." },
         { icon: "📊", titre: "Toute ton équipe, un seul endroit", desc: "Vendeurs, comptable, chacun son rôle et son accès — plus de confusion sur qui a fait quoi." },
       ],
@@ -293,6 +324,13 @@ function LandingPage() {
 
   const c = contenuParProfil[profil];
 
+  const differenciateurs = [
+    { icon: "🧠", titre: "Un assistant, pas juste un tableau", desc: "La plupart des outils affichent des chiffres. RecuVente te dit quoi faire avec, chaque matin." },
+    { icon: "📊", titre: "Le seul adapté à la pub Facebook en COD", desc: "Aucun autre outil sur ce marché n'envoie le vrai signal d'achat à Facebook uniquement à la livraison confirmée." },
+    { icon: "💵", titre: "Le bénéfice réel, produit par produit", desc: "Pas juste \"combien j'ai vendu\" — \"combien chaque produit me rapporte vraiment\", après tous les coûts." },
+    { icon: "🛍️", titre: "Boutique + gestion, un seul outil", desc: "Pas besoin de Shopify + un tableau Excel + WhatsApp. Tout est déjà connecté ensemble." },
+  ];
+
   const faq = [
     { q: "Comment fonctionne l'essai gratuit ?", r: "7 jours d'accès complet dès l'inscription, sur le plan Pro. Aucune carte bancaire requise. Tu peux annuler ou continuer à tout moment." },
     { q: "Comment se fait le paiement ?", r: "En ligne, directement dans l'app, activé automatiquement dès la confirmation du paiement." },
@@ -300,6 +338,7 @@ function LandingPage() {
     { q: "Puis-je changer de plan plus tard ?", r: "Oui, à tout moment, selon la croissance de ton activité." },
     { q: "RecuVente fonctionne pour quel type de commerce ?", r: "Deux profils au choix dès l'inscription : la vente en ligne avec paiement à la livraison (COD), ou la boutique physique avec vente sur place et acompte. Choisis celui qui te correspond." },
     { q: "Puis-je connecter ma boutique Shopify ?", r: "Oui — une intégration directe permet à tes commandes Shopify d'arriver automatiquement dans RecuVente, sans rien taper à la main." },
+    { q: "Est-ce que je peux vraiment vendre en ligne sans Shopify ?", r: "Oui — RecuVente inclut une vraie boutique publique (photos, avis clients, collections), prête à recevoir tes publicités Facebook, sans autre abonnement." },
   ];
 
   return (
@@ -351,7 +390,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <a href="?auth=1" style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 8px 20px rgba(232,146,10,0.35)" }}>
+          <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 8px 20px rgba(232,146,10,0.35)" }}>
             Je démarre maintenant, gratuitement
           </a>
           <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
@@ -386,6 +425,30 @@ function LandingPage() {
             <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#6B7168" }}>
               <span style={{ color: "#D64933", flexShrink: 0 }}>✕</span>
               {point}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "10px 24px 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>
+            Comment ça marche
+          </div>
+          <div style={{ fontSize: 13.5, color: "#6B7168", marginTop: 8 }}>3 étapes, moins de 2 minutes</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+          {[
+            { num: "1", titre: "Crée ton espace", desc: "Nom de ton entreprise, ton profil (vente en ligne ou boutique), ton numéro WhatsApp. C'est tout." },
+            { num: "2", titre: "Ajoute ta première commande", desc: "Manuellement, ou connecte Shopify pour que tout arrive automatiquement, sans rien taper." },
+            { num: "3", titre: "Laisse RecuVente travailler", desc: "Suivi, relances, comptabilité, boutique en ligne — tout se met à jour seul, chaque jour." },
+          ].map((etape, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#1a7a3c", color: "white", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+                {etape.num}
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{etape.titre}</div>
+              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{etape.desc}</div>
             </div>
           ))}
         </div>
@@ -465,7 +528,7 @@ function LandingPage() {
                   {p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes illimitées"}<br />
                   {p.max_membres ? `${p.max_membres} membres max` : "Membres illimités"}
                 </div>
-                <a href="?auth=1" style={{ display: "block", textAlign: "center", marginTop: 18, background: i === 1 ? "#1a7a3c" : "white", color: i === 1 ? "white" : "#1a7a3c", border: i === 1 ? "none" : "1px solid #1a7a3c", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                <a href="?auth=1" onClick={trackerInscription} style={{ display: "block", textAlign: "center", marginTop: 18, background: i === 1 ? "#1a7a3c" : "white", color: i === 1 ? "white" : "#1a7a3c", border: i === 1 ? "none" : "1px solid #1a7a3c", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
                   Commencer
                 </a>
               </div>
@@ -503,7 +566,7 @@ function LandingPage() {
         <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 26, maxWidth: 400, margin: "0 auto 26px" }}>
           Chaque jour que tu attends, c'est une commande de plus qui risque de se perdre. Commence maintenant — c'est gratuit, et ça prend 2 minutes.
         </div>
-        <a href="?auth=1" style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+        <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "white", padding: "15px 36px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
           Créer mon espace gratuitement
         </a>
         <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: 14 }}>Aucune carte bancaire · Annule à tout moment</div>

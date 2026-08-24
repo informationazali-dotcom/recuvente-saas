@@ -24,7 +24,7 @@ export default async function handler(req, res) {
 
   const { data: workspaces, error: wsError } = await supabaseAdmin
     .from("workspaces")
-    .select("id, name, country, currency, owner_id, created_at")
+    .select("id, name, country, currency, owner_id, created_at, whatsapp_number")
     .order("created_at", { ascending: false });
 
   if (wsError) return res.status(400).json({ error: wsError.message });
@@ -45,6 +45,7 @@ export default async function handler(req, res) {
       return {
         ...ws,
         ownerEmail: owner?.user?.email || "?",
+        whatsappNumber: ws.whatsapp_number || null,
         subscription: sub,
         nbMembres,
       };

@@ -3000,6 +3000,14 @@ function AdminPanel({ session }) {
           .filter((ws) => !recherche.trim() || ws.name.toLowerCase().includes(recherche.toLowerCase()) || ws.ownerEmail.toLowerCase().includes(recherche.toLowerCase()))
           .map((ws) => {
             const suspendu = ws.subscription?.status === "suspended";
+            const enEssai = ws.subscription?.status === "trial";
+            let joursRestants = null;
+            let essaiExpire = false;
+            if (enEssai && ws.subscription?.trial_ends_at) {
+              const finEssai = new Date(ws.subscription.trial_ends_at);
+              joursRestants = Math.floor((finEssai - new Date()) / 86400000);
+              essaiExpire = joursRestants < 0;
+            }
             return (
               <div key={ws.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3007,8 +3015,15 @@ function AdminPanel({ session }) {
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{ws.name}</div>
                     <div style={{ fontSize: 11.5, color: "#6B7168" }}>{ws.ownerEmail} · {ws.nbMembres} membre{ws.nbMembres > 1 ? "s" : ""} · {ws.country}</div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>
-                    {ws.subscription ? statusLabels[ws.subscription.status] || ws.subscription.status : "—"}
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>
+                      {ws.subscription ? statusLabels[ws.subscription.status] || ws.subscription.status : "—"}
+                    </div>
+                    {enEssai && joursRestants !== null && (
+                      <div style={{ fontSize: 10.5, fontWeight: 700, marginTop: 2, color: essaiExpire ? "#D64933" : joursRestants <= 2 ? "#8A6412" : "#8A9089" }}>
+                        {essaiExpire ? "⏰ Essai terminé" : `${joursRestants} jour${joursRestants > 1 ? "s" : ""} restant${joursRestants > 1 ? "s" : ""}`}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 8 }}>

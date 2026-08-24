@@ -1222,6 +1222,11 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
     await loadLivreurs();
   }
 
+  async function toggleModeSimplifieLivreur(id, valeurActuelle) {
+    await supabase.from("livreurs").update({ mode_simplifie: !valeurActuelle }).eq("id", id);
+    await loadLivreurs();
+  }
+
   async function addCloser(form) {
     const { error } = await supabase.from("closers").insert([{ ...form, workspace_id: workspace.id }]);
     if (error) alert("Erreur: " + error.message);
@@ -2723,7 +2728,7 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           }}
         />
       )}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail onToggleModeSimplifie={toggleModeSimplifieLivreur} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
@@ -4111,7 +4116,7 @@ function HistoriqueRelances({ commandeId }) {
   );
 }
 
-function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
+function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, onToggleModeSimplifie }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
@@ -4152,13 +4157,26 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {items.map((it) => (
-            <div key={it.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
-                {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
-                {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
+            <div key={it.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
+                  {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
+                  {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
+                </div>
+                <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
               </div>
-              <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+              {onToggleModeSimplifie && (
+                <button
+                  onClick={() => onToggleModeSimplifie(it.id, it.mode_simplifie)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, marginTop: 8, cursor: "pointer", fontSize: 11.5, color: it.mode_simplifie ? "#1a7a3c" : "#8A9089", fontWeight: 600 }}
+                >
+                  <span style={{ width: 30, height: 17, borderRadius: 999, background: it.mode_simplifie ? "#1a7a3c" : "#DDD8CC", position: "relative", flexShrink: 0 }}>
+                    <span style={{ position: "absolute", top: 2, left: it.mode_simplifie ? 15 : 2, width: 13, height: 13, borderRadius: "50%", background: "white", transition: "left 0.15s" }} />
+                  </span>
+                  👁️ Mode simplifié (icônes, peu de lecture)
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -4787,6 +4805,49 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
   );
 }
 
+function CarteCommandeSimplifiee({ c, currency, onConfirmer, onEchoue }) {
+  return (
+    <div style={{ background: "white", border: "2px solid #ECE8DC", borderRadius: 18, padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+          👤
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{c.client}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")}</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#FAFAF7", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }}>
+        <span style={{ fontSize: 22 }}>📍</span>
+        <span style={{ fontSize: 15, fontWeight: 600 }}>{c.zone}</span>
+      </div>
+
+      <a
+        href={`tel:${c.tel}`}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, background: "#2452E8", color: "white", padding: "16px 0", borderRadius: 14, fontWeight: 700, fontSize: 18, textDecoration: "none", marginBottom: 10 }}
+      >
+        📞 {c.tel}
+      </a>
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <button
+          onClick={onConfirmer}
+          style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "20px 0", borderRadius: 14, fontSize: 32, cursor: "pointer" }}
+        >
+          ✅
+        </button>
+        <button
+          onClick={onEchoue}
+          style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "20px 0", borderRadius: 14, fontSize: 32, cursor: "pointer" }}
+        >
+          ❌
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);
   const [commandeAConfirmer, setCommandeAConfirmer] = useState(null);
@@ -4992,6 +5053,9 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {actives_livraison.map((c) => (
+              livreur.mode_simplifie ? (
+                <CarteCommandeSimplifiee key={c.id} c={c} currency={currency} onConfirmer={() => setCommandeAConfirmer(c)} onEchoue={() => changerStatut(c.id, "echouee")} />
+              ) : (
               <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{c.client}</div>
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
@@ -5009,6 +5073,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
                   </button>
                 </div>
               </div>
+              )
             ))}
           </div>
         )

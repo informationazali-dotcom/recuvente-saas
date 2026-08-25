@@ -1378,6 +1378,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadProduits();
   }
 
+  async function updateProduitFraisImport(id, frais) {
+    await supabase.from("produits").update({ frais_import_unitaire: Number(frais) || 0 }).eq("id", id);
+    await loadProduits();
+  }
+
   async function updateProduitPrixVente(id, prix) {
     await supabase.from("produits").update({ prix_vente: Number(prix) || 0 }).eq("id", id);
     await loadProduits();
@@ -1794,10 +1799,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       .map((p) => {
         const q = quantitesParProduit[p.nom] || { commandees: 0, livrees: 0 };
         const coutAchat = Number(p.cout_achat) || 0;
+        const fraisImport = Number(p.frais_import_unitaire) || 0;
+        const coutReel = coutAchat + fraisImport;
         const prixVente = Number(p.prix_vente) || 0;
-        const margeUnitaire = prixVente - coutAchat;
+        const margeUnitaire = prixVente - coutReel;
         const beneficeRealise = margeUnitaire * q.livrees;
-        return { ...p, commandees: q.commandees, livrees: q.livrees, margeUnitaire, beneficeRealise };
+        return { ...p, commandees: q.commandees, livrees: q.livrees, coutReel, margeUnitaire, beneficeRealise };
       })
       .sort((a, b) => b.beneficeRealise - a.beneficeRealise);
   }, [produits, quantitesParProduit]);
@@ -2036,7 +2043,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         nbInconnu += 1;
         montantInconnu += Number(c.montant);
       } else {
-        coutTotal += trouve.cout_achat * quantite;
+        coutTotal += (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite;
       }
     });
     return { coutTotal, nbInconnu, montantInconnu };
@@ -3024,7 +3031,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
@@ -4740,11 +4747,13 @@ function AvisModal({ workspaceId, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [editFraisImportId, setEditFraisImportId] = useState(null);
+  const [editFraisImportValue, setEditFraisImportValue] = useState("");
   const [editStockId, setEditStockId] = useState(null);
   const [editStockValue, setEditStockValue] = useState("");
   const [editPrixId, setEditPrixId] = useState(null);
@@ -4915,6 +4924,17 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateStock, onUpdateP
                     ) : (
                       <button onClick={() => { setEditId(p.id); setEditValue(String(p.cout_achat)); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
                         Coût : {Number(p.cout_achat).toLocaleString("fr-FR")} {currency}
+                      </button>
+                    )}
+
+                    {editFraisImportId === p.id ? (
+                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+                        <input type="number" value={editFraisImportValue} onChange={(e) => setEditFraisImportValue(e.target.value)} autoFocus style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                        <button onClick={() => { onUpdateFraisImport(p.id, editFraisImportValue); setEditFraisImportId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditFraisImportId(p.id); setEditFraisImportValue(String(p.frais_import_unitaire || 0)); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#8A6412", textDecoration: "underline", cursor: "pointer" }}>
+                        🚢 Transport + douane : {Number(p.frais_import_unitaire || 0).toLocaleString("fr-FR")} {currency} / pièce
                       </button>
                     )}
                     {editPrixId === p.id ? (
@@ -5405,7 +5425,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
         nbInconnu += 1;
         montantInconnu += Number(c.montant);
       } else {
-        coutTotal += trouve.cout_achat * quantite;
+        coutTotal += (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite;
       }
     });
     return { coutTotal, nbInconnu, montantInconnu };
@@ -6216,10 +6236,15 @@ function ProduitsViewSaas({ produitsAvecBenefice, currency, onGererCatalogue }) 
 
             <div style={{ display: "flex", gap: 8 }}>
               <div style={{ flex: 1, background: "#FBEAE6", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
-                <div style={{ fontSize: 9.5, color: "#B23A22", textTransform: "uppercase" }}>Prix d'achat</div>
+                <div style={{ fontSize: 9.5, color: "#B23A22", textTransform: "uppercase" }}>Coût réel</div>
                 <div style={{ fontWeight: 700, fontSize: 12.5, color: "#B23A22" }}>
-                  {p.cout_achat ? Number(p.cout_achat).toLocaleString("fr-FR") : "—"}
+                  {p.coutReel ? Number(p.coutReel).toLocaleString("fr-FR") : "—"}
                 </div>
+                {Number(p.frais_import_unitaire) > 0 && (
+                  <div style={{ fontSize: 8.5, color: "#B23A22", opacity: 0.75, marginTop: 1 }}>
+                    dont 🚢 {Number(p.frais_import_unitaire).toLocaleString("fr-FR")}
+                  </div>
+                )}
               </div>
               <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
                 <div style={{ fontSize: 9.5, color: "#3B6D11", textTransform: "uppercase" }}>Prix de vente</div>

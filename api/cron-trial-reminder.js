@@ -7,12 +7,41 @@ const supabaseAdmin = createClient(
 );
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+async function sauvegarderQuotidiennement() {
+  try {
+    const tables = ["workspaces", "commandes", "produits", "avis_produits", "collections", "collection_produits", "workspace_members"];
+    const sauvegarde = {};
+    for (const table of tables) {
+      const { data } = await supabaseAdmin.from(table).select("*");
+      sauvegarde[table] = data || [];
+    }
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const contenu = JSON.stringify(sauvegarde);
+    await supabaseAdmin.storage
+      .from("sauvegardes")
+      .upload(`sauvegarde-${dateStr}.json`, contenu, { contentType: "application/json", upsert: true });
+
+    // Garde seulement les 14 dernières sauvegardes pour ne pas saturer le stockage
+    const { data: fichiers } = await supabaseAdmin.storage.from("sauvegardes").list();
+    if (fichiers && fichiers.length > 14) {
+      const aSupprimer = fichiers.sort((a, b) => a.name.localeCompare(b.name)).slice(0, fichiers.length - 14).map((f) => f.name);
+      if (aSupprimer.length > 0) await supabaseAdmin.storage.from("sauvegardes").remove(aSupprimer);
+    }
+    return true;
+  } catch (e) {
+    console.error("Erreur sauvegarde quotidienne:", e);
+    return false;
+  }
+}
+
 export default async function handler(req, res) {
   // Vercel Cron appelle cette fonction automatiquement chaque jour
   const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Non autorisé" });
   }
+
+  const sauvegardeReussie = await sauvegarderQuotidiennement();
 
   const dansDeuxJours = new Date();
   dansDeuxJours.setDate(dansDeuxJours.getDate() + 2);
@@ -99,5 +128,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ envoyes, essaisExpiresAujourdhui: essaisExpires?.length || 0, notifAdminEnvoyee });
+  return res.status(200).json({ envoyes, essaisExpiresAujourdhui: essaisExpires?.length || 0, notifAdminEnvoyee, sauvegardeReussie });
 }

@@ -1702,6 +1702,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }, [datePreset, customStart, customEnd]);
 
   const [recherche, setRecherche] = useState("");
+  const [statsOuvertes, setStatsOuvertes] = useState(false);
 
   const commandesInRange = useMemo(() => {
     return commandes.filter((c) => {
@@ -2569,6 +2570,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
 
       {commandesInRange.length > 0 && (
+        <button
+          onClick={() => setStatsOuvertes(!statsOuvertes)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", marginBottom: statsOuvertes ? 12 : 16, cursor: "pointer" }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>📊 Statistiques et alertes</span>
+          <span style={{ fontSize: 11, color: "#8A9089" }}>{statsOuvertes ? "Masquer ▲" : "Voir ▼"}</span>
+        </button>
+      )}
+
+      {statsOuvertes && (
+        <>
+      {commandesInRange.length > 0 && (
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 20 }}>
           <StatusDonutSaas
             livrees={commandesInRange.filter((c) => c.statut === "confirmee").length}
@@ -2649,6 +2662,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             Vérifie l'adresse, le livreur assigné, ou la disponibilité du produit dans cette zone.
           </div>
         </div>
+      )}
+        </>
       )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>

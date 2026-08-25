@@ -870,12 +870,13 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           <span style={{ fontWeight: 700, fontSize: 15, color: "#16231F" }}>{entreprise.nom}</span>
         </button>
 
-        <div style={{ flex: 1, minWidth: 140, order: 3 }}>
+        <div style={{ flex: 1, minWidth: 140, order: 3, position: "relative" }}>
+          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#8A9089", pointerEvents: "none" }}>🔍</span>
           <input
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Rechercher un produit..."
-            style={{ width: "100%", padding: "8px 12px", borderRadius: 999, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
+            style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
           />
         </div>
 
@@ -1096,6 +1097,15 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
             </a>
           </div>
         )}
+      </div>
+
+      <div style={{ textAlign: "center", padding: "4px 0 16px" }}>
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)", borderRadius: 999, padding: "8px 18px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+        >
+          ▲ Retour en haut
+        </button>
       </div>
 
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "16px 20px", textAlign: "center", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>

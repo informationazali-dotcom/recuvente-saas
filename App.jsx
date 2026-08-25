@@ -3956,6 +3956,14 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     const vraimentRecuperee = nouveauStatut === "confirmee" && ancienStatut === "echouee";
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: confirmateurNom || "Admin" } : {};
     const { error } = await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commande.id);
+    if (workspace?.id) {
+      supabase.from("journal_audit").insert([{
+        workspace_id: workspace.id,
+        action: `Commande → ${nouveauStatut}`,
+        details: `${commande.client} — ${commande.montant} ${currency}`,
+        effectue_par: confirmateurNom || "Admin",
+      }]).then(() => {});
+    }
     if (error) {
       alert("Erreur: " + error.message);
     } else {

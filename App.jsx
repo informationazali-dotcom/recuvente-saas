@@ -162,7 +162,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche)")
       .eq("user_id", userId);
     if (!error && data && data.length > 0) {
       const liste = data.filter((d) => d.workspaces).map((d) => ({ ...d.workspaces, role: d.role }));
@@ -6998,6 +6998,29 @@ function IntegrationsModal({ workspace, onClose }) {
           <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
             Trouve-le sur business.facebook.com → Gestionnaire d'événements → ton pixel → onglet "API Conversions" → "Générer un token d'accès".
           </div>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🏷️ Marque blanche
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Retire la mention "Propulsé par RecuVente" du pied de page de ta boutique publique.
+          </div>
+          <button
+            onClick={async () => {
+              const nouvelleValeur = !workspace.marque_blanche;
+              await supabase.from("workspaces").update({ marque_blanche: nouvelleValeur }).eq("id", workspace.id);
+              setPersonnalisation({ ...personnalisation, marque_blanche: nouvelleValeur });
+              window.location.reload();
+            }}
+            style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid #DDD8CC", borderRadius: 9, padding: "10px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16231F" }}
+          >
+            <span style={{ width: 34, height: 19, borderRadius: 999, background: workspace.marque_blanche ? "#1a7a3c" : "#DDD8CC", position: "relative", flexShrink: 0 }}>
+              <span style={{ position: "absolute", top: 2, left: workspace.marque_blanche ? 17 : 2, width: 15, height: 15, borderRadius: "50%", background: "white", transition: "left 0.15s" }} />
+            </span>
+            {workspace.marque_blanche ? "Activée — mention masquée" : "Désactivée — mention affichée"}
+          </button>
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

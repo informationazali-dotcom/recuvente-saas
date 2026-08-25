@@ -3962,7 +3962,9 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
         action: `Commande → ${nouveauStatut}`,
         details: `${commande.client} — ${commande.montant} ${currency}`,
         effectue_par: confirmateurNom || "Admin",
-      }]).then(() => {});
+      }]).then(({ error: erreurAudit }) => {
+        if (erreurAudit) console.error("Erreur journal d'audit:", erreurAudit.message);
+      });
     }
     if (error) {
       alert("Erreur: " + error.message);
@@ -6663,9 +6665,13 @@ function IntegrationsModal({ workspace, onClose }) {
   const [journalAudit, setJournalAudit] = useState(null);
   const [afficherJournalAudit, setAfficherJournalAudit] = useState(false);
 
+  const [erreurJournalAudit, setErreurJournalAudit] = useState(null);
   useEffect(() => {
     if (!afficherJournalAudit || journalAudit) return;
-    supabase.from("journal_audit").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(30).then(({ data }) => setJournalAudit(data || []));
+    supabase.from("journal_audit").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(30).then(({ data, error }) => {
+      if (error) setErreurJournalAudit(error.message);
+      setJournalAudit(data || []);
+    });
   }, [afficherJournalAudit]);
 
   const [personnalisation, setPersonnalisation] = useState({
@@ -7068,6 +7074,7 @@ function IntegrationsModal({ workspace, onClose }) {
 
           {afficherJournalAudit && (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
+              {erreurJournalAudit && <div style={{ fontSize: 12, color: "#D64933", background: "#FBEAE6", borderRadius: 8, padding: "8px 12px" }}>Erreur : {erreurJournalAudit}</div>}
               {journalAudit === null && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
               {journalAudit && journalAudit.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucune action enregistrée pour l'instant.</div>}
               {journalAudit && journalAudit.map((entree) => (

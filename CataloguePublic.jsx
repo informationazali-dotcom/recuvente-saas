@@ -216,7 +216,7 @@ export default function CataloguePublic({ workspaceId }) {
   if (produitOuvert) {
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
@@ -648,13 +648,14 @@ export default function CataloguePublic({ workspaceId }) {
           .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
           .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
           .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
+          @media (max-width: 420px) { .rv-shop-header-whatsapp-txt { display: none; } .rv-shop-header-nom { display: none; } }
           .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
           @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
           @media (min-width: 960px) { .rv-shop-content { max-width: 1100px; padding: 0 32px; } .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
           @media (min-width: 1280px) { .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
@@ -694,6 +695,7 @@ export default function CataloguePublic({ workspaceId }) {
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
         .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
         .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
+        @media (max-width: 420px) { .rv-shop-header-whatsapp-txt { display: none; } .rv-shop-header-nom { display: none; } }
         .rv-shop-banner { height: 150px; }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
@@ -719,7 +721,7 @@ export default function CataloguePublic({ workspaceId }) {
         }
       `}</style>
 
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
 
       <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
         {entreprise.banniere ? (
@@ -854,72 +856,75 @@ export default function CataloguePublic({ workspaceId }) {
   );
 }
 
-function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection }) {
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive }) {
   const aDesLiensNav = aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
 
   return (
     <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <button
-          onClick={onLogoClick}
-          style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0 }}
-        >
-          {entreprise.logo ? (
-            <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
-          ) : null}
-          <span style={{ fontWeight: 700, fontSize: 15, color: "#16231F" }}>{entreprise.nom}</span>
-        </button>
-
-        <div style={{ flex: 1, minWidth: 140, order: 3, position: "relative" }}>
-          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#8A9089", pointerEvents: "none" }}>🔍</span>
-          <input
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Rechercher un produit..."
-            style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
-          />
+      <div style={{ background: couleur, overflow: "hidden" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
+          {["🚚 Livraison rapide", "💵 Paiement à la livraison", "🛡️ Achat sécurisé"].map((txt, i) => (
+            <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: "white", opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
+          ))}
         </div>
+      </div>
 
-        {entreprise.whatsapp && (
-          <a
-            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "#EAF3DE", color: "#3B6D11", padding: "8px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", order: 2, marginLeft: "auto" }}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={onLogoClick}
+            style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0, flexShrink: 0 }}
           >
-            💬 Nous contacter
-          </a>
-        )}
+            {entreprise.logo ? (
+              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+            ) : null}
+            <span className="rv-shop-header-nom" style={{ fontWeight: 700, fontSize: 15, color: "#16231F", whiteSpace: "nowrap" }}>{entreprise.nom}</span>
+          </button>
+
+          <div className="rv-shop-header-search" style={{ flex: 1, minWidth: 0, position: "relative" }}>
+            <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#8A9089", pointerEvents: "none" }}>🔍</span>
+            <input
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder="Rechercher un produit..."
+              style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
+            />
+          </div>
+
+          {entreprise.whatsapp && (
+            <a
+              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rv-shop-header-whatsapp"
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "#EAF3DE", color: "#3B6D11", padding: "8px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              💬 <span className="rv-shop-header-whatsapp-txt">Nous contacter</span>
+            </a>
+          )}
+        </div>
       </div>
 
       {aDesLiensNav && onNaviguerVersCollection && (
         <div style={{ borderTop: "1px solid #F0EEE6", overflowX: "auto" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
-            <button
-              onClick={() => onNaviguerVersCollection(null)}
-              style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#16231F", cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              Accueil
-            </button>
-            {aDesBestSellers && (
-              <button onClick={() => onNaviguerVersCollection("bestseller")} style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}>
-                🔥 Meilleures ventes
-              </button>
-            )}
-            {aDesNouveautes && (
-              <button onClick={() => onNaviguerVersCollection("nouveautes")} style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}>
-                ✨ Nouveautés
-              </button>
-            )}
-            {collectionsManuelles.map((col) => (
-              <button
-                key={col.id}
-                onClick={() => onNaviguerVersCollection(`manuelle-${col.id}`)}
-                style={{ background: "none", border: "none", padding: "9px 12px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}
-              >
-                {col.nom}
-              </button>
-            ))}
+            {[
+              { id: null, label: "Accueil" },
+              ...(aDesBestSellers ? [{ id: "bestseller", label: "🔥 Meilleures ventes" }] : []),
+              ...(aDesNouveautes ? [{ id: "nouveautes", label: "✨ Nouveautés" }] : []),
+              ...collectionsManuelles.map((col) => ({ id: `manuelle-${col.id}`, label: col.nom })),
+            ].map((lien) => {
+              const actif = collectionActive === lien.id;
+              return (
+                <button
+                  key={lien.label}
+                  onClick={() => onNaviguerVersCollection(lien.id)}
+                  style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${couleur}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: actif ? "#16231F" : "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  {lien.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

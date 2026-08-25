@@ -139,7 +139,12 @@ async function genererFacturePDF(commande, workspace) {
 export default function App() {
   const [session, setSession] = useState(undefined);
   const [workspace, setWorkspace] = useState(undefined);
+  const [workspacesDisponibles, setWorkspacesDisponibles] = useState([]);
+  const [workspaceActifId, setWorkspaceActifId] = useState(() => {
+    try { return localStorage.getItem("rv_workspace_actif") || null; } catch { return null; }
+  });
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
+  const [showAjouterEspace, setShowAjouterEspace] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -147,24 +152,39 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  async function loadWorkspace() {
+  async function loadWorkspace(idASelectionner) {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user?.id;
     if (!userId) {
       setWorkspace(null);
+      setWorkspacesDisponibles([]);
       return;
     }
     const { data, error } = await supabase
       .from("workspace_members")
       .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url)")
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
-    if (!error && data) {
-      setWorkspace({ ...data.workspaces, role: data.role });
+      .eq("user_id", userId);
+    if (!error && data && data.length > 0) {
+      const liste = data.filter((d) => d.workspaces).map((d) => ({ ...d.workspaces, role: d.role }));
+      setWorkspacesDisponibles(liste);
+      const cibleId = idASelectionner || workspaceActifId;
+      const actif = liste.find((w) => w.id === cibleId) || liste[0];
+      setWorkspace(actif);
+      if (actif && actif.id !== workspaceActifId) {
+        try { localStorage.setItem("rv_workspace_actif", actif.id); } catch {}
+        setWorkspaceActifId(actif.id);
+      }
     } else {
       setWorkspace(null);
+      setWorkspacesDisponibles([]);
     }
+  }
+
+  function changerEspace(id) {
+    try { localStorage.setItem("rv_workspace_actif", id); } catch {}
+    setWorkspaceActifId(id);
+    const w = workspacesDisponibles.find((x) => x.id === id);
+    if (w) setWorkspace(w);
   }
 
   const [subscription, setSubscription] = useState(undefined);
@@ -206,8 +226,10 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "welcome", email: session.user.email, workspaceName: nom }),
     }).catch(() => {}); // silencieux si l'email échoue, ne bloque jamais l'inscription
-    await loadWorkspace();
+    try { localStorage.setItem("rv_workspace_actif", ws.id); } catch {}
+    await loadWorkspace(ws.id);
     setLoadingWorkspace(false);
+    setShowAjouterEspace(false);
   }
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
@@ -233,7 +255,25 @@ export default function App() {
   if (workspace === undefined) return <Centered>Chargement de ton espace…</Centered>;
   if (workspace === null) return <CreateWorkspaceScreen onCreate={creerWorkspace} loading={loadingWorkspace} />;
 
-  return <WorkspaceDashboard workspace={workspace} session={session} subscription={subscription} />;
+  return (
+    <>
+      <WorkspaceDashboard
+        workspace={workspace}
+        session={session}
+        subscription={subscription}
+        workspacesDisponibles={workspacesDisponibles}
+        onChangerEspace={changerEspace}
+        onDemanderAjoutEspace={() => setShowAjouterEspace(true)}
+      />
+      {showAjouterEspace && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }} onClick={() => setShowAjouterEspace(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <CreateWorkspaceScreen onCreate={creerWorkspace} loading={loadingWorkspace} onAnnuler={() => setShowAjouterEspace(false)} />
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function Centered({ children }) {
@@ -1004,7 +1044,7 @@ function NouveauMotDePasseScreen() {
   );
 }
 
-function CreateWorkspaceScreen({ onCreate, loading }) {
+function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
   const [nom, setNom] = useState("");
   const [activityType, setActivityType] = useState("cod_ecommerce");
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -1045,6 +1085,11 @@ function CreateWorkspaceScreen({ onCreate, loading }) {
             <button onClick={() => setEtape(2)} style={btnStyle}>
               Continuer
             </button>
+            {onAnnuler && (
+              <button onClick={onAnnuler} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "10px 0 0", cursor: "pointer" }}>
+                Annuler
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -1150,7 +1195,46 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
   );
 }
 
-function WorkspaceDashboard({ workspace, session, subscription }) {
+function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
+  const [ouvert, setOuvert] = useState(false);
+  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
+
+  return (
+    <div style={{ position: "relative", marginBottom: 18 }}>
+      <button
+        onClick={() => setOuvert(!ouvert)}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 9, padding: "9px 10px", cursor: "pointer" }}
+      >
+        <span style={{ color: "white", fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>
+          {icones[workspace.activity_type] || "🏢"} {workspace.name}
+        </span>
+        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, flexShrink: 0, marginLeft: 6 }}>{ouvert ? "▲" : "▼"}</span>
+      </button>
+
+      {ouvert && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", padding: 6, zIndex: 40 }}>
+          {workspacesDisponibles.map((w) => (
+            <button
+              key={w.id}
+              onClick={() => { onChangerEspace(w.id); setOuvert(false); }}
+              style={{ width: "100%", textAlign: "left", background: w.id === workspace.id ? "#EAF3DE" : "none", border: "none", borderRadius: 7, padding: "8px 10px", fontSize: 12.5, fontWeight: 600, color: "#16231F", cursor: "pointer", marginBottom: 2 }}
+            >
+              {icones[w.activity_type] || "🏢"} {w.name}
+            </button>
+          ))}
+          <button
+            onClick={() => { onDemanderAjoutEspace(); setOuvert(false); }}
+            style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderTop: "1px solid #ECE8DC", marginTop: 4, paddingTop: 8, padding: "8px 10px", fontSize: 12.5, fontWeight: 600, color: "#1a7a3c", cursor: "pointer" }}
+          >
+            + Ajouter un autre espace
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
@@ -2088,9 +2172,19 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
       `}</style>
 
       <div className="rv-saas-sidebar">
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: "white", marginBottom: 28, padding: "0 8px" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: "white", marginBottom: 14, padding: "0 8px" }}>
           RECU<span style={{ color: "#e8920a" }}>VENTE</span>
         </div>
+
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <SelecteurEspace
+            workspace={workspace}
+            workspacesDisponibles={workspacesDisponibles}
+            onChangerEspace={onChangerEspace}
+            onDemanderAjoutEspace={onDemanderAjoutEspace}
+          />
+        )}
+
         {[
           { key: "aujourdhui", label: "Aujourd'hui" },
           { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : "Commandes" },

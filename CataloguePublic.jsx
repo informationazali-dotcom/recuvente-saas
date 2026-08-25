@@ -652,7 +652,7 @@ export default function CataloguePublic({ workspaceId }) {
           .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
           @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
           @media (min-width: 960px) { .rv-shop-content { max-width: 1100px; padding: 0 32px; } .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
-          @media (min-width: 1280px) { .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
+          @media (min-width: 1280px) { .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; } .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} />
@@ -716,6 +716,7 @@ export default function CataloguePublic({ workspaceId }) {
           .rv-shop-collection-scroll { grid-template-columns: repeat(4, 1fr); gap: 20px; }
         }
         @media (min-width: 1280px) {
+          .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; }
           .rv-shop-grid { grid-template-columns: repeat(5, 1fr); }
           .rv-shop-collection-scroll { grid-template-columns: repeat(5, 1fr); }
         }
@@ -862,14 +863,14 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   return (
     <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
       <div style={{ background: couleur, overflow: "hidden" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
+        <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {["🚚 Livraison rapide", "💵 Paiement à la livraison", "🛡️ Achat sécurisé"].map((txt, i) => (
             <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: "white", opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
           ))}
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px" }}>
+      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             onClick={onLogoClick}
@@ -907,7 +908,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
 
       {aDesLiensNav && onNaviguerVersCollection && (
         <div style={{ borderTop: "1px solid #F0EEE6", overflowX: "auto" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
+          <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
             {[
               { id: null, label: "Accueil" },
               ...(aDesBestSellers ? [{ id: "bestseller", label: "🔥 Meilleures ventes" }] : []),

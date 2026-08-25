@@ -2348,6 +2348,30 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             {workspace.country} · {workspace.currency} · rôle : {workspace.role}
           </div>
 
+          {(workspace.role === "owner" || workspace.role === "admin") && (
+            <button
+              onClick={onDemanderAjoutEspace}
+              className="rv-saas-tabs-mobile"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px dashed rgba(255,255,255,0.4)", borderRadius: 999, padding: "6px 12px", color: "white", fontSize: 11.5, fontWeight: 600, cursor: "pointer", marginTop: 10 }}
+            >
+              + Ajouter un autre espace
+            </button>
+          )}
+
+          {(workspace.role === "owner" || workspace.role === "admin") && workspacesDisponibles.length > 1 && (
+            <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+              {workspacesDisponibles.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => onChangerEspace(w.id)}
+                  style={{ background: w.id === workspace.id ? "white" : "rgba(255,255,255,0.14)", color: w.id === workspace.id ? "#16231F" : "white", border: "none", borderRadius: 999, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                >
+                  {{ cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" }[w.activity_type] || "🏢"} {w.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div style={{ marginTop: 16, perspective: "800px" }}>
             <div className="rv-3d-card" style={{ position: "relative", padding: "14px 16px", borderRadius: 14, background: "linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 70%)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 24px rgba(0,0,0,0.2)" }}>
               <div className="rv-glow" style={{ position: "absolute", top: -16, left: -16, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />

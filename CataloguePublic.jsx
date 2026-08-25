@@ -220,11 +220,11 @@ export default function CataloguePublic({ workspaceId }) {
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
-          .rv-shop-produit-photo { height: 260px; }
+          .rv-shop-produit-photo { width: 100%; aspect-ratio: 1 / 1; height: auto; }
           @media (min-width: 900px) {
             .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 24px; }
             .rv-shop-produit-photo-col { position: sticky; top: 24px; }
-            .rv-shop-produit-photo { height: 460px; border-radius: 16px; }
+            .rv-shop-produit-photo { border-radius: 16px; }
             .rv-shop-produit-back { display: none !important; }
             .rv-shop-produit-info { padding: 0 0 100px !important; }
             .rv-shop-cta-bar-inner { max-width: 1000px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }

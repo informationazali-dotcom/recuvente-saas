@@ -1200,15 +1200,22 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
   const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
 
   return (
-    <div style={{ position: "relative", marginBottom: 18 }}>
+    <div style={{ position: "relative", marginBottom: 18, display: "flex", gap: 6 }}>
       <button
         onClick={() => setOuvert(!ouvert)}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 9, padding: "9px 10px", cursor: "pointer" }}
+        style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 9, padding: "9px 10px", cursor: "pointer" }}
       >
         <span style={{ color: "white", fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>
           {icones[workspace.activity_type] || "🏢"} {workspace.name}
         </span>
         <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, flexShrink: 0, marginLeft: 6 }}>{ouvert ? "▲" : "▼"}</span>
+      </button>
+      <button
+        onClick={onDemanderAjoutEspace}
+        title="Ajouter un autre espace"
+        style={{ flexShrink: 0, width: 36, background: "rgba(255,255,255,0.08)", border: "1px dashed rgba(255,255,255,0.35)", borderRadius: 9, color: "white", fontSize: 17, fontWeight: 700, cursor: "pointer" }}
+      >
+        +
       </button>
 
       {ouvert && (

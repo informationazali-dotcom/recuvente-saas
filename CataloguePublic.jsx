@@ -503,6 +503,40 @@ export default function CataloguePublic({ workspaceId }) {
               </div>
             )}
 
+            {!envoye && (() => {
+              const similaires = produits
+                .filter((p) => p.produit_id !== produitOuvert.produit_id)
+                .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))
+                .slice(0, 6);
+              if (similaires.length === 0) return null;
+              return (
+                <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 20, marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Tu pourrais aussi aimer</div>
+                  <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+                    {similaires.map((p) => (
+                      <button
+                        key={p.produit_id}
+                        onClick={() => ouvrirProduit(p)}
+                        style={{ flex: "0 0 130px", width: 130, background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
+                      >
+                        <div style={{ width: "100%", paddingTop: "100%", position: "relative", background: "#EEF0EA" }}>
+                          {p.photo_url ? (
+                            <img src={p.photo_url} alt={p.produit_nom} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+                          ) : (
+                            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📦</div>
+                          )}
+                        </div>
+                        <div style={{ padding: "8px 10px 10px" }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {!envoye && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
                 {[

@@ -1292,6 +1292,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   async function changerStatutRapide(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: session?.user?.email || "Admin", mode_paiement: modePaiement || null } : {};
     await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
+    const commandeConcernee = commandes.find((c) => c.id === commandeId);
+    enregistrerAudit(`Commande → ${nouveauStatut}`, commandeConcernee ? `${commandeConcernee.client} — ${commandeConcernee.montant} ${workspace.currency}` : commandeId);
     if (nouveauStatut === "confirmee") {
       supabase.auth.getSession().then(({ data: sessionData }) => {
         fetch("/api/facebook-capi", {
@@ -1408,8 +1410,19 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadProduits();
   }
 
+  async function enregistrerAudit(action, details) {
+    await supabase.from("journal_audit").insert([{
+      workspace_id: workspace.id,
+      action,
+      details,
+      effectue_par: session?.user?.email || "Inconnu",
+    }]);
+  }
+
   async function deleteProduit(id) {
+    const produitConcerne = produits.find((p) => p.id === id);
     await supabase.from("produits").delete().eq("id", id);
+    await enregistrerAudit("Suppression produit", produitConcerne ? produitConcerne.nom : id);
     await loadProduits();
   }
 
@@ -6639,6 +6652,14 @@ function AideModal({ onClose }) {
 
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
+  const [journalAudit, setJournalAudit] = useState(null);
+  const [afficherJournalAudit, setAfficherJournalAudit] = useState(false);
+
+  useEffect(() => {
+    if (!afficherJournalAudit || journalAudit) return;
+    supabase.from("journal_audit").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(30).then(({ data }) => setJournalAudit(data || []));
+  }, [afficherJournalAudit]);
+
   const [personnalisation, setPersonnalisation] = useState({
     logo_url: workspace.logo_url || "",
     banniere_url: workspace.banniere_url || "",
@@ -7021,6 +7042,38 @@ function IntegrationsModal({ workspace, onClose }) {
             </span>
             {workspace.marque_blanche ? "Activée — mention masquée" : "Désactivée — mention affichée"}
           </button>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🔐 Journal d'audit
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Qui a fait quoi, et quand — les 30 dernières actions importantes (statuts de commande, suppressions de produits).
+          </div>
+          <button
+            onClick={() => setAfficherJournalAudit(!afficherJournalAudit)}
+            style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 9, padding: "10px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16231F" }}
+          >
+            {afficherJournalAudit ? "Masquer ▲" : "Voir le journal ▼"}
+          </button>
+
+          {afficherJournalAudit && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
+              {journalAudit === null && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
+              {journalAudit && journalAudit.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucune action enregistrée pour l'instant.</div>}
+              {journalAudit && journalAudit.map((entree) => (
+                <div key={entree.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#16231F" }}>{entree.action}</span>
+                    <span style={{ fontSize: 10.5, color: "#8A9089", flexShrink: 0 }}>{new Date(entree.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                  {entree.details && <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{entree.details}</div>}
+                  <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>par {entree.effectue_par}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

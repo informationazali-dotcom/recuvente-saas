@@ -690,7 +690,7 @@ export default function CataloguePublic({ workspaceId }) {
     <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <style>{`
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
-        .rv-shop-banner { height: 90px; }
+        .rv-shop-banner { height: 150px; }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
@@ -698,14 +698,14 @@ export default function CataloguePublic({ workspaceId }) {
         .rv-shop-collection-card { flex: 0 0 140px; min-width: 0; max-width: 140px; }
         @media (min-width: 640px) {
           .rv-shop-content { max-width: 720px; padding: 0 24px; }
-          .rv-shop-banner { height: 160px; }
+          .rv-shop-banner { height: 240px; }
           .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
           .rv-shop-collection-scroll { display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; gap: 16px; }
           .rv-shop-collection-card { flex: none; width: auto; min-width: 0; max-width: none; }
         }
         @media (min-width: 960px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
-          .rv-shop-banner { height: 220px; }
+          .rv-shop-banner { height: 340px; }
           .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
           .rv-shop-collection-scroll { grid-template-columns: repeat(4, 1fr); gap: 20px; }
         }
@@ -717,14 +717,33 @@ export default function CataloguePublic({ workspaceId }) {
 
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
 
-      {entreprise.banniere ? (
-        <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
-          <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.35))" }} />
+      <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
+        {entreprise.banniere ? (
+          <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
+        )}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.05) 100%)" }} />
+        <div className="rv-shop-hero-content" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 16px 18px", display: "flex", alignItems: "flex-end", gap: 14 }}>
+          {entreprise.logo && (
+            <img
+              src={entreprise.logo}
+              alt={entreprise.nom}
+              className="rv-shop-hero-logo"
+              style={{ width: 76, height: 76, borderRadius: 16, objectFit: "cover", border: "3px solid white", boxShadow: "0 6px 18px rgba(0,0,0,0.4)", flexShrink: 0, background: "white" }}
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          )}
+          <div style={{ minWidth: 0, paddingBottom: 2 }}>
+            <div className="rv-shop-hero-nom" style={{ fontWeight: 700, fontSize: 23, color: "white", textShadow: "0 1px 6px rgba(0,0,0,0.4)", lineHeight: 1.2 }}>{entreprise.nom}</div>
+            {entreprise.description && (
+              <div className="rv-shop-hero-desc" style={{ fontSize: 12.5, color: "rgba(255,255,255,0.9)", marginTop: 3, textShadow: "0 1px 4px rgba(0,0,0,0.4)", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                {entreprise.description}
+              </div>
+            )}
+          </div>
         </div>
-      ) : (
-        <div className="rv-shop-banner" style={{ width: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
-      )}
+      </div>
 
       <div className="rv-shop-content" style={{ paddingTop: 20 }}>
         {produits.length === 0 && (
@@ -973,15 +992,15 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 
   return (
     <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30 }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
         {[
           { icone: "🚚", texte: "Livraison rapide" },
           { icone: "💵", texte: "Paiement à la livraison" },
           { icone: "🔄", texte: "Retour facile" },
           { icone: "🛡️", texte: "Achat sécurisé" },
         ].map((badge, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }}>{badge.icone}</span>
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 14px" }}>
+            <span style={{ fontSize: 24, flexShrink: 0 }}>{badge.icone}</span>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "white" }}>{badge.texte}</span>
           </div>
         ))}
@@ -989,7 +1008,12 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 26 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "white", marginBottom: 10 }}>{entreprise.nom}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            {entreprise.logo && (
+              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+            )}
+            <div style={{ fontWeight: 700, fontSize: 16, color: "white" }}>{entreprise.nom}</div>
+          </div>
           {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 14 }}>{entreprise.description}</div>}
           {reseaux.length > 0 && (
             <div style={{ display: "flex", gap: 10 }}>

@@ -2384,9 +2384,9 @@ function WorkspaceDashboard({ workspace, session, subscription }) {
           )}
 
           {[
-            { key: "aRelivrer", title: "📅 À relivrer aujourd'hui", items: todoAujourdhui.aRelivrer, color: "#1a7a3c" },
-            { key: "jamaisContactees", title: "🆕 Jamais contactées", items: todoAujourdhui.jamaisContactees, color: "#8A6412" },
-            { key: "sansNouvelles", title: "⏰ Sans nouvelles depuis 24h+", items: todoAujourdhui.sansNouvelles, color: "#D64933" },
+            { key: "aRelivrer", title: workspace.activity_type === "location_immobiliere" ? "📅 Loyers attendus aujourd'hui" : "📅 À relivrer aujourd'hui", items: todoAujourdhui.aRelivrer, color: "#1a7a3c" },
+            { key: "jamaisContactees", title: workspace.activity_type === "location_immobiliere" ? "🆕 Nouveaux locataires jamais relancés" : "🆕 Jamais contactées", items: todoAujourdhui.jamaisContactees, color: "#8A6412" },
+            { key: "sansNouvelles", title: workspace.activity_type === "location_immobiliere" ? "⏰ Loyers impayés depuis 24h+" : "⏰ Sans nouvelles depuis 24h+", items: todoAujourdhui.sansNouvelles, color: "#D64933" },
           ].map((sec) => sec.items.length > 0 && (
             <div key={sec.key} style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: sec.color, marginBottom: 8 }}>{sec.title} ({sec.items.length})</div>

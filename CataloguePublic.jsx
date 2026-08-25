@@ -220,7 +220,6 @@ export default function CataloguePublic({ workspaceId }) {
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
-          .rv-shop-produit-photo { width: 100%; aspect-ratio: 1 / 1; height: auto; }
           @media (min-width: 900px) {
             .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 24px; }
             .rv-shop-produit-photo-col { position: sticky; top: 24px; }
@@ -238,17 +237,18 @@ export default function CataloguePublic({ workspaceId }) {
               const photoAffichee = toutesLesPhotos[photoActive] || toutesLesPhotos[0];
               return (
                 <>
-                  {photoAffichee ? (
-                    <img
-                      className="rv-shop-produit-photo"
-                      src={photoAffichee}
-                      alt={produitOuvert.produit_nom}
-                      style={{ width: "100%", objectFit: "contain", background: "#EEF0EA", display: "block" }}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                  ) : (
-                    <div className="rv-shop-produit-photo" style={{ width: "100%", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
-                  )}
+                  <div className="rv-shop-produit-photo" style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
+                    {photoAffichee ? (
+                      <img
+                        src={photoAffichee}
+                        alt={produitOuvert.produit_nom}
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                        onError={(e) => { e.target.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+                    )}
+                  </div>
                   {toutesLesPhotos.length > 1 && (
                     <div style={{ display: "flex", gap: 8, padding: "10px 16px", overflowX: "auto" }}>
                       {toutesLesPhotos.map((url, i) => (

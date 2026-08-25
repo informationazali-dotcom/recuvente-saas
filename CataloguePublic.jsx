@@ -646,6 +646,8 @@ export default function CataloguePublic({ workspaceId }) {
       <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
         <style>{`
           .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+          .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
+          .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
           .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
           @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
           @media (min-width: 960px) { .rv-shop-content { max-width: 1100px; padding: 0 32px; } .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
@@ -690,6 +692,8 @@ export default function CataloguePublic({ workspaceId }) {
     <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <style>{`
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+        .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
+        .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
         .rv-shop-banner { height: 150px; }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
@@ -948,7 +952,8 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
   return (
     <button
       onClick={() => onOpen(p)}
-      style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
+      className="rv-shop-card"
+      style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(22,35,31,0.04)" }}
     >
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
         {p.photo_url ? (
@@ -971,9 +976,20 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
             Nouveau
           </div>
         )}
+        {p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5 && (
+          <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(214,73,51,0.92)", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+            ⚡ {p.stock_initial} restants
+          </div>
+        )}
       </div>
       <div style={{ padding: "10px 12px 14px" }}>
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+        {p.note_moyenne != null && Number(p.nb_avis) > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            <span style={{ color: "#e8920a", fontSize: 11.5 }}>{"★".repeat(Math.round(p.note_moyenne))}{"☆".repeat(5 - Math.round(p.note_moyenne))}</span>
+            <span style={{ fontSize: 10.5, color: "#8A9089" }}>({p.nb_avis})</span>
+          </div>
+        )}
         <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>
           {Number(p.prix_vente).toLocaleString("fr-FR")} {devise}
         </div>

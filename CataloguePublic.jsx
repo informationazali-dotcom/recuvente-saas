@@ -72,6 +72,7 @@ export default function CataloguePublic({ workspaceId }) {
         politiqueLivraison: data[0].politique_livraison,
         politiqueRetours: data[0].politique_retours,
         politiqueConfidentialite: data[0].politique_confidentialite,
+        marqueBlanche: data[0].marque_blanche,
         facebookUrl: data[0].facebook_url,
         instagramUrl: data[0].instagram_url,
         tiktokUrl: data[0].tiktok_url,
@@ -220,11 +221,10 @@ export default function CataloguePublic({ workspaceId }) {
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
-          .rv-shop-produit-photo { height: 260px; }
           @media (min-width: 900px) {
             .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 24px; }
             .rv-shop-produit-photo-col { position: sticky; top: 24px; }
-            .rv-shop-produit-photo { height: 460px; border-radius: 16px; }
+            .rv-shop-produit-photo { border-radius: 16px; }
             .rv-shop-produit-back { display: none !important; }
             .rv-shop-produit-info { padding: 0 0 100px !important; }
             .rv-shop-cta-bar-inner { max-width: 1000px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }
@@ -238,17 +238,18 @@ export default function CataloguePublic({ workspaceId }) {
               const photoAffichee = toutesLesPhotos[photoActive] || toutesLesPhotos[0];
               return (
                 <>
-                  {photoAffichee ? (
-                    <img
-                      className="rv-shop-produit-photo"
-                      src={photoAffichee}
-                      alt={produitOuvert.produit_nom}
-                      style={{ width: "100%", objectFit: "contain", background: "#EEF0EA", display: "block" }}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                  ) : (
-                    <div className="rv-shop-produit-photo" style={{ width: "100%", background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
-                  )}
+                  <div className="rv-shop-produit-photo" style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
+                    {photoAffichee ? (
+                      <img
+                        src={photoAffichee}
+                        alt={produitOuvert.produit_nom}
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                        onError={(e) => { e.target.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+                    )}
+                  </div>
                   {toutesLesPhotos.length > 1 && (
                     <div style={{ display: "flex", gap: 8, padding: "10px 16px", overflowX: "auto" }}>
                       {toutesLesPhotos.map((url, i) => (
@@ -502,6 +503,40 @@ export default function CataloguePublic({ workspaceId }) {
                 </button>
               </div>
             )}
+
+            {!envoye && (() => {
+              const similaires = produits
+                .filter((p) => p.produit_id !== produitOuvert.produit_id)
+                .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))
+                .slice(0, 6);
+              if (similaires.length === 0) return null;
+              return (
+                <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 20, marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Tu pourrais aussi aimer</div>
+                  <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+                    {similaires.map((p) => (
+                      <button
+                        key={p.produit_id}
+                        onClick={() => ouvrirProduit(p)}
+                        style={{ flex: "0 0 130px", width: 130, background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left" }}
+                      >
+                        <div style={{ width: "100%", paddingTop: "100%", position: "relative", background: "#EEF0EA" }}>
+                          {p.photo_url ? (
+                            <img src={p.photo_url} alt={p.produit_nom} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+                          ) : (
+                            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📦</div>
+                          )}
+                        </div>
+                        <div style={{ padding: "8px 10px 10px" }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {!envoye && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
@@ -1115,7 +1150,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
       </div>
 
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "16px 20px", textAlign: "center", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
-        © {anneeEnCours} {entreprise.nom} — Propulsé par RecuVente
+        © {anneeEnCours} {entreprise.nom}{!entreprise.marqueBlanche && " — Propulsé par RecuVente"}
       </div>
     </div>
   );

@@ -1287,6 +1287,22 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCampagne, setShowCampagne] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
+  const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
+
+  async function changerStatutRapide(commandeId, nouveauStatut, modePaiement) {
+    const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: session?.user?.email || "Admin", mode_paiement: modePaiement || null } : {};
+    await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
+    if (nouveauStatut === "confirmee") {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        fetch("/api/facebook-capi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+          body: JSON.stringify({ commandeId }),
+        }).catch(() => {});
+      });
+    }
+    await loadCommandes();
+  }
   const [showProduits, setShowProduits] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
@@ -2493,15 +2509,37 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               <div style={{ fontSize: 13, fontWeight: 700, color: sec.color, marginBottom: 8 }}>{sec.title} ({sec.items.length})</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {sec.items.map((c, i) => (
-                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${sec.color}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: i === 0 ? sec.color : "#ECE8DC", color: i === 0 ? "white" : "#8A9089", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {i + 1}
+                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${sec.color}`, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: "50%", background: i === 0 ? sec.color : "#ECE8DC", color: i === 0 ? "white" : "#8A9089", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.client}</div>
+                        <div style={{ fontSize: 12, color: "#6B7168", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.produit} · {c.tel}</div>
+                      </div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14, flexShrink: 0 }}>{Number(c.montant).toLocaleString("fr-FR")} {workspace.currency}</div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{c.client}</div>
-                      <div style={{ fontSize: 12, color: "#6B7168" }}>{c.produit} · {c.tel}</div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                      <a
+                        href={`tel:${c.tel}`}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 7, padding: "9px 14px", fontSize: 15, textDecoration: "none" }}
+                      >
+                        📞
+                      </a>
+                      <button
+                        onClick={() => setCommandeAConfirmerRapide(c)}
+                        style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                      >
+                        ✅ Confirmer
+                      </button>
+                      <button
+                        onClick={() => changerStatutRapide(c.id, "echouee")}
+                        style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                      >
+                        ❌ Échoué
+                      </button>
                     </div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {workspace.currency}</div>
                   </div>
                 ))}
               </div>
@@ -2895,6 +2933,38 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           );
         })}
       </div>
+
+      {commandeAConfirmerRapide && (
+        <div
+          onClick={() => setCommandeAConfirmerRapide(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Comment le client a-t-il payé ?</div>
+            <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>{commandeAConfirmerRapide.client} — {Number(commandeAConfirmerRapide.montant).toLocaleString("fr-FR")} {workspace.currency}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { key: "cash", label: "💵 Cash (espèces)" },
+                { key: "orange_money", label: "🟠 Orange Money" },
+                { key: "wave", label: "🌊 Wave" },
+                { key: "mtn_money", label: "🟡 MTN Money" },
+                { key: "moov_money", label: "🔵 Moov Money" },
+              ].map((mode) => (
+                <button
+                  key={mode.key}
+                  onClick={() => { changerStatutRapide(commandeAConfirmerRapide.id, "confirmee", mode.key); setCommandeAConfirmerRapide(null); }}
+                  style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "13px 16px", textAlign: "left", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setCommandeAConfirmerRapide(null)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       {toastNouvellesCommandes && (
         <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#16231F", color: "white", padding: "11px 20px", borderRadius: 999, fontSize: 13, fontWeight: 600, zIndex: 90, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }}>

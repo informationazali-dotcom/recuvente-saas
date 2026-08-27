@@ -1370,8 +1370,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadTablesRestaurant();
   }
 
+  async function toggleStatutTable(tableId, statutActuel) {
+    await supabase.from("tables_restaurant").update({ statut: statutActuel === "occupee" ? "libre" : "occupee" }).eq("id", tableId);
+    await loadTablesRestaurant();
+  }
+
   async function changerStatutCuisine(commandeId, nouveauStatutCuisine) {
     await supabase.from("commandes").update({ statut_cuisine: nouveauStatutCuisine }).eq("id", commandeId);
+    if (nouveauStatutCuisine === "servie") {
+      const commandeConcernee = commandes.find((c) => c.id === commandeId);
+      if (commandeConcernee?.table_id) {
+        await supabase.from("tables_restaurant").update({ statut: "libre" }).eq("id", commandeConcernee.table_id);
+        await loadTablesRestaurant();
+      }
+    }
     await loadCommandes();
   }
 
@@ -2089,6 +2101,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     if (error) {
       alert("Erreur: " + error.message);
       return;
+    }
+    if (form.table_id) {
+      await supabase.from("tables_restaurant").update({ statut: "occupee" }).eq("id", form.table_id);
+      await loadTablesRestaurant();
     }
     await loadCommandes();
     setShowAdd(false);
@@ -2880,6 +2896,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onDelete={deletePlat}
           tablesRestaurant={tablesRestaurant}
           onAddTable={addTableRestaurant}
+          onToggleStatutTable={toggleStatutTable}
         />
       )}
 
@@ -4306,7 +4323,16 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
       <div onClick={() => setOpen(!open)} style={{ display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
         <div>
           <div style={{ fontWeight: 600, fontSize: 14 }}>{commande.client}</div>
-          <div style={{ fontSize: 12, color: "#6B7168" }}>{commande.produit} · {commande.zone}</div>
+          <div style={{ fontSize: 12, color: "#6B7168" }}>
+            {commande.produit}
+            {workspace?.activity_type === "restaurant" ? "" : ` · ${commande.zone}`}
+          </div>
+          {workspace?.activity_type === "restaurant" && (
+            <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>
+              {commande.type_commande === "sur_place" ? "🍽️ Sur place" : commande.type_commande === "emporter" ? "🥡 À emporter" : commande.type_commande === "livraison" ? "🚚 Livraison" : ""}
+              {commande.statut_cuisine && ` · ${{ nouvelle: "🆕 Nouvelle", en_preparation: "🔥 En préparation", prete: "✅ Prête", servie: "🍽️ Servie" }[commande.statut_cuisine] || ""}`}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, fontWeight: 600, color: s.color, background: s.bg, padding: "2px 8px", borderRadius: 999, display: "inline-block" }}>
               {s.label}
@@ -6429,7 +6455,7 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
   );
 }
 
-function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable }) {
+function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable, onToggleStatutTable }) {
   const [form, setForm] = useState({ nom: "", categorie: "Plats", prix: "", description: "" });
   const [nouvelleTable, setNouvelleTable] = useState("");
   const [ongletActif, setOngletActif] = useState("menu");
@@ -6502,12 +6528,17 @@ function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onD
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10 }}>
             {tablesRestaurant.map((t) => (
-              <div key={t.id} style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center" }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{t.numero}</div>
+              <button
+                key={t.id}
+                onClick={() => onToggleStatutTable(t.id, t.statut)}
+                style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>{t.numero}</div>
                 <div style={{ fontSize: 10.5, color: t.statut === "occupee" ? "#D64933" : "#3B6D11", marginTop: 2 }}>{t.statut === "occupee" ? "Occupée" : "Libre"}</div>
-              </div>
+              </button>
             ))}
           </div>
+          <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 8 }}>Clique sur une table pour changer son statut manuellement si besoin.</div>
           {tablesRestaurant.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune table pour l'instant.</div>}
         </>
       )}

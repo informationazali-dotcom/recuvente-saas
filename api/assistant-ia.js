@@ -120,7 +120,7 @@ Question du propriétaire : ${question}`;
     if (!reponseGemini.ok) {
       const erreurTexte = await reponseGemini.text();
       console.error("Erreur API Gemini:", erreurTexte);
-      return res.status(500).json({ error: "L'assistant n'a pas pu répondre pour le moment." });
+      return res.status(500).json({ error: "Erreur Gemini (code " + reponseGemini.status + ") : " + erreurTexte.slice(0, 300) });
     }
 
     const data = await reponseGemini.json();

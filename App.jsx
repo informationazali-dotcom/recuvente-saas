@@ -1055,6 +1055,7 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
     { key: "retail", icon: "🏪", titre: "Boutique / Commerce", desc: "Vente directe en magasin, avec suivi de stock" },
     { key: "location_immobiliere", icon: "🏠", titre: "Location immobilière", desc: "Suivi des loyers, locataires, relances de paiement" },
     { key: "restaurant", icon: "🍽️", titre: "Restaurant / Maquis / Fast-food", desc: "Menu, tables, suivi cuisine en temps réel" },
+    { key: "location_vehicule", icon: "🚗", titre: "Location de véhicules / matériel", desc: "Véhicules, motos, matériel — dates, caution, disponibilité" },
   ];
 
   return (
@@ -1250,6 +1251,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [produits, setProduits] = useState([]);
   const [plats, setPlats] = useState([]);
   const [tablesRestaurant, setTablesRestaurant] = useState([]);
+  const [biensLocation, setBiensLocation] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [celebration, setCelebration] = useState(null);
@@ -1348,6 +1350,31 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   async function loadTablesRestaurant() {
     const { data } = await supabase.from("tables_restaurant").select("*").eq("workspace_id", workspace.id).order("numero");
     setTablesRestaurant(data || []);
+  }
+
+  async function loadBiensLocation() {
+    const { data } = await supabase.from("biens_location").select("*").eq("workspace_id", workspace.id).order("nom");
+    setBiensLocation(data || []);
+  }
+
+  async function addBienLocation(form) {
+    await supabase.from("biens_location").insert([{ ...form, workspace_id: workspace.id, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0 }]);
+    await loadBiensLocation();
+  }
+
+  async function toggleDisponibiliteBien(id, valeurActuelle) {
+    await supabase.from("biens_location").update({ disponible: !valeurActuelle }).eq("id", id);
+    await loadBiensLocation();
+  }
+
+  async function deleteBienLocation(id) {
+    await supabase.from("biens_location").delete().eq("id", id);
+    await loadBiensLocation();
+  }
+
+  async function rendreCaution(commandeId) {
+    await supabase.from("commandes").update({ caution_rendue: true }).eq("id", commandeId);
+    await loadCommandes();
   }
 
   async function addPlat(form) {
@@ -1547,6 +1574,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     if (workspace.activity_type === "restaurant") {
       loadPlats();
       loadTablesRestaurant();
+    }
+    if (workspace.activity_type === "location_vehicule") {
+      loadBiensLocation();
     }
   }, []);
 
@@ -2326,6 +2356,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "aujourdhui", label: "Aujourd'hui" },
           { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "restaurant" ? "Commandes" : "Commandes" },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }] : []),
+          ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "🚗 Véhicules/Matériel" }] : []),
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
@@ -2887,6 +2918,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
       )}
 
+      {vue === "biens_location" && (
+        <BiensLocationView
+          biensLocation={biensLocation}
+          currency={workspace.currency}
+          onAdd={addBienLocation}
+          onToggleDisponibilite={toggleDisponibiliteBien}
+          onDelete={deleteBienLocation}
+        />
+      )}
+
       {vue === "menu_restaurant" && (
         <MenuRestaurantView
           plats={plats}
@@ -2988,6 +3029,37 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "3px 10px", borderRadius: 999, marginBottom: 12 }}>
             📊 {periodLabel}
           </div>
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>
+            💰 Revenue Command Center
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase" }}>Ventes</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#16231F", marginTop: 3 }}>
+                {(caConfirme + enCoursInRange.reduce((s, c) => s + Number(c.montant), 0) + echoueesInRange.reduce((s, c) => s + Number(c.montant), 0)).toLocaleString("fr-FR")}
+              </div>
+            </div>
+            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10.5, color: "#3B6D11", textTransform: "uppercase" }}>✅ Encaissé</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#3B6D11", marginTop: 3 }}>
+                {caConfirme.toLocaleString("fr-FR")}
+              </div>
+            </div>
+            <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10.5, color: "#8A6412", textTransform: "uppercase" }}>🟠 À récupérer</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#8A6412", marginTop: 3 }}>
+                {enCoursInRange.reduce((s, c) => s + Number(c.montant), 0).toLocaleString("fr-FR")}
+              </div>
+            </div>
+            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10.5, color: "#D64933", textTransform: "uppercase" }}>🔴 À risque</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#D64933", marginTop: 3 }}>
+                {echoueesInRange.reduce((s, c) => s + Number(c.montant), 0).toLocaleString("fr-FR")}
+              </div>
+            </div>
+          </div>
+
           <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
@@ -3105,6 +3177,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }, { key: "menu_restaurant", label: "Menu", icon: Boxes }] : []),
+          ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
           { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
           ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
@@ -3174,7 +3247,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
@@ -3202,10 +3275,99 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   );
 }
 
-function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [] }) {
+function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [] }) {
   const estRetail = activityType === "retail";
   const estLocation = activityType === "location_immobiliere";
   const estRestaurant = activityType === "restaurant";
+  const estLocationVehicule = activityType === "location_vehicule";
+
+  const [bienId, setBienId] = useState("");
+  const [nomLocataire, setNomLocataire] = useState("");
+  const [telLocataire, setTelLocataire] = useState("");
+  const [dateDebut, setDateDebut] = useState(new Date().toISOString().slice(0, 10));
+  const [dateFin, setDateFin] = useState("");
+  const [caution, setCaution] = useState("");
+
+  if (estLocationVehicule) {
+    const bienChoisi = biensLocation.find((b) => b.id === bienId);
+    const nbJours = dateDebut && dateFin ? Math.max(1, Math.round((new Date(dateFin) - new Date(dateDebut)) / (1000 * 60 * 60 * 24)) + 1) : 0;
+    const montantTotal = bienChoisi ? nbJours * Number(bienChoisi.prix_jour) : 0;
+    const formValide = bienId && nomLocataire.trim() && telLocataire.trim() && dateDebut && dateFin && nbJours > 0;
+
+    function validerLocation() {
+      if (!formValide) return;
+      onAdd({
+        client: nomLocataire.trim(),
+        tel: telLocataire.trim(),
+        produit: `${bienChoisi.nom} (${nbJours} jour${nbJours > 1 ? "s" : ""})`,
+        montant: String(montantTotal),
+        zone: "",
+        mode_vente: "sur_place",
+        montant_paye: "",
+        bien_location_id: bienId,
+        date_debut_location: dateDebut,
+        date_fin_location: dateFin,
+        caution: caution ? Number(caution) : null,
+      });
+    }
+
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, maxHeight: "88vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>Nouvelle location</div>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>
+
+          <select
+            value={bienId}
+            onChange={(e) => {
+              setBienId(e.target.value);
+              const b = biensLocation.find((x) => x.id === e.target.value);
+              if (b && b.caution_suggeree) setCaution(String(b.caution_suggeree));
+            }}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }}
+          >
+            <option value="">Choisir un véhicule / matériel...</option>
+            {biensLocation.filter((b) => b.disponible).map((b) => (
+              <option key={b.id} value={b.id}>{b.nom} — {Number(b.prix_jour).toLocaleString("fr-FR")} {currency}/jour</option>
+            ))}
+          </select>
+
+          <input placeholder="Nom du client" value={nomLocataire} onChange={(e) => setNomLocataire(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+          <input placeholder="Numéro de téléphone" value={telLocataire} onChange={(e) => setTelLocataire(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }} />
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 4 }}>Début</div>
+              <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 4 }}>Fin</div>
+              <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+          </div>
+
+          <input placeholder={`Caution (${currency}, optionnel)`} type="number" value={caution} onChange={(e) => setCaution(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }} />
+
+          {bienChoisi && nbJours > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #ECE8DC", marginBottom: 14 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{nbJours} jour{nbJours > 1 ? "s" : ""} de location</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, color: "#1a7a3c" }}>{montantTotal.toLocaleString("fr-FR")} {currency}</span>
+            </div>
+          )}
+
+          <button
+            onClick={validerLocation}
+            disabled={!formValide}
+            style={{ width: "100%", background: formValide ? "#1a7a3c" : "#DDD8CC", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: formValide ? "pointer" : "default" }}
+          >
+            Créer la location
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const [tableId, setTableId] = useState("");
   const [typeCommande, setTypeCommande] = useState("sur_place");
@@ -4156,6 +4318,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAppel, setShowAppel] = useState(false);
+  const [showPaiement, setShowPaiement] = useState(false);
   const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
 
@@ -4588,6 +4751,15 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             📞 Enregistrer un appel
           </button>
 
+          {commande.statut !== "annulee" && Number(commande.montant_paye || 0) < Number(commande.montant) && (
+            <button
+              onClick={() => setShowPaiement(true)}
+              style={{ width: "100%", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", padding: "9px 0", borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+            >
+              💵 Enregistrer un paiement — reste {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency}
+            </button>
+          )}
+
           <button
             onClick={() => setEditing(true)}
             style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
@@ -4595,6 +4767,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             ✏️ Modifier les informations
           </button>
 
+          <HistoriqueCreances commande={commande} currency={currency} />
           <JournalAppels commandeId={commande.id} />
           <HistoriqueRelances commandeId={commande.id} />
         </div>
@@ -4637,6 +4810,130 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
           </div>
         </div>
       )}
+
+      {showPaiement && (
+        <FenetrePaiementPartiel
+          commande={commande}
+          currency={currency}
+          confirmateurNom={confirmateurNom}
+          workspace={workspace}
+          onClose={() => setShowPaiement(false)}
+          onEnregistre={onStatusChanged}
+        />
+      )}
+    </div>
+  );
+}
+
+function FenetrePaiementPartiel({ commande, currency, confirmateurNom, workspace, onClose, onEnregistre }) {
+  const resteAPayer = Number(commande.montant) - Number(commande.montant_paye || 0);
+  const [montant, setMontant] = useState(String(resteAPayer));
+  const [modePaiement, setModePaiement] = useState("cash");
+  const [enCours, setEnCours] = useState(false);
+
+  async function enregistrer() {
+    const montantNum = Number(montant);
+    if (!montantNum || montantNum <= 0) return;
+    setEnCours(true);
+    const nouveauMontantPaye = Number(commande.montant_paye || 0) + montantNum;
+    const soldeComplet = nouveauMontantPaye >= Number(commande.montant);
+
+    await supabase.from("paiements_commande").insert([{
+      workspace_id: workspace.id,
+      commande_id: commande.id,
+      montant: montantNum,
+      mode_paiement: modePaiement,
+      enregistre_par: confirmateurNom || "Équipe",
+    }]);
+
+    await supabase.from("commandes").update({
+      montant_paye: nouveauMontantPaye,
+      ...(soldeComplet ? { statut: "confirmee", confirmed_at: new Date().toISOString(), confirmed_by: confirmateurNom || "Équipe" } : {}),
+    }).eq("id", commande.id);
+
+    setEnCours(false);
+    onClose();
+    await onEnregistre();
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Enregistrer un paiement</div>
+        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
+          {commande.client} — reste {resteAPayer.toLocaleString("fr-FR")} {currency} sur {Number(commande.montant).toLocaleString("fr-FR")} {currency}
+        </div>
+
+        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Montant reçu maintenant</div>
+        <input
+          type="number"
+          value={montant}
+          onChange={(e) => setMontant(e.target.value)}
+          style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 15, fontWeight: 700, boxSizing: "border-box", marginBottom: 14 }}
+        />
+
+        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 6 }}>Mode de paiement</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+          {[
+            { key: "cash", label: "💵 Cash" },
+            { key: "orange_money", label: "🟠 Orange Money" },
+            { key: "wave", label: "🌊 Wave" },
+            { key: "mtn_money", label: "🟡 MTN Money" },
+            { key: "moov_money", label: "🔵 Moov Money" },
+          ].map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setModePaiement(m.key)}
+              style={{ background: modePaiement === m.key ? "#1a7a3c" : "#FAFAF7", color: modePaiement === m.key ? "white" : "#16231F", border: "1px solid #DDD8CC", borderRadius: 999, padding: "7px 13px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {Number(montant) > 0 && Number(montant) < resteAPayer && (
+          <div style={{ fontSize: 11.5, color: "#8A6412", background: "#FBF3E3", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>
+            Il restera encore {(resteAPayer - Number(montant)).toLocaleString("fr-FR")} {currency} à payer après ce paiement.
+          </div>
+        )}
+
+        <button
+          onClick={enregistrer}
+          disabled={enCours || !montant || Number(montant) <= 0}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}
+        >
+          {enCours ? "Enregistrement..." : "Confirmer le paiement"}
+        </button>
+        <button onClick={onClose} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function HistoriqueCreances({ commande, currency }) {
+  const [paiements, setPaiements] = useState(null);
+
+  useEffect(() => {
+    supabase.from("paiements_commande").select("*").eq("commande_id", commande.id).order("created_at", { ascending: true }).then(({ data }) => setPaiements(data || []));
+  }, [commande.id]);
+
+  if (!paiements || paiements.length === 0) return null;
+
+  const labelsModePaiement = { cash: "Cash", orange_money: "Orange Money", wave: "Wave", mtn_money: "MTN Money", moov_money: "Moov Money" };
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", marginBottom: 6 }}>💵 Historique des paiements</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {paiements.map((p) => (
+          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, background: "#EAF3DE", borderRadius: 7, padding: "6px 10px" }}>
+            <span style={{ color: "#3B6D11", fontWeight: 700 }}>{Number(p.montant).toLocaleString("fr-FR")} {currency} — {labelsModePaiement[p.mode_paiement] || p.mode_paiement}</span>
+            <span style={{ color: "#8A9089" }}>{new Date(p.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -6527,6 +6824,65 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function BiensLocationView({ biensLocation, currency, onAdd, onToggleDisponibilite, onDelete }) {
+  const [form, setForm] = useState({ nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "" });
+
+  const nbDisponibles = biensLocation.filter((b) => b.disponible).length;
+  const nbLoues = biensLocation.length - nbDisponibles;
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>Véhicules & Matériel</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
+        {nbDisponibles} disponible{nbDisponibles > 1 ? "s" : ""} · {nbLoues} actuellement loué{nbLoues > 1 ? "s" : ""}
+      </div>
+
+      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>+ Ajouter un bien</div>
+        <input placeholder="Nom (ex: Toyota Hilux, Perceuse Bosch)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <input placeholder="Catégorie (ex: Véhicule, Moto, Matériel BTP)" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input placeholder={`Prix / jour (${currency})`} type="number" value={form.prix_jour} onChange={(e) => setForm({ ...form, prix_jour: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+          <input placeholder={`Caution suggérée (${currency})`} type="number" value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+        </div>
+        <button
+          onClick={() => { if (!form.nom.trim() || !form.prix_jour) return; onAdd(form); setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "" }); }}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+        >
+          Ajouter au catalogue
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {biensLocation.map((b) => (
+          <div key={b.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
+                <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>{b.categorie}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: "#1a7a3c", marginTop: 6 }}>
+                  {Number(b.prix_jour).toLocaleString("fr-FR")} {currency} / jour
+                </div>
+                {Number(b.caution_suggeree) > 0 && (
+                  <div style={{ fontSize: 11, color: "#8A6412", marginTop: 2 }}>Caution suggérée : {Number(b.caution_suggeree).toLocaleString("fr-FR")} {currency}</div>
+                )}
+              </div>
+              <button onClick={() => onDelete(b.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+            </div>
+            <button
+              onClick={() => onToggleDisponibilite(b.id, b.disponible)}
+              style={{ width: "100%", marginTop: 10, background: b.disponible ? "#EAF3DE" : "#FBEAE6", color: b.disponible ? "#3B6D11" : "#D64933", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {b.disponible ? "✅ Disponible" : "🚫 Actuellement loué / indisponible"}
+            </button>
+          </div>
+        ))}
+        {biensLocation.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun bien pour l'instant.</div>}
       </div>
     </div>
   );

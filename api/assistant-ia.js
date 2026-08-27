@@ -28,29 +28,18 @@ export default async function handler(req, res) {
 
   const trenteJoursAvant = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: workspace } = await supabaseAdmin
-    .from("workspaces")
-    .select("name, currency, activity_type")
-    .eq("id", workspaceId)
-    .single();
-
-  const { data: commandes } = await supabaseAdmin
-    .from("commandes")
-    .select("client, produit, montant, statut, livreur, closer, zone, created_at, confirmed_at")
-    .eq("workspace_id", workspaceId)
-    .gte("created_at", trenteJoursAvant)
-    .order("created_at", { ascending: false })
-    .limit(500);
-
-  const { data: livreurs } = await supabaseAdmin
-    .from("livreurs")
-    .select("nom")
-    .eq("workspace_id", workspaceId);
-
-  const { data: produits } = await supabaseAdmin
-    .from("produits")
-    .select("nom, cout_achat, frais_import_unitaire, prix_vente")
-    .eq("workspace_id", workspaceId);
+  const [{ data: workspace }, { data: commandes }, { data: livreurs }, { data: produits }] = await Promise.all([
+    supabaseAdmin.from("workspaces").select("name, currency, activity_type").eq("id", workspaceId).single(),
+    supabaseAdmin
+      .from("commandes")
+      .select("client, produit, montant, statut, livreur, closer, zone, created_at, confirmed_at")
+      .eq("workspace_id", workspaceId)
+      .gte("created_at", trenteJoursAvant)
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabaseAdmin.from("livreurs").select("nom").eq("workspace_id", workspaceId),
+    supabaseAdmin.from("produits").select("nom, cout_achat, frais_import_unitaire, prix_vente").eq("workspace_id", workspaceId),
+  ]);
 
   const liste = commandes || [];
   const confirmees = liste.filter((c) => c.statut === "confirmee");
@@ -77,15 +66,32 @@ export default async function handler(req, res) {
     if (c.statut === "echouee") parZone[c.zone].echouees += 1;
   });
 
+  const parJour = {};
+  liste.forEach((c) => {
+    const jour = (c.confirmed_at || c.created_at || "").slice(0, 10);
+    if (!jour) return;
+    if (!parJour[jour]) parJour[jour] = { confirmees: 0, montant_confirme: 0, echouees: 0, en_cours: 0 };
+    if (c.statut === "confirmee") {
+      parJour[jour].confirmees += 1;
+      parJour[jour].montant_confirme += Number(c.montant);
+    } else if (c.statut === "echouee") {
+      parJour[jour].echouees += 1;
+    } else if (c.statut === "en_cours") {
+      parJour[jour].en_cours += 1;
+    }
+  });
+
   const resume = {
     entreprise: workspace?.name,
     devise: workspace?.currency,
-    periode: "30 derniers jours",
+    date_du_jour: new Date().toISOString().slice(0, 10),
+    periode_totale: "30 derniers jours",
     nb_commandes_total: liste.length,
     nb_confirmees: confirmees.length,
     nb_echouees: echouees.length,
     nb_en_cours: enCours.length,
-    chiffre_affaires_confirme: caTotal,
+    chiffre_affaires_confirme_30_jours: caTotal,
+    detail_jour_par_jour: parJour,
     commandes_confirmees_par_livreur: parLivreur,
     ventes_par_produit: parProduit,
     echecs_par_zone: parZone,
@@ -97,7 +103,11 @@ export default async function handler(req, res) {
     nombre_livreurs: (livreurs || []).length,
   };
 
-  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous (30 derniers jours). Réponds en français, de façon directe, chiffrée et actionnable, en 2-4 phrases maximum. Si une information n'est pas dans les données, dis-le clairement plutôt que d'inventer.
+  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous.
+
+Le champ "detail_jour_par_jour" contient une entrée par date (format AAAA-MM-JJ) avec les commandes de ce jour précis. Pour répondre à une question sur "cette semaine", "hier", "les 7 derniers jours" etc., calcule toi-même la somme sur les dates concernées à partir de "date_du_jour" et de ce détail quotidien — ne dis jamais que tu n'as pas l'information si elle est calculable à partir de ce détail.
+
+Réponds en français, de façon directe, chiffrée et actionnable, en 2-4 phrases maximum. Si une information n'est vraiment pas déductible des données (ex: une date hors des 30 derniers jours), dis-le clairement plutôt que d'inventer.
 
 Données de l'entreprise :
 ${JSON.stringify(resume, null, 2)}
@@ -105,6 +115,8 @@ ${JSON.stringify(resume, null, 2)}
 Question du propriétaire : ${question}`;
 
   try {
+    const controleurDelai = new AbortController();
+    const delaiId = setTimeout(() => controleurDelai.abort(), 8000);
     const reponseGemini = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -114,8 +126,10 @@ Question du propriétaire : ${question}`;
           contents: [{ parts: [{ text: promptSysteme }] }],
           generationConfig: { maxOutputTokens: 400, temperature: 0.3 },
         }),
+        signal: controleurDelai.signal,
       }
     );
+    clearTimeout(delaiId);
 
     if (!reponseGemini.ok) {
       const erreurTexte = await reponseGemini.text();
@@ -129,6 +143,9 @@ Question du propriétaire : ${question}`;
     return res.status(200).json({ reponse: texteReponse.trim() });
   } catch (e) {
     console.error("Erreur assistant IA:", e);
-    return res.status(500).json({ error: "Erreur technique de l'assistant." });
+    if (e.name === "AbortError") {
+      return res.status(500).json({ error: "Gemini a mis trop de temps à répondre (plus de 8 secondes). Réessaie." });
+    }
+    return res.status(500).json({ error: "Erreur technique de l'assistant : " + e.message });
   }
 }

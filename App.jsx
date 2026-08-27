@@ -6637,7 +6637,7 @@ function BienvenueModal({ workspace, onFermer, onOuvrirAide }) {
     {
       icone: "👋",
       titre: `Bienvenue sur RecuVente, ${workspace.name} !`,
-      texte: `On te fait découvrir les bases en quelques secondes. Tu peux fermer à tout moment — tout reste accessible plus tard dans "Comment utiliser RecuVente".`,
+      texte: `On te fait découvrir toutes les fonctionnalités en quelques secondes. Tu peux fermer à tout moment — tout reste accessible plus tard dans "Comment utiliser RecuVente".`,
     },
     {
       icone: "📋",
@@ -6647,17 +6647,37 @@ function BienvenueModal({ workspace, onFermer, onOuvrirAide }) {
     {
       icone: estLocation ? "🏠" : "📦",
       titre: estLocation ? "Loyers" : (estRetail ? "Ventes" : "Commandes"),
-      texte: `Le bouton "+ Ajouter" en haut crée un nouveau ${motCommande}. Chaque couleur a un sens : orange = en cours, vert = confirmé, rouge = échoué, gris = annulé.`,
+      texte: `Le bouton "+ Ajouter" crée un nouveau ${motCommande}. Chaque couleur a un sens : orange = en cours, vert = confirmé, rouge = échoué, gris = annulé. L'app détecte aussi les doublons pour éviter d'envoyer deux livreurs chez le même ${motClient}.`,
+    },
+    {
+      icone: "💵",
+      titre: "Mode de paiement et journal d'appels",
+      texte: `En confirmant, choisis comment le ${motClient} a payé (Cash, Orange Money, Wave, MTN Money, Moov Money). Et à tout moment, enregistre un appel passé avec un motif précis (confirmé, pas de réponse, refusé...) — tout reste dans l'historique.`,
     },
     {
       icone: "🚚",
       titre: "Ton équipe",
-      texte: `Ajoute tes livreurs et tes closers avec juste leur nom et leur numéro. Pour un livreur qui lit difficilement, active le "Mode simplifié" — de gros boutons colorés, presque sans texte.`,
+      texte: `Ajoute tes livreurs et closers avec juste leur nom et leur numéro. Pour un livreur qui lit difficilement, active le "Mode simplifié" — de gros boutons colorés, presque sans texte.`,
+    },
+    {
+      icone: "📈",
+      titre: "Produits et bénéfice réel",
+      texte: `L'écran "Produits" classe tout du plus rentable au moins rentable. Renseigne le coût d'achat ET les frais de transport/douane par pièce — ton bénéfice affiché devient enfin exact, pas juste une estimation.`,
+    },
+    {
+      icone: "🧮",
+      titre: "La comptabilité",
+      texte: `Vision complète : chiffre d'affaires confirmé, bénéfice réel, montants que chaque livreur doit encore te déposer. Sur mobile, les détails sont repliés par défaut pour aller plus vite.`,
     },
     {
       icone: "🛍️",
       titre: "Ta boutique en ligne",
-      texte: `Chaque espace a sa propre boutique publique, personnalisable dans "Ma Boutique" — logo, couleurs, collections, avis clients. Partage le lien sur WhatsApp ou Facebook.`,
+      texte: `Chaque espace a sa propre boutique publique, personnalisable dans "Ma Boutique" — logo, couleurs, collections, avis clients, marque blanche. Partage le lien sur WhatsApp ou Facebook.`,
+    },
+    {
+      icone: "🔀",
+      titre: "Plusieurs espaces",
+      texte: `Tu gères une autre activité en plus de celle-ci ? Clique sur le nom de ton espace en haut, puis "+ Ajouter un autre espace" — bascule entre eux en un clic, sans nouveau compte.`,
     },
     {
       icone: "📖",

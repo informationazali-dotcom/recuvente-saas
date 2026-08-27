@@ -66,32 +66,25 @@ export default async function handler(req, res) {
     if (c.statut === "echouee") parZone[c.zone].echouees += 1;
   });
 
-  const parJour = {};
-  liste.forEach((c) => {
-    const jour = (c.confirmed_at || c.created_at || "").slice(0, 10);
-    if (!jour) return;
-    if (!parJour[jour]) parJour[jour] = { confirmees: 0, montant_confirme: 0, echouees: 0, en_cours: 0 };
-    if (c.statut === "confirmee") {
-      parJour[jour].confirmees += 1;
-      parJour[jour].montant_confirme += Number(c.montant);
-    } else if (c.statut === "echouee") {
-      parJour[jour].echouees += 1;
-    } else if (c.statut === "en_cours") {
-      parJour[jour].en_cours += 1;
-    }
-  });
+  function calculerPeriode(nbJours) {
+    const debut = new Date(Date.now() - nbJours * 24 * 60 * 60 * 1000);
+    const sousListe = liste.filter((c) => new Date(c.created_at) >= debut);
+    const sousConfirmees = sousListe.filter((c) => c.statut === "confirmee");
+    return {
+      nb_commandes: sousListe.length,
+      nb_confirmees: sousConfirmees.length,
+      nb_echouees: sousListe.filter((c) => c.statut === "echouee").length,
+      chiffre_affaires: sousConfirmees.reduce((s, c) => s + Number(c.montant), 0),
+    };
+  }
 
   const resume = {
     entreprise: workspace?.name,
     devise: workspace?.currency,
     date_du_jour: new Date().toISOString().slice(0, 10),
-    periode_totale: "30 derniers jours",
-    nb_commandes_total: liste.length,
-    nb_confirmees: confirmees.length,
-    nb_echouees: echouees.length,
-    nb_en_cours: enCours.length,
-    chiffre_affaires_confirme_30_jours: caTotal,
-    detail_jour_par_jour: parJour,
+    aujourdhui: calculerPeriode(1),
+    sept_derniers_jours: calculerPeriode(7),
+    trente_derniers_jours: calculerPeriode(30),
     commandes_confirmees_par_livreur: parLivreur,
     ventes_par_produit: parProduit,
     echecs_par_zone: parZone,
@@ -103,11 +96,7 @@ export default async function handler(req, res) {
     nombre_livreurs: (livreurs || []).length,
   };
 
-  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous.
-
-Le champ "detail_jour_par_jour" contient une entrée par date (format AAAA-MM-JJ) avec les commandes de ce jour précis. Pour répondre à une question sur "cette semaine", "hier", "les 7 derniers jours" etc., calcule toi-même la somme sur les dates concernées à partir de "date_du_jour" et de ce détail quotidien — ne dis jamais que tu n'as pas l'information si elle est calculable à partir de ce détail.
-
-Réponds en français, de façon directe, chiffrée et actionnable, en 2-4 phrases maximum. Si une information n'est vraiment pas déductible des données (ex: une date hors des 30 derniers jours), dis-le clairement plutôt que d'inventer.
+  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous, déjà calculées pour toi (aujourd'hui, 7 derniers jours, 30 derniers jours — utilise "sept_derniers_jours" pour toute question sur "cette semaine"). Ne recalcule rien toi-même, lis directement le bon champ. Réponds en français, de façon directe, chiffrée et courte, en 1-3 phrases maximum. Si une information n'est vraiment pas dans les données, dis-le clairement plutôt que d'inventer.
 
 Données de l'entreprise :
 ${JSON.stringify(resume, null, 2)}
@@ -124,7 +113,7 @@ Question du propriétaire : ${question}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: promptSysteme }] }],
-          generationConfig: { maxOutputTokens: 400, temperature: 0.3 },
+          generationConfig: { maxOutputTokens: 200, temperature: 0.2 },
         }),
         signal: controleurDelai.signal,
       }

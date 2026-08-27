@@ -1054,6 +1054,7 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
     { key: "cod_ecommerce", icon: "📦", titre: "Vente en ligne (paiement à la livraison)", desc: "Commandes, livreurs, closers, suivi de livraison" },
     { key: "retail", icon: "🏪", titre: "Boutique / Commerce", desc: "Vente directe en magasin, avec suivi de stock" },
     { key: "location_immobiliere", icon: "🏠", titre: "Location immobilière", desc: "Suivi des loyers, locataires, relances de paiement" },
+    { key: "restaurant", icon: "🍽️", titre: "Restaurant / Maquis / Fast-food", desc: "Menu, tables, suivi cuisine en temps réel" },
   ];
 
   return (
@@ -1247,6 +1248,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [livreurs, setLivreurs] = useState([]);
   const [closers, setClosers] = useState([]);
   const [produits, setProduits] = useState([]);
+  const [plats, setPlats] = useState([]);
+  const [tablesRestaurant, setTablesRestaurant] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [celebration, setCelebration] = useState(null);
@@ -1335,6 +1338,41 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   async function loadProduits() {
     const { data } = await supabase.from("produits").select("*").eq("workspace_id", workspace.id).order("nom");
     setProduits(data || []);
+  }
+
+  async function loadPlats() {
+    const { data } = await supabase.from("plats").select("*").eq("workspace_id", workspace.id).order("categorie").order("nom");
+    setPlats(data || []);
+  }
+
+  async function loadTablesRestaurant() {
+    const { data } = await supabase.from("tables_restaurant").select("*").eq("workspace_id", workspace.id).order("numero");
+    setTablesRestaurant(data || []);
+  }
+
+  async function addPlat(form) {
+    await supabase.from("plats").insert([{ ...form, workspace_id: workspace.id, prix: Number(form.prix) || 0 }]);
+    await loadPlats();
+  }
+
+  async function toggleDisponibilitePlat(id, valeurActuelle) {
+    await supabase.from("plats").update({ disponible: !valeurActuelle }).eq("id", id);
+    await loadPlats();
+  }
+
+  async function deletePlat(id) {
+    await supabase.from("plats").delete().eq("id", id);
+    await loadPlats();
+  }
+
+  async function addTableRestaurant(numero) {
+    await supabase.from("tables_restaurant").insert([{ workspace_id: workspace.id, numero }]);
+    await loadTablesRestaurant();
+  }
+
+  async function changerStatutCuisine(commandeId, nouveauStatutCuisine) {
+    await supabase.from("commandes").update({ statut_cuisine: nouveauStatutCuisine }).eq("id", commandeId);
+    await loadCommandes();
   }
 
   function parseProduitTexte(texte) {
@@ -1494,6 +1532,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     loadLivreurs();
     loadClosers();
     loadProduits();
+    if (workspace.activity_type === "restaurant") {
+      loadPlats();
+      loadTablesRestaurant();
+    }
   }, []);
 
   const accesBloque = (() => {
@@ -2014,25 +2056,28 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
     // Détecte une commande très similaire déjà passée récemment (même client, même produit)
     // — évite d'envoyer deux livreurs pour la même personne par erreur
-    const deuxHeuresAvant = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-    const { data: doublonsPotentiels } = await supabase
-      .from("commandes")
-      .select("id, produit, created_at, statut")
-      .eq("workspace_id", workspace.id)
-      .eq("tel", form.tel)
-      .neq("statut", "echouee")
-      .gte("created_at", deuxHeuresAvant);
+    // (ignoré si pas de téléphone, ex: commandes restaurant sans client identifié)
+    if (form.tel && form.tel.trim()) {
+      const deuxHeuresAvant = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const { data: doublonsPotentiels } = await supabase
+        .from("commandes")
+        .select("id, produit, created_at, statut")
+        .eq("workspace_id", workspace.id)
+        .eq("tel", form.tel)
+        .neq("statut", "echouee")
+        .gte("created_at", deuxHeuresAvant);
 
-    const doublon = (doublonsPotentiels || []).find((d) =>
-      d.produit?.toLowerCase().includes((form.produit || "").toLowerCase().split(" ")[0])
-    );
-
-    if (doublon) {
-      const minutesEcoulees = Math.round((Date.now() - new Date(doublon.created_at).getTime()) / 60000);
-      const continuer = window.confirm(
-        `⚠️ Ce client a déjà une commande similaire en cours, passée il y a ${minutesEcoulees} min.\n\nContinuer quand même et créer une deuxième commande ?`
+      const doublon = (doublonsPotentiels || []).find((d) =>
+        d.produit?.toLowerCase().includes((form.produit || "").toLowerCase().split(" ")[0])
       );
-      if (!continuer) return;
+
+      if (doublon) {
+        const minutesEcoulees = Math.round((Date.now() - new Date(doublon.created_at).getTime()) / 60000);
+        const continuer = window.confirm(
+          `⚠️ Ce client a déjà une commande similaire en cours, passée il y a ${minutesEcoulees} min.\n\nContinuer quand même et créer une deuxième commande ?`
+        );
+        if (!continuer) return;
+      }
     }
 
     const montantDejaPaye = workspace.activity_type === "retail" ? (form.montant_paye === "" ? montantTotal : Number(form.montant_paye)) : 0;
@@ -2263,7 +2308,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
         {[
           { key: "aujourdhui", label: "Aujourd'hui" },
-          { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : "Commandes" },
+          { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "restaurant" ? "Commandes" : "Commandes" },
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }] : []),
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
@@ -2825,6 +2871,26 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
       )}
 
+      {vue === "menu_restaurant" && (
+        <MenuRestaurantView
+          plats={plats}
+          currency={workspace.currency}
+          onAdd={addPlat}
+          onToggleDisponibilite={toggleDisponibilitePlat}
+          onDelete={deletePlat}
+          tablesRestaurant={tablesRestaurant}
+          onAddTable={addTableRestaurant}
+        />
+      )}
+
+      {vue === "cuisine" && (
+        <CuisineView
+          commandes={commandes.filter((c) => c.statut !== "annulee" && c.statut !== "echouee")}
+          onChangerStatutCuisine={changerStatutCuisine}
+          currency={workspace.currency}
+        />
+      )}
+
       {vue === "produits_vue" && (
         <ProduitsViewSaas
           produitsAvecBenefice={produitsAvecBenefice}
@@ -3090,7 +3156,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
@@ -3118,9 +3184,107 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   );
 }
 
-function AddCommandeModal({ onClose, onAdd, currency, activityType }) {
+function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [] }) {
   const estRetail = activityType === "retail";
   const estLocation = activityType === "location_immobiliere";
+  const estRestaurant = activityType === "restaurant";
+
+  const [tableId, setTableId] = useState("");
+  const [typeCommande, setTypeCommande] = useState("sur_place");
+  const [quantitesPlats, setQuantitesPlats] = useState({});
+
+  if (estRestaurant) {
+    const totalRestaurant = plats.reduce((s, p) => s + (quantitesPlats[p.id] || 0) * Number(p.prix), 0);
+    const platsChoisis = plats.filter((p) => (quantitesPlats[p.id] || 0) > 0);
+    const resumePlats = platsChoisis.map((p) => `${p.nom} x${quantitesPlats[p.id]}`).join(", ");
+    const tableChoisie = tablesRestaurant.find((t) => t.id === tableId);
+
+    function ajusterQuantite(platId, delta) {
+      setQuantitesPlats((q) => ({ ...q, [platId]: Math.max(0, (q[platId] || 0) + delta) }));
+    }
+
+    function validerCommandeRestaurant() {
+      if (platsChoisis.length === 0) return;
+      onAdd({
+        client: tableChoisie ? `Table ${tableChoisie.numero}` : (typeCommande === "emporter" ? "À emporter" : "Client"),
+        tel: "",
+        produit: resumePlats,
+        montant: String(totalRestaurant),
+        zone: "",
+        mode_vente: "sur_place",
+        montant_paye: "",
+        table_id: tableId || null,
+        type_commande: typeCommande,
+        statut_cuisine: "nouvelle",
+      });
+    }
+
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, maxHeight: "88vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>Nouvelle commande</div>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>
+
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            {[
+              { key: "sur_place", label: "🍽️ Sur place" },
+              { key: "emporter", label: "🥡 Emporter" },
+              { key: "livraison", label: "🚚 Livraison" },
+            ].map((t) => (
+              <button key={t.key} onClick={() => setTypeCommande(t.key)} style={{ flex: 1, background: typeCommande === t.key ? "#1a7a3c" : "white", color: typeCommande === t.key ? "white" : "#16231F", border: "1px solid #DDD8CC", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {typeCommande === "sur_place" && (
+            <select value={tableId} onChange={(e) => setTableId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }}>
+              <option value="">Choisir une table...</option>
+              {tablesRestaurant.map((t) => (
+                <option key={t.id} value={t.id}>Table {t.numero}</option>
+              ))}
+            </select>
+          )}
+
+          <div style={{ fontSize: 11.5, color: "#8A9089", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Sélectionner les plats</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16, maxHeight: 260, overflowY: "auto" }}>
+            {plats.filter((p) => p.disponible).map((p) => (
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 8, padding: "8px 12px" }}>
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.nom}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089" }}>{Number(p.prix).toLocaleString("fr-FR")} {currency}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={() => ajusterQuantite(p.id, -1)} style={{ width: 26, height: 26, borderRadius: "50%", background: "white", border: "1px solid #DDD8CC", fontSize: 14, cursor: "pointer" }}>−</button>
+                  <span style={{ fontWeight: 700, fontSize: 13, minWidth: 16, textAlign: "center" }}>{quantitesPlats[p.id] || 0}</span>
+                  <button onClick={() => ajusterQuantite(p.id, 1)} style={{ width: 26, height: 26, borderRadius: "50%", background: "#1a7a3c", color: "white", border: "none", fontSize: 14, cursor: "pointer" }}>+</button>
+                </div>
+              </div>
+            ))}
+            {plats.filter((p) => p.disponible).length === 0 && (
+              <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12.5, padding: "16px 0" }}>Aucun plat disponible — ajoute ton menu depuis l'écran "Menu".</div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #ECE8DC", marginBottom: 14 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Total</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, color: "#1a7a3c" }}>{totalRestaurant.toLocaleString("fr-FR")} {currency}</span>
+          </div>
+
+          <button
+            onClick={validerCommandeRestaurant}
+            disabled={platsChoisis.length === 0}
+            style={{ width: "100%", background: platsChoisis.length === 0 ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: platsChoisis.length === 0 ? "default" : "pointer" }}
+          >
+            Envoyer en cuisine
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
   const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "" });
   const [modeRapide, setModeRapide] = useState(false);
@@ -6250,6 +6414,137 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable }) {
+  const [form, setForm] = useState({ nom: "", categorie: "Plats", prix: "", description: "" });
+  const [nouvelleTable, setNouvelleTable] = useState("");
+  const [ongletActif, setOngletActif] = useState("menu");
+
+  const categories = [...new Set(plats.map((p) => p.categorie))];
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 16 }}>Menu & Tables</div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+        <button onClick={() => setOngletActif("menu")} style={{ flex: 1, background: ongletActif === "menu" ? "#1a7a3c" : "white", color: ongletActif === "menu" ? "white" : "#16231F", border: "1px solid #DDD8CC", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          📋 Menu
+        </button>
+        <button onClick={() => setOngletActif("tables")} style={{ flex: 1, background: ongletActif === "tables" ? "#1a7a3c" : "white", color: ongletActif === "tables" ? "white" : "#16231F", border: "1px solid #DDD8CC", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          🪑 Tables
+        </button>
+      </div>
+
+      {ongletActif === "menu" ? (
+        <>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>+ Ajouter un plat</div>
+            <input placeholder="Nom du plat" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input placeholder="Catégorie (ex: Plats, Boissons)" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+              <input placeholder={`Prix (${currency})`} type="number" value={form.prix} onChange={(e) => setForm({ ...form, prix: e.target.value })} style={{ width: 120, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <button
+              onClick={() => { if (!form.nom.trim() || !form.prix) return; onAdd(form); setForm({ nom: "", categorie: form.categorie, prix: "", description: "" }); }}
+              style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            >
+              Ajouter au menu
+            </button>
+          </div>
+
+          {categories.map((cat) => (
+            <div key={cat} style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12, color: "#8A9089", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>{cat}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {plats.filter((p) => p.categorie === cat).map((p) => (
+                  <div key={p.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: p.disponible ? 1 : 0.5 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{p.nom}</div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 13, color: "#1a7a3c" }}>{Number(p.prix).toLocaleString("fr-FR")} {currency}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <button onClick={() => onToggleDisponibilite(p.id, p.disponible)} style={{ background: p.disponible ? "#EAF3DE" : "#F0EEE6", color: p.disponible ? "#3B6D11" : "#8A9089", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                        {p.disponible ? "Disponible" : "Épuisé"}
+                      </button>
+                      <button onClick={() => onDelete(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {plats.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun plat pour l'instant.</div>}
+        </>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input placeholder="Numéro de table (ex: 5, Terrasse 2)" value={nouvelleTable} onChange={(e) => setNouvelleTable(e.target.value)} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            <button
+              onClick={() => { if (!nouvelleTable.trim()) return; onAddTable(nouvelleTable.trim()); setNouvelleTable(""); }}
+              style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            >
+              + Ajouter
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10 }}>
+            {tablesRestaurant.map((t) => (
+              <div key={t.id} style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{t.numero}</div>
+                <div style={{ fontSize: 10.5, color: t.statut === "occupee" ? "#D64933" : "#3B6D11", marginTop: 2 }}>{t.statut === "occupee" ? "Occupée" : "Libre"}</div>
+              </div>
+            ))}
+          </div>
+          {tablesRestaurant.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune table pour l'instant.</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
+  const colonnes = [
+    { statut: "nouvelle", titre: "🆕 Nouvelle", couleur: "#8A6412", suivant: "en_preparation", labelBouton: "Démarrer" },
+    { statut: "en_preparation", titre: "🔥 En préparation", couleur: "#D64933", suivant: "prete", labelBouton: "Marquer prête" },
+    { statut: "prete", titre: "✅ Prête", couleur: "#1a7a3c", suivant: "servie", labelBouton: "Servie" },
+  ];
+
+  const commandesParStatut = (statut) => commandes.filter((c) => (c.statut_cuisine || "nouvelle") === statut);
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 16 }}>🍽️ Cuisine</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+        {colonnes.map((col) => (
+          <div key={col.statut}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: col.couleur, marginBottom: 10 }}>
+              {col.titre} ({commandesParStatut(col.statut).length})
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {commandesParStatut(col.statut).map((c) => (
+                <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${col.couleur}`, borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.client}</div>
+                  <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2 }}>{c.produit}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>
+                    {c.type_commande === "sur_place" ? "🍽️ Sur place" : c.type_commande === "emporter" ? "🥡 À emporter" : "🚚 Livraison"}
+                  </div>
+                  <button
+                    onClick={() => onChangerStatutCuisine(c.id, col.suivant)}
+                    style={{ width: "100%", marginTop: 8, background: col.couleur, color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                  >
+                    {col.labelBouton}
+                  </button>
+                </div>
+              ))}
+              {commandesParStatut(col.statut).length === 0 && (
+                <div style={{ fontSize: 12, color: "#8A9089", textAlign: "center", padding: "16px 0" }}>Rien ici</div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

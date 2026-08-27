@@ -6794,6 +6794,39 @@ function IntegrationsModal({ workspace, onClose }) {
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🔐 Journal d'audit
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Qui a fait quoi, et quand — les 30 dernières actions importantes.
+          </div>
+          <button
+            onClick={() => setAfficherJournalAudit(!afficherJournalAudit)}
+            style={{ background: "#8A6412", border: "none", borderRadius: 9, padding: "10px 16px", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}
+          >
+            {afficherJournalAudit ? "Masquer ▲" : "Voir le journal ▼"}
+          </button>
+
+          {afficherJournalAudit && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
+              {erreurJournalAudit && <div style={{ fontSize: 12, color: "#D64933", background: "#FBEAE6", borderRadius: 8, padding: "8px 12px" }}>Erreur : {erreurJournalAudit}</div>}
+              {journalAudit === null && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
+              {journalAudit && journalAudit.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucune action enregistrée pour l'instant.</div>}
+              {journalAudit && journalAudit.map((entree) => (
+                <div key={entree.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#16231F" }}>{entree.action}</span>
+                    <span style={{ fontSize: 10.5, color: "#8A9089", flexShrink: 0 }}>{new Date(entree.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                  {entree.details && <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{entree.details}</div>}
+                  <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>par {entree.effectue_par}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <a
           href={lienCatalogue}
           target="_blank"
@@ -7060,39 +7093,6 @@ function IntegrationsModal({ workspace, onClose }) {
             </span>
             {workspace.marque_blanche ? "Activée — mention masquée" : "Désactivée — mention affichée"}
           </button>
-        </div>
-
-        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
-            🔐 Journal d'audit
-          </div>
-          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
-            Qui a fait quoi, et quand — les 30 dernières actions importantes (statuts de commande, suppressions de produits).
-          </div>
-          <button
-            onClick={() => setAfficherJournalAudit(!afficherJournalAudit)}
-            style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 9, padding: "10px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16231F" }}
-          >
-            {afficherJournalAudit ? "Masquer ▲" : "Voir le journal ▼"}
-          </button>
-
-          {afficherJournalAudit && (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
-              {erreurJournalAudit && <div style={{ fontSize: 12, color: "#D64933", background: "#FBEAE6", borderRadius: 8, padding: "8px 12px" }}>Erreur : {erreurJournalAudit}</div>}
-              {journalAudit === null && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
-              {journalAudit && journalAudit.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucune action enregistrée pour l'instant.</div>}
-              {journalAudit && journalAudit.map((entree) => (
-                <div key={entree.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#16231F" }}>{entree.action}</span>
-                    <span style={{ fontSize: 10.5, color: "#8A9089", flexShrink: 0 }}>{new Date(entree.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                  </div>
-                  {entree.details && <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{entree.details}</div>}
-                  <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>par {entree.effectue_par}</div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

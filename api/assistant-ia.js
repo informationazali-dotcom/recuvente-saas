@@ -43,9 +43,6 @@ export default async function handler(req, res) {
 
   const liste = commandes || [];
   const confirmees = liste.filter((c) => c.statut === "confirmee");
-  const echouees = liste.filter((c) => c.statut === "echouee");
-  const enCours = liste.filter((c) => c.statut === "en_cours");
-  const caTotal = confirmees.reduce((s, c) => s + Number(c.montant), 0);
 
   const parLivreur = {};
   confirmees.forEach((c) => {
@@ -96,7 +93,7 @@ export default async function handler(req, res) {
     nombre_livreurs: (livreurs || []).length,
   };
 
-  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous, déjà calculées pour toi (aujourd'hui, 7 derniers jours, 30 derniers jours — utilise "sept_derniers_jours" pour toute question sur "cette semaine"). Ne recalcule rien toi-même, lis directement le bon champ. Réponds en français, de façon directe, chiffrée et courte, en 1-3 phrases maximum. Si une information n'est vraiment pas dans les données, dis-le clairement plutôt que d'inventer.
+  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous, déjà calculées pour toi (aujourd'hui, 7 derniers jours, 30 derniers jours — utilise "sept_derniers_jours" pour toute question sur "cette semaine"). Réponds en français, de façon directe, chiffrée et actionnable, en 2-4 phrases maximum. Si une information n'est vraiment pas dans les données, dis-le clairement plutôt que d'inventer.
 
 Données de l'entreprise :
 ${JSON.stringify(resume, null, 2)}
@@ -105,15 +102,16 @@ Question du propriétaire : ${question}`;
 
   try {
     const controleurDelai = new AbortController();
-    const delaiId = setTimeout(() => controleurDelai.abort(), 8000);
+    const delaiId = setTimeout(() => controleurDelai.abort(), 9000);
+
     const reponseGemini = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: promptSysteme }] }],
-          generationConfig: { maxOutputTokens: 200, temperature: 0.2 },
+          generationConfig: { maxOutputTokens: 250, temperature: 0.2 },
         }),
         signal: controleurDelai.signal,
       }
@@ -133,7 +131,7 @@ Question du propriétaire : ${question}`;
   } catch (e) {
     console.error("Erreur assistant IA:", e);
     if (e.name === "AbortError") {
-      return res.status(500).json({ error: "Gemini a mis trop de temps à répondre (plus de 8 secondes). Réessaie." });
+      return res.status(500).json({ error: "Gemini a mis trop de temps à répondre. Réessaie." });
     }
     return res.status(500).json({ error: "Erreur technique de l'assistant : " + e.message });
   }

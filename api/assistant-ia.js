@@ -18,7 +18,6 @@ export default async function handler(req, res) {
   const { question, workspaceId } = req.body;
   if (!question || !workspaceId) return res.status(400).json({ error: "Question et workspaceId requis" });
 
-  // Vérifie que l'utilisateur appartient bien à cet espace
   const { data: membre } = await supabaseAdmin
     .from("workspace_members")
     .select("role")
@@ -27,7 +26,6 @@ export default async function handler(req, res) {
     .maybeSingle();
   if (!membre) return res.status(403).json({ error: "Accès refusé à cet espace" });
 
-  // ===== Rassemble un résumé des données réelles de l'entreprise =====
   const trenteJoursAvant = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: workspace } = await supabaseAdmin
@@ -99,35 +97,36 @@ export default async function handler(req, res) {
     nombre_livreurs: (livreurs || []).length,
   };
 
-  try {
-    const reponseClaude = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 500,
-        system: `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous (30 derniers jours). Réponds en français, de façon directe, chiffrée et actionnable, en 2-4 phrases maximum. Si une information n'est pas dans les données, dis-le clairement plutôt que d'inventer.
+  const promptSysteme = `Tu es l'assistant intégré de RecuVente, une application de gestion pour les commerçants africains. Tu réponds aux questions du propriétaire de l'entreprise "${resume.entreprise}" en te basant UNIQUEMENT sur les données ci-dessous (30 derniers jours). Réponds en français, de façon directe, chiffrée et actionnable, en 2-4 phrases maximum. Si une information n'est pas dans les données, dis-le clairement plutôt que d'inventer.
 
 Données de l'entreprise :
-${JSON.stringify(resume, null, 2)}`,
-        messages: [{ role: "user", content: question }],
-      }),
-    });
+${JSON.stringify(resume, null, 2)}
 
-    if (!reponseClaude.ok) {
-      const erreurTexte = await reponseClaude.text();
-      console.error("Erreur API Claude:", erreurTexte);
+Question du propriétaire : ${question}`;
+
+  try {
+    const reponseGemini = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptSysteme }] }],
+          generationConfig: { maxOutputTokens: 400, temperature: 0.3 },
+        }),
+      }
+    );
+
+    if (!reponseGemini.ok) {
+      const erreurTexte = await reponseGemini.text();
+      console.error("Erreur API Gemini:", erreurTexte);
       return res.status(500).json({ error: "L'assistant n'a pas pu répondre pour le moment." });
     }
 
-    const data = await reponseClaude.json();
-    const texteReponse = data.content?.find((bloc) => bloc.type === "text")?.text || "Je n'ai pas pu formuler de réponse.";
+    const data = await reponseGemini.json();
+    const texteReponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Je n'ai pas pu formuler de réponse.";
 
-    return res.status(200).json({ reponse: texteReponse });
+    return res.status(200).json({ reponse: texteReponse.trim() });
   } catch (e) {
     console.error("Erreur assistant IA:", e);
     return res.status(500).json({ error: "Erreur technique de l'assistant." });

@@ -915,7 +915,7 @@ Avec votre autorisation explicite, RecuVente peut vous envoyer des notifications
 function AuthScreen({ modeInitial }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState(modeInitial || "signup");
+  const [mode, setMode] = useState(modeInitial || "login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetEnvoye, setResetEnvoye] = useState(false);

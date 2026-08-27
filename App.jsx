@@ -3138,6 +3138,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "recovery" && (
         <RecoveryCenterView
           commandes={commandesRecuperables}
+          toutesCommandes={commandes}
           currency={workspace.currency}
           nomEntreprise={workspace.name}
         />
@@ -7366,11 +7367,34 @@ function RapprochementView({ workspace, commandes, onValide }) {
   );
 }
 
-function RecoveryCenterView({ commandes, currency, nomEntreprise }) {
+function RecoveryCenterView({ commandes, toutesCommandes = [], currency, nomEntreprise }) {
   const totalARisque = commandes.reduce((s, c) => s + Number(c.montant), 0);
   const risqueEleve = commandes.filter((c) => c.scoreRisque >= 61);
   const aSurveiller = commandes.filter((c) => c.scoreRisque >= 31 && c.scoreRisque < 61);
   const recuperable = commandes.filter((c) => c.scoreRisque < 31);
+
+  const kpis = useMemo(() => {
+    // Une commande "à risque" au sens large : a connu au moins un échec avant confirmation, ou a été confirmée après un long délai
+    const commandesAvecHistoriqueRisque = toutesCommandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
+    const echoueesTotal = toutesCommandes.filter((c) => c.statut === "echouee").length;
+    const confirmeesApresRisque = toutesCommandes.filter((c) => c.statut === "confirmee").length;
+    const totalRisqueHistorique = echoueesTotal + confirmeesApresRisque;
+    const recoveryRate = totalRisqueHistorique > 0 ? Math.round((confirmeesApresRisque / totalRisqueHistorique) * 100) : 0;
+
+    const revenueRecovered = toutesCommandes
+      .filter((c) => c.statut === "confirmee")
+      .reduce((s, c) => s + Number(c.montant), 0);
+
+    const outstandingRevenue = toutesCommandes
+      .filter((c) => c.statut === "en_cours")
+      .reduce((s, c) => s + Number(c.montant), 0);
+
+    const commandesAvecDelai = toutesCommandes.filter((c) => c.statut === "confirmee" && c.confirmed_at && c.created_at);
+    const totalJours = commandesAvecDelai.reduce((s, c) => s + (new Date(c.confirmed_at) - new Date(c.created_at)) / 86400000, 0);
+    const daysToPayment = commandesAvecDelai.length > 0 ? (totalJours / commandesAvecDelai.length).toFixed(1) : "—";
+
+    return { recoveryRate, revenueRecovered, outstandingRevenue, daysToPayment };
+  }, [toutesCommandes]);
 
   function niveauScore(score) {
     if (score >= 61) return { label: "Risque élevé", couleur: "#D64933", bg: "#FBEAE6" };
@@ -7389,6 +7413,25 @@ function RecoveryCenterView({ commandes, currency, nomEntreprise }) {
       <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🎯 Recovery Center</div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
         Chaque vente non encore encaissée, classée par urgence — pas juste une liste, un plan d'action.
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 16 }}>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Recovery Rate</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#1a7a3c", marginTop: 3 }}>{kpis.recoveryRate}%</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Revenue Recovered</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: "#16231F", marginTop: 3 }}>{kpis.revenueRecovered.toLocaleString("fr-FR")}</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Outstanding</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: "#8A6412", marginTop: 3 }}>{kpis.outstandingRevenue.toLocaleString("fr-FR")}</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Days to Payment</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#16231F", marginTop: 3 }}>{kpis.daysToPayment}{kpis.daysToPayment !== "—" && "j"}</div>
+        </div>
       </div>
 
       <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>

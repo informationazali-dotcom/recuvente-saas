@@ -2470,6 +2470,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Recovery" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
           <button
@@ -3142,6 +3143,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
+      {vue === "rapprochement" && (
+        <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
+      )}
+
       {vue === "compta" && (
         <div>
           <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "3px 10px", borderRadius: 999, marginBottom: 12 }}>
@@ -3300,6 +3305,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients", icon: Users },
           ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Recovery", icon: Target }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;
@@ -7149,6 +7155,212 @@ function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function RapprochementView({ workspace, commandes, onValide }) {
+  const [texteColle, setTexteColle] = useState("");
+  const [propositions, setPropositions] = useState(null);
+  const [enCours, setEnCours] = useState(false);
+  const [historique, setHistorique] = useState(null);
+  const [afficherHistorique, setAfficherHistorique] = useState(false);
+
+  function normaliserTel(tel) {
+    return String(tel || "").replace(/\D/g, "").replace(/^225/, "").replace(/^0/, "");
+  }
+
+  function analyserCSV() {
+    const lignes = texteColle.trim().split("\n").filter((l) => l.trim());
+    const paiements = lignes.map((ligne) => {
+      // Accepte séparateur virgule, point-virgule, ou tabulation (copié depuis Excel)
+      const parties = ligne.split(/[,;\t]/).map((p) => p.trim());
+      const montant = parties.find((p) => /^\d+([.,]\d+)?$/.test(p.replace(/\s/g, "")));
+      const tel = parties.find((p) => /^(\+?225)?[\s.]?0?[0-9]{8,10}$/.test(p.replace(/\s/g, "")));
+      const reference = parties.find((p) => p !== montant && p !== tel && p.length > 2) || "";
+      return {
+        montant: montant ? Number(montant.replace(/\s/g, "").replace(",", ".")) : null,
+        telephone: tel || "",
+        reference,
+        ligneOriginale: ligne,
+      };
+    }).filter((p) => p.montant);
+
+    const candidats = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+
+    const resultats = paiements.map((p) => {
+      const telNorm = normaliserTel(p.telephone);
+      let meilleureCorrespondance = null;
+      let meilleurScore = 0;
+
+      candidats.forEach((c) => {
+        const memeTel = telNorm && normaliserTel(c.tel) === telNorm;
+        const memeMontant = Math.abs(Number(c.montant) - p.montant) < 1;
+        let score = 0;
+        if (memeMontant && memeTel) score = 98;
+        else if (memeMontant) score = 70;
+        else if (memeTel) score = 50;
+        if (score > meilleurScore) {
+          meilleurScore = score;
+          meilleureCorrespondance = c;
+        }
+      });
+
+      return { ...p, commande: meilleureCorrespondance, score: meilleurScore };
+    });
+
+    setPropositions(resultats);
+  }
+
+  async function valider(prop) {
+    setEnCours(true);
+    if (prop.commande) {
+      await supabase.from("rapprochements").insert([{
+        workspace_id: workspace.id,
+        commande_id: prop.commande.id,
+        montant_paiement: prop.montant,
+        reference_paiement: prop.reference,
+        telephone_paiement: prop.telephone,
+        score_correspondance: prop.score,
+        statut: "valide",
+      }]);
+      const soldeDejaPaye = Number(prop.commande.montant_paye || 0) + prop.montant;
+      const soldeComplet = soldeDejaPaye >= Number(prop.commande.montant);
+      await supabase.from("commandes").update({
+        montant_paye: soldeDejaPaye,
+        ...(soldeComplet ? { statut: "confirmee", confirmed_at: new Date().toISOString(), confirmed_by: "Rapprochement automatique" } : {}),
+      }).eq("id", prop.commande.id);
+    }
+    setPropositions((prev) => prev.filter((p) => p !== prop));
+    setEnCours(false);
+    await onValide();
+  }
+
+  async function rejeter(prop) {
+    await supabase.from("rapprochements").insert([{
+      workspace_id: workspace.id,
+      commande_id: prop.commande?.id || null,
+      montant_paiement: prop.montant,
+      reference_paiement: prop.reference,
+      telephone_paiement: prop.telephone,
+      score_correspondance: prop.score,
+      statut: "rejete",
+    }]);
+    setPropositions((prev) => prev.filter((p) => p !== prop));
+  }
+
+  async function chargerHistorique() {
+    const { data } = await supabase.from("rapprochements").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(30);
+    setHistorique(data || []);
+    setAfficherHistorique(true);
+  }
+
+  function couleurScore(score) {
+    if (score >= 90) return { label: "Correspondance très probable", couleur: "#1F9D6E", bg: "#EAF3DE" };
+    if (score >= 60) return { label: "Correspondance possible", couleur: "#8A6412", bg: "#FBF3E3" };
+    if (score > 0) return { label: "Correspondance faible", couleur: "#D64933", bg: "#FBEAE6" };
+    return { label: "Aucune commande correspondante trouvée", couleur: "#8A9089", bg: "#F0EEE6" };
+  }
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🔗 Rapprochement des paiements</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
+        Colle ta liste de paiements Mobile Money (copiée depuis Excel ou ton relevé) — une ligne par paiement, avec le montant et le numéro de téléphone.
+      </div>
+
+      {!propositions && (
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <textarea
+            value={texteColle}
+            onChange={(e) => setTexteColle(e.target.value)}
+            placeholder={"Exemple, une ligne par paiement :\n15000, 0708090910, TXN4521\n25000, 0102030405, TXN4522"}
+            rows={8}
+            style={{ width: "100%", padding: "12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, fontFamily: "'IBM Plex Mono', monospace", boxSizing: "border-box", marginBottom: 12, resize: "vertical" }}
+          />
+          <button
+            onClick={analyserCSV}
+            disabled={!texteColle.trim()}
+            style={{ width: "100%", background: texteColle.trim() ? "#1a7a3c" : "#DDD8CC", color: "white", border: "none", borderRadius: 9, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: texteColle.trim() ? "pointer" : "default" }}
+          >
+            Analyser et proposer les correspondances
+          </button>
+        </div>
+      )}
+
+      {propositions && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{propositions.length} paiement{propositions.length > 1 ? "s" : ""} à traiter</div>
+            <button onClick={() => setPropositions(null)} style={{ background: "none", border: "none", color: "#1a7a3c", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>← Nouvel import</button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {propositions.map((prop, i) => {
+              const niveau = couleurScore(prop.score);
+              return (
+                <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${niveau.couleur}`, borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <div>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15 }}>{prop.montant.toLocaleString("fr-FR")} {workspace.currency}</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{prop.telephone || "Numéro non détecté"} {prop.reference && `· Réf: ${prop.reference}`}</div>
+                    </div>
+                    {prop.score > 0 && (
+                      <div style={{ fontSize: 10, fontWeight: 700, color: niveau.couleur, background: niveau.bg, padding: "2px 8px", borderRadius: 999, height: "fit-content" }}>
+                        {prop.score}%
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ background: niveau.bg, borderRadius: 8, padding: "8px 10px", marginTop: 8, fontSize: 12 }}>
+                    {prop.commande ? (
+                      <>
+                        <span style={{ color: niveau.couleur, fontWeight: 700 }}>{niveau.label}</span>
+                        <div style={{ color: "#16231F", marginTop: 2 }}>{prop.commande.client} — {prop.commande.produit} ({Number(prop.commande.montant).toLocaleString("fr-FR")} {workspace.currency})</div>
+                      </>
+                    ) : (
+                      <span style={{ color: niveau.couleur }}>{niveau.label}</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    {prop.commande && (
+                      <button onClick={() => valider(prop)} disabled={enCours} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                        ✅ Valider
+                      </button>
+                    )}
+                    <button onClick={() => rejeter(prop)} disabled={enCours} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#8A9089", borderRadius: 7, padding: "8px 0", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                      {prop.commande ? "Rejeter" : "Ignorer"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {propositions.length === 0 && (
+              <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Tout est traité ✅</div>
+            )}
+          </div>
+        </>
+      )}
+
+      <div style={{ marginTop: 24, borderTop: "1px solid #ECE8DC", paddingTop: 16 }}>
+        <button onClick={chargerHistorique} style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 9, padding: "9px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+          {afficherHistorique ? "Actualiser" : "Voir"} l'historique des rapprochements
+        </button>
+        {afficherHistorique && historique && (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+            {historique.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucun rapprochement pour l'instant.</div>}
+            {historique.map((h) => (
+              <div key={h.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: h.statut === "valide" ? "#1F9D6E" : "#D64933", fontWeight: 700 }}>
+                  {h.statut === "valide" ? "✅" : "❌"} {Number(h.montant_paiement).toLocaleString("fr-FR")} {workspace.currency}
+                </span>
+                <span style={{ color: "#8A9089" }}>{new Date(h.created_at).toLocaleDateString("fr-FR")}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

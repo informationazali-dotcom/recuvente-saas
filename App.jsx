@@ -1309,6 +1309,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAvis, setShowAvis] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showAide, setShowAide] = useState(false);
+  const [showBienvenue, setShowBienvenue] = useState(false);
+  useEffect(() => {
+    try {
+      setShowBienvenue(!localStorage.getItem(`rv_intro_vue_${workspace.id}`));
+    } catch {
+      setShowBienvenue(false);
+    }
+  }, [workspace.id]);
+  function fermerBienvenue() {
+    try { localStorage.setItem(`rv_intro_vue_${workspace.id}`, "1"); } catch {}
+    setShowBienvenue(false);
+  }
 
   async function loadLivreurs() {
     const { data } = await supabase.from("livreurs").select("*").eq("workspace_id", workspace.id).order("nom");
@@ -3067,6 +3079,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
+      {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}
       {showBatch && (
         <BatchRelanceModalSaas
           orders={[...todoAujourdhui.aRelivrer, ...todoAujourdhui.jamaisContactees, ...todoAujourdhui.sansNouvelles]}
@@ -6612,6 +6625,82 @@ function CarteLivreursSaas({ livreurs }) {
     </div>
   );
 }
+function BienvenueModal({ workspace, onFermer, onOuvrirAide }) {
+  const [etape, setEtape] = useState(0);
+
+  const estLocation = workspace.activity_type === "location_immobiliere";
+  const estRetail = workspace.activity_type === "retail";
+  const motCommande = estLocation ? "loyer" : "commande";
+  const motClient = estLocation ? "locataire" : "client";
+
+  const etapes = [
+    {
+      icone: "👋",
+      titre: `Bienvenue sur RecuVente, ${workspace.name} !`,
+      texte: `On te fait découvrir les bases en quelques secondes. Tu peux fermer à tout moment — tout reste accessible plus tard dans "Comment utiliser RecuVente".`,
+    },
+    {
+      icone: "📋",
+      titre: "Aujourd'hui",
+      texte: `Le premier écran que tu vois chaque jour. Il te montre uniquement ce qui compte vraiment — les ${motCommande}s à traiter en priorité — avec des boutons d'action directs (📞 appeler, ✅ confirmer, ❌ échoué).`,
+    },
+    {
+      icone: estLocation ? "🏠" : "📦",
+      titre: estLocation ? "Loyers" : (estRetail ? "Ventes" : "Commandes"),
+      texte: `Le bouton "+ Ajouter" en haut crée un nouveau ${motCommande}. Chaque couleur a un sens : orange = en cours, vert = confirmé, rouge = échoué, gris = annulé.`,
+    },
+    {
+      icone: "🚚",
+      titre: "Ton équipe",
+      texte: `Ajoute tes livreurs et tes closers avec juste leur nom et leur numéro. Pour un livreur qui lit difficilement, active le "Mode simplifié" — de gros boutons colorés, presque sans texte.`,
+    },
+    {
+      icone: "🛍️",
+      titre: "Ta boutique en ligne",
+      texte: `Chaque espace a sa propre boutique publique, personnalisable dans "Ma Boutique" — logo, couleurs, collections, avis clients. Partage le lien sur WhatsApp ou Facebook.`,
+    },
+    {
+      icone: "📖",
+      titre: "Une question plus tard ?",
+      texte: `Le bouton vert "Comment utiliser RecuVente" (en bas du menu, ou en haut sur mobile) contient le guide complet, et un accès direct à WhatsApp pour une explication en direct.`,
+    },
+  ];
+
+  const e = etapes[etape];
+  const dernierEtape = etape === etapes.length - 1;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 80 }}>
+      <div style={{ background: "white", borderRadius: 18, padding: 28, width: "100%", maxWidth: 400, textAlign: "center" }}>
+        <div style={{ fontSize: 42, marginBottom: 14 }}>{e.icone}</div>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10, color: "#16231F" }}>{e.titre}</div>
+        <div style={{ fontSize: 13.5, color: "#6B7168", lineHeight: 1.6, marginBottom: 22 }}>{e.texte}</div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 22 }}>
+          {etapes.map((_, i) => (
+            <span key={i} style={{ width: i === etape ? 20 : 7, height: 7, borderRadius: 999, background: i === etape ? "#1a7a3c" : "#DDD8CC", transition: "all 0.2s" }} />
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onFermer}
+            style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#8A9089", borderRadius: 10, padding: "12px 0", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}
+          >
+            Passer
+          </button>
+          <button
+            onClick={() => (dernierEtape ? onOuvrirAide() : setEtape(etape + 1))}
+            style={{ flex: 2, background: "#1a7a3c", border: "none", color: "white", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+          >
+            {dernierEtape ? "Ouvrir le guide complet" : "Suivant"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AideModal({ onClose }) {
   const lienWhatsapp = "https://wa.me/message/XHYI5VOMCUFGM1";
   const lienGuidePdf = "https://jlrvtwnbtvpurhjdtzly.supabase.co/storage/v1/object/public/boutique/guide-recuvente.pdf";

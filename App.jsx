@@ -1718,9 +1718,72 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     setAllRelances(data || []);
   }
 
+  const [allAppels, setAllAppels] = useState([]);
+  async function loadAllAppels() {
+    const { data: cmds } = await supabase.from("commandes").select("id").eq("workspace_id", workspace.id);
+    const ids = (cmds || []).map((c) => c.id);
+    if (ids.length === 0) {
+      setAllAppels([]);
+      return;
+    }
+    const { data } = await supabase.from("appels_commande").select("commande_id").in("commande_id", ids);
+    setAllAppels(data || []);
+  }
+
+  const [toastsAutomatisation, setToastsAutomatisation] = useState([]);
+  useEffect(() => {
+    async function verifierAutomatisations() {
+      let { data: regles } = await supabase.from("regles_automatisation").select("*").eq("workspace_id", workspace.id).eq("actif", true);
+
+      // Crée la règle par défaut une seule fois, si aucune n'existe encore pour cet espace
+      if (!regles || regles.length === 0) {
+        const { data: nouvelleRegle } = await supabase
+          .from("regles_automatisation")
+          .insert([{ workspace_id: workspace.id, declencheur: "sans_appel", delai_heures: 24, action: "notification" }])
+          .select()
+          .single();
+        regles = nouvelleRegle ? [nouvelleRegle] : [];
+      }
+
+      const regleSansAppel = (regles || []).find((r) => r.declencheur === "sans_appel");
+      if (!regleSansAppel) return;
+
+      const idsAvecAppel = new Set(allAppels.map((a) => a.commande_id));
+      const seuilMs = regleSansAppel.delai_heures * 3600000;
+
+      const candidates = commandes.filter((c) =>
+        c.statut === "en_cours" &&
+        !idsAvecAppel.has(c.id) &&
+        (Date.now() - new Date(c.created_at).getTime()) > seuilMs
+      );
+      if (candidates.length === 0) return;
+
+      const { data: dejaDeclenches } = await supabase
+        .from("declenchements_automatisation")
+        .select("commande_id")
+        .eq("regle_id", regleSansAppel.id)
+        .in("commande_id", candidates.map((c) => c.id));
+      const idsDejaDeclenches = new Set((dejaDeclenches || []).map((d) => d.commande_id));
+
+      const nouvelles = candidates.filter((c) => !idsDejaDeclenches.has(c.id));
+      if (nouvelles.length === 0) return;
+
+      for (const c of nouvelles) {
+        await supabase.from("declenchements_automatisation").insert([{ regle_id: regleSansAppel.id, commande_id: c.id }]).then(() => {});
+      }
+
+      setToastsAutomatisation((prev) => [
+        ...prev,
+        ...nouvelles.map((c) => ({ id: c.id, texte: `⏰ ${c.client} — aucun appel depuis ${regleSansAppel.delai_heures}h (${Number(c.montant).toLocaleString("fr-FR")} ${workspace.currency})` })),
+      ]);
+    }
+    if (commandes.length > 0) verifierAutomatisations();
+  }, [commandes, allAppels, workspace.id]);
+
   useEffect(() => {
     loadCommandes();
     loadAllRelances();
+    loadAllAppels();
 
     const channel = supabase
       .channel(`commandes-${workspace.id}`)
@@ -3300,6 +3363,17 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {toastNouvellesCommandes && (
         <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#16231F", color: "white", padding: "11px 20px", borderRadius: 999, fontSize: 13, fontWeight: 600, zIndex: 90, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }}>
           {toastNouvellesCommandes}
+        </div>
+      )}
+
+      {toastsAutomatisation.length > 0 && (
+        <div style={{ position: "fixed", top: 16, right: 16, zIndex: 90, display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
+          {toastsAutomatisation.map((t) => (
+            <div key={t.id} style={{ background: "#8A6412", color: "white", padding: "11px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, boxShadow: "0 6px 20px rgba(0,0,0,0.25)", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+              <span>{t.texte}</span>
+              <button onClick={() => setToastsAutomatisation((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>×</button>
+            </div>
+          ))}
         </div>
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}

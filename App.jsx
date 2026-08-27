@@ -3087,9 +3087,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {[
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }, { key: "menu_restaurant", label: "Menu", icon: Boxes }] : []),
           { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
+          ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;

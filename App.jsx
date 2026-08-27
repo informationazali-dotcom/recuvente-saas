@@ -1411,12 +1411,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function enregistrerAudit(action, details) {
-    await supabase.from("journal_audit").insert([{
+    const { error } = await supabase.from("journal_audit").insert([{
       workspace_id: workspace.id,
       action,
       details,
       effectue_par: session?.user?.email || "Inconnu",
     }]);
+    if (error) {
+      console.error("Erreur journal d'audit:", error.message);
+      alert("⚠️ Le journal d'audit n'a pas pu enregistrer cette action : " + error.message);
+    }
   }
 
   async function deleteProduit(id) {

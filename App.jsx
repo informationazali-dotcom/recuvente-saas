@@ -1310,7 +1310,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCollections, setShowCollections] = useState(false);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
-  const [showAssistantIA, setShowAssistantIA] = useState(false);
   useEffect(() => {
     try {
       setShowBienvenue(!localStorage.getItem(`rv_intro_vue_${workspace.id}`));
@@ -2208,10 +2207,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         .rv-saas-content { }
         .rv-saas-tabs-mobile { }
         .rv-saas-bottomnav { display: flex; }
-        .rv-assistant-bouton-flottant { bottom: 80px; }
-        @media (min-width: 900px) {
-          .rv-assistant-bouton-flottant { bottom: 24px; }
-        }
         .rv-saas-content { padding-bottom: 76px; }
         @media (min-width: 900px) {
           .rv-saas-sidebar {
@@ -3086,17 +3081,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}
 
-      {(workspace.role === "owner" || workspace.role === "admin") && !showBienvenue && (
-        <button
-          onClick={() => setShowAssistantIA(true)}
-          className="rv-assistant-bouton-flottant"
-          style={{ position: "fixed", right: 24, width: 56, height: 56, borderRadius: "50%", background: "#1a7a3c", border: "none", color: "white", fontSize: 24, boxShadow: "0 6px 20px rgba(26,122,60,0.4)", cursor: "pointer", zIndex: 45, display: "flex", alignItems: "center", justifyContent: "center" }}
-          title="Assistant RecuVente"
-        >
-          🧠
-        </button>
-      )}
-      {showAssistantIA && <AssistantIAModal workspace={workspace} session={session} onClose={() => setShowAssistantIA(false)} />}
       {showBatch && (
         <BatchRelanceModalSaas
           orders={[...todoAujourdhui.aRelivrer, ...todoAujourdhui.jamaisContactees, ...todoAujourdhui.sansNouvelles]}
@@ -6731,99 +6715,6 @@ function BienvenueModal({ workspace, onFermer, onOuvrirAide }) {
             style={{ flex: 2, background: "#1a7a3c", border: "none", color: "white", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
           >
             {dernierEtape ? "Ouvrir le guide complet" : "Suivant"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AssistantIAModal({ workspace, session, onClose }) {
-  const [messages, setMessages] = useState([
-    { role: "assistant", texte: "Bonjour ! Pose-moi une question sur ton entreprise — tes ventes, tes livreurs, tes produits — je réponds à partir de tes vraies données des 30 derniers jours." },
-  ]);
-  const [question, setQuestion] = useState("");
-  const [enCours, setEnCours] = useState(false);
-  const finRef = useRef(null);
-
-  useEffect(() => {
-    finRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const suggestions = [
-    "Combien j'ai vendu cette semaine ?",
-    "Quel est mon meilleur livreur ?",
-    "Quel produit est le plus rentable ?",
-  ];
-
-  async function envoyer(texteQuestion) {
-    const q = (texteQuestion || question).trim();
-    if (!q || enCours) return;
-    setMessages((m) => [...m, { role: "user", texte: q }]);
-    setQuestion("");
-    setEnCours(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const res = await fetch("/api/assistant-ia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ question: q, workspaceId: workspace.id }),
-      });
-      const data = await res.json();
-      setMessages((m) => [...m, { role: "assistant", texte: data.reponse || data.error || "Je n'ai pas pu répondre." }]);
-    } catch (e) {
-      setMessages((m) => [...m, { role: "assistant", texte: "Erreur de connexion. Réessaie dans un instant." }]);
-    }
-    setEnCours(false);
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 440, height: "min(600px, 85vh)", borderRadius: "18px 18px 0 0", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 18px", borderBottom: "1px solid #ECE8DC" }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>🧠 Assistant RecuVente</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
-              <div style={{ background: m.role === "user" ? "#1a7a3c" : "#FAFAF7", color: m.role === "user" ? "white" : "#16231F", border: m.role === "user" ? "none" : "1px solid #ECE8DC", borderRadius: 14, padding: "10px 14px", fontSize: 13.5, lineHeight: 1.5 }}>
-                {m.texte}
-              </div>
-            </div>
-          ))}
-          {enCours && (
-            <div style={{ alignSelf: "flex-start", fontSize: 12.5, color: "#8A9089", fontStyle: "italic" }}>L'assistant réfléchit...</div>
-          )}
-          <div ref={finRef} />
-        </div>
-
-        {messages.length <= 1 && (
-          <div style={{ padding: "0 18px 10px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {suggestions.map((s, i) => (
-              <button key={i} onClick={() => envoyer(s)} style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 999, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, padding: 14, borderTop: "1px solid #ECE8DC" }}>
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && envoyer()}
-            placeholder="Pose ta question..."
-            disabled={enCours}
-            style={{ flex: 1, padding: "11px 14px", borderRadius: 999, border: "1px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
-          />
-          <button
-            onClick={() => envoyer()}
-            disabled={enCours || !question.trim()}
-            style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 999, padding: "0 20px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: enCours || !question.trim() ? 0.5 : 1 }}
-          >
-            Envoyer
           </button>
         </div>
       </div>

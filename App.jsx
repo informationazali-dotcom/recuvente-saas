@@ -19,6 +19,17 @@ function numeroFacture(commande) {
 }
 
 async function genererFacturePDF(commande, workspace) {
+  // Réutilise le numéro existant si cette commande a déjà été facturée, sinon en génère un nouveau
+  let numeroReel;
+  const { data: factureExistante } = await supabase.from("factures").select("numero").eq("commande_id", commande.id).maybeSingle();
+  if (factureExistante) {
+    numeroReel = factureExistante.numero;
+  } else {
+    const { data: nouveauNumero } = await supabase.rpc("prochain_numero_facture", { p_workspace_id: workspace.id });
+    numeroReel = nouveauNumero || numeroFacture(commande);
+    await supabase.from("factures").insert([{ workspace_id: workspace.id, commande_id: commande.id, numero: numeroReel, montant: commande.montant }]);
+  }
+
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const green = [26, 122, 60];
   const orange = [232, 146, 10];
@@ -40,7 +51,7 @@ async function genererFacturePDF(commande, workspace) {
   doc.text("FACTURE", 195, 18, { align: "right" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(numeroFacture(commande), 195, 25, { align: "right" });
+  doc.text(numeroReel, 195, 25, { align: "right" });
 
   let y = 46;
   doc.setTextColor(...gray);

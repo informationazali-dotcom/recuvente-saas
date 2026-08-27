@@ -2208,6 +2208,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         .rv-saas-content { }
         .rv-saas-tabs-mobile { }
         .rv-saas-bottomnav { display: flex; }
+        .rv-assistant-bouton-flottant { bottom: 80px; }
+        @media (min-width: 900px) {
+          .rv-assistant-bouton-flottant { bottom: 24px; }
+        }
         .rv-saas-content { padding-bottom: 76px; }
         @media (min-width: 900px) {
           .rv-saas-sidebar {
@@ -3085,7 +3089,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {(workspace.role === "owner" || workspace.role === "admin") && !showBienvenue && (
         <button
           onClick={() => setShowAssistantIA(true)}
-          style={{ position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%", background: "#1a7a3c", border: "none", color: "white", fontSize: 24, boxShadow: "0 6px 20px rgba(26,122,60,0.4)", cursor: "pointer", zIndex: 45, display: "flex", alignItems: "center", justifyContent: "center" }}
+          className="rv-assistant-bouton-flottant"
+          style={{ position: "fixed", right: 24, width: 56, height: 56, borderRadius: "50%", background: "#1a7a3c", border: "none", color: "white", fontSize: 24, boxShadow: "0 6px 20px rgba(26,122,60,0.4)", cursor: "pointer", zIndex: 45, display: "flex", alignItems: "center", justifyContent: "center" }}
           title="Assistant RecuVente"
         >
           🧠

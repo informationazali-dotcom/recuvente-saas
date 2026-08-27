@@ -3193,6 +3193,8 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   const [tableId, setTableId] = useState("");
   const [typeCommande, setTypeCommande] = useState("sur_place");
   const [quantitesPlats, setQuantitesPlats] = useState({});
+  const [nomClient, setNomClient] = useState("");
+  const [telClient, setTelClient] = useState("");
 
   if (estRestaurant) {
     const totalRestaurant = plats.reduce((s, p) => s + (quantitesPlats[p.id] || 0) * Number(p.prix), 0);
@@ -3206,9 +3208,10 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
 
     function validerCommandeRestaurant() {
       if (platsChoisis.length === 0) return;
+      if (typeCommande !== "sur_place" && !telClient.trim()) return;
       onAdd({
-        client: tableChoisie ? `Table ${tableChoisie.numero}` : (typeCommande === "emporter" ? "À emporter" : "Client"),
-        tel: "",
+        client: typeCommande === "sur_place" ? (tableChoisie ? `Table ${tableChoisie.numero}` : "Client") : (nomClient.trim() || (typeCommande === "emporter" ? "À emporter" : "Livraison")),
+        tel: telClient.trim(),
         produit: resumePlats,
         montant: String(totalRestaurant),
         zone: "",
@@ -3240,13 +3243,19 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             ))}
           </div>
 
-          {typeCommande === "sur_place" && (
+          {typeCommande === "sur_place" ? (
             <select value={tableId} onChange={(e) => setTableId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }}>
               <option value="">Choisir une table...</option>
               {tablesRestaurant.map((t) => (
                 <option key={t.id} value={t.id}>Table {t.numero}</option>
               ))}
             </select>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              <input placeholder="Nom du client (optionnel)" value={nomClient} onChange={(e) => setNomClient(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Numéro de téléphone (obligatoire)" value={telClient} onChange={(e) => setTelClient(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+              <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 4 }}>Pour appeler le client dès que sa commande est prête.</div>
+            </div>
           )}
 
           <div style={{ fontSize: 11.5, color: "#8A9089", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Sélectionner les plats</div>
@@ -3276,8 +3285,8 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
 
           <button
             onClick={validerCommandeRestaurant}
-            disabled={platsChoisis.length === 0}
-            style={{ width: "100%", background: platsChoisis.length === 0 ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: platsChoisis.length === 0 ? "default" : "pointer" }}
+            disabled={platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim())}
+            style={{ width: "100%", background: (platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim())) ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: (platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim())) ? "default" : "pointer" }}
           >
             Envoyer en cuisine
           </button>

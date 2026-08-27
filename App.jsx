@@ -409,7 +409,7 @@ function LandingPage() {
         .rv-lp-mockup { animation: rvLpFloat 5.5s ease-in-out infinite; }
       `}</style>
 
-      <div style={{ background: "radial-gradient(ellipse 900px 600px at 15% -10%, #2a5a3f 0%, transparent 60%), radial-gradient(ellipse 700px 500px at 100% 20%, rgba(232,146,10,0.18) 0%, transparent 55%), linear-gradient(170deg, #0F1B16 0%, #16231F 55%, #1a7a3c 160%)", color: "white", padding: "44px 24px 0", position: "relative", overflow: "hidden" }}>
+      <div style={{ background: "radial-gradient(ellipse 900px 600px at 15% -10%, #14261c 0%, transparent 55%), radial-gradient(ellipse 700px 500px at 100% 20%, rgba(232,146,10,0.13) 0%, transparent 55%), linear-gradient(170deg, #050807 0%, #0A130F 35%, #0F1B16 65%, #16231F 100%, #1a7a3c 260%)", color: "white", padding: "44px 24px 0", position: "relative", overflow: "hidden" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", position: "relative", zIndex: 1 }}>
           <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 32, letterSpacing: "0.02em", textAlign: "center" }}>
             RECU<span style={{ color: "#e8920a" }}>VENTE</span>
@@ -727,7 +727,7 @@ function LandingPage() {
         </div>
       </div>
 
-      <div style={{ background: "radial-gradient(ellipse 800px 500px at 85% 0%, rgba(232,146,10,0.15) 0%, transparent 55%), linear-gradient(170deg, #0F1B16 0%, #16231F 60%, #1a7a3c 200%)", color: "white", padding: "64px 24px", textAlign: "center" }}>
+      <div style={{ background: "radial-gradient(ellipse 800px 500px at 85% 0%, rgba(232,146,10,0.13) 0%, transparent 55%), linear-gradient(170deg, #050807 0%, #0A130F 35%, #0F1B16 65%, #16231F 100%, #1a7a3c 260%)", color: "white", padding: "64px 24px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.5vw, 32px)", marginBottom: 12, letterSpacing: "-0.01em" }}>
           {profil === "cod" ? "Ta prochaine commande mérite d'être suivie correctement" : "Ta boutique mérite mieux qu'un cahier"}
         </div>
@@ -776,7 +776,7 @@ function PageImpact() {
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');`}</style>
 
-      <div style={{ background: "linear-gradient(170deg, #0F1B16 0%, #16231F 60%, #1a7a3c 200%)", color: "white", padding: "40px 24px 50px", textAlign: "center" }}>
+      <div style={{ background: "radial-gradient(ellipse 800px 500px at 85% 0%, rgba(232,146,10,0.13) 0%, transparent 55%), linear-gradient(170deg, #050807 0%, #0A130F 35%, #0F1B16 65%, #16231F 100%, #1a7a3c 260%)", color: "white", padding: "40px 24px 50px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, marginBottom: 20 }}>
           RECU<span style={{ color: "#e8920a" }}>VENTE</span>
         </div>
@@ -2216,10 +2216,24 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             left: 0;
             bottom: 0;
             width: 220px;
-            background: #16231F;
+            background: linear-gradient(180deg, #050807 0%, #0A130F 40%, #0F1B16 75%, #16231F 100%);
             flex-direction: column;
             padding: 24px 14px;
             z-index: 30;
+            overflow: hidden;
+          }
+          .rv-saas-sidebar-filigrane {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-90deg);
+            font-family: 'Fraunces', serif;
+            font-weight: 700;
+            font-size: 62px;
+            color: rgba(255,255,255,0.025);
+            white-space: nowrap;
+            pointer-events: none;
+            letter-spacing: 0.04em;
           }
           .rv-saas-content {
             margin-left: 220px;
@@ -2232,6 +2246,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       `}</style>
 
       <div className="rv-saas-sidebar">
+        <div className="rv-saas-sidebar-filigrane">RECUVENTE</div>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: "white", marginBottom: 14, padding: "0 8px" }}>
           RECU<span style={{ color: "#e8920a" }}>VENTE</span>
         </div>
@@ -2323,6 +2339,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           <button onClick={() => supabase.auth.signOut()} style={{ width: "100%", padding: "8px 0", borderRadius: 9, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: 12.5, cursor: "pointer" }}>
             Déconnexion
           </button>
+        </div>
         </div>
       </div>
 

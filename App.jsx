@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
@@ -2039,6 +2039,52 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return anomalies.sort((a, b) => b.tauxLocal - a.tauxLocal);
   }, [commandes]);
 
+  const commandesRecuperables = useMemo(() => {
+    // Zones à risque (issues des anomalies déjà détectées) — accès rapide par clé "produit|||zone"
+    const zonesARisque = new Set(anomaliesProduitZone.map((a) => a.produit + "|||" + a.zone));
+
+    // Historique du client : nb d'échecs passés, montant moyen de ses commandes
+    const historiqueParTel = {};
+    commandes.forEach((c) => {
+      if (!c.tel) return;
+      if (!historiqueParTel[c.tel]) historiqueParTel[c.tel] = { echecsPasses: 0, montants: [] };
+      if (c.statut === "echouee") historiqueParTel[c.tel].echecsPasses += 1;
+      historiqueParTel[c.tel].montants.push(Number(c.montant));
+    });
+
+    const candidates = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+
+    return candidates
+      .map((c) => {
+        let score = 0;
+        const hist = historiqueParTel[c.tel] || { echecsPasses: 0, montants: [c.montant] };
+
+        // +30 : le client a déjà eu un échec de livraison avant cette commande
+        const echecsAvantCelleCi = c.statut === "echouee" ? hist.echecsPasses - 1 : hist.echecsPasses;
+        if (echecsAvantCelleCi > 0) score += 30;
+
+        // +25 : au moins 2 relances déjà envoyées, sans confirmation
+        const nbRelances = (allRelances || []).filter((r) => r.commande_id === c.id).length;
+        if (nbRelances >= 2) score += 25;
+
+        // +20 : montant supérieur à la moyenne des commandes de ce client
+        const moyenne = hist.montants.reduce((s, m) => s + m, 0) / hist.montants.length;
+        if (Number(c.montant) > moyenne * 1.3) score += 20;
+
+        // +15 : en attente depuis plus de 48h
+        const heuresEcoulees = (Date.now() - new Date(c.created_at).getTime()) / 3600000;
+        if (c.statut === "en_cours" && heuresEcoulees > 48) score += 15;
+
+        // +10 : zone à risque déjà identifiée pour ce produit
+        const produitCle = (c.produit || "").split(" x")[0].trim();
+        if (zonesARisque.has(produitCle + "|||" + (c.zone || "").trim())) score += 10;
+
+        return { ...c, scoreRisque: score, nbRelances };
+      })
+      .filter((c) => c.scoreRisque > 0)
+      .sort((a, b) => b.scoreRisque - a.scoreRisque);
+  }, [commandes, allRelances, anomaliesProduitZone]);
+
   const clients = useMemo(() => {
     const map = {};
     commandes.forEach((c) => {
@@ -2360,6 +2406,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Recovery" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
           <button
@@ -3024,6 +3071,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
+      {vue === "recovery" && (
+        <RecoveryCenterView
+          commandes={commandesRecuperables}
+          currency={workspace.currency}
+          nomEntreprise={workspace.name}
+        />
+      )}
+
       {vue === "compta" && (
         <div>
           <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "3px 10px", borderRadius: 999, marginBottom: 12 }}>
@@ -3181,6 +3236,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
           ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Recovery", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;
@@ -7020,6 +7076,90 @@ function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function RecoveryCenterView({ commandes, currency, nomEntreprise }) {
+  const totalARisque = commandes.reduce((s, c) => s + Number(c.montant), 0);
+  const risqueEleve = commandes.filter((c) => c.scoreRisque >= 61);
+  const aSurveiller = commandes.filter((c) => c.scoreRisque >= 31 && c.scoreRisque < 61);
+  const recuperable = commandes.filter((c) => c.scoreRisque < 31);
+
+  function niveauScore(score) {
+    if (score >= 61) return { label: "Risque élevé", couleur: "#D64933", bg: "#FBEAE6" };
+    if (score >= 31) return { label: "À surveiller", couleur: "#8A6412", bg: "#FBF3E3" };
+    return { label: "Très récupérable", couleur: "#1F9D6E", bg: "#EAF3DE" };
+  }
+
+  function lienRecuperation(c) {
+    const texte = `Bonjour ${c.client}, nous n'avons pas encore pu finaliser votre commande "${c.produit}" (${Number(c.montant).toLocaleString("fr-FR")} ${currency}) chez ${nomEntreprise}. Êtes-vous toujours disponible pour la recevoir ?`;
+    const telPropre = String(c.tel || "").replace(/\D/g, "").replace(/^0/, "225");
+    return `https://wa.me/${telPropre}?text=${encodeURIComponent(texte)}`;
+  }
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🎯 Recovery Center</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
+        Chaque vente non encore encaissée, classée par urgence — pas juste une liste, un plan d'action.
+      </div>
+
+      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Total à récupérer</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: "#f0a0a0", marginTop: 3 }}>
+          {totalARisque.toLocaleString("fr-FR")} {currency}
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+          {commandes.length} commande{commandes.length > 1 ? "s" : ""} à traiter
+        </div>
+      </div>
+
+      {commandes.length === 0 && (
+        <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "40px 0" }}>
+          Rien à récupérer pour l'instant — toutes tes commandes en cours sont sous contrôle. 🎉
+        </div>
+      )}
+
+      {[
+        { titre: "🔴 Risque élevé", liste: risqueEleve },
+        { titre: "🟠 À surveiller", liste: aSurveiller },
+        { titre: "🟢 Très récupérable", liste: recuperable },
+      ].map((groupe) => groupe.liste.length > 0 && (
+        <div key={groupe.titre} style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>{groupe.titre} ({groupe.liste.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {groupe.liste.map((c) => {
+              const niveau = niveauScore(c.scoreRisque);
+              return (
+                <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${niveau.couleur}`, borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.client}</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{c.produit}</div>
+                      {c.nbRelances > 0 && <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>{c.nbRelances} relance{c.nbRelances > 1 ? "s" : ""} déjà envoyée{c.nbRelances > 1 ? "s" : ""}</div>}
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                      <div style={{ fontSize: 9.5, fontWeight: 700, color: niveau.couleur, background: niveau.bg, padding: "1px 7px", borderRadius: 999, marginTop: 3, display: "inline-block" }}>
+                        Score {c.scoreRisque}
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href={lienRecuperation(c)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "block", textAlign: "center", marginTop: 10, background: "#1F9D6E", color: "white", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, textDecoration: "none" }}
+                  >
+                    💬 Récupérer maintenant
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -297,7 +297,7 @@ function Centered({ children }) {
 
 function LandingPage() {
   const [plans, setPlans] = useState([]);
-  const [faqOuverte, setFaqOuverte] = useState(null);
+  const [faqOuverte, setFaqOuverte] = useState(0);
   const [profil, setProfil] = useState("cod");
   const [statsPlateforme, setStatsPlateforme] = useState(null);
 
@@ -335,430 +335,639 @@ function LandingPage() {
     if (window.fbq) window.fbq("track", "Lead");
   }
 
-  const contenuParProfil = {
+  function allerInscription(e) {
+    trackerInscription();
+    if (typeof window !== "undefined") {
+      e?.preventDefault?.();
+      window.location.href = "?auth=1";
+    }
+  }
+
+  const contenu = {
     cod: {
-      badge: "🎯 Le logiciel qui récupère l'argent que tu perds",
-      titre: "Chaque vente convertie en argent réellement encaissé",
-      sousTitre: "Une commande confirmée n'est pas de l'argent en poche. RecuVente détecte chaque vente à risque de ne jamais être payée, te dit exactement quoi faire pour la récupérer, et rapproche automatiquement tes paiements Mobile Money — le tout en un clic.",
-      captureLignes: [
-        { label: "Argent récupéré", valeur: "1 240 500 FCFA", couleur: "#e8920a" },
-        { label: "À récupérer", valeur: "18", couleur: "white" },
-        { label: "Taux de récupération", valeur: "87%", couleur: "white" },
+      eyebrow: "LE SYSTÈME DE PILOTAGE DU COMMERCE COD",
+      title: <>Arrête de gérer ton business<br /><span>dans WhatsApp.</span></>,
+      subtitle: "RecuVente centralise tes commandes, tes clients, tes livreurs, ton stock et ton argent dans un seul espace. Tu sais ce qui est vendu, ce qui est livré et ce qui est réellement encaissé.",
+      proof: "Pensé pour les entrepreneurs qui vendent en ligne en Afrique",
+      dashboardMain: "1 240 500",
+      dashboardLabel: "FCFA encaissés",
+      cards: [
+        ["Commandes", "148", "Aujourd'hui"],
+        ["À livrer", "23", "En cours"],
+        ["À récupérer", "18", "À risque"],
       ],
-      avantages: [
-        { icon: "🎯", titre: "Ton centre de récupération — chaque vente à risque, avec un plan d'action", desc: "Un vrai score calculé sur chaque commande en attente : client déjà défaillant, relance sans réponse, montant inhabituel. Un bouton \"Récupérer\" ouvre WhatsApp avec le bon message déjà écrit." },
-        { icon: "🔗", titre: "Rapprochement automatique de tes paiements Mobile Money", desc: "Colle ta liste de paiements Orange Money, Wave, ou MTN — RecuVente propose la correspondance avec la bonne commande, avec un score de fiabilité. Un clic pour valider, ta compta se met à jour toute seule." },
-        { icon: "💰", titre: "Ton tableau de bord financier — la vérité en un coup d'œil", desc: "Ventes, Encaissé, À récupérer, À risque : 4 chiffres, pas 40. Tu sais en 10 secondes où en est vraiment ton argent, pas seulement ton chiffre d'affaires théorique." },
-        { icon: "🔌", titre: "Déjà une boutique Shopify ? Connecte-la en 2 minutes", desc: "Tes commandes arrivent automatiquement dans RecuVente, sans rien taper à la main — tu gardes Shopify, tu ajoutes juste la puissance de récupération qui lui manque." },
-        { icon: "🛍️", titre: "Pas encore de boutique en ligne ? RecuVente en inclut une", desc: "Avis clients, collections, galerie photo, commande en un clic sans panier compliqué — prête à recevoir tes publicités Facebook, sans payer un abonnement Shopify en plus." },
-        { icon: "📋", titre: "Chaque commande, du premier contact à l'argent en poche", desc: "Statut en temps réel — en cours, confirmée, échouée — jamais un client qui se perd dans les échanges WhatsApp." },
-        { icon: "🚚", titre: "Tes livreurs, suivis en direct", desc: "Position GPS pendant leur tournée, commission calculée automatiquement, montant exact à déposer chaque jour." },
-        { icon: "🎧", titre: "Une équipe de closers, sans doublons", desc: "Chaque commande non assignée est prise par un seul closer à la fois — fini les deux personnes qui rappellent le même client." },
-        { icon: "🧾", titre: "Factures avec vraie numérotation comptable", desc: "FACT-2026-0001, FACT-2026-0002 — une numérotation séquentielle sans trou, pas un identifiant technique bricolé." },
-        { icon: "📊", titre: "La seule app pensée pour la pub Facebook en COD", desc: "Envoie le vrai signal \"Achat\" à Facebook uniquement quand la livraison est confirmée — pas juste quand quelqu'un commande. Tes publicités arrêtent enfin de te ramener des faux acheteurs." },
+      painTitle: "Le vrai problème n'est pas de vendre.",
+      painLead: "C'est de garder le contrôle après la vente.",
+      solution: "Une commande peut être confirmée, mais jamais livrée. Un livreur peut encaisser sans déposer. Un client peut disparaître. Et à la fin du mois, ton chiffre d'affaires peut sembler bon alors que ton bénéfice réel ne l'est pas.",
+      features: [
+        { icon: "🎯", title: "Tu sais quoi récupérer", desc: "RecuVente met en évidence les commandes qui méritent ton attention et te permet d'agir rapidement." },
+        { icon: "📦", title: "Chaque commande est tracée", desc: "De la création à la livraison, garde une vision claire du statut de chaque client." },
+        { icon: "🚚", title: "Tes livreurs sous contrôle", desc: "Suivi des tournées, commandes attribuées, commissions et montants à déposer." },
+        { icon: "💰", title: "Tu vois ton vrai argent", desc: "Sépare les ventes, l'argent encaissé, ce qui reste à récupérer et les coûts." },
+        { icon: "🛍️", title: "Ta boutique peut être incluse", desc: "Vends en ligne avec une boutique publique RecuVente ou connecte ta boutique Shopify." },
+        { icon: "📊", title: "Ton équipe travaille ensemble", desc: "Vendeurs, closers, livreurs et comptables travaillent sur les mêmes informations." },
       ],
     },
     retail: {
-      badge: "🏪 Boutique / Commerce physique",
-      titre: "Ta boutique mérite mieux qu'un cahier qu'on remplit à moitié",
-      sousTitre: "Chaque vente non notée, chaque acompte oublié, c'est de l'argent que tu perds de vue. RecuVente organise ta boutique comme une vraie entreprise structurée — et te fait gagner du temps chaque jour, pas juste enregistrer ton travail.",
-      captureLignes: [
-        { label: "Ventes du jour", valeur: "340 000 FCFA", couleur: "#e8920a" },
-        { label: "Acomptes en attente", valeur: "5", couleur: "white" },
-        { label: "Produits en stock", valeur: "142", couleur: "white" },
+      eyebrow: "LE SYSTÈME DE PILOTAGE DE TA BOUTIQUE",
+      title: <>Ton commerce mérite<br /><span>mieux qu'un cahier.</span></>,
+      subtitle: "RecuVente organise tes ventes, ton stock, tes acomptes, tes clients et ton équipe dans un seul espace simple à utiliser.",
+      proof: "Pensé pour les commerces qui veulent passer un cap",
+      dashboardMain: "340 000",
+      dashboardLabel: "FCFA de ventes aujourd'hui",
+      cards: [
+        ["Ventes", "32", "Aujourd'hui"],
+        ["Stock", "142", "Produits"],
+        ["Acomptes", "5", "En attente"],
       ],
-      avantages: [
-        { icon: "🧠", titre: "\"Ce matin chez vous\" — ton assistant intelligent", desc: "Chaque jour, un résumé clair de ce qui compte : ventes à risque, stock bas, meilleur produit. Zéro analyse à faire toi-même." },
-        { icon: "🏪", titre: "Vente sur place, livraison, ou expédition", desc: "Choisis comment le produit sort du magasin — payé en entier sur place, remis à un livreur, ou expédié hors de ta ville." },
-        { icon: "💰", titre: "L'acompte, suivi jusqu'au dernier franc", desc: "Un client paie en plusieurs fois avant de retirer ? Le solde restant s'affiche clairement, jusqu'à ce qu'il soit réglé." },
-        { icon: "💵", titre: "Le bénéfice réel de CHAQUE produit", desc: "Sais enfin lequel de tes produits te rapporte vraiment, pas juste ton chiffre d'affaires total." },
-        { icon: "📦", titre: "Le stock, produit par produit", desc: "Sais exactement ce qu'il te reste, ce qui est déjà vendu, ce qui va bientôt manquer." },
-        { icon: "🛍️", titre: "Une vraie boutique en ligne, incluse", desc: "Avis clients, collections, galerie photo — vends aussi en ligne sans changer d'outil." },
-        { icon: "🧾", titre: "Une facture professionnelle, en un clic", desc: "PDF prêt à envoyer, avec le détail exact de l'acompte et du solde restant si besoin." },
-        { icon: "📊", titre: "Toute ton équipe, un seul endroit", desc: "Vendeurs, comptable, chacun son rôle et son accès — plus de confusion sur qui a fait quoi." },
+      painTitle: "Le vrai problème n'est pas de vendre.",
+      painLead: "C'est de savoir exactement ce qu'il te reste.",
+      solution: "Quand les ventes, le stock et les acomptes sont dispersés, les erreurs deviennent invisibles. RecuVente transforme ces informations en un tableau de bord simple et exploitable.",
+      features: [
+        { icon: "🏪", title: "Ventes centralisées", desc: "Enregistre tes ventes sur place, en livraison ou avec acompte." },
+        { icon: "📦", title: "Stock produit par produit", desc: "Sais ce qui est disponible, vendu et bientôt en rupture." },
+        { icon: "💵", title: "Acomptes suivis", desc: "Le montant payé et le solde restant sont visibles jusqu'au règlement." },
+        { icon: "💰", title: "Bénéfice réel", desc: "Comprends quels produits te rapportent réellement de l'argent." },
+        { icon: "🛍️", title: "Boutique en ligne", desc: "Développe aussi tes ventes en ligne sans multiplier les outils." },
+        { icon: "👥", title: "Équipe organisée", desc: "Chaque membre travaille avec son rôle et ses informations." },
       ],
     },
   };
 
-  const c = contenuParProfil[profil];
+  const c = contenu[profil];
 
-  const differenciateurs = [
-    { icon: "🧠", titre: "Un assistant, pas juste un tableau", desc: "La plupart des outils affichent des chiffres. RecuVente te dit quoi faire avec, chaque matin." },
-    { icon: "📊", titre: "Le seul adapté à la pub Facebook en COD", desc: "Aucun autre outil sur ce marché n'envoie le vrai signal d'achat à Facebook uniquement à la livraison confirmée." },
-    { icon: "💵", titre: "Le bénéfice réel, produit par produit", desc: "Pas juste \"combien j'ai vendu\" — \"combien chaque produit me rapporte vraiment\", après tous les coûts." },
-    { icon: "🛍️", titre: "Boutique + gestion, un seul outil", desc: "Pas besoin de Shopify + un tableau Excel + WhatsApp. Tout est déjà connecté ensemble." },
+  const objections = [
+    ["« Je ne suis pas doué avec la technologie »", "Si tu sais utiliser WhatsApp, tu peux prendre RecuVente en main. L'interface est conçue pour aller droit au but."],
+    ["« Je travaille déjà avec Shopify »", "Garde Shopify. RecuVente peut recevoir tes commandes Shopify automatiquement et ajouter la couche de pilotage qui te manque."],
+    ["« Je n'ai pas encore de boutique en ligne »", "RecuVente inclut une boutique publique que tu peux utiliser pour recevoir tes campagnes et tes commandes."],
+    ["« Je n'ai pas le temps de tout configurer »", "Crée ton espace en quelques étapes, ajoute ta première commande et commence à travailler immédiatement."],
   ];
 
   const faq = [
-    { q: "Comment fonctionne l'essai gratuit ?", r: "7 jours d'accès complet dès l'inscription, sur le plan Pro. Aucune carte bancaire requise. Tu peux annuler ou continuer à tout moment." },
-    { q: "Comment se fait le paiement ?", r: "En ligne, directement dans l'app, activé automatiquement dès la confirmation du paiement." },
-    { q: "Mes données sont-elles visibles par d'autres entreprises ?", r: "Non, jamais. Chaque entreprise a son espace complètement isolé et sécurisé — personne d'autre ne peut voir tes commandes, clients ou finances." },
-    { q: "Puis-je changer de plan plus tard ?", r: "Oui, à tout moment, selon la croissance de ton activité." },
-    { q: "RecuVente fonctionne pour quel type de commerce ?", r: "Deux profils au choix dès l'inscription : la vente en ligne avec paiement à la livraison (COD), ou la boutique physique avec vente sur place et acompte. Choisis celui qui te correspond." },
-    { q: "Puis-je connecter ma boutique Shopify ?", r: "Oui — une intégration directe permet à tes commandes Shopify d'arriver automatiquement dans RecuVente, sans rien taper à la main." },
-    { q: "Est-ce que je peux vraiment vendre en ligne sans Shopify ?", r: "Oui — RecuVente inclut une vraie boutique publique (photos, avis clients, collections), prête à recevoir tes publicités Facebook, sans autre abonnement." },
+    ["Comment fonctionne l'essai gratuit ?", "Tu bénéficies de 7 jours d'accès. Aucune carte bancaire n'est requise pour commencer. À la fin de l'essai, tu peux choisir de continuer avec un abonnement payant."],
+    ["Combien coûte RecuVente ?", "Les plans et leurs tarifs sont affichés ci-dessous. Tu peux choisir le niveau qui correspond à ton activité et changer de plan plus tard."],
+    ["Comment se fait le paiement ?", "Le paiement de l'abonnement se fait par Mobile Money. L'activation du plan payant intervient après confirmation de la réception du paiement par l'équipe RecuVente."],
+    ["Puis-je connecter Shopify ?", "Oui. RecuVente peut recevoir automatiquement les nouvelles commandes de ta boutique Shopify via l'intégration prévue dans l'application."],
+    ["Puis-je vendre sans Shopify ?", "Oui. RecuVente dispose d'une boutique publique avec produits, photos, collections et commande en ligne."],
+    ["Mes données sont-elles séparées de celles des autres entreprises ?", "Oui. Chaque entreprise possède son propre espace et ses données sont isolées des autres entreprises clientes."],
+    ["Est-ce adapté à une petite activité ?", "Oui. RecuVente propose plusieurs plans afin de pouvoir commencer simplement puis évoluer avec ton activité."],
   ];
 
+  const stats = statsPlateforme && Number(statsPlateforme.nb_commandes_confirmees) > 0
+    ? [
+        [Number(statsPlateforme.nb_commandes_confirmees).toLocaleString("fr-FR"), "commandes confirmées"],
+        [Number(statsPlateforme.montant_total_confirme).toLocaleString("fr-FR") + " FCFA", "de commerce traité"],
+        [Number(statsPlateforme.nb_entreprises_actives).toLocaleString("fr-FR"), "entreprises actives"],
+      ]
+    : null;
+
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F", overflowX: "hidden" }}>
+    <div className="rv-premium-lp">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-        .rv-lp-toggle-btn { transition: all 0.25s ease; }
-        .rv-lp-fade { animation: rvLpFadeIn 0.4s ease; }
-        @keyframes rvLpFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .rv-lp-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,27,22,0.14); border-color: rgba(26,122,60,0.25) !important; }
-        .rv-lp-card { transition: all 0.25s cubic-bezier(0.2,0.8,0.2,1); box-shadow: 0 2px 10px rgba(15,27,22,0.05); }
-        .rv-lp-hero-grid { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: center; }
-        .rv-lp-hero-mockup-wrap { display: flex; justify-content: center; margin: 8px 0 12px; }
-        .rv-lp-connector-line { display: none; }
-        @keyframes rvLpFloat { 0%, 100% { transform: rotate(3deg) translateY(0px); } 50% { transform: rotate(3deg) translateY(-14px); } }
-        @media (min-width: 880px) {
-          .rv-lp-hero-grid { grid-template-columns: 1.1fr 0.9fr; gap: 40px; text-align: left !important; }
-          .rv-lp-hero-text { text-align: left !important; }
-          .rv-lp-hero-mockup-wrap { margin: 0; }
-          .rv-lp-connector-line { display: block; }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+        .rv-premium-lp {
+          --green:#1A7A3C;
+          --green2:#2E8B57;
+          --orange:#FF7A00;
+          --ink:#0F172A;
+          --muted:#667085;
+          --cream:#F8F7F2;
+          --line:#E8E6DE;
+          font-family:'IBM Plex Sans',sans-serif;
+          color:var(--ink);
+          background:#fff;
+          overflow:hidden;
         }
-        .rv-lp-mockup { animation: rvLpFloat 5.5s ease-in-out infinite; }
+        .rv-premium-lp * { box-sizing:border-box; }
+        .rv-premium-lp a { text-decoration:none; }
+        .rv-shell { width:min(1160px, calc(100% - 40px)); margin:0 auto; }
+        .rv-display { font-family:'Fraunces',serif; letter-spacing:-.035em; }
+        .rv-topbar {
+          position:relative; z-index:20; background:rgba(7,18,13,.92);
+          border-bottom:1px solid rgba(255,255,255,.08); backdrop-filter:blur(16px);
+        }
+        .rv-nav { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:18px; }
+        .rv-logo { color:#fff; font:800 21px 'Fraunces',serif; letter-spacing:-.02em; }
+        .rv-logo b { color:var(--orange); }
+        .rv-nav-links { display:flex; align-items:center; gap:24px; }
+        .rv-nav-links a { color:rgba(255,255,255,.68); font-size:13px; font-weight:600; }
+        .rv-nav-links a:hover { color:#fff; }
+        .rv-nav-cta { color:#0f2418!important; background:#fff; padding:11px 16px; border-radius:10px; }
+
+        .rv-hero {
+          position:relative; color:#fff; background:
+          radial-gradient(circle at 12% 10%, rgba(46,139,87,.34), transparent 34%),
+          radial-gradient(circle at 90% 22%, rgba(255,122,0,.15), transparent 28%),
+          linear-gradient(135deg,#06100B 0%,#0B1A12 48%,#10281C 100%);
+          padding:76px 0 0;
+        }
+        .rv-hero:after {
+          content:""; position:absolute; left:0; right:0; bottom:-1px; height:90px;
+          background:linear-gradient(to bottom,transparent,#fff);
+          pointer-events:none;
+        }
+        .rv-hero-grid { display:grid; grid-template-columns:1.02fr .98fr; gap:64px; align-items:center; position:relative; z-index:2; }
+        .rv-eyebrow { display:inline-flex; align-items:center; gap:8px; color:#FFD19A; border:1px solid rgba(255,122,0,.25); background:rgba(255,122,0,.10); border-radius:999px; padding:8px 12px; font-size:11px; font-weight:700; letter-spacing:.08em; }
+        .rv-eyebrow-dot { width:7px; height:7px; border-radius:50%; background:var(--orange); box-shadow:0 0 0 5px rgba(255,122,0,.10); }
+        .rv-hero h1 { font-size:clamp(42px,6vw,72px); line-height:.98; margin:22px 0 22px; max-width:690px; }
+        .rv-hero h1 span { color:#82D69E; }
+        .rv-hero-sub { max-width:620px; color:rgba(255,255,255,.73); font-size:17px; line-height:1.7; }
+        .rv-hero-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; align-items:center; }
+        .rv-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:9px; background:var(--orange); color:#101A14; padding:16px 23px; border-radius:12px; font-size:14px; font-weight:800; box-shadow:0 14px 35px rgba(255,122,0,.25); transition:.2s ease; }
+        .rv-btn-primary:hover { transform:translateY(-2px); box-shadow:0 20px 42px rgba(255,122,0,.32); }
+        .rv-btn-ghost { display:inline-flex; align-items:center; justify-content:center; color:#fff; border:1px solid rgba(255,255,255,.18); padding:15px 20px; border-radius:12px; font-size:14px; font-weight:700; background:rgba(255,255,255,.05); }
+        .rv-trust { display:flex; flex-wrap:wrap; gap:16px 22px; margin-top:18px; color:rgba(255,255,255,.53); font-size:11.5px; }
+        .rv-trust span { display:flex; align-items:center; gap:6px; }
+        .rv-trust strong { color:#fff; }
+
+        .rv-dashboard-wrap { position:relative; padding-bottom:75px; }
+        .rv-dashboard {
+          width:min(520px,100%); margin:0 auto; background:#0B1510; border:1px solid rgba(255,255,255,.13);
+          border-radius:24px; padding:10px; box-shadow:0 38px 90px rgba(0,0,0,.45); transform:perspective(1200px) rotateY(-6deg) rotateX(2deg);
+        }
+        .rv-dashboard-inner { background:#F7F8F5; border-radius:17px; overflow:hidden; color:var(--ink); }
+        .rv-dash-top { background:#fff; padding:15px 17px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #ECEDE8; }
+        .rv-dash-brand { font:800 13px 'Fraunces',serif; }
+        .rv-dash-brand b { color:var(--orange); }
+        .rv-avatar { width:27px; height:27px; border-radius:50%; background:#DDEDE2; }
+        .rv-dash-body { padding:16px; }
+        .rv-dash-greeting { font:700 11px 'IBM Plex Sans',sans-serif; color:#1A3325; margin-bottom:11px; }
+        .rv-dash-alert { background:#10251A; color:#fff; border-radius:12px; padding:13px; margin-bottom:12px; }
+        .rv-dash-alert-title { font-size:10px; color:#B9E9C8; font-weight:700; margin-bottom:7px; }
+        .rv-dash-alert-row { display:flex; justify-content:space-between; gap:8px; align-items:end; }
+        .rv-dash-money { font:800 23px 'IBM Plex Mono',monospace; color:#fff; }
+        .rv-dash-money small { font:500 9px 'IBM Plex Sans',sans-serif; color:#A7B7AD; }
+        .rv-risk { font-size:9px; color:#FFB3A7; background:rgba(214,73,51,.12); padding:6px 8px; border-radius:7px; }
+        .rv-dash-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:12px; }
+        .rv-dash-card { background:#fff; border:1px solid #E8EAE4; border-radius:10px; padding:10px; }
+        .rv-dash-card-label { font-size:8px; color:#89928C; margin-bottom:5px; }
+        .rv-dash-card-value { font:700 14px 'IBM Plex Mono',monospace; }
+        .rv-dash-card-note { font-size:7.5px; color:#8D978F; margin-top:3px; }
+        .rv-dash-orders { background:#fff; border:1px solid #E8EAE4; border-radius:11px; overflow:hidden; }
+        .rv-dash-orders-head { display:flex; justify-content:space-between; padding:10px; font-size:9px; font-weight:700; }
+        .rv-order { display:flex; justify-content:space-between; align-items:center; padding:9px 10px; border-top:1px solid #EEF0EB; }
+        .rv-order-name { font-size:8.5px; font-weight:700; }
+        .rv-order-meta { font-size:7.5px; color:#929A95; margin-top:2px; }
+        .rv-order-status { font-size:7px; font-weight:700; padding:5px 7px; border-radius:999px; background:#E7F5EB; color:#1A7A3C; }
+
+        .rv-proof-strip { position:relative; z-index:5; margin-top:-28px; }
+        .rv-proof-box { background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 20px 55px rgba(15,23,42,.10); padding:18px 22px; display:grid; grid-template-columns:1fr auto; gap:18px; align-items:center; }
+        .rv-proof-copy { font-size:12px; color:var(--muted); }
+        .rv-proof-copy strong { color:var(--ink); font-size:13px; }
+        .rv-proof-stats { display:flex; gap:26px; }
+        .rv-proof-stat strong { display:block; font:800 17px 'IBM Plex Mono',monospace; color:var(--green); }
+        .rv-proof-stat span { display:block; margin-top:2px; color:#8A928C; font-size:9.5px; }
+
+        .rv-section { padding:92px 0; }
+        .rv-section-soft { background:var(--cream); }
+        .rv-section-dark { background:#0B1711; color:#fff; }
+        .rv-kicker { color:var(--green); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.10em; margin-bottom:10px; }
+        .rv-section-dark .rv-kicker { color:#8CD7A3; }
+        .rv-section-title { font:800 clamp(31px,4.5vw,50px) 'Fraunces',serif; line-height:1.02; letter-spacing:-.035em; margin:0; }
+        .rv-section-lead { max-width:650px; color:var(--muted); line-height:1.7; font-size:15px; margin:14px auto 0; }
+        .rv-section-dark .rv-section-lead { color:rgba(255,255,255,.62); }
+
+        .rv-pain-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:42px; }
+        .rv-pain-card { border-radius:20px; padding:28px; border:1px solid var(--line); }
+        .rv-pain-card.bad { background:#FFF8F6; border-color:#F0D9D3; }
+        .rv-pain-card.good { background:#F4FBF6; border-color:#D8EADB; }
+        .rv-pain-card h3 { font:700 23px 'Fraunces',serif; margin:0 0 10px; }
+        .rv-pain-card p { font-size:13px; line-height:1.65; color:var(--muted); margin:0 0 18px; }
+        .rv-list { display:grid; gap:10px; }
+        .rv-list-item { display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.45; color:#3F4943; }
+        .rv-x, .rv-check { width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:0 0 21px; font-size:11px; font-weight:800; }
+        .rv-x { background:#F9E0DB; color:#C94C38; }
+        .rv-check { background:#DDF1E3; color:var(--green); }
+
+        .rv-feature-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:42px; }
+        .rv-feature { background:#fff; border:1px solid var(--line); border-radius:17px; padding:23px; transition:.2s ease; }
+        .rv-feature:hover { transform:translateY(-4px); box-shadow:0 18px 40px rgba(15,23,42,.08); border-color:#CDE2D3; }
+        .rv-feature-icon { width:45px; height:45px; border-radius:12px; background:#EAF4ED; display:flex; align-items:center; justify-content:center; font-size:21px; margin-bottom:16px; }
+        .rv-feature h3 { font-size:15px; margin:0 0 7px; }
+        .rv-feature p { color:var(--muted); font-size:12.5px; line-height:1.6; margin:0; }
+
+        .rv-showcase { display:grid; grid-template-columns:.9fr 1.1fr; gap:55px; align-items:center; margin-top:46px; }
+        .rv-showcase-copy h3 { font:700 29px 'Fraunces',serif; margin:0 0 12px; }
+        .rv-showcase-copy p { color:rgba(255,255,255,.63); font-size:14px; line-height:1.7; }
+        .rv-mini-flow { display:grid; gap:10px; margin-top:22px; }
+        .rv-mini-flow-item { display:flex; gap:12px; align-items:center; padding:12px; border:1px solid rgba(255,255,255,.09); background:rgba(255,255,255,.04); border-radius:11px; }
+        .rv-mini-number { width:29px; height:29px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--orange); color:#111; font:800 11px 'IBM Plex Mono',monospace; }
+        .rv-mini-flow-item strong { display:block; font-size:12px; }
+        .rv-mini-flow-item span { display:block; font-size:10px; color:rgba(255,255,255,.45); margin-top:2px; }
+        .rv-screen-stack { position:relative; min-height:360px; }
+        .rv-screen { position:absolute; width:84%; border-radius:18px; padding:10px; background:#0F2117; border:1px solid rgba(255,255,255,.1); box-shadow:0 28px 60px rgba(0,0,0,.32); }
+        .rv-screen.one { right:0; top:0; transform:rotate(3deg); z-index:2; }
+        .rv-screen.two { left:0; bottom:0; transform:rotate(-3deg); opacity:.72; z-index:1; }
+        .rv-screen-inner { background:#F7F8F5; color:var(--ink); border-radius:12px; padding:14px; }
+        .rv-screen-line { height:9px; border-radius:5px; background:#E4E9E5; margin-bottom:8px; }
+        .rv-screen-line.short { width:45%; }
+        .rv-screen-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
+        .rv-screen-box { background:#fff; border:1px solid #E6EAE6; border-radius:9px; padding:12px; min-height:58px; }
+        .rv-screen-box strong { font:700 15px 'IBM Plex Mono',monospace; }
+        .rv-screen-box small { display:block; color:#89928C; font-size:8px; margin-top:4px; }
+
+        .rv-comparison { overflow:hidden; border:1px solid var(--line); border-radius:18px; margin-top:42px; background:#fff; box-shadow:0 20px 50px rgba(15,23,42,.06); }
+        .rv-comparison-row { display:grid; grid-template-columns:1.25fr 1fr 1fr; }
+        .rv-comparison-row > div { padding:14px 15px; border-top:1px solid var(--line); font-size:12px; line-height:1.4; }
+        .rv-comparison-head > div { border-top:none; font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#8B938D; }
+        .rv-comparison-head > div:last-child { background:var(--green); color:#fff; }
+        .rv-comparison-row > div:nth-child(3) { background:#F2FAF4; color:#183D25; font-weight:600; }
+        .rv-comparison-row > div:nth-child(2) { color:#7F8882; }
+
+        .rv-steps { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:45px; }
+        .rv-step { position:relative; padding:26px; border:1px solid var(--line); border-radius:18px; background:#fff; }
+        .rv-step-number { font:800 37px 'IBM Plex Mono',monospace; color:#DDE7DF; }
+        .rv-step h3 { margin:8px 0 7px; font-size:16px; }
+        .rv-step p { margin:0; color:var(--muted); font-size:12.5px; line-height:1.6; }
+
+        .rv-pricing { background:linear-gradient(180deg,#F8F7F2 0%,#fff 100%); }
+        .rv-pricing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:17px; margin-top:44px; align-items:stretch; }
+        .rv-plan { background:#fff; border:1px solid var(--line); border-radius:20px; padding:25px; position:relative; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .rv-plan.featured { border:2px solid var(--green); padding:29px 24px; box-shadow:0 25px 55px rgba(26,122,60,.16); transform:translateY(-7px); }
+        .rv-plan-badge { position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:var(--green); color:#fff; padding:5px 13px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.05em; white-space:nowrap; }
+        .rv-plan-name { font:800 21px 'Fraunces',serif; }
+        .rv-plan-price { font:800 30px 'IBM Plex Mono',monospace; color:var(--green); margin-top:12px; letter-spacing:-.04em; }
+        .rv-plan-price span { font:500 11px 'IBM Plex Sans',sans-serif; color:#8A928C; letter-spacing:0; }
+        .rv-plan-desc { min-height:38px; color:var(--muted); font-size:11.5px; line-height:1.5; margin-top:9px; }
+        .rv-plan-list { display:grid; gap:8px; margin:18px 0 20px; }
+        .rv-plan-list div { font-size:11.5px; color:#4A554E; display:flex; gap:7px; }
+        .rv-plan-btn { display:flex; justify-content:center; align-items:center; width:100%; padding:12px; border-radius:10px; font-size:12.5px; font-weight:800; }
+        .rv-plan-btn.primary { background:var(--green); color:#fff; }
+        .rv-plan-btn.secondary { border:1px solid #BFD7C5; color:var(--green); background:#fff; }
+        .rv-plan-note { text-align:center; color:#9AA19C; font-size:9.5px; margin-top:9px; }
+
+        .rv-objections { display:grid; gap:11px; max-width:760px; margin:40px auto 0; }
+        .rv-objection { border:1px solid var(--line); border-radius:13px; padding:17px 18px; background:#fff; }
+        .rv-objection strong { display:block; font-size:13px; margin-bottom:6px; }
+        .rv-objection span { color:var(--muted); font-size:12px; line-height:1.55; }
+
+        .rv-faq { max-width:800px; margin:42px auto 0; display:grid; gap:9px; }
+        .rv-faq-item { border:1px solid var(--line); border-radius:13px; background:#fff; overflow:hidden; }
+        .rv-faq-btn { width:100%; border:0; background:#fff; padding:17px 18px; display:flex; align-items:center; justify-content:space-between; gap:15px; text-align:left; cursor:pointer; font:600 13.5px 'IBM Plex Sans',sans-serif; color:var(--ink); }
+        .rv-faq-answer { padding:0 18px 17px; color:var(--muted); font-size:12.5px; line-height:1.65; }
+
+        .rv-final { background:
+          radial-gradient(circle at 50% 0%, rgba(46,139,87,.28), transparent 42%),
+          linear-gradient(135deg,#07110C,#10261A); color:#fff; text-align:center; padding:100px 0 88px;
+        }
+        .rv-final h2 { font:800 clamp(34px,5vw,57px) 'Fraunces',serif; line-height:1.02; margin:0 auto 15px; max-width:720px; }
+        .rv-final p { color:rgba(255,255,255,.62); max-width:530px; margin:0 auto; line-height:1.65; font-size:14px; }
+        .rv-final .rv-btn-primary { margin-top:28px; }
+        .rv-final-note { margin-top:13px; color:rgba(255,255,255,.42); font-size:10.5px; }
+
+        .rv-footer { padding:24px 0 100px; text-align:center; color:#8A928C; font-size:11px; }
+        .rv-footer-links { display:flex; justify-content:center; gap:18px; flex-wrap:wrap; margin-top:9px; }
+        .rv-footer-links a { color:#8A928C; text-decoration:underline; }
+
+        .rv-mobile-cta { display:none; }
+
+        @media(max-width:900px) {
+          .rv-nav-links a:not(.rv-nav-cta) { display:none; }
+          .rv-hero-grid,.rv-showcase { grid-template-columns:1fr; gap:35px; }
+          .rv-hero { padding-top:52px; }
+          .rv-hero-text { text-align:center; }
+          .rv-hero-sub { margin:0 auto; }
+          .rv-hero-actions,.rv-trust { justify-content:center; }
+          .rv-dashboard { transform:none; }
+          .rv-dashboard-wrap { padding-bottom:35px; }
+          .rv-proof-box { grid-template-columns:1fr; text-align:center; }
+          .rv-proof-stats { justify-content:center; flex-wrap:wrap; }
+          .rv-feature-grid { grid-template-columns:repeat(2,1fr); }
+          .rv-pricing-grid { grid-template-columns:1fr; max-width:520px; margin-left:auto; margin-right:auto; }
+          .rv-plan.featured { transform:none; }
+          .rv-screen-stack { min-height:330px; }
+        }
+        @media(max-width:620px) {
+          .rv-shell { width:min(100% - 28px,1160px); }
+          .rv-nav { min-height:64px; }
+          .rv-logo { font-size:19px; }
+          .rv-nav-cta { padding:9px 12px; font-size:11px!important; }
+          .rv-hero { padding-top:42px; }
+          .rv-hero h1 { font-size:43px; }
+          .rv-hero-sub { font-size:15px; }
+          .rv-hero-actions { flex-direction:column; align-items:stretch; }
+          .rv-btn-primary,.rv-btn-ghost { width:100%; }
+          .rv-trust { gap:9px 15px; font-size:10px; }
+          .rv-proof-strip { margin-top:-14px; }
+          .rv-proof-box { padding:16px; }
+          .rv-proof-stats { gap:16px; }
+          .rv-section { padding:68px 0; }
+          .rv-pain-grid,.rv-feature-grid,.rv-steps { grid-template-columns:1fr; }
+          .rv-pain-card { padding:22px; }
+          .rv-comparison { overflow-x:auto; }
+          .rv-comparison-row { min-width:690px; }
+          .rv-showcase { gap:25px; }
+          .rv-screen-stack { min-height:270px; }
+          .rv-screen { width:90%; }
+          .rv-mobile-cta { display:flex; position:fixed; left:10px; right:10px; bottom:10px; z-index:100; background:rgba(255,255,255,.96); border:1px solid #DDE4DE; border-radius:14px; padding:8px; box-shadow:0 16px 40px rgba(15,23,42,.18); backdrop-filter:blur(12px); }
+          .rv-mobile-cta a { flex:1; display:flex; justify-content:center; align-items:center; background:var(--green); color:#fff; border-radius:10px; padding:13px; font-size:12.5px; font-weight:800; }
+          .rv-footer { padding-bottom:100px; }
+        }
       `}</style>
 
-      <div style={{ background: "radial-gradient(ellipse 900px 600px at 15% -10%, #14261c 0%, transparent 55%), radial-gradient(ellipse 700px 500px at 100% 20%, rgba(232,146,10,0.13) 0%, transparent 55%), linear-gradient(170deg, #050807 0%, #0A130F 35%, #0F1B16 65%, #16231F 100%, #1a7a3c 260%)", color: "white", padding: "44px 24px 0", position: "relative", overflow: "hidden" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", position: "relative", zIndex: 1 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 32, letterSpacing: "0.02em", textAlign: "center" }}>
-            RECU<span style={{ color: "#e8920a" }}>VENTE</span>
+      <div className="rv-topbar">
+        <div className="rv-shell rv-nav">
+          <a href="?" className="rv-logo">RECU<span style={{ color: "#FF7A00" }}>VENTE</span></a>
+          <div className="rv-nav-links">
+            <a href="#solution">Solution</a>
+            <a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#tarifs">Tarifs</a>
+            <a href="#faq">FAQ</a>
+            <a href="?login=1">Se connecter</a>
+            <a href="?auth=1" onClick={trackerInscription} className="rv-nav-cta">Essayer gratuitement</a>
+          </div>
+        </div>
+      </div>
+
+      <section className="rv-hero">
+        <div className="rv-shell rv-hero-grid">
+          <div className="rv-hero-text">
+            <div className="rv-eyebrow"><span className="rv-eyebrow-dot" /> {c.eyebrow}</div>
+            <div style={{ marginTop: 14, display: "inline-flex", padding: 4, borderRadius: 999, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.08)" }}>
+              <button onClick={() => setProfil("cod")} style={{ border: 0, cursor: "pointer", borderRadius: 999, padding: "7px 11px", background: profil === "cod" ? "#fff" : "transparent", color: profil === "cod" ? "#0F172A" : "#fff", fontSize: 10.5, fontWeight: 700 }}>Vente en ligne / COD</button>
+              <button onClick={() => setProfil("retail")} style={{ border: 0, cursor: "pointer", borderRadius: 999, padding: "7px 11px", background: profil === "retail" ? "#fff" : "transparent", color: profil === "retail" ? "#0F172A" : "#fff", fontSize: 10.5, fontWeight: 700 }}>Boutique physique</button>
+            </div>
+            <h1 className="rv-display">{c.title}</h1>
+            <p className="rv-hero-sub">{c.subtitle}</p>
+            <div className="rv-hero-actions">
+              <a href="?auth=1" onClick={allerInscription} className="rv-btn-primary">🚀 Commencer gratuitement <span>→</span></a>
+              <a href="#fonctionnalites" className="rv-btn-ghost">Voir comment ça marche</a>
+            </div>
+            <div className="rv-trust">
+              <span>✓ <strong>7 jours d'essai</strong></span>
+              <span>✓ Sans carte bancaire</span>
+              <span>✓ Mise en route rapide</span>
+            </div>
           </div>
 
-          <div className="rv-lp-hero-grid">
-            <div className="rv-lp-hero-text" style={{ textAlign: "center", paddingBottom: 40 }}>
-              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Quel est ton profil ?
-              </div>
-              <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.1)", borderRadius: 999, padding: 4, marginBottom: 20 }}>
-                <button
-                  className="rv-lp-toggle-btn"
-                  onClick={() => setProfil("cod")}
-                  style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "cod" ? "white" : "transparent", color: profil === "cod" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-                >
-                  🏍️ Vente en ligne (Shopify, WhatsApp...)
-                </button>
-                <button
-                  className="rv-lp-toggle-btn"
-                  onClick={() => setProfil("retail")}
-                  style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: profil === "retail" ? "white" : "transparent", color: profil === "retail" ? "#16231F" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-                >
-                  🏪 J'ai un magasin physique
-                </button>
-              </div>
-              <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 24 }}>
-                Quel que soit ton choix, tu peux combiner boutique en ligne et vente physique — RecuVente s'adapte.
-              </div>
-
-              <div key={profil} className="rv-lp-fade">
-                <div style={{ fontSize: 12.5, fontWeight: 500, opacity: 0.65, marginBottom: 12, letterSpacing: "0.01em" }}>
-                  Le logiciel qui gère tes commandes, tes livreurs et ta comptabilité — du premier contact jusqu'au paiement.
+          <div className="rv-dashboard-wrap">
+            <div className="rv-dashboard">
+              <div className="rv-dashboard-inner">
+                <div className="rv-dash-top">
+                  <div className="rv-dash-brand">RECU<span>VENTE</span></div>
+                  <div className="rv-avatar" />
                 </div>
-                <div style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, color: "#e8920a", background: "rgba(232,146,10,0.15)", padding: "5px 14px", borderRadius: 999, marginBottom: 18 }}>
-                  {c.badge}
-                </div>
-                <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(30px, 5vw, 44px)", lineHeight: 1.12, marginBottom: 16, letterSpacing: "-0.01em" }}>
-                  {c.titre}
-                </div>
-                <div style={{ fontSize: 15.5, opacity: 0.85, maxWidth: 460, margin: "0 auto 30px", lineHeight: 1.55 }}>
-                  {c.sousTitre}
-                </div>
-              </div>
-
-              <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "#16231F", padding: "16px 38px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 14px 34px rgba(232,146,10,0.4)" }}>
-                Je démarre maintenant, gratuitement
-              </a>
-              <div style={{ fontSize: 12, opacity: 0.65, marginTop: 12 }}>7 jours d'accès complet · Sans carte bancaire · Actif en moins de 2 minutes</div>
-            </div>
-
-            <div className="rv-lp-hero-mockup-wrap">
-              <div key={profil + "-mockup"} className="rv-lp-fade rv-lp-mockup" style={{ width: "min(280px, 78vw)", background: "#0F1B16", borderRadius: 26, padding: 10, boxShadow: "0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)" }}>
-                <div style={{ background: "#16231F", borderRadius: 18, padding: "16px 14px", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 12.5, color: "white" }}>RECU<span style={{ color: "#e8920a" }}>VENTE</span></div>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
-                  </div>
-
-                  <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "white", marginBottom: 8 }}>🧠 Ce matin chez vous</div>
-                    <div style={{ fontSize: 9, color: "#f0a0a0", fontWeight: 600, marginBottom: 5 }}>⚠️ 3 commandes à risque</div>
-                    <div style={{ fontSize: 9, color: "#7fd6a3", fontWeight: 600 }}>💰 Bénéfice réel : {c.captureLignes[0].valeur}</div>
-                  </div>
-
-                  <div style={{ background: "white", borderRadius: 12, padding: "11px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <div style={{ fontWeight: 700, fontSize: 10.5, color: "#16231F" }}>Aminata K.</div>
-                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 10.5, color: "#1a7a3c" }}>15 000</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 5 }}>
-                      <div style={{ flex: 1, background: "#1F9D6E", color: "white", borderRadius: 6, padding: "5px 0", textAlign: "center", fontSize: 8.5, fontWeight: 700 }}>✅ Confirmer</div>
-                      <div style={{ flex: 1, background: "#F0EEE6", color: "#8A9089", borderRadius: 6, padding: "5px 0", textAlign: "center", fontSize: 8.5, fontWeight: 700 }}>❌ Échoué</div>
+                <div className="rv-dash-body">
+                  <div className="rv-dash-greeting">Bonjour 👋 · Voici ce qui mérite ton attention</div>
+                  <div className="rv-dash-alert">
+                    <div className="rv-dash-alert-title">VUE FINANCIÈRE</div>
+                    <div className="rv-dash-alert-row">
+                      <div className="rv-dash-money">{c.dashboardMain} <small>FCFA</small><div style={{ font: "500 8px 'IBM Plex Sans'", color: "#94A79A", marginTop: 3 }}>{c.dashboardLabel}</div></div>
+                      <div className="rv-risk">⚠ 3 commandes à surveiller</div>
                     </div>
                   </div>
-
-                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                    {c.captureLignes.slice(1).map((l, i) => (
-                      <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: "8px 8px" }}>
-                        <div style={{ fontSize: 8, opacity: 0.6, color: "white", marginBottom: 2 }}>{l.label}</div>
-                        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 11, color: l.couleur }}>{l.valeur}</div>
+                  <div className="rv-dash-cards">
+                    {c.cards.map((x, i) => (
+                      <div className="rv-dash-card" key={i}>
+                        <div className="rv-dash-card-label">{x[0]}</div>
+                        <div className="rv-dash-card-value">{x[1]}</div>
+                        <div className="rv-dash-card-note">{x[2]}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rv-dash-orders">
+                    <div className="rv-dash-orders-head"><span>Dernières commandes</span><span style={{ color: "#1A7A3C" }}>Voir tout →</span></div>
+                    {["Aminata K.", "Koffi Y.", "Fatou D."].map((name, i) => (
+                      <div className="rv-order" key={name}>
+                        <div><div className="rv-order-name">{name}</div><div className="rv-order-meta">{["15 000", "25 000", "18 500"][i]} FCFA · {["Abidjan", "Cocody", "Yopougon"][i]}</div></div>
+                        <div className="rv-order-status">{["Livrée ✓", "En livraison", "Confirmée"][i]}</div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
+            <div style={{ position: "absolute", right: -8, bottom: 18, background: "#fff", color: "#183D25", border: "1px solid #DDE9DF", borderRadius: 12, padding: "10px 12px", boxShadow: "0 15px 35px rgba(0,0,0,.22)", fontSize: 9.5, fontWeight: 700 }}>
+              <span style={{ color: "#1A7A3C" }}>●</span> Argent + commandes + équipe
+            </div>
           </div>
+        </div>
+      </section>
+
+      <div className="rv-shell rv-proof-strip">
+        <div className="rv-proof-box">
+          <div className="rv-proof-copy"><strong>{c.proof}</strong><br />Une seule plateforme pour piloter ton activité au quotidien.</div>
+          {stats ? (
+            <div className="rv-proof-stats">
+              {stats.map(([value, label]) => <div className="rv-proof-stat" key={label}><strong>{value}</strong><span>{label}</span></div>)}
+            </div>
+          ) : (
+            <div className="rv-proof-stats">
+              <div className="rv-proof-stat"><strong>7 JOURS</strong><span>pour tester</span></div>
+              <div className="rv-proof-stat"><strong>1 ESPACE</strong><span>pour tout piloter</span></div>
+              <div className="rv-proof-stat"><strong>24/7</strong><span>accessible en ligne</span></div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ maxWidth: 780, margin: "-28px auto 0", padding: "0 24px 50px", position: "relative", zIndex: 2 }}>
-        <div style={{ background: "white", borderRadius: 22, padding: "40px 32px", boxShadow: "0 30px 60px -25px rgba(15,27,22,0.25)", textAlign: "center" }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(21px, 3vw, 25px)", marginBottom: 10, letterSpacing: "-0.005em" }}>
-            Chaque jour sans système, tu perds de l'argent — pas dans 6 mois, aujourd'hui
+      <section id="solution" className="rv-section">
+        <div className="rv-shell">
+          <div style={{ textAlign: "center" }}>
+            <div className="rv-kicker">Pourquoi RecuVente ?</div>
+            <h2 className="rv-section-title">{c.painTitle}<br /><span style={{ color: "#1A7A3C" }}>{c.painLead}</span></h2>
+            <p className="rv-section-lead">{c.solution}</p>
           </div>
-          <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 30, maxWidth: 480, margin: "0 auto 30px" }}>
-            Une commande oubliée, un acompte non suivi, un livreur qu'on ne peut pas contrôler — ce n'est pas un détail. C'est de l'argent qui t'échappe, chaque jour, sans que tu le voies.
+
+          <div className="rv-pain-grid">
+            <div className="rv-pain-card bad">
+              <h3>Avant RecuVente</h3>
+              <p>Ton activité dépend de ta mémoire, de tes messages et de plusieurs fichiers.</p>
+              <div className="rv-list">
+                {["Commandes dispersées dans WhatsApp", "Calculs manuels et erreurs", "Difficile de savoir ce qu'un livreur doit déposer", "Bénéfice réel difficile à mesurer"].map(x => <div className="rv-list-item" key={x}><span className="rv-x">×</span>{x}</div>)}
+              </div>
+            </div>
+            <div className="rv-pain-card good">
+              <h3>Avec RecuVente</h3>
+              <p>Une seule source de vérité pour prendre de meilleures décisions.</p>
+              <div className="rv-list">
+                {["Commandes centralisées et recherchables", "Suivi des statuts et des paiements", "Livreurs, commissions et dépôts suivis", "Ventes, coûts et bénéfice mieux visibles"].map(x => <div className="rv-list-item" key={x}><span className="rv-check">✓</span>{x}</div>)}
+              </div>
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 16, textAlign: "left" }}>
+        </div>
+      </section>
+
+      <section id="fonctionnalites" className="rv-section rv-section-soft">
+        <div className="rv-shell">
+          <div style={{ textAlign: "center" }}>
+            <div className="rv-kicker">Une plateforme. Tout ton business.</div>
+            <h2 className="rv-section-title">Plus besoin de jongler<br />entre 5 outils.</h2>
+            <p className="rv-section-lead">RecuVente rassemble les opérations essentielles dans une expérience pensée pour les réalités du commerce africain.</p>
+          </div>
+          <div className="rv-feature-grid">
+            {c.features.map((f) => (
+              <div className="rv-feature" key={f.title}>
+                <div className="rv-feature-icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rv-section rv-section-dark">
+        <div className="rv-shell">
+          <div className="rv-showcase">
+            <div className="rv-showcase-copy">
+              <div className="rv-kicker">De la commande à l'encaissement</div>
+              <h3>Ton activité devient enfin lisible.</h3>
+              <p>Chaque personne de ton équipe travaille avec les mêmes informations. Chaque étape laisse une trace. Et toi, tu peux piloter au lieu de courir derrière les informations.</p>
+              <div className="rv-mini-flow">
+                {[
+                  ["01", "Commande", "La commande entre dans RecuVente."],
+                  ["02", "Confirmation", "Ton équipe traite et suit le client."],
+                  ["03", "Livraison", "Le livreur reçoit et exécute sa tournée."],
+                  ["04", "Encaissement", "Tu vois ce qui est réellement payé."],
+                ].map(x => <div className="rv-mini-flow-item" key={x[0]}><div className="rv-mini-number">{x[0]}</div><div><strong>{x[1]}</strong><span>{x[2]}</span></div></div>)}
+              </div>
+            </div>
+            <div className="rv-screen-stack">
+              <div className="rv-screen two"><div className="rv-screen-inner"><div className="rv-screen-line short" /><div className="rv-screen-line" /><div className="rv-screen-grid"><div className="rv-screen-box"><strong>23</strong><small>À livrer</small></div><div className="rv-screen-box"><strong>18</strong><small>À récupérer</small></div></div></div></div>
+              <div className="rv-screen one"><div className="rv-screen-inner"><div className="rv-screen-line short" /><div className="rv-screen-line" /><div className="rv-screen-grid"><div className="rv-screen-box"><strong>1,24M</strong><small>FCFA encaissés</small></div><div className="rv-screen-box"><strong>87%</strong><small>Taux de récupération</small></div><div className="rv-screen-box"><strong>148</strong><small>Commandes</small></div><div className="rv-screen-box"><strong>12</strong><small>Livreurs</small></div></div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rv-section">
+        <div className="rv-shell">
+          <div style={{ textAlign: "center" }}>
+            <div className="rv-kicker">Le changement</div>
+            <h2 className="rv-section-title">Passe de « je crois que ça marche »<br />à <span style={{ color: "#1A7A3C" }}>« je sais où j'en suis ».</span></h2>
+          </div>
+          <div className="rv-comparison">
+            <div className="rv-comparison-row rv-comparison-head">
+              <div>Situation</div><div>WhatsApp + Excel</div><div>RecuVente</div>
+            </div>
             {[
-              "Des commandes perdues quelque part dans WhatsApp",
-              "Un cahier ou un Excel qu'on ne remplit plus à jour",
-              "Impossible de savoir combien un livreur doit vraiment déposer",
-              "Aucune idée du vrai bénéfice à la fin du mois",
-            ].map((point, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", fontSize: 13.5, color: "#3a3f3c", background: "#FBEAE6", borderRadius: 12, padding: "12px 14px" }}>
-                <span style={{ color: "#D64933", flexShrink: 0, fontWeight: 700, fontSize: 15 }}>✕</span>
-                {point}
-              </div>
-            ))}
+              ["Retrouver une commande", "Chercher dans les messages", "Recherche centralisée"],
+              ["Suivre une livraison", "Appeler le livreur", "Statut et suivi"],
+              ["Connaître le montant à déposer", "Calcul manuel", "Montant calculé"],
+              ["Voir le bénéfice réel", "Tableurs et estimations", "Vue financière"],
+              ["Gérer une équipe", "Informations dispersées", "Rôles et espace partagé"],
+              ["Vendre en ligne", "Outil supplémentaire", "Boutique publique incluse"],
+            ].map(row => <div className="rv-comparison-row" key={row[0]}><div>{row[0]}</div><div>× {row[1]}</div><div>✓ {row[2]}</div></div>)}
           </div>
         </div>
-      </div>
+      </section>
 
-      {statsPlateforme && Number(statsPlateforme.nb_commandes_confirmees) > 0 && (
-        <div style={{ maxWidth: 780, margin: "0 auto", padding: "0 24px 44px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, textAlign: "center" }}>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 12px" }}>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#1a7a3c" }}>
-                {Number(statsPlateforme.nb_commandes_confirmees).toLocaleString("fr-FR")}
-              </div>
-              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>commandes livrées via RecuVente</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 12px" }}>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#e8920a" }}>
-                {Number(statsPlateforme.montant_total_confirme).toLocaleString("fr-FR")}
-              </div>
-              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>FCFA récupérés pour nos clients</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 12px" }}>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#16231F" }}>
-                {Number(statsPlateforme.nb_entreprises_actives).toLocaleString("fr-FR")}
-              </div>
-              <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 4 }}>entreprises utilisent déjà RecuVente</div>
-            </div>
+      <section className="rv-section rv-section-soft">
+        <div className="rv-shell">
+          <div style={{ textAlign: "center" }}>
+            <div className="rv-kicker">Simple à démarrer</div>
+            <h2 className="rv-section-title">Ton premier espace peut être prêt<br />en quelques minutes.</h2>
           </div>
-        </div>
-      )}
-
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "10px 24px 40px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>
-            Comment ça marche
-          </div>
-          <div style={{ fontSize: 13.5, color: "#6B7168", marginTop: 8 }}>3 étapes, moins de 2 minutes</div>
-        </div>
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 23, left: "16%", right: "16%", height: 2, background: "repeating-linear-gradient(90deg, #DDD8CC 0, #DDD8CC 6px, transparent 6px, transparent 12px)", zIndex: 0 }} className="rv-lp-connector-line" />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20, position: "relative", zIndex: 1 }}>
+          <div className="rv-steps">
             {[
-              { num: "1", titre: "Crée ton espace", desc: "Nom de ton entreprise, ton profil (vente en ligne ou boutique), ton numéro WhatsApp. C'est tout." },
-              { num: "2", titre: "Ajoute ta première commande", desc: "Manuellement, ou connecte Shopify pour que tout arrive automatiquement, sans rien taper." },
-              { num: "3", titre: "Laisse RecuVente travailler", desc: "Suivi, relances, comptabilité, boutique en ligne — tout se met à jour seul, chaque jour." },
-            ].map((etape, i) => (
-              <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#1a7a3c", color: "white", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", boxShadow: "0 8px 18px rgba(26,122,60,0.3)" }}>
-                  {etape.num}
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{etape.titre}</div>
-                <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{etape.desc}</div>
-              </div>
-            ))}
+              ["01", "Crée ton espace", "Inscris-toi avec ton email et crée ton espace de travail."],
+              ["02", "Configure ton activité", "Choisis ton profil et commence à ajouter tes produits, commandes ou ton équipe."],
+              ["03", "Pilote ton business", "Utilise ton tableau de bord pour suivre les commandes, l'activité et l'argent."],
+            ].map(x => <div className="rv-step" key={x[0]}><div className="rv-step-number">{x[0]}</div><h3>{x[1]}</h3><p>{x[2]}</p></div>)}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 30 }}>
+            <a href="?auth=1" onClick={allerInscription} className="rv-btn-primary">Créer mon espace gratuitement →</a>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div key={profil + "-avantages"} className="rv-lp-fade" style={{ background: "linear-gradient(180deg, #F0EEE3 0%, #FAFAF7 100%)", padding: "48px 24px" }}>
-        <div style={{ maxWidth: 960, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.2vw, 30px)" }}>
-              Tout ce dont {profil === "cod" ? "ta vente en ligne" : "ta boutique"} a besoin
-            </div>
+      <section className="rv-section">
+        <div className="rv-shell">
+          <div style={{ textAlign: "center" }}>
+            <div className="rv-kicker">Tu hésites encore ?</div>
+            <h2 className="rv-section-title">Les questions que tu te poses<br />avant de commencer.</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
-            {c.avantages.map((f, i) => (
-              <div key={i} className="rv-lp-card" style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 24 }}>
-                <div style={{ width: 46, height: 46, borderRadius: 12, background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 14 }}>{f.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{f.titre}</div>
-                <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.55 }}>{f.desc}</div>
-              </div>
-            ))}
+          <div className="rv-objections">
+            {objections.map(([q, a]) => <div className="rv-objection" key={q}><strong>{q}</strong><span>{a}</span></div>)}
           </div>
         </div>
-      </div>
-
-      <div style={{ background: "white", borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC", padding: "36px 24px" }}>
-        <div style={{ maxWidth: 700, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20, textAlign: "center" }}>
-          {[
-            { icon: "🔒", txt: "Tes données, isolées et privées" },
-            { icon: "⚡", txt: "Activation immédiate du paiement" },
-            { icon: "📱", txt: "Fonctionne sur mobile comme sur ordinateur" },
-          ].map((item, i) => (
-            <div key={i}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#FAFAF7", border: "1px solid #ECE8DC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, margin: "0 auto 8px" }}>{item.icon}</div>
-              <div style={{ fontSize: 12.5, color: "#6B7168", fontWeight: 500 }}>{item.txt}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 700, margin: "0 auto", padding: "10px 24px 40px" }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22 }}>
-            "Oui, mais..."
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {[
-            { objection: "\"Je ne suis pas doué avec la technologie\"", reponse: "Si tu sais utiliser WhatsApp, tu sais utiliser RecuVente. Pensé pour être compris en quelques minutes, sans formation." },
-            { objection: "\"Je n'ai pas le temps d'apprendre un nouvel outil\"", reponse: "C'est justement le temps que tu perds à chercher une commande dans WhatsApp que RecuVente te redonne." },
-            { objection: "\"Ça doit être compliqué à mettre en place\"", reponse: "Créer ton espace prend moins de 2 minutes. Ta première commande peut être ajoutée tout de suite après." },
-          ].map((item, i) => (
-            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "16px 18px" }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 5, color: "#16231F" }}>{item.objection}</div>
-              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>{item.reponse}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "10px 24px 50px" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(22px, 3vw, 27px)" }}>
-            Ce que tu utilises aujourd'hui, face à RecuVente
-          </div>
-        </div>
-        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 18, overflow: "hidden", boxShadow: "0 20px 40px -20px rgba(15,27,22,0.15)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr" }}>
-            <div style={{ padding: "14px 16px", fontSize: 11.5, fontWeight: 700, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em" }} />
-            <div style={{ padding: "14px 10px", fontSize: 12.5, fontWeight: 700, color: "#8A9089", textAlign: "center" }}>WhatsApp + Excel</div>
-            <div style={{ padding: "14px 10px", fontSize: 12.5, fontWeight: 700, color: "white", textAlign: "center", background: "#1a7a3c" }}>RecuVente</div>
-          </div>
-          {[
-            { critere: "Retrouver une commande précise", avant: "Faire défiler des dizaines de messages", apres: "Recherchée en 1 seconde" },
-            { critere: "Savoir ce qu'un livreur doit déposer", avant: "Calcul manuel, souvent oublié", apres: "Calculé automatiquement" },
-            { critere: "Bénéfice réel par produit", avant: "Quasi impossible à suivre", apres: "Visible en un coup d'œil" },
-            { critere: "Relancer un client au bon moment", avant: "Ça dépend si on y pense", apres: "L'app te le rappelle chaque jour" },
-            { critere: "Boutique en ligne pour la pub Facebook", avant: "Un autre outil à payer et connecter", apres: "Déjà incluse" },
-            { critere: "Toute l'équipe sur les mêmes infos", avant: "Chacun son cahier, sa mémoire", apres: "Un seul endroit, à jour en temps réel" },
-          ].map((ligne, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", borderTop: "1px solid #ECE8DC" }}>
-              <div style={{ padding: "13px 16px", fontSize: 12.5, fontWeight: 600, color: "#16231F", display: "flex", alignItems: "center" }}>{ligne.critere}</div>
-              <div style={{ padding: "13px 10px", fontSize: 12, color: "#8A9089", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                <span style={{ color: "#D64933" }}>✕</span> {ligne.avant}
-              </div>
-              <div style={{ padding: "13px 10px", fontSize: 12, color: "#16231F", textAlign: "center", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontWeight: 600 }}>
-                <span style={{ color: "#1a7a3c" }}>✓</span> {ligne.apres}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
 
       {plans.length > 0 && (
-        <div style={{ background: "#FAFAF7", padding: "54px 24px" }}>
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.2vw, 30px)" }}>Choisis ton plan, commence en 2 minutes</div>
-            <div style={{ fontSize: 14, color: "#6B7168", marginTop: 8 }}>7 jours gratuits sur n'importe quel plan. Tu ne payes que si RecuVente te convainc.</div>
-          </div>
-          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 18 }}>
-            {plans.map((p, i) => (
-              <div
-                key={p.id}
-                className="rv-lp-card"
-                style={{
-                  border: i === 1 ? "2px solid #1a7a3c" : "1px solid #ECE8DC",
-                  borderRadius: 18, padding: i === 1 ? "30px 24px" : 24,
-                  position: "relative", background: "white",
-                  boxShadow: i === 1 ? "0 24px 48px -16px rgba(26,122,60,0.35)" : undefined,
-                  transform: i === 1 ? "translateY(-6px)" : undefined,
-                }}
-              >
-                {i === 1 && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "#1a7a3c", color: "white", fontSize: 10.5, fontWeight: 700, padding: "4px 14px", borderRadius: 999, boxShadow: "0 4px 12px rgba(26,122,60,0.4)" }}>
-                    LE PLUS CHOISI
+        <section id="tarifs" className="rv-section rv-pricing">
+          <div className="rv-shell">
+            <div style={{ textAlign: "center" }}>
+              <div className="rv-kicker">Des plans qui suivent ta croissance</div>
+              <h2 className="rv-section-title">Commence petit.<br /><span style={{ color: "#1A7A3C" }}>Grandis sans changer d'outil.</span></h2>
+              <p className="rv-section-lead">Teste RecuVente pendant 7 jours. Choisis ensuite le plan qui correspond à ton activité.</p>
+            </div>
+            <div className="rv-pricing-grid">
+              {plans.map((p, i) => {
+                const featured = i === 1;
+                const max = p.max_commandes_mois ? `${p.max_commandes_mois.toLocaleString("fr-FR")} commandes/mois` : "Commandes illimitées";
+                const members = p.max_membres ? `${p.max_membres} membres max` : "Membres illimités";
+                const featureList = [
+                  max,
+                  members,
+                  "Gestion des commandes",
+                  "Clients & produits",
+                  i > 0 ? "Équipe & livreurs" : "Fonctions essentielles",
+                  i > 1 ? "Fonctions avancées" : "Tableau de bord",
+                ];
+                return (
+                  <div className={`rv-plan ${featured ? "featured" : ""}`} key={p.id}>
+                    {featured && <div className="rv-plan-badge">LE PLUS CHOISI</div>}
+                    <div className="rv-plan-name">{p.nom}</div>
+                    <div className="rv-plan-price">{Number(p.prix).toLocaleString("fr-FR")} <span>{p.devise}/mois</span></div>
+                    <div className="rv-plan-desc">{featured ? "Pour les équipes qui veulent vraiment structurer leur activité." : "Pour démarrer avec une gestion simple et efficace."}</div>
+                    <div className="rv-plan-list">
+                      {featureList.map(item => <div key={item}><span style={{ color: "#1A7A3C", fontWeight: 800 }}>✓</span>{item}</div>)}
+                    </div>
+                    <a href="?auth=1" onClick={allerInscription} className={`rv-plan-btn ${featured ? "primary" : "secondary"}`}>Commencer l'essai gratuit</a>
+                    <div className="rv-plan-note">7 jours · sans carte bancaire</div>
                   </div>
-                )}
-                <div style={{ fontWeight: 700, fontSize: 16, marginTop: i === 1 ? 6 : 0 }}>{p.nom}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: i === 1 ? 30 : 24, marginTop: 8, color: "#1a7a3c" }}>
-                  {Number(p.prix).toLocaleString("fr-FR")} <span style={{ fontSize: 12, fontWeight: 500, color: "#8A9089" }}>{p.devise}/mois</span>
-                </div>
-                <div style={{ fontSize: 12.5, color: "#6B7168", marginTop: 12, lineHeight: 1.7 }}>
-                  {p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes illimitées"}<br />
-                  {p.max_membres ? `${p.max_membres} membres max` : "Membres illimités"}
-                </div>
-                <a href="?auth=1" onClick={trackerInscription} style={{ display: "block", textAlign: "center", marginTop: 18, background: i === 1 ? "#1a7a3c" : "white", color: i === 1 ? "white" : "#1a7a3c", border: i === 1 ? "none" : "1px solid #1a7a3c", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-                  Commencer
-                </a>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section id="faq" className="rv-section rv-section-soft">
+        <div className="rv-shell">
+          <div style={{ textAlign: "center" }}>
+            <div className="rv-kicker">FAQ</div>
+            <h2 className="rv-section-title">Pas de zone grise.</h2>
+            <p className="rv-section-lead">Voici les réponses aux questions les plus importantes avant de te lancer.</p>
+          </div>
+          <div className="rv-faq">
+            {faq.map(([q, r], i) => (
+              <div className="rv-faq-item" key={q}>
+                <button className="rv-faq-btn" onClick={() => setFaqOuverte(faqOuverte === i ? null : i)}>
+                  <span>{q}</span><span style={{ color: "#1A7A3C", fontSize: 18 }}>{faqOuverte === i ? "−" : "+"}</span>
+                </button>
+                {faqOuverte === i && <div className="rv-faq-answer">{r}</div>}
               </div>
             ))}
           </div>
         </div>
-      )}
+      </section>
 
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "50px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 26 }}>Questions fréquentes</div>
+      <section className="rv-final">
+        <div className="rv-shell">
+          <div className="rv-kicker">Le prochain niveau commence ici</div>
+          <h2 className="rv-display">Ton business mérite un système, pas un bricolage.</h2>
+          <p>Crée ton espace RecuVente, teste pendant 7 jours et découvre ce que ça change lorsque toutes tes opérations sont enfin au même endroit.</p>
+          <a href="?auth=1" onClick={allerInscription} className="rv-btn-primary">🚀 Créer mon espace gratuitement</a>
+          <div className="rv-final-note">7 jours d'essai · Sans carte bancaire · Tes données restent dans ton espace</div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {faq.map((f, i) => (
-            <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, overflow: "hidden" }}>
-              <button
-                onClick={() => setFaqOuverte(faqOuverte === i ? null : i)}
-                style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-              >
-                <span style={{ fontWeight: 600, fontSize: 14.5 }}>{f.q}</span>
-                <span style={{ color: "#1a7a3c", fontSize: 16, flexShrink: 0, marginLeft: 10 }}>{faqOuverte === i ? "−" : "+"}</span>
-              </button>
-              {faqOuverte === i && (
-                <div style={{ padding: "0 18px 16px", fontSize: 13.5, color: "#6B7168", lineHeight: 1.6 }}>{f.r}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
 
-      <div style={{ background: "linear-gradient(170deg, #0F1B16 0%, #16231F 60%, #1a7a3c 200%)", color: "white", padding: "64px 24px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: "clamp(24px, 3.5vw, 32px)", marginBottom: 12, letterSpacing: "-0.01em" }}>
-          {profil === "cod" ? "Ta prochaine commande mérite d'être suivie correctement" : "Ta boutique mérite mieux qu'un cahier"}
+      <footer className="rv-footer">
+        <div className="rv-shell">
+          <div>RecuVente — Le système de pilotage de ton commerce</div>
+          <div className="rv-footer-links">
+            <a href="?page=impact">Rapport d'impact</a>
+            <a href="?page=cgu">Conditions d'utilisation</a>
+            <a href="?page=confidentialite">Confidentialité</a>
+          </div>
         </div>
-        <div style={{ fontSize: 14.5, opacity: 0.8, marginBottom: 28, maxWidth: 420, margin: "0 auto 28px" }}>
-          Chaque jour que tu attends, c'est une commande de plus qui risque de se perdre. Commence maintenant — c'est gratuit, et ça prend 2 minutes.
-        </div>
-        <a href="?auth=1" onClick={trackerInscription} style={{ display: "inline-block", background: "#e8920a", color: "#16231F", padding: "16px 40px", borderRadius: 12, fontWeight: 700, fontSize: 15, textDecoration: "none", boxShadow: "0 14px 34px rgba(232,146,10,0.4)" }}>
-          Créer mon espace gratuitement
-        </a>
-        <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: 14 }}>Aucune carte bancaire · Annule à tout moment</div>
-      </div>
+      </footer>
 
-      <div style={{ textAlign: "center", padding: "20px 24px", fontSize: 12, color: "#8A9089" }}>
-        RecuVente — {new Date().getFullYear()}
-        <div style={{ marginTop: 8, display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="?page=impact" style={{ color: "#8A9089", textDecoration: "underline" }}>Rapport d'impact</a>
-          <a href="?page=cgu" style={{ color: "#8A9089", textDecoration: "underline" }}>Conditions d'utilisation</a>
-          <a href="?page=confidentialite" style={{ color: "#8A9089", textDecoration: "underline" }}>Confidentialité</a>
-        </div>
+      <div className="rv-mobile-cta">
+        <a href="?auth=1" onClick={allerInscription}>🚀 Commencer gratuitement</a>
       </div>
     </div>
   );

@@ -275,7 +275,7 @@ export default function CataloguePublic({ workspaceId }) {
             </button>
             <button
               onClick={() => {
-                const lienAvecApercu = `${window.location.origin}/api/og-produit?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
+                const lienAvecApercu = `${window.location.origin}/?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
                 navigator.clipboard.writeText(lienAvecApercu);
                 setLienCopie(true);
                 setTimeout(() => setLienCopie(false), 2000);

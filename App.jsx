@@ -337,24 +337,25 @@ function LandingPage() {
 
   const contenuParProfil = {
     cod: {
-      badge: "🏍️ Vente en ligne — Shopify, WhatsApp, ou les deux",
-      titre: "Que tu vendes sur Shopify, WhatsApp, ou juste au téléphone — ton business COD mérite un vrai système",
-      sousTitre: "Boutique en ligne déjà en place, ou commandes prises à la main dans WhatsApp : chaque commande oubliée, c'est de l'argent qui t'échappe. RecuVente centralise tout, travaille pour toi en arrière-plan, et te dit chaque matin quoi faire.",
+      badge: "🎯 Le logiciel qui récupère l'argent que tu perds",
+      titre: "Chaque vente convertie en argent réellement encaissé",
+      sousTitre: "Une commande confirmée n'est pas de l'argent en poche. RecuVente détecte chaque vente à risque de ne jamais être payée, te dit exactement quoi faire pour la récupérer, et rapproche automatiquement tes paiements Mobile Money — le tout en un clic.",
       captureLignes: [
         { label: "Argent récupéré", valeur: "1 240 500 FCFA", couleur: "#e8920a" },
-        { label: "En cours", valeur: "18", couleur: "white" },
-        { label: "Taux de livraison", valeur: "87%", couleur: "white" },
+        { label: "À récupérer", valeur: "18", couleur: "white" },
+        { label: "Taux de récupération", valeur: "87%", couleur: "white" },
       ],
       avantages: [
-        { icon: "🔌", titre: "Déjà une boutique Shopify ? Connecte-la en 2 minutes", desc: "Tes commandes arrivent automatiquement dans RecuVente, sans rien taper à la main — tu gardes Shopify, tu ajoutes juste la puissance de gestion qui lui manque." },
+        { icon: "🎯", titre: "Ton centre de récupération — chaque vente à risque, avec un plan d'action", desc: "Un vrai score calculé sur chaque commande en attente : client déjà défaillant, relance sans réponse, montant inhabituel. Un bouton \"Récupérer\" ouvre WhatsApp avec le bon message déjà écrit." },
+        { icon: "🔗", titre: "Rapprochement automatique de tes paiements Mobile Money", desc: "Colle ta liste de paiements Orange Money, Wave, ou MTN — RecuVente propose la correspondance avec la bonne commande, avec un score de fiabilité. Un clic pour valider, ta compta se met à jour toute seule." },
+        { icon: "💰", titre: "Ton tableau de bord financier — la vérité en un coup d'œil", desc: "Ventes, Encaissé, À récupérer, À risque : 4 chiffres, pas 40. Tu sais en 10 secondes où en est vraiment ton argent, pas seulement ton chiffre d'affaires théorique." },
+        { icon: "🔌", titre: "Déjà une boutique Shopify ? Connecte-la en 2 minutes", desc: "Tes commandes arrivent automatiquement dans RecuVente, sans rien taper à la main — tu gardes Shopify, tu ajoutes juste la puissance de récupération qui lui manque." },
         { icon: "🛍️", titre: "Pas encore de boutique en ligne ? RecuVente en inclut une", desc: "Avis clients, collections, galerie photo, commande en un clic sans panier compliqué — prête à recevoir tes publicités Facebook, sans payer un abonnement Shopify en plus." },
-        { icon: "🧠", titre: "\"Ce matin chez vous\" — ton assistant intelligent", desc: "Chaque jour, un résumé clair de ce qui compte vraiment : commandes à risque, stock bas, client à relancer. Zéro analyse à faire toi-même." },
-        { icon: "📋", titre: "Chaque commande, du premier contact à la livraison", desc: "Statut en temps réel — en cours, confirmée, échouée — jamais un client qui se perd dans les échanges WhatsApp." },
+        { icon: "📋", titre: "Chaque commande, du premier contact à l'argent en poche", desc: "Statut en temps réel — en cours, confirmée, échouée — jamais un client qui se perd dans les échanges WhatsApp." },
         { icon: "🚚", titre: "Tes livreurs, suivis en direct", desc: "Position GPS pendant leur tournée, commission calculée automatiquement, montant exact à déposer chaque jour." },
         { icon: "🎧", titre: "Une équipe de closers, sans doublons", desc: "Chaque commande non assignée est prise par un seul closer à la fois — fini les deux personnes qui rappellent le même client." },
-        { icon: "💵", titre: "Le bénéfice réel de CHAQUE produit", desc: "Pas juste ton chiffre d'affaires global — sais enfin lequel de tes produits te rapporte vraiment de l'argent, et lequel te fait perdre du temps pour rien." },
+        { icon: "🧾", titre: "Factures avec vraie numérotation comptable", desc: "FACT-2026-0001, FACT-2026-0002 — une numérotation séquentielle sans trou, pas un identifiant technique bricolé." },
         { icon: "📊", titre: "La seule app pensée pour la pub Facebook en COD", desc: "Envoie le vrai signal \"Achat\" à Facebook uniquement quand la livraison est confirmée — pas juste quand quelqu'un commande. Tes publicités arrêtent enfin de te ramener des faux acheteurs." },
-        { icon: "🔄", titre: "Le réachat, sans y penser", desc: "L'app détecte le rythme d'achat de chaque client et te dit qui relancer, et quand." },
       ],
     },
     retail: {
@@ -2480,7 +2481,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Recovery" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -3166,7 +3167,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
 
           <div style={{ fontWeight: 700, fontSize: 13, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>
-            💰 Revenue Command Center
+            💰 Tableau de bord financier
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
             <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
@@ -3316,7 +3317,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
           ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Recovery", icon: Target }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
@@ -7421,14 +7422,14 @@ function RecoveryCenterView({ commandes, toutesCommandes = [], currency, nomEntr
 
   return (
     <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🎯 Recovery Center</div>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🎯 Centre de récupération</div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
         Chaque vente non encore encaissée, classée par urgence — pas juste une liste, un plan d'action.
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Recovery Rate</div>
+          <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Taux de récupération</div>
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#1a7a3c", marginTop: 3 }}>{kpis.recoveryRate}%</div>
         </div>
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>

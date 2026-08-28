@@ -7267,7 +7267,7 @@ function RecoveryCenterView({ commandes, toutesCommandes = [], currency, nomEntr
     <div style={{ padding: "20px 20px 8px" }}>
       <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🎯 Centre de récupération</div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
-        Chaque vente non encore encaissée, classée par urgence — pas juste une liste, un plan d'action.
+        Chaque vente non encore encaissée, classée par urgence — pas juste une liste, un plan d'action .
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 16 }}>

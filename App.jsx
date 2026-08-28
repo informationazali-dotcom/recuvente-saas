@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
@@ -2260,6 +2260,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
+          ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -2934,6 +2935,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
+      {vue === "score_business" && (
+        <ScoreBusinessView
+          toutesCommandes={commandes}
+          beneficeReel={beneficeReel}
+          caConfirme={caConfirme}
+          currency={workspace.currency}
+          depotsParLivreur={depotsParLivreur}
+        />
+      )}
+
       {vue === "rapprochement" && (
         <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
       )}
@@ -3096,6 +3107,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients", icon: Users },
           ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
+          ...(workspace.role === "owner" ? [{ key: "score_business", label: "Score", icon: Compass }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
@@ -5211,6 +5223,17 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     if (collectionOuverte === id) setCollectionOuverte(null);
   }
 
+  async function deplacerCollection(index, direction) {
+    const liste = [...collections];
+    const autreIndex = index + direction;
+    if (autreIndex < 0 || autreIndex >= liste.length) return;
+    const a = liste[index];
+    const b = liste[autreIndex];
+    await supabase.from("collections").update({ ordre: b.ordre }).eq("id", a.id);
+    await supabase.from("collections").update({ ordre: a.ordre }).eq("id", b.id);
+    await charger();
+  }
+
   async function ouvrirGestionProduits(collectionId) {
     setCollectionOuverte(collectionId);
     const { data } = await supabase.from("collection_produits").select("produit_id").eq("collection_id", collectionId);
@@ -5267,8 +5290,12 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {(collections || []).map((c) => (
-                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              {(collections || []).map((c, i) => (
+                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <button onClick={() => deplacerCollection(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#DDD8CC" : "#6B7168", cursor: i === 0 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
+                    <button onClick={() => deplacerCollection(i, 1)} disabled={i === collections.length - 1} style={{ background: "none", border: "none", color: i === collections.length - 1 ? "#DDD8CC" : "#6B7168", cursor: i === collections.length - 1 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
+                  </div>
                   <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>
                     {c.nom}
                   </button>
@@ -5276,6 +5303,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
                 </div>
               ))}
             </div>
+            <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8 }}>Utilise les flèches ▲▼ pour changer l'ordre d'affichage sur ta boutique.</div>
           </>
         )}
 
@@ -7209,6 +7237,102 @@ function RapprochementView({ workspace, commandes, onValide }) {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur }) {
+  const composantes = useMemo(() => {
+    const now = new Date();
+    const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
+    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const commandesMoisActuel = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisActuel);
+    const commandesMoisPrecedent = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisPrecedent && new Date(c.created_at) < debutMoisActuel);
+
+    // 1. Taux de livraison réussie
+    const traitees = toutesCommandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
+    const tauxLivraison = traitees.length > 0 ? Math.round((toutesCommandes.filter((c) => c.statut === "confirmee").length / traitees.length) * 100) : 100;
+
+    // 2. Taux de récupération (commandes traitées qui finissent confirmées)
+    const echoueesTotal = toutesCommandes.filter((c) => c.statut === "echouee").length;
+    const confirmeesTotal = toutesCommandes.filter((c) => c.statut === "confirmee").length;
+    const totalTraitees2 = echoueesTotal + confirmeesTotal;
+    const tauxRecuperation = totalTraitees2 > 0 ? Math.round((confirmeesTotal / totalTraitees2) * 100) : 100;
+
+    // 3. Santé financière (bénéfice positif par rapport au CA)
+    const margeSante = caConfirme > 0 ? Math.max(0, Math.min(100, Math.round((beneficeReel / caConfirme) * 100 + 50))) : 50;
+
+    // 4. Croissance mois sur mois
+    const croissance = commandesMoisPrecedent.length > 0
+      ? Math.max(0, Math.min(100, Math.round(50 + ((commandesMoisActuel.length - commandesMoisPrecedent.length) / commandesMoisPrecedent.length) * 100)))
+      : (commandesMoisActuel.length > 0 ? 70 : 50);
+
+    // 5. Fiabilité de l'équipe livreurs (moyenne des dépôts positifs = équipe saine financièrement)
+    const fiabiliteEquipe = depotsParLivreur.length > 0
+      ? Math.round((depotsParLivreur.filter((l) => l.aDeposer >= 0).length / depotsParLivreur.length) * 100)
+      : 100;
+
+    // 6. Discipline de suivi (peu de commandes bloquées longtemps en_cours)
+    const enCoursAnciennes = toutesCommandes.filter((c) => c.statut === "en_cours" && (Date.now() - new Date(c.created_at).getTime()) / 86400000 > 3).length;
+    const enCoursTotal = toutesCommandes.filter((c) => c.statut === "en_cours").length;
+    const disciplineSuivi = enCoursTotal > 0 ? Math.round(100 - (enCoursAnciennes / enCoursTotal) * 100) : 100;
+
+    return [
+      { label: "Taux de livraison", valeur: tauxLivraison, icone: "🚚" },
+      { label: "Taux de récupération", valeur: tauxRecuperation, icone: "🎯" },
+      { label: "Santé financière", valeur: margeSante, icone: "💰" },
+      { label: "Croissance", valeur: croissance, icone: "📈" },
+      { label: "Fiabilité équipe", valeur: fiabiliteEquipe, icone: "🤝" },
+      { label: "Discipline de suivi", valeur: disciplineSuivi, icone: "📋" },
+    ];
+  }, [toutesCommandes, beneficeReel, caConfirme, depotsParLivreur]);
+
+  const scoreGlobal = Math.round(composantes.reduce((s, c) => s + c.valeur, 0) / composantes.length);
+
+  function niveauScore(score) {
+    if (score >= 75) return { label: "Excellent", couleur: "#1F9D6E" };
+    if (score >= 55) return { label: "Correct", couleur: "#8A6412" };
+    return { label: "À surveiller", couleur: "#D64933" };
+  }
+
+  const niveauGlobal = niveauScore(scoreGlobal);
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🧭 Score Business</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
+        Le résumé exécutif de ton activité — 6 indicateurs combinés en un seul chiffre.
+      </div>
+
+      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 18, padding: "28px 24px", marginBottom: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Score global</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 56, color: niveauGlobal.couleur, lineHeight: 1 }}>
+          {scoreGlobal}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: niveauGlobal.couleur, marginTop: 6 }}>{niveauGlobal.label}</div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {composantes.map((c) => {
+          const niveau = niveauScore(c.valeur);
+          return (
+            <div key={c.label} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{c.icone} {c.label}</span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: niveau.couleur }}>{c.valeur}</span>
+              </div>
+              <div style={{ background: "#ECE8DC", borderRadius: 999, height: 6, overflow: "hidden" }}>
+                <div style={{ width: `${c.valeur}%`, background: niveau.couleur, height: "100%", borderRadius: 999 }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.6 }}>
+        Calculé à partir de tes 30 derniers jours de commandes, ton bénéfice réel, et la fiabilité de ton équipe. Un score qui remonte reflète une activité qui se solidifie.
       </div>
     </div>
   );

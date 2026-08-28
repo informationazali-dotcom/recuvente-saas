@@ -908,6 +908,54 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
   );
 }
 
+function LivreurCarteEcartCaisse({ l, workspaceId, currency }) {
+  const [dernierDepot, setDernierDepot] = useState(null);
+
+  useEffect(() => {
+    supabase
+      .from("depots_livreur")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .eq("livreur_nom", l.nom)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => setDernierDepot(data && data[0] ? data[0] : null));
+  }, [l.nom, workspaceId]);
+
+  const ecart = dernierDepot ? Number(dernierDepot.montant_declare) - l.aDeposer : null;
+  const ecartSignificatif = ecart !== null && Math.abs(ecart) >= 500;
+
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+      <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+      <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {currency} encaissé</div>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+          Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+        </div>
+        <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+          Attendu : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+        </div>
+      </div>
+
+      {dernierDepot && (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0EEE6" }}>
+          <div style={{ fontSize: 11, color: "#8A9089" }}>
+            Dernier dépôt déclaré : <strong style={{ color: "#16231F" }}>{Number(dernierDepot.montant_declare).toLocaleString("fr-FR")} {currency}</strong> — {new Date(dernierDepot.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </div>
+          {ecartSignificatif ? (
+            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 7, padding: "6px 9px", marginTop: 6, fontSize: 11.5, color: "#D64933", fontWeight: 700 }}>
+              🔴 Écart de caisse : {ecart > 0 ? "+" : ""}{ecart.toLocaleString("fr-FR")} {currency}
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: "#1F9D6E", marginTop: 4, fontWeight: 600 }}>✅ Caisse correcte</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
   const nonTraitees = todoAujourdhui.total;
   const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
@@ -3190,18 +3238,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {depotsParLivreur.map((l) => (
-              <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
-                <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
-                    Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
-                  </div>
-                  <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
-                    À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
-                  </div>
-                </div>
-              </div>
+              <LivreurCarteEcartCaisse key={l.nom} l={l} workspaceId={workspace.id} currency={workspace.currency} />
             ))}
           </div>
 
@@ -5944,6 +5981,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [confirmees]);
   const [showBilan, setShowBilan] = useState(false);
+  const [showDeclarationDepot, setShowDeclarationDepot] = useState(false);
 
   async function changerStatut(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom, mode_paiement: modePaiement || null } : {};
@@ -6030,6 +6068,13 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
             </button>
           )}
         </div>
+
+        <button
+          onClick={() => setShowDeclarationDepot(true)}
+          style={{ width: "100%", marginTop: 10, background: "white", color: "#16231F", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+        >
+          🏦 Déclarer mon dépôt
+        </button>
 
         {showBilan && bilanParJour.length > 0 && (
           <div style={{ marginTop: 10, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 14px" }}>
@@ -6178,6 +6223,80 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
           </div>
         </div>
       )}
+
+      {showDeclarationDepot && (
+        <DeclarationDepotModal
+          livreur={livreur}
+          montantEncaisse={confirmees.reduce((s, c) => s + Number(c.montant), 0)}
+          commission={confirmees.length * 1500}
+          currency={currency}
+          onClose={() => setShowDeclarationDepot(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DeclarationDepotModal({ livreur, montantEncaisse, commission, currency, onClose }) {
+  const montantAttendu = montantEncaisse - commission;
+  const [montant, setMontant] = useState(String(montantAttendu));
+  const [enCours, setEnCours] = useState(false);
+  const [fait, setFait] = useState(false);
+
+  async function declarer() {
+    if (!montant || Number(montant) < 0) return;
+    setEnCours(true);
+    await supabase.from("depots_livreur").insert([{
+      workspace_id: livreur.workspace_id,
+      livreur_nom: livreur.nom,
+      montant_declare: Number(montant),
+    }]);
+    setEnCours(false);
+    setFait(true);
+  }
+
+  if (fait) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 70 }}>
+        <div style={{ background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 340, textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Dépôt déclaré</div>
+          <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>{Number(montant).toLocaleString("fr-FR")} {currency} enregistré.</div>
+          <button onClick={onClose} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+            Fermer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 70 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏦 Déclarer mon dépôt</div>
+        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
+          Montant attendu (encaissé moins ta commission) : <strong>{montantAttendu.toLocaleString("fr-FR")} {currency}</strong>
+        </div>
+
+        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Montant que tu déposes réellement</div>
+        <input
+          type="number"
+          value={montant}
+          onChange={(e) => setMontant(e.target.value)}
+          style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 15, fontWeight: 700, boxSizing: "border-box", marginBottom: 14 }}
+        />
+
+        <button
+          onClick={declarer}
+          disabled={enCours || !montant}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}
+        >
+          {enCours ? "Enregistrement..." : "Confirmer la déclaration"}
+        </button>
+        <button onClick={onClose} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
+          Annuler
+        </button>
+      </div>
     </div>
   );
 }

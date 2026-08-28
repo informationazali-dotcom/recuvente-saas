@@ -4472,6 +4472,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAppel, setShowAppel] = useState(false);
+  const [dateRappelChoisie, setDateRappelChoisie] = useState("");
   const [showPaiement, setShowPaiement] = useState(false);
   const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
@@ -4948,7 +4949,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
 
       {showAppel && (
         <div
-          onClick={() => setShowAppel(false)}
+          onClick={() => { setShowAppel(false); setDateRappelChoisie(""); }}
           style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
@@ -4958,7 +4959,6 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               {[
                 { key: "confirme_telephone", label: "✅ Confirmé par téléphone", couleur: "#1F9D6E" },
                 { key: "pas_de_reponse", label: "📵 Pas de réponse", couleur: "#8A6412" },
-                { key: "rappeler_plus_tard", label: "🕒 Rappeler plus tard", couleur: "#8A6412" },
                 { key: "faux_numero", label: "🚫 Faux numéro", couleur: "#D64933" },
                 { key: "refuse", label: "❌ Refusé par le client", couleur: "#D64933" },
               ].map((motif) => (
@@ -4975,7 +4975,47 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowAppel(false)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
+
+            <div style={{ borderTop: "1px solid #ECE8DC", marginTop: 14, paddingTop: 14 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412", marginBottom: 8 }}>🕒 Rappeler plus tard — quand ?</div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                {[
+                  { label: "Demain", jours: 1 },
+                  { label: "Après-demain", jours: 2 },
+                  { label: "Dans 3 jours", jours: 3 },
+                ].map((raccourci) => (
+                  <button
+                    key={raccourci.jours}
+                    onClick={() => setDateRappelChoisie(new Date(Date.now() + raccourci.jours * 86400000).toISOString().slice(0, 10))}
+                    style={{ flex: 1, background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "8px 4px", fontSize: 11.5, fontWeight: 600, color: "#8A6412", cursor: "pointer" }}
+                  >
+                    {raccourci.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="date"
+                value={dateRappelChoisie}
+                onChange={(e) => setDateRappelChoisie(e.target.value)}
+                style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 8 }}
+              />
+              <button
+                onClick={async () => {
+                  if (!dateRappelChoisie) return;
+                  await supabase.from("appels_commande").insert([{ workspace_id: workspace.id, commande_id: commande.id, motif: "rappeler_plus_tard", note: `Rappel prévu le ${dateRappelChoisie}`, appele_par: confirmateurNom || "Équipe" }]);
+                  await onReschedule?.(commande.id, dateRappelChoisie);
+                  setShowAppel(false);
+                  setDateRappelChoisie("");
+                  await onStatusChanged();
+                }}
+                disabled={!dateRappelChoisie}
+                style={{ width: "100%", background: dateRappelChoisie ? "#8A6412" : "#DDD8CC", color: "white", border: "none", borderRadius: 9, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: dateRappelChoisie ? "pointer" : "default" }}
+              >
+                Confirmer le rappel
+              </button>
+            </div>
+
+            <button onClick={() => { setShowAppel(false); setDateRappelChoisie(""); }} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
               Annuler
             </button>
           </div>

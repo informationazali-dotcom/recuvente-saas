@@ -297,8 +297,8 @@ function Centered({ children }) {
 
 function LandingPage() {
   const [plans, setPlans] = useState([]);
-  const [faqOuverte, setFaqOuverte] = useState(0);
-  const [profil, setProfil] = useState("cod");
+  const [faqOuverte, setFaqOuverte] = useState(null);
+  const [activeModule, setActiveModule] = useState("commerce");
   const [statsPlateforme, setStatsPlateforme] = useState(null);
 
   useEffect(() => {
@@ -308,667 +308,230 @@ function LandingPage() {
     });
   }, []);
 
-  useEffect(() => {
-    const pixelId = import.meta.env.VITE_RECUVENTE_PIXEL_ID;
-    if (!pixelId || window.fbq) return;
-    !(function (f, b, e, v, n, t, s) {
-      if (f.fbq) return;
-      n = f.fbq = function () {
-        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
-      };
-      if (!f._fbq) f._fbq = n;
-      n.push = n;
-      n.loaded = !0;
-      n.version = "2.0";
-      n.queue = [];
-      t = b.createElement(e);
-      t.async = !0;
-      t.src = v;
-      s = b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t, s);
-    })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
-    window.fbq("init", pixelId);
-    window.fbq("track", "PageView");
-  }, []);
-
-  function trackerInscription() {
-    if (window.fbq) window.fbq("track", "Lead");
-  }
-
-  function allerInscription(e) {
-    trackerInscription();
-    if (typeof window !== "undefined") {
-      e?.preventDefault?.();
-      window.location.href = "?auth=1";
+  const modules = {
+    commerce: {
+      label: "COMMERCE & COD",
+      title: "De la publicité à l'argent encaissé.",
+      desc: "Une chaîne complète pour recevoir, qualifier, confirmer, expédier, livrer et récupérer chaque commande.",
+      items: [
+        ["📦", "Commandes", "Validées, échouées, refusées, doubles ou suspectes — chaque commande a son statut."],
+        ["☎️", "Closing & appels", "Sais qui a été appelé, quand, résultat de l'appel, numéro faux, injoignable ou client confirmé."],
+        ["🚚", "Livraison", "Attribue les commandes, suis chaque livreur, vois livré, non livré, à récupérer et les montants."],
+        ["📅", "Reprogrammation", "Le client veut demain ? Reprogramme la livraison et retrouve automatiquement les urgences du jour."],
+        ["📍", "Suivi client", "Génère un code de suivi pour que ton client puisse suivre sa commande."],
+        ["🧾", "Documents", "Envoie confirmations, reçus et factures personnalisées directement au client."],
+      ]
+    },
+    marketing: {
+      label: "CAMPAGNES & RETARGETING",
+      title: "Ne laisse plus dormir tes anciens clients.",
+      desc: "Transforme ton historique de clients en moteur de nouvelles ventes avec des campagnes ciblées.",
+      items: [
+        ["🎯", "Segmentation", "Cible les nouveaux clients, anciens clients, clients ayant acheté 1 fois, 2 fois ou davantage."],
+        ["💬", "WhatsApp", "Contacte directement un client depuis sa fiche et relance au bon moment."],
+        ["🔁", "Retargeting", "Réactive les clients qui ont déjà acheté au lieu de repartir de zéro."],
+        ["📣", "Campagnes", "Prépare des campagnes selon les profils et l'historique d'achat."],
+        ["📊", "Historique", "Comprends qui achète, qui revient et quels clients méritent une nouvelle offre."],
+        ["⚡", "Action rapide", "Passe de la donnée à l'action sans exporter tes clients dans plusieurs outils."],
+      ]
+    },
+    team: {
+      label: "ÉQUIPE & CONTRÔLE",
+      title: "Chaque personne a son espace. Toi, tu gardes la vision.",
+      desc: "RecuVente ne mélange pas les rôles : chaque membre travaille dans une interface adaptée à sa mission.",
+      items: [
+        ["👤", "Closer", "Interface dédiée pour traiter les commandes, appeler les clients, confirmer ou refuser."],
+        ["🚚", "Livreur", "Interface dédiée pour voir ses commandes, confirmer les livraisons et déclarer les résultats."],
+        ["💼", "Comptable", "Vision des encaissements, dépenses, commissions et points financiers."],
+        ["🎯", "Responsable", "Attribue, contrôle et vérifie qui a reçu quoi et ce qui a été réalisé."],
+        ["📦", "Traçabilité produit", "Sais quel produit a été remis par le closing à quel livreur et sur quelle commande."],
+        ["🔐", "Rôles", "Chaque membre accède aux informations dont il a besoin pour travailler."],
+      ]
+    },
+    boutique: {
+      label: "BOUTIQUE EN LIGNE",
+      title: "Crée ta boutique. Lance tes campagnes. Mesure.",
+      desc: "Même si tu n'as pas Shopify, tu peux créer rapidement ta boutique RecuVente et préparer ton acquisition.",
+      items: [
+        ["🛍️", "Boutique rapide", "Crée ton catalogue, tes produits, tes collections et une page de commande."],
+        ["📸", "Produits", "Ajoute photos, prix et informations sans multiplier les outils."],
+        ["🎯", "Pixels", "Ajoute tes pixels et outils de suivi pour mesurer tes campagnes publicitaires."],
+        ["📣", "Acquisition", "Envoie tes campagnes vers ta propre boutique et récupère les commandes."],
+        ["🔗", "Shopify", "Connecte ta boutique Shopify lorsque tu l'utilises déjà."],
+        ["📈", "Pilotage", "Relie acquisition, commandes, clients et résultats dans le même écosystème."],
+      ]
+    },
+    immobilier: {
+      label: "IMMOBILIER",
+      title: "Tes locations aussi méritent un vrai système.",
+      desc: "RecuVente s'étend au suivi des biens, des locataires et des paiements.",
+      items: [
+        ["🏠", "Biens & locataires", "Organise les informations liées à tes locations."],
+        ["💵", "Loyers", "Suis les paiements et les échéances de chaque locataire."],
+        ["🧾", "Reçus", "Génère un reçu pour confirmer le paiement du locataire."],
+        ["📅", "Échéances", "Garde une vision claire des paiements attendus."],
+        ["📊", "Vue globale", "Retrouve les informations essentielles au même endroit."],
+        ["📂", "Historique", "Conserve une trace des paiements et documents."],
+      ]
+    },
+    restaurant: {
+      label: "RESTAURATION",
+      title: "De la table à la cuisine, puis jusqu'au client.",
+      desc: "Un flux pensé pour suivre la commande en salle, sa préparation, son service et sa livraison.",
+      items: [
+        ["🍽️", "Tables", "Suis la table A, la table B et les commandes associées."],
+        ["🧾", "Commandes", "Chaque commande est rattachée à la table ou au client."],
+        ["👨‍🍳", "Préparation", "Sais quelles commandes sont en préparation et lesquelles sont prêtes."],
+        ["🔔", "Service", "Une commande prête devient immédiatement visible pour le service."],
+        ["🛵", "Livraison", "Les commandes à livrer peuvent être attribuées et suivies."],
+        ["📋", "Menus", "Crée et organise les menus et les produits du restaurant."],
+      ]
     }
-  }
-
-  const contenu = {
-    cod: {
-      eyebrow: "LE SYSTÈME DE PILOTAGE DU COMMERCE COD",
-      title: <>Arrête de gérer ton business<br /><span>dans WhatsApp.</span></>,
-      subtitle: "RecuVente centralise tes commandes, tes clients, tes livreurs, ton stock et ton argent dans un seul espace. Tu sais ce qui est vendu, ce qui est livré et ce qui est réellement encaissé.",
-      proof: "Pensé pour les entrepreneurs qui vendent en ligne en Afrique",
-      dashboardMain: "1 240 500",
-      dashboardLabel: "FCFA encaissés",
-      cards: [
-        ["Commandes", "148", "Aujourd'hui"],
-        ["À livrer", "23", "En cours"],
-        ["À récupérer", "18", "À risque"],
-      ],
-      painTitle: "Le vrai problème n'est pas de vendre.",
-      painLead: "C'est de garder le contrôle après la vente.",
-      solution: "Une commande peut être confirmée, mais jamais livrée. Un livreur peut encaisser sans déposer. Un client peut disparaître. Et à la fin du mois, ton chiffre d'affaires peut sembler bon alors que ton bénéfice réel ne l'est pas.",
-      features: [
-        { icon: "🎯", title: "Tu sais quoi récupérer", desc: "RecuVente met en évidence les commandes qui méritent ton attention et te permet d'agir rapidement." },
-        { icon: "📦", title: "Chaque commande est tracée", desc: "De la création à la livraison, garde une vision claire du statut de chaque client." },
-        { icon: "🚚", title: "Tes livreurs sous contrôle", desc: "Suivi des tournées, commandes attribuées, commissions et montants à déposer." },
-        { icon: "💰", title: "Tu vois ton vrai argent", desc: "Sépare les ventes, l'argent encaissé, ce qui reste à récupérer et les coûts." },
-        { icon: "🛍️", title: "Ta boutique peut être incluse", desc: "Vends en ligne avec une boutique publique RecuVente ou connecte ta boutique Shopify." },
-        { icon: "📊", title: "Ton équipe travaille ensemble", desc: "Vendeurs, closers, livreurs et comptables travaillent sur les mêmes informations." },
-      ],
-    },
-    retail: {
-      eyebrow: "LE SYSTÈME DE PILOTAGE DE TA BOUTIQUE",
-      title: <>Ton commerce mérite<br /><span>mieux qu'un cahier.</span></>,
-      subtitle: "RecuVente organise tes ventes, ton stock, tes acomptes, tes clients et ton équipe dans un seul espace simple à utiliser.",
-      proof: "Pensé pour les commerces qui veulent passer un cap",
-      dashboardMain: "340 000",
-      dashboardLabel: "FCFA de ventes aujourd'hui",
-      cards: [
-        ["Ventes", "32", "Aujourd'hui"],
-        ["Stock", "142", "Produits"],
-        ["Acomptes", "5", "En attente"],
-      ],
-      painTitle: "Le vrai problème n'est pas de vendre.",
-      painLead: "C'est de savoir exactement ce qu'il te reste.",
-      solution: "Quand les ventes, le stock et les acomptes sont dispersés, les erreurs deviennent invisibles. RecuVente transforme ces informations en un tableau de bord simple et exploitable.",
-      features: [
-        { icon: "🏪", title: "Ventes centralisées", desc: "Enregistre tes ventes sur place, en livraison ou avec acompte." },
-        { icon: "📦", title: "Stock produit par produit", desc: "Sais ce qui est disponible, vendu et bientôt en rupture." },
-        { icon: "💵", title: "Acomptes suivis", desc: "Le montant payé et le solde restant sont visibles jusqu'au règlement." },
-        { icon: "💰", title: "Bénéfice réel", desc: "Comprends quels produits te rapportent réellement de l'argent." },
-        { icon: "🛍️", title: "Boutique en ligne", desc: "Développe aussi tes ventes en ligne sans multiplier les outils." },
-        { icon: "👥", title: "Équipe organisée", desc: "Chaque membre travaille avec son rôle et ses informations." },
-      ],
-    },
   };
 
-  const c = contenu[profil];
+  const cta = (label = "Commencer gratuitement") => (
+    <a href="?auth=1" onClick={() => window.fbq && window.fbq("track", "Lead")} className="rv2-btn rv2-btn-primary">{label} <span>→</span></a>
+  );
 
-  const objections = [
-    ["« Je ne suis pas doué avec la technologie »", "Si tu sais utiliser WhatsApp, tu peux prendre RecuVente en main. L'interface est conçue pour aller droit au but."],
-    ["« Je travaille déjà avec Shopify »", "Garde Shopify. RecuVente peut recevoir tes commandes Shopify automatiquement et ajouter la couche de pilotage qui te manque."],
-    ["« Je n'ai pas encore de boutique en ligne »", "RecuVente inclut une boutique publique que tu peux utiliser pour recevoir tes campagnes et tes commandes."],
-    ["« Je n'ai pas le temps de tout configurer »", "Crée ton espace en quelques étapes, ajoute ta première commande et commence à travailler immédiatement."],
+  const faqs = [
+    ["RecuVente est-il seulement une application de livraison ?", "Non. La livraison est un des piliers. RecuVente couvre aussi les commandes, le closing, les campagnes, le retargeting, les clients, la comptabilité, les équipes, la boutique en ligne, l'immobilier et la restauration."],
+    ["Est-ce que mon équipe peut avoir des interfaces différentes ?", "Oui. Le closer, le livreur, le comptable et les responsables peuvent travailler avec des espaces adaptés à leur rôle."],
+    ["Puis-je suivre mes livreurs ?", "Oui. Tu peux suivre les commandes attribuées à chaque livreur, les résultats de livraison et les montants à comptabiliser."],
+    ["Puis-je reprogrammer une livraison ?", "Oui. Une commande dont le client demande une livraison à une autre date peut être reprogrammée et réapparaître dans les priorités du jour concerné."],
+    ["Puis-je faire des campagnes à mes anciens clients ?", "Oui. RecuVente permet de travailler sur des segments comme les nouveaux clients, anciens clients et clients ayant acheté une ou plusieurs fois."],
+    ["Puis-je envoyer WhatsApp depuis l'application ?", "L'application permet d'accéder directement à WhatsApp depuis la fiche client pour faciliter le contact."],
+    ["Puis-je créer ma boutique en ligne sans Shopify ?", "Oui. RecuVente permet de créer rapidement une boutique en ligne avec produits, catalogue et commande, puis d'y ajouter les pixels nécessaires à tes campagnes."],
+    ["RecuVente peut-il servir à un restaurant ou à l'immobilier ?", "Oui. L'architecture de la plateforme est conçue pour couvrir plusieurs activités, notamment les tables et commandes en restauration ainsi que les loyers et reçus en immobilier."],
+    ["Y a-t-il un essai ?", "Les plans affichés dans l'application peuvent être utilisés pour commencer selon les conditions de ton abonnement. Consulte les tarifs présentés sur cette page."],
   ];
-
-  const faq = [
-    ["Comment fonctionne l'essai gratuit ?", "Tu bénéficies de 7 jours d'accès. Aucune carte bancaire n'est requise pour commencer. À la fin de l'essai, tu peux choisir de continuer avec un abonnement payant."],
-    ["Combien coûte RecuVente ?", "Les plans et leurs tarifs sont affichés ci-dessous. Tu peux choisir le niveau qui correspond à ton activité et changer de plan plus tard."],
-    ["Comment se fait le paiement ?", "Le paiement de l'abonnement se fait par Mobile Money. L'activation du plan payant intervient après confirmation de la réception du paiement par l'équipe RecuVente."],
-    ["Puis-je connecter Shopify ?", "Oui. RecuVente peut recevoir automatiquement les nouvelles commandes de ta boutique Shopify via l'intégration prévue dans l'application."],
-    ["Puis-je vendre sans Shopify ?", "Oui. RecuVente dispose d'une boutique publique avec produits, photos, collections et commande en ligne."],
-    ["Mes données sont-elles séparées de celles des autres entreprises ?", "Oui. Chaque entreprise possède son propre espace et ses données sont isolées des autres entreprises clientes."],
-    ["Est-ce adapté à une petite activité ?", "Oui. RecuVente propose plusieurs plans afin de pouvoir commencer simplement puis évoluer avec ton activité."],
-  ];
-
-  const stats = statsPlateforme && Number(statsPlateforme.nb_commandes_confirmees) > 0
-    ? [
-        [Number(statsPlateforme.nb_commandes_confirmees).toLocaleString("fr-FR"), "commandes confirmées"],
-        [Number(statsPlateforme.montant_total_confirme).toLocaleString("fr-FR") + " FCFA", "de commerce traité"],
-        [Number(statsPlateforme.nb_entreprises_actives).toLocaleString("fr-FR"), "entreprises actives"],
-      ]
-    : null;
 
   return (
-    <div className="rv-premium-lp">
+    <div className="rv2">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
-
-        .rv-premium-lp {
-          --green:#1A7A3C;
-          --green2:#2E8B57;
-          --orange:#FF7A00;
-          --ink:#0F172A;
-          --muted:#667085;
-          --cream:#F8F7F2;
-          --line:#E8E6DE;
-          font-family:'IBM Plex Sans',sans-serif;
-          color:var(--ink);
-          background:#fff;
-          overflow:hidden;
-        }
-        .rv-premium-lp * { box-sizing:border-box; }
-        .rv-premium-lp a { text-decoration:none; }
-        .rv-shell { width:min(1160px, calc(100% - 40px)); margin:0 auto; }
-        .rv-display { font-family:'Fraunces',serif; letter-spacing:-.035em; }
-        .rv-topbar {
-          position:relative; z-index:20; background:rgba(7,18,13,.92);
-          border-bottom:1px solid rgba(255,255,255,.08); backdrop-filter:blur(16px);
-        }
-        .rv-nav { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:18px; }
-        .rv-logo { color:#fff; font:800 21px 'Fraunces',serif; letter-spacing:-.02em; }
-        .rv-logo b { color:var(--orange); }
-        .rv-nav-links { display:flex; align-items:center; gap:24px; }
-        .rv-nav-links a { color:rgba(255,255,255,.68); font-size:13px; font-weight:600; }
-        .rv-nav-links a:hover { color:#fff; }
-        .rv-nav-cta { color:#0f2418!important; background:#fff; padding:11px 16px; border-radius:10px; }
-
-        .rv-hero {
-          position:relative; color:#fff; background:
-          radial-gradient(circle at 12% 10%, rgba(46,139,87,.34), transparent 34%),
-          radial-gradient(circle at 90% 22%, rgba(255,122,0,.15), transparent 28%),
-          linear-gradient(135deg,#06100B 0%,#0B1A12 48%,#10281C 100%);
-          padding:76px 0 0;
-        }
-        .rv-hero:after {
-          content:""; position:absolute; left:0; right:0; bottom:-1px; height:90px;
-          background:linear-gradient(to bottom,transparent,#fff);
-          pointer-events:none;
-        }
-        .rv-hero-grid { display:grid; grid-template-columns:1.02fr .98fr; gap:64px; align-items:center; position:relative; z-index:2; }
-        .rv-eyebrow { display:inline-flex; align-items:center; gap:8px; color:#FFD19A; border:1px solid rgba(255,122,0,.25); background:rgba(255,122,0,.10); border-radius:999px; padding:8px 12px; font-size:11px; font-weight:700; letter-spacing:.08em; }
-        .rv-eyebrow-dot { width:7px; height:7px; border-radius:50%; background:var(--orange); box-shadow:0 0 0 5px rgba(255,122,0,.10); }
-        .rv-hero h1 { font-size:clamp(42px,6vw,72px); line-height:.98; margin:22px 0 22px; max-width:690px; }
-        .rv-hero h1 span { color:#82D69E; }
-        .rv-hero-sub { max-width:620px; color:rgba(255,255,255,.73); font-size:17px; line-height:1.7; }
-        .rv-hero-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; align-items:center; }
-        .rv-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:9px; background:var(--orange); color:#101A14; padding:16px 23px; border-radius:12px; font-size:14px; font-weight:800; box-shadow:0 14px 35px rgba(255,122,0,.25); transition:.2s ease; }
-        .rv-btn-primary:hover { transform:translateY(-2px); box-shadow:0 20px 42px rgba(255,122,0,.32); }
-        .rv-btn-ghost { display:inline-flex; align-items:center; justify-content:center; color:#fff; border:1px solid rgba(255,255,255,.18); padding:15px 20px; border-radius:12px; font-size:14px; font-weight:700; background:rgba(255,255,255,.05); }
-        .rv-trust { display:flex; flex-wrap:wrap; gap:16px 22px; margin-top:18px; color:rgba(255,255,255,.53); font-size:11.5px; }
-        .rv-trust span { display:flex; align-items:center; gap:6px; }
-        .rv-trust strong { color:#fff; }
-
-        .rv-dashboard-wrap { position:relative; padding-bottom:75px; }
-        .rv-dashboard {
-          width:min(520px,100%); margin:0 auto; background:#0B1510; border:1px solid rgba(255,255,255,.13);
-          border-radius:24px; padding:10px; box-shadow:0 38px 90px rgba(0,0,0,.45); transform:perspective(1200px) rotateY(-6deg) rotateX(2deg);
-        }
-        .rv-dashboard-inner { background:#F7F8F5; border-radius:17px; overflow:hidden; color:var(--ink); }
-        .rv-dash-top { background:#fff; padding:15px 17px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #ECEDE8; }
-        .rv-dash-brand { font:800 13px 'Fraunces',serif; }
-        .rv-dash-brand b { color:var(--orange); }
-        .rv-avatar { width:27px; height:27px; border-radius:50%; background:#DDEDE2; }
-        .rv-dash-body { padding:16px; }
-        .rv-dash-greeting { font:700 11px 'IBM Plex Sans',sans-serif; color:#1A3325; margin-bottom:11px; }
-        .rv-dash-alert { background:#10251A; color:#fff; border-radius:12px; padding:13px; margin-bottom:12px; }
-        .rv-dash-alert-title { font-size:10px; color:#B9E9C8; font-weight:700; margin-bottom:7px; }
-        .rv-dash-alert-row { display:flex; justify-content:space-between; gap:8px; align-items:end; }
-        .rv-dash-money { font:800 23px 'IBM Plex Mono',monospace; color:#fff; }
-        .rv-dash-money small { font:500 9px 'IBM Plex Sans',sans-serif; color:#A7B7AD; }
-        .rv-risk { font-size:9px; color:#FFB3A7; background:rgba(214,73,51,.12); padding:6px 8px; border-radius:7px; }
-        .rv-dash-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:12px; }
-        .rv-dash-card { background:#fff; border:1px solid #E8EAE4; border-radius:10px; padding:10px; }
-        .rv-dash-card-label { font-size:8px; color:#89928C; margin-bottom:5px; }
-        .rv-dash-card-value { font:700 14px 'IBM Plex Mono',monospace; }
-        .rv-dash-card-note { font-size:7.5px; color:#8D978F; margin-top:3px; }
-        .rv-dash-orders { background:#fff; border:1px solid #E8EAE4; border-radius:11px; overflow:hidden; }
-        .rv-dash-orders-head { display:flex; justify-content:space-between; padding:10px; font-size:9px; font-weight:700; }
-        .rv-order { display:flex; justify-content:space-between; align-items:center; padding:9px 10px; border-top:1px solid #EEF0EB; }
-        .rv-order-name { font-size:8.5px; font-weight:700; }
-        .rv-order-meta { font-size:7.5px; color:#929A95; margin-top:2px; }
-        .rv-order-status { font-size:7px; font-weight:700; padding:5px 7px; border-radius:999px; background:#E7F5EB; color:#1A7A3C; }
-
-        .rv-proof-strip { position:relative; z-index:5; margin-top:-28px; }
-        .rv-proof-box { background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 20px 55px rgba(15,23,42,.10); padding:18px 22px; display:grid; grid-template-columns:1fr auto; gap:18px; align-items:center; }
-        .rv-proof-copy { font-size:12px; color:var(--muted); }
-        .rv-proof-copy strong { color:var(--ink); font-size:13px; }
-        .rv-proof-stats { display:flex; gap:26px; }
-        .rv-proof-stat strong { display:block; font:800 17px 'IBM Plex Mono',monospace; color:var(--green); }
-        .rv-proof-stat span { display:block; margin-top:2px; color:#8A928C; font-size:9.5px; }
-
-        .rv-section { padding:92px 0; }
-        .rv-section-soft { background:var(--cream); }
-        .rv-section-dark { background:#0B1711; color:#fff; }
-        .rv-kicker { color:var(--green); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.10em; margin-bottom:10px; }
-        .rv-section-dark .rv-kicker { color:#8CD7A3; }
-        .rv-section-title { font:800 clamp(31px,4.5vw,50px) 'Fraunces',serif; line-height:1.02; letter-spacing:-.035em; margin:0; }
-        .rv-section-lead { max-width:650px; color:var(--muted); line-height:1.7; font-size:15px; margin:14px auto 0; }
-        .rv-section-dark .rv-section-lead { color:rgba(255,255,255,.62); }
-
-        .rv-pain-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:42px; }
-        .rv-pain-card { border-radius:20px; padding:28px; border:1px solid var(--line); }
-        .rv-pain-card.bad { background:#FFF8F6; border-color:#F0D9D3; }
-        .rv-pain-card.good { background:#F4FBF6; border-color:#D8EADB; }
-        .rv-pain-card h3 { font:700 23px 'Fraunces',serif; margin:0 0 10px; }
-        .rv-pain-card p { font-size:13px; line-height:1.65; color:var(--muted); margin:0 0 18px; }
-        .rv-list { display:grid; gap:10px; }
-        .rv-list-item { display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.45; color:#3F4943; }
-        .rv-x, .rv-check { width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:0 0 21px; font-size:11px; font-weight:800; }
-        .rv-x { background:#F9E0DB; color:#C94C38; }
-        .rv-check { background:#DDF1E3; color:var(--green); }
-
-        .rv-feature-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:42px; }
-        .rv-feature { background:#fff; border:1px solid var(--line); border-radius:17px; padding:23px; transition:.2s ease; }
-        .rv-feature:hover { transform:translateY(-4px); box-shadow:0 18px 40px rgba(15,23,42,.08); border-color:#CDE2D3; }
-        .rv-feature-icon { width:45px; height:45px; border-radius:12px; background:#EAF4ED; display:flex; align-items:center; justify-content:center; font-size:21px; margin-bottom:16px; }
-        .rv-feature h3 { font-size:15px; margin:0 0 7px; }
-        .rv-feature p { color:var(--muted); font-size:12.5px; line-height:1.6; margin:0; }
-
-        .rv-showcase { display:grid; grid-template-columns:.9fr 1.1fr; gap:55px; align-items:center; margin-top:46px; }
-        .rv-showcase-copy h3 { font:700 29px 'Fraunces',serif; margin:0 0 12px; }
-        .rv-showcase-copy p { color:rgba(255,255,255,.63); font-size:14px; line-height:1.7; }
-        .rv-mini-flow { display:grid; gap:10px; margin-top:22px; }
-        .rv-mini-flow-item { display:flex; gap:12px; align-items:center; padding:12px; border:1px solid rgba(255,255,255,.09); background:rgba(255,255,255,.04); border-radius:11px; }
-        .rv-mini-number { width:29px; height:29px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--orange); color:#111; font:800 11px 'IBM Plex Mono',monospace; }
-        .rv-mini-flow-item strong { display:block; font-size:12px; }
-        .rv-mini-flow-item span { display:block; font-size:10px; color:rgba(255,255,255,.45); margin-top:2px; }
-        .rv-screen-stack { position:relative; min-height:360px; }
-        .rv-screen { position:absolute; width:84%; border-radius:18px; padding:10px; background:#0F2117; border:1px solid rgba(255,255,255,.1); box-shadow:0 28px 60px rgba(0,0,0,.32); }
-        .rv-screen.one { right:0; top:0; transform:rotate(3deg); z-index:2; }
-        .rv-screen.two { left:0; bottom:0; transform:rotate(-3deg); opacity:.72; z-index:1; }
-        .rv-screen-inner { background:#F7F8F5; color:var(--ink); border-radius:12px; padding:14px; }
-        .rv-screen-line { height:9px; border-radius:5px; background:#E4E9E5; margin-bottom:8px; }
-        .rv-screen-line.short { width:45%; }
-        .rv-screen-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
-        .rv-screen-box { background:#fff; border:1px solid #E6EAE6; border-radius:9px; padding:12px; min-height:58px; }
-        .rv-screen-box strong { font:700 15px 'IBM Plex Mono',monospace; }
-        .rv-screen-box small { display:block; color:#89928C; font-size:8px; margin-top:4px; }
-
-        .rv-comparison { overflow:hidden; border:1px solid var(--line); border-radius:18px; margin-top:42px; background:#fff; box-shadow:0 20px 50px rgba(15,23,42,.06); }
-        .rv-comparison-row { display:grid; grid-template-columns:1.25fr 1fr 1fr; }
-        .rv-comparison-row > div { padding:14px 15px; border-top:1px solid var(--line); font-size:12px; line-height:1.4; }
-        .rv-comparison-head > div { border-top:none; font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#8B938D; }
-        .rv-comparison-head > div:last-child { background:var(--green); color:#fff; }
-        .rv-comparison-row > div:nth-child(3) { background:#F2FAF4; color:#183D25; font-weight:600; }
-        .rv-comparison-row > div:nth-child(2) { color:#7F8882; }
-
-        .rv-steps { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:45px; }
-        .rv-step { position:relative; padding:26px; border:1px solid var(--line); border-radius:18px; background:#fff; }
-        .rv-step-number { font:800 37px 'IBM Plex Mono',monospace; color:#DDE7DF; }
-        .rv-step h3 { margin:8px 0 7px; font-size:16px; }
-        .rv-step p { margin:0; color:var(--muted); font-size:12.5px; line-height:1.6; }
-
-        .rv-pricing { background:linear-gradient(180deg,#F8F7F2 0%,#fff 100%); }
-        .rv-pricing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:17px; margin-top:44px; align-items:stretch; }
-        .rv-plan { background:#fff; border:1px solid var(--line); border-radius:20px; padding:25px; position:relative; box-shadow:0 8px 24px rgba(15,23,42,.04); }
-        .rv-plan.featured { border:2px solid var(--green); padding:29px 24px; box-shadow:0 25px 55px rgba(26,122,60,.16); transform:translateY(-7px); }
-        .rv-plan-badge { position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:var(--green); color:#fff; padding:5px 13px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.05em; white-space:nowrap; }
-        .rv-plan-name { font:800 21px 'Fraunces',serif; }
-        .rv-plan-price { font:800 30px 'IBM Plex Mono',monospace; color:var(--green); margin-top:12px; letter-spacing:-.04em; }
-        .rv-plan-price span { font:500 11px 'IBM Plex Sans',sans-serif; color:#8A928C; letter-spacing:0; }
-        .rv-plan-desc { min-height:38px; color:var(--muted); font-size:11.5px; line-height:1.5; margin-top:9px; }
-        .rv-plan-list { display:grid; gap:8px; margin:18px 0 20px; }
-        .rv-plan-list div { font-size:11.5px; color:#4A554E; display:flex; gap:7px; }
-        .rv-plan-btn { display:flex; justify-content:center; align-items:center; width:100%; padding:12px; border-radius:10px; font-size:12.5px; font-weight:800; }
-        .rv-plan-btn.primary { background:var(--green); color:#fff; }
-        .rv-plan-btn.secondary { border:1px solid #BFD7C5; color:var(--green); background:#fff; }
-        .rv-plan-note { text-align:center; color:#9AA19C; font-size:9.5px; margin-top:9px; }
-
-        .rv-objections { display:grid; gap:11px; max-width:760px; margin:40px auto 0; }
-        .rv-objection { border:1px solid var(--line); border-radius:13px; padding:17px 18px; background:#fff; }
-        .rv-objection strong { display:block; font-size:13px; margin-bottom:6px; }
-        .rv-objection span { color:var(--muted); font-size:12px; line-height:1.55; }
-
-        .rv-faq { max-width:800px; margin:42px auto 0; display:grid; gap:9px; }
-        .rv-faq-item { border:1px solid var(--line); border-radius:13px; background:#fff; overflow:hidden; }
-        .rv-faq-btn { width:100%; border:0; background:#fff; padding:17px 18px; display:flex; align-items:center; justify-content:space-between; gap:15px; text-align:left; cursor:pointer; font:600 13.5px 'IBM Plex Sans',sans-serif; color:var(--ink); }
-        .rv-faq-answer { padding:0 18px 17px; color:var(--muted); font-size:12.5px; line-height:1.65; }
-
-        .rv-final { background:
-          radial-gradient(circle at 50% 0%, rgba(46,139,87,.28), transparent 42%),
-          linear-gradient(135deg,#07110C,#10261A); color:#fff; text-align:center; padding:100px 0 88px;
-        }
-        .rv-final h2 { font:800 clamp(34px,5vw,57px) 'Fraunces',serif; line-height:1.02; margin:0 auto 15px; max-width:720px; }
-        .rv-final p { color:rgba(255,255,255,.62); max-width:530px; margin:0 auto; line-height:1.65; font-size:14px; }
-        .rv-final .rv-btn-primary { margin-top:28px; }
-        .rv-final-note { margin-top:13px; color:rgba(255,255,255,.42); font-size:10.5px; }
-
-        .rv-footer { padding:24px 0 100px; text-align:center; color:#8A928C; font-size:11px; }
-        .rv-footer-links { display:flex; justify-content:center; gap:18px; flex-wrap:wrap; margin-top:9px; }
-        .rv-footer-links a { color:#8A928C; text-decoration:underline; }
-
-        .rv-mobile-cta { display:none; }
-
-        @media(max-width:900px) {
-          .rv-nav-links a:not(.rv-nav-cta) { display:none; }
-          .rv-hero-grid,.rv-showcase { grid-template-columns:1fr; gap:35px; }
-          .rv-hero { padding-top:52px; }
-          .rv-hero-text { text-align:center; }
-          .rv-hero-sub { margin:0 auto; }
-          .rv-hero-actions,.rv-trust { justify-content:center; }
-          .rv-dashboard { transform:none; }
-          .rv-dashboard-wrap { padding-bottom:35px; }
-          .rv-proof-box { grid-template-columns:1fr; text-align:center; }
-          .rv-proof-stats { justify-content:center; flex-wrap:wrap; }
-          .rv-feature-grid { grid-template-columns:repeat(2,1fr); }
-          .rv-pricing-grid { grid-template-columns:1fr; max-width:520px; margin-left:auto; margin-right:auto; }
-          .rv-plan.featured { transform:none; }
-          .rv-screen-stack { min-height:330px; }
-        }
-        @media(max-width:620px) {
-          .rv-shell { width:min(100% - 28px,1160px); }
-          .rv-nav { min-height:64px; }
-          .rv-logo { font-size:19px; }
-          .rv-nav-cta { padding:9px 12px; font-size:11px!important; }
-          .rv-hero { padding-top:42px; }
-          .rv-hero h1 { font-size:43px; }
-          .rv-hero-sub { font-size:15px; }
-          .rv-hero-actions { flex-direction:column; align-items:stretch; }
-          .rv-btn-primary,.rv-btn-ghost { width:100%; }
-          .rv-trust { gap:9px 15px; font-size:10px; }
-          .rv-proof-strip { margin-top:-14px; }
-          .rv-proof-box { padding:16px; }
-          .rv-proof-stats { gap:16px; }
-          .rv-section { padding:68px 0; }
-          .rv-pain-grid,.rv-feature-grid,.rv-steps { grid-template-columns:1fr; }
-          .rv-pain-card { padding:22px; }
-          .rv-comparison { overflow-x:auto; }
-          .rv-comparison-row { min-width:690px; }
-          .rv-showcase { gap:25px; }
-          .rv-screen-stack { min-height:270px; }
-          .rv-screen { width:90%; }
-          .rv-mobile-cta { display:flex; position:fixed; left:10px; right:10px; bottom:10px; z-index:100; background:rgba(255,255,255,.96); border:1px solid #DDE4DE; border-radius:14px; padding:8px; box-shadow:0 16px 40px rgba(15,23,42,.18); backdrop-filter:blur(12px); }
-          .rv-mobile-cta a { flex:1; display:flex; justify-content:center; align-items:center; background:var(--green); color:#fff; border-radius:10px; padding:13px; font-size:12.5px; font-weight:800; }
-          .rv-footer { padding-bottom:100px; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap');
+        .rv2{--g:#1A7A3C;--g2:#2E8B57;--o:#FF7A00;--ink:#0F172A;--cream:#F7F6F0;--line:#E5E7E2;--muted:#68736D;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:#fff;overflow:hidden}
+        .rv2 *{box-sizing:border-box}.rv2 a{text-decoration:none}.rv2-shell{width:min(1180px,calc(100% - 36px));margin:auto}.rv2-display{font-family:Fraunces,serif;letter-spacing:-.045em}
+        .rv2-nav{height:72px;background:#07110C;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);position:relative;z-index:10}.rv2-nav-in{height:100%;display:flex;align-items:center;justify-content:space-between}.rv2-logo{font:900 22px Fraunces;color:#fff}.rv2-logo span{color:var(--o)}.rv2-navlinks{display:flex;align-items:center;gap:22px}.rv2-navlinks a{font-size:12px;color:#9EABA3;font-weight:600}.rv2-navlinks .navcta{color:#0D1C13;background:#fff;padding:11px 15px;border-radius:9px}
+        .rv2-hero{color:#fff;background:radial-gradient(circle at 8% 12%,rgba(46,139,87,.38),transparent 30%),radial-gradient(circle at 91% 15%,rgba(255,122,0,.18),transparent 28%),linear-gradient(135deg,#06100B,#0B1B12 58%,#112A1C);padding:72px 0 100px;position:relative}.rv2-hero-grid{display:grid;grid-template-columns:1.03fr .97fr;gap:55px;align-items:center}.rv2-eyebrow{display:inline-flex;gap:8px;align-items:center;border:1px solid rgba(255,122,0,.3);background:rgba(255,122,0,.09);padding:8px 12px;border-radius:99px;color:#FFD2A2;font-size:10px;font-weight:800;letter-spacing:.1em}.rv2-dot{width:7px;height:7px;border-radius:50%;background:var(--o);box-shadow:0 0 0 5px rgba(255,122,0,.1)}
+        .rv2-h1{font:900 clamp(43px,6.2vw,76px) Fraunces;line-height:.95;letter-spacing:-.055em;margin:22px 0}.rv2-h1 span{color:#82D69E}.rv2-sub{font-size:16px;line-height:1.7;color:rgba(255,255,255,.68);max-width:650px}.rv2-actions{display:flex;gap:11px;flex-wrap:wrap;margin-top:28px}.rv2-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:11px;padding:15px 21px;font-size:13px;font-weight:800;transition:.2s}.rv2-btn-primary{background:var(--o);color:#111b14;box-shadow:0 18px 40px rgba(255,122,0,.22)}.rv2-btn-primary:hover{transform:translateY(-2px)}.rv2-btn-dark{border:1px solid rgba(255,255,255,.18);color:#fff;background:rgba(255,255,255,.05)}.rv2-trust{display:flex;gap:18px;flex-wrap:wrap;margin-top:17px;color:#84928A;font-size:10.5px}.rv2-trust b{color:#fff}
+        .rv2-command{background:#0B1510;border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:9px;box-shadow:0 35px 80px rgba(0,0,0,.45);transform:rotateY(-5deg)}.rv2-app{background:#F6F8F4;color:var(--ink);border-radius:15px;overflow:hidden}.rv2-appbar{background:#fff;padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E7EAE5;font:800 12px Fraunces}.rv2-appbar span{color:var(--o)}.rv2-appbody{padding:15px}.rv2-alert{background:#10271A;border-radius:12px;color:#fff;padding:14px;margin-bottom:10px}.rv2-alert small{color:#9DD9AE;font-weight:700}.rv2-money{font:700 25px IBM Plex Mono;margin-top:5px}.rv2-money span{font:10px 'IBM Plex Sans';color:#92A299}.rv2-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.rv2-stat{background:#fff;border:1px solid #E5E9E4;border-radius:9px;padding:10px}.rv2-stat small{display:block;color:#8C9690;font-size:7px}.rv2-stat b{display:block;font:700 14px IBM Plex Mono;margin-top:5px}.rv2-orders{background:#fff;border:1px solid #E5E9E4;border-radius:10px;margin-top:9px;overflow:hidden}.rv2-order{display:flex;justify-content:space-between;padding:9px;border-top:1px solid #EEF0EC;font-size:8px}.rv2-order span{color:var(--g);background:#E7F5EA;padding:4px 6px;border-radius:99px;font-weight:800}
+        .rv2-proof{margin-top:-34px;position:relative;z-index:3}.rv2-proofbox{background:#fff;border:1px solid var(--line);box-shadow:0 20px 55px rgba(15,23,42,.1);border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px}.rv2-proofstats{display:flex;gap:26px}.rv2-proofstats strong{display:block;color:var(--g);font:800 17px IBM Plex Mono}.rv2-proofstats span{font-size:9px;color:#89938D}
+        .rv2-section{padding:90px 0}.rv2-soft{background:var(--cream)}.rv2-dark{background:#09150F;color:#fff}.rv2-center{text-align:center}.rv2-kicker{color:var(--g);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:10px}.rv2-dark .rv2-kicker{color:#88D59F}.rv2-title{font:900 clamp(33px,4.5vw,55px) Fraunces;line-height:1;letter-spacing:-.045em;margin:0}.rv2-title span{color:var(--g)}.rv2-lead{max-width:720px;margin:15px auto 0;color:var(--muted);font-size:14px;line-height:1.7}.rv2-dark .rv2-lead{color:#89958E}
+        .rv2-modules{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin:42px 0 18px}.rv2-module{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 8px;text-align:center;font-size:9px;font-weight:800;color:#637069;transition:.2s}.rv2-module.active{background:var(--g);color:#fff;border-color:var(--g);box-shadow:0 10px 25px rgba(26,122,60,.2)}.rv2-module-icon{font-size:18px;display:block;margin-bottom:5px}
+        .rv2-modulepanel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.06)}.rv2-panelhead{display:flex;align-items:end;justify-content:space-between;gap:20px}.rv2-panelhead h3{font:800 29px Fraunces;margin:4px 0 0}.rv2-panelhead p{max-width:550px;color:var(--muted);font-size:12px;line-height:1.6}.rv2-items{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}.rv2-item{border:1px solid #E7EAE5;border-radius:13px;padding:17px;background:#FBFCFA}.rv2-item-icon{font-size:20px}.rv2-item h4{font-size:13px;margin:9px 0 5px}.rv2-item p{font-size:11px;line-height:1.55;color:var(--muted);margin:0}
+        .rv2-bignumber{display:grid;grid-template-columns:1fr 1fr;gap:0;background:#0D2116;border:1px solid rgba(255,255,255,.09);border-radius:20px;overflow:hidden;margin-top:45px}.rv2-bignumber>div{padding:35px;border-right:1px solid rgba(255,255,255,.08)}.rv2-bignumber>div:last-child{border:0}.rv2-big{font:900 clamp(33px,4vw,52px) IBM Plex Mono;color:#fff}.rv2-bignumber p{color:#8D9A92;font-size:12px;line-height:1.6;margin:8px 0 0}
+        .rv2-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:35px}.rv2-flowitem{padding:19px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.035)}.rv2-flowitem b{color:var(--o);font:700 22px IBM Plex Mono}.rv2-flowitem strong{display:block;font-size:12px;margin-top:8px}.rv2-flowitem span{display:block;color:#78867D;font-size:10px;line-height:1.5;margin-top:4px}
+        .rv2-pain{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}.rv2-card{border:1px solid var(--line);border-radius:18px;padding:25px;background:#fff}.rv2-card.bad{background:#FFF8F6;border-color:#F0DDD7}.rv2-card.good{background:#F3FAF5;border-color:#D8EADC}.rv2-card h3{font:800 23px Fraunces;margin:0 0 9px}.rv2-card p{color:var(--muted);font-size:12px;line-height:1.6}.rv2-list{display:grid;gap:8px;margin-top:15px}.rv2-list div{font-size:11.5px;color:#4B5750}.rv2-list i{font-style:normal;font-weight:900;margin-right:8px}
+        .rv2-pricing{background:linear-gradient(#F8F7F2,#fff)}.rv2-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:42px}.rv2-plan{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;position:relative}.rv2-plan.featured{border:2px solid var(--g);box-shadow:0 24px 55px rgba(26,122,60,.14);transform:translateY(-7px)}.rv2-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--g);color:#fff;padding:5px 12px;border-radius:99px;font-size:8px;font-weight:800;white-space:nowrap}.rv2-plan h3{font:800 21px Fraunces;margin:0}.rv2-price{font:800 28px IBM Plex Mono;color:var(--g);margin-top:10px}.rv2-price small{font:10px 'IBM Plex Sans';color:#8C958F;font-weight:500}.rv2-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:8px}.rv2-plan li{font-size:11px;color:#526058}.rv2-plan li:before{content:'✓';color:var(--g);font-weight:900;margin-right:7px}.rv2-plan a{display:flex;justify-content:center;padding:12px;border-radius:9px;background:var(--g);color:#fff;font-size:11.5px;font-weight:800}
+        .rv2-faq{max-width:800px;margin:40px auto 0;display:grid;gap:8px}.rv2-faqitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.rv2-faqbutton{border:0;background:#fff;width:100%;padding:16px;text-align:left;display:flex;justify-content:space-between;cursor:pointer;font-weight:700;font-size:12.5px}.rv2-answer{padding:0 16px 16px;color:var(--muted);font-size:11.5px;line-height:1.65}
+        .rv2-final{background:radial-gradient(circle at 50% 0,rgba(46,139,87,.3),transparent 43%),linear-gradient(135deg,#06100B,#10261A);color:#fff;text-align:center;padding:95px 0}.rv2-final h2{font:900 clamp(37px,5.4vw,61px) Fraunces;line-height:.98;letter-spacing:-.05em;max-width:780px;margin:0 auto 16px}.rv2-final p{max-width:590px;margin:auto;color:#8B9890;line-height:1.7;font-size:13px}.rv2-footer{text-align:center;padding:28px 0 90px;color:#89928D;font-size:10px}.rv2-mobile{display:none}
+        @media(max-width:900px){.rv2-hero-grid{grid-template-columns:1fr}.rv2-hero{text-align:center}.rv2-sub{margin:auto}.rv2-actions,.rv2-trust{justify-content:center}.rv2-command{transform:none}.rv2-items{grid-template-columns:repeat(2,1fr)}.rv2-plans{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto}.rv2-plan.featured{transform:none}.rv2-modules{grid-template-columns:repeat(3,1fr)}.rv2-navlinks a:not(.navcta){display:none}}
+        @media(max-width:620px){.rv2-shell{width:calc(100% - 28px)}.rv2-hero{padding:45px 0 75px}.rv2-h1{font-size:43px}.rv2-actions{flex-direction:column}.rv2-btn{width:100%}.rv2-proofbox{display:block;text-align:center}.rv2-proofstats{justify-content:center;margin-top:15px;gap:15px;flex-wrap:wrap}.rv2-section{padding:65px 0}.rv2-modules{grid-template-columns:repeat(2,1fr)}.rv2-items,.rv2-pain,.rv2-flow{grid-template-columns:1fr}.rv2-panelhead{display:block}.rv2-bignumber{grid-template-columns:1fr}.rv2-bignumber>div{border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}.rv2-mobile{display:flex;position:fixed;bottom:9px;left:9px;right:9px;z-index:50;background:rgba(255,255,255,.96);padding:7px;border:1px solid #DDE4DE;border-radius:13px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rv2-mobile a{width:100%;text-align:center;background:var(--g);color:#fff;padding:13px;border-radius:9px;font-size:12px;font-weight:800}.rv2-footer{padding-bottom:90px}}
       `}</style>
 
-      <div className="rv-topbar">
-        <div className="rv-shell rv-nav">
-          <a href="?" className="rv-logo">RECU<span style={{ color: "#FF7A00" }}>VENTE</span></a>
-          <div className="rv-nav-links">
-            <a href="#solution">Solution</a>
-            <a href="#fonctionnalites">Fonctionnalités</a>
-            <a href="#tarifs">Tarifs</a>
-            <a href="#faq">FAQ</a>
-            <a href="?login=1">Se connecter</a>
-            <a href="?auth=1" onClick={trackerInscription} className="rv-nav-cta">Essayer gratuitement</a>
-          </div>
+      <header className="rv2-nav">
+        <div className="rv2-shell rv2-nav-in">
+          <a href="?" className="rv2-logo">RECU<span>VENTE</span></a>
+          <nav className="rv2-navlinks">
+            <a href="#univers">Univers</a><a href="#fonctionnalites">Fonctionnalités</a><a href="#tarifs">Tarifs</a><a href="#faq">FAQ</a><a href="?login=1">Connexion</a>
+            <a className="navcta" href="?auth=1">Créer mon espace</a>
+          </nav>
         </div>
-      </div>
+      </header>
 
-      <section className="rv-hero">
-        <div className="rv-shell rv-hero-grid">
-          <div className="rv-hero-text">
-            <div className="rv-eyebrow"><span className="rv-eyebrow-dot" /> {c.eyebrow}</div>
-            <div style={{ marginTop: 14, display: "inline-flex", padding: 4, borderRadius: 999, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.08)" }}>
-              <button onClick={() => setProfil("cod")} style={{ border: 0, cursor: "pointer", borderRadius: 999, padding: "7px 11px", background: profil === "cod" ? "#fff" : "transparent", color: profil === "cod" ? "#0F172A" : "#fff", fontSize: 10.5, fontWeight: 700 }}>Vente en ligne / COD</button>
-              <button onClick={() => setProfil("retail")} style={{ border: 0, cursor: "pointer", borderRadius: 999, padding: "7px 11px", background: profil === "retail" ? "#fff" : "transparent", color: profil === "retail" ? "#0F172A" : "#fff", fontSize: 10.5, fontWeight: 700 }}>Boutique physique</button>
-            </div>
-            <h1 className="rv-display">{c.title}</h1>
-            <p className="rv-hero-sub">{c.subtitle}</p>
-            <div className="rv-hero-actions">
-              <a href="?auth=1" onClick={allerInscription} className="rv-btn-primary">🚀 Commencer gratuitement <span>→</span></a>
-              <a href="#fonctionnalites" className="rv-btn-ghost">Voir comment ça marche</a>
-            </div>
-            <div className="rv-trust">
-              <span>✓ <strong>7 jours d'essai</strong></span>
-              <span>✓ Sans carte bancaire</span>
-              <span>✓ Mise en route rapide</span>
-            </div>
+      <section className="rv2-hero">
+        <div className="rv2-shell rv2-hero-grid">
+          <div>
+            <div className="rv2-eyebrow"><span className="rv2-dot"/> UNE PLATEFORME. PLUSIEURS ACTIVITÉS. UN SEUL PILOTAGE.</div>
+            <h1 className="rv2-h1">Ton business ne devrait plus dépendre de <span>WhatsApp, Excel et ta mémoire.</span></h1>
+            <p className="rv2-sub">RecuVente réunit commandes, closing, livraison, expédition, clients, campagnes, retargeting, comptabilité, équipe et boutique en ligne — avec des espaces dédiés pour chaque rôle.</p>
+            <div className="rv2-actions">{cta("Découvrir RecuVente gratuitement")}<a href="#fonctionnalites" className="rv2-btn rv2-btn-dark">Voir tout ce que je peux faire →</a></div>
+            <div className="rv2-trust"><span>✓ <b>Un seul espace</b></span><span>✓ <b>Suivi de bout en bout</b></span><span>✓ <b>Conçu pour les réalités africaines</b></span></div>
           </div>
-
-          <div className="rv-dashboard-wrap">
-            <div className="rv-dashboard">
-              <div className="rv-dashboard-inner">
-                <div className="rv-dash-top">
-                  <div className="rv-dash-brand">RECU<span>VENTE</span></div>
-                  <div className="rv-avatar" />
+          <div className="rv2-command">
+            <div className="rv2-app">
+              <div className="rv2-appbar"><span style={{color:"#0F172A"}}>RECU<span>VENTE</span></span><span>Vue globale · Aujourd'hui</span></div>
+              <div className="rv2-appbody">
+                <div className="rv2-alert"><small>ARGENT À PILOTER</small><div className="rv2-money">1 240 500 <span>FCFA</span></div><div style={{fontSize:8,color:"#91A198",marginTop:3}}>Encaissements · livraisons · récupérations</div></div>
+                <div className="rv2-grid3">
+                  <div className="rv2-stat"><small>COMMANDES</small><b>148</b></div><div className="rv2-stat"><small>À LIVRER</small><b>23</b></div><div className="rv2-stat"><small>URGENTES</small><b>7</b></div>
                 </div>
-                <div className="rv-dash-body">
-                  <div className="rv-dash-greeting">Bonjour 👋 · Voici ce qui mérite ton attention</div>
-                  <div className="rv-dash-alert">
-                    <div className="rv-dash-alert-title">VUE FINANCIÈRE</div>
-                    <div className="rv-dash-alert-row">
-                      <div className="rv-dash-money">{c.dashboardMain} <small>FCFA</small><div style={{ font: "500 8px 'IBM Plex Sans'", color: "#94A79A", marginTop: 3 }}>{c.dashboardLabel}</div></div>
-                      <div className="rv-risk">⚠ 3 commandes à surveiller</div>
-                    </div>
-                  </div>
-                  <div className="rv-dash-cards">
-                    {c.cards.map((x, i) => (
-                      <div className="rv-dash-card" key={i}>
-                        <div className="rv-dash-card-label">{x[0]}</div>
-                        <div className="rv-dash-card-value">{x[1]}</div>
-                        <div className="rv-dash-card-note">{x[2]}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rv-dash-orders">
-                    <div className="rv-dash-orders-head"><span>Dernières commandes</span><span style={{ color: "#1A7A3C" }}>Voir tout →</span></div>
-                    {["Aminata K.", "Koffi Y.", "Fatou D."].map((name, i) => (
-                      <div className="rv-order" key={name}>
-                        <div><div className="rv-order-name">{name}</div><div className="rv-order-meta">{["15 000", "25 000", "18 500"][i]} FCFA · {["Abidjan", "Cocody", "Yopougon"][i]}</div></div>
-                        <div className="rv-order-status">{["Livrée ✓", "En livraison", "Confirmée"][i]}</div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="rv2-orders">
+                  <div style={{padding:"10px",fontSize:9,fontWeight:800}}>ACTIVITÉ EN DIRECT</div>
+                  {["Commande #1842 · Koffi Y.","Commande #1841 · Aminata K.","Commande #1840 · Fatou D.","Livreur A · 8 commandes"].map((x,i)=><div className="rv2-order" key={x}><span style={{background:"none",color:"#26382D",padding:0}}>{x}</span><span>{["Livrée ✓","Confirmée","À livrer","En tournée"][i]}</span></div>)}
                 </div>
               </div>
             </div>
-            <div style={{ position: "absolute", right: -8, bottom: 18, background: "#fff", color: "#183D25", border: "1px solid #DDE9DF", borderRadius: 12, padding: "10px 12px", boxShadow: "0 15px 35px rgba(0,0,0,.22)", fontSize: 9.5, fontWeight: 700 }}>
-              <span style={{ color: "#1A7A3C" }}>●</span> Argent + commandes + équipe
-            </div>
           </div>
         </div>
       </section>
 
-      <div className="rv-shell rv-proof-strip">
-        <div className="rv-proof-box">
-          <div className="rv-proof-copy"><strong>{c.proof}</strong><br />Une seule plateforme pour piloter ton activité au quotidien.</div>
-          {stats ? (
-            <div className="rv-proof-stats">
-              {stats.map(([value, label]) => <div className="rv-proof-stat" key={label}><strong>{value}</strong><span>{label}</span></div>)}
-            </div>
-          ) : (
-            <div className="rv-proof-stats">
-              <div className="rv-proof-stat"><strong>7 JOURS</strong><span>pour tester</span></div>
-              <div className="rv-proof-stat"><strong>1 ESPACE</strong><span>pour tout piloter</span></div>
-              <div className="rv-proof-stat"><strong>24/7</strong><span>accessible en ligne</span></div>
-            </div>
-          )}
+      <div className="rv2-shell rv2-proof">
+        <div className="rv2-proofbox">
+          <div><strong>Le plus important : tu retrouves enfin une vision globale.</strong><div style={{fontSize:10,color:"#89938D",marginTop:3}}>Et tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</div></div>
+          <div className="rv2-proofstats">
+            <div><strong>{statsPlateforme?.nb_commandes_confirmees ? Number(statsPlateforme.nb_commandes_confirmees).toLocaleString("fr-FR") : "360°"}</strong><span>vision commandes</span></div>
+            <div><strong>24/7</strong><span>accès en ligne</span></div>
+            <div><strong>1</strong><span>écosystème</span></div>
+          </div>
         </div>
       </div>
 
-      <section id="solution" className="rv-section">
-        <div className="rv-shell">
-          <div style={{ textAlign: "center" }}>
-            <div className="rv-kicker">Pourquoi RecuVente ?</div>
-            <h2 className="rv-section-title">{c.painTitle}<br /><span style={{ color: "#1A7A3C" }}>{c.painLead}</span></h2>
-            <p className="rv-section-lead">{c.solution}</p>
+      <section id="univers" className="rv2-section">
+        <div className="rv2-shell">
+          <div className="rv2-center"><div className="rv2-kicker">Ce n'est pas « juste un outil de livraison »</div><h2 className="rv2-title">C'est un <span>écosystème de gestion.</span></h2><p className="rv2-lead">Choisis un univers et découvre comment RecuVente peut accompagner une activité réelle, de l'acquisition jusqu'au suivi opérationnel.</p></div>
+          <div className="rv2-modules">
+            {Object.entries(modules).map(([key,m],i)=><button className={`rv2-module ${activeModule===key?"active":""}`} key={key} onClick={()=>setActiveModule(key)}><span className="rv2-module-icon">{["🛒","🎯","👥","🛍️","🏠","🍽️"][i]}</span>{m.label}</button>)}
           </div>
-
-          <div className="rv-pain-grid">
-            <div className="rv-pain-card bad">
-              <h3>Avant RecuVente</h3>
-              <p>Ton activité dépend de ta mémoire, de tes messages et de plusieurs fichiers.</p>
-              <div className="rv-list">
-                {["Commandes dispersées dans WhatsApp", "Calculs manuels et erreurs", "Difficile de savoir ce qu'un livreur doit déposer", "Bénéfice réel difficile à mesurer"].map(x => <div className="rv-list-item" key={x}><span className="rv-x">×</span>{x}</div>)}
-              </div>
-            </div>
-            <div className="rv-pain-card good">
-              <h3>Avec RecuVente</h3>
-              <p>Une seule source de vérité pour prendre de meilleures décisions.</p>
-              <div className="rv-list">
-                {["Commandes centralisées et recherchables", "Suivi des statuts et des paiements", "Livreurs, commissions et dépôts suivis", "Ventes, coûts et bénéfice mieux visibles"].map(x => <div className="rv-list-item" key={x}><span className="rv-check">✓</span>{x}</div>)}
-              </div>
-            </div>
+          <div className="rv2-modulepanel">
+            <div className="rv2-panelhead"><div><div className="rv2-kicker">{modules[activeModule].label}</div><h3>{modules[activeModule].title}</h3></div><p>{modules[activeModule].desc}</p></div>
+            <div className="rv2-items">{modules[activeModule].items.map(([icon,title,desc])=><div className="rv2-item" key={title}><div className="rv2-item-icon">{icon}</div><h4>{title}</h4><p>{desc}</p></div>)}</div>
           </div>
         </div>
       </section>
 
-      <section id="fonctionnalites" className="rv-section rv-section-soft">
-        <div className="rv-shell">
-          <div style={{ textAlign: "center" }}>
-            <div className="rv-kicker">Une plateforme. Tout ton business.</div>
-            <h2 className="rv-section-title">Plus besoin de jongler<br />entre 5 outils.</h2>
-            <p className="rv-section-lead">RecuVente rassemble les opérations essentielles dans une expérience pensée pour les réalités du commerce africain.</p>
+      <section id="fonctionnalites" className="rv2-section rv2-dark">
+        <div className="rv2-shell">
+          <div className="rv2-center"><div className="rv2-kicker">Le niveau de contrôle</div><h2 className="rv2-title">Chaque détail compte.<br/><span>RecuVente le garde.</span></h2><p className="rv2-lead">Tu peux partir d'une vue globale puis descendre jusqu'à la moindre information qui explique ce qui s'est passé.</p></div>
+          <div className="rv2-flow">
+            {[["01","Acquisition","Campagne → boutique → pixel → commande."],["02","Closing","Appel → confirmation → qualification → attribution."],["03","Livraison","Livreur → tournée → livré/non livré → dépôt."],["04","Fidélisation","Historique → segmentation → WhatsApp → retargeting."]].map(x=><div className="rv2-flowitem" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}
           </div>
-          <div className="rv-feature-grid">
-            {c.features.map((f) => (
-              <div className="rv-feature" key={f.title}>
-                <div className="rv-feature-icon">{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.desc}</p>
-              </div>
-            ))}
+          <div className="rv2-bignumber">
+            <div><div className="rv2-big">Commande → Client</div><p>Retrouve le client, son historique, les appels, le statut, le produit, le livreur et le résultat de la livraison.</p></div>
+            <div><div className="rv2-big">Livreur → Argent</div><p>Vois ce que chaque livreur a reçu, livré, non livré et ce qu'il doit déposer. La comptabilité opérationnelle devient lisible.</p></div>
           </div>
         </div>
       </section>
 
-      <section className="rv-section rv-section-dark">
-        <div className="rv-shell">
-          <div className="rv-showcase">
-            <div className="rv-showcase-copy">
-              <div className="rv-kicker">De la commande à l'encaissement</div>
-              <h3>Ton activité devient enfin lisible.</h3>
-              <p>Chaque personne de ton équipe travaille avec les mêmes informations. Chaque étape laisse une trace. Et toi, tu peux piloter au lieu de courir derrière les informations.</p>
-              <div className="rv-mini-flow">
-                {[
-                  ["01", "Commande", "La commande entre dans RecuVente."],
-                  ["02", "Confirmation", "Ton équipe traite et suit le client."],
-                  ["03", "Livraison", "Le livreur reçoit et exécute sa tournée."],
-                  ["04", "Encaissement", "Tu vois ce qui est réellement payé."],
-                ].map(x => <div className="rv-mini-flow-item" key={x[0]}><div className="rv-mini-number">{x[0]}</div><div><strong>{x[1]}</strong><span>{x[2]}</span></div></div>)}
-              </div>
-            </div>
-            <div className="rv-screen-stack">
-              <div className="rv-screen two"><div className="rv-screen-inner"><div className="rv-screen-line short" /><div className="rv-screen-line" /><div className="rv-screen-grid"><div className="rv-screen-box"><strong>23</strong><small>À livrer</small></div><div className="rv-screen-box"><strong>18</strong><small>À récupérer</small></div></div></div></div>
-              <div className="rv-screen one"><div className="rv-screen-inner"><div className="rv-screen-line short" /><div className="rv-screen-line" /><div className="rv-screen-grid"><div className="rv-screen-box"><strong>1,24M</strong><small>FCFA encaissés</small></div><div className="rv-screen-box"><strong>87%</strong><small>Taux de récupération</small></div><div className="rv-screen-box"><strong>148</strong><small>Commandes</small></div><div className="rv-screen-box"><strong>12</strong><small>Livreurs</small></div></div></div></div>
-            </div>
+      <section className="rv2-section rv2-soft">
+        <div className="rv2-shell">
+          <div className="rv2-center"><div className="rv2-kicker">Pourquoi les équipes perdent de l'argent</div><h2 className="rv2-title">Le problème n'est pas toujours<br/>le manque de ventes.</h2><p className="rv2-lead">C'est le manque de traçabilité entre ce qui a été vendu, confirmé, remis, livré et encaissé.</p></div>
+          <div className="rv2-pain">
+            <div className="rv2-card bad"><h3>Sans système central</h3><p>Les informations se dispersent entre messages, appels, carnets et fichiers.</p><div className="rv2-list">{["Un doublon passe entre les mailles","Un faux numéro fait perdre du temps","On ne sait plus ce que le livreur a réellement reçu","Une commande échouée disparaît dans le flux","Le client veut demain mais personne ne reprogramme","Le chiffre d'affaires ne raconte pas toute l'histoire"].map(x=><div key={x}><i style={{color:"#C94C38"}}>×</i>{x}</div>)}</div></div>
+            <div className="rv2-card good"><h3>Avec RecuVente</h3><p>Chaque étape devient une information exploitable et chaque rôle sait quoi faire.</p><div className="rv2-list">{["Détection des commandes doubles/suspectes","Qualification précise des appels","Traçabilité closing → livreur → client","Commandes validées, échouées et reprogrammées","Urgences du jour visibles le matin","Vue globale + détail quand tu en as besoin"].map(x=><div key={x}><i style={{color:"#1A7A3C"}}>✓</i>{x}</div>)}</div></div>
           </div>
         </div>
       </section>
 
-      <section className="rv-section">
-        <div className="rv-shell">
-          <div style={{ textAlign: "center" }}>
-            <div className="rv-kicker">Le changement</div>
-            <h2 className="rv-section-title">Passe de « je crois que ça marche »<br />à <span style={{ color: "#1A7A3C" }}>« je sais où j'en suis ».</span></h2>
-          </div>
-          <div className="rv-comparison">
-            <div className="rv-comparison-row rv-comparison-head">
-              <div>Situation</div><div>WhatsApp + Excel</div><div>RecuVente</div>
-            </div>
-            {[
-              ["Retrouver une commande", "Chercher dans les messages", "Recherche centralisée"],
-              ["Suivre une livraison", "Appeler le livreur", "Statut et suivi"],
-              ["Connaître le montant à déposer", "Calcul manuel", "Montant calculé"],
-              ["Voir le bénéfice réel", "Tableurs et estimations", "Vue financière"],
-              ["Gérer une équipe", "Informations dispersées", "Rôles et espace partagé"],
-              ["Vendre en ligne", "Outil supplémentaire", "Boutique publique incluse"],
-            ].map(row => <div className="rv-comparison-row" key={row[0]}><div>{row[0]}</div><div>× {row[1]}</div><div>✓ {row[2]}</div></div>)}
+      <section id="tarifs" className="rv2-section rv2-pricing">
+        <div className="rv2-shell">
+          <div className="rv2-center"><div className="rv2-kicker">Grandir sans changer de système</div><h2 className="rv2-title">Choisis ton niveau.<br/><span>Construis le tien.</span></h2><p className="rv2-lead">Commence avec les fonctions adaptées à ton activité et évolue avec RecuVente.</p></div>
+          <div className="rv2-plans">
+            {plans.map((p,i)=><div className={`rv2-plan ${i===1?"featured":""}`} key={p.id}>{i===1&&<div className="rv2-badge">LE PLUS CHOISI</div>}<h3>{p.nom}</h3><div className="rv2-price">{Number(p.prix).toLocaleString("fr-FR")} <small>{p.devise}/mois</small></div><ul><li>Gestion des commandes</li><li>Clients & produits</li><li>{p.max_membres ? `${p.max_membres} membres max` : "Membres selon le plan"}</li><li>Tableau de bord</li><li>Évolution selon le plan</li></ul><a href="?auth=1">Commencer</a></div>)}
           </div>
         </div>
       </section>
 
-      <section className="rv-section rv-section-soft">
-        <div className="rv-shell">
-          <div style={{ textAlign: "center" }}>
-            <div className="rv-kicker">Simple à démarrer</div>
-            <h2 className="rv-section-title">Ton premier espace peut être prêt<br />en quelques minutes.</h2>
-          </div>
-          <div className="rv-steps">
-            {[
-              ["01", "Crée ton espace", "Inscris-toi avec ton email et crée ton espace de travail."],
-              ["02", "Configure ton activité", "Choisis ton profil et commence à ajouter tes produits, commandes ou ton équipe."],
-              ["03", "Pilote ton business", "Utilise ton tableau de bord pour suivre les commandes, l'activité et l'argent."],
-            ].map(x => <div className="rv-step" key={x[0]}><div className="rv-step-number">{x[0]}</div><h3>{x[1]}</h3><p>{x[2]}</p></div>)}
-          </div>
-          <div style={{ textAlign: "center", marginTop: 30 }}>
-            <a href="?auth=1" onClick={allerInscription} className="rv-btn-primary">Créer mon espace gratuitement →</a>
-          </div>
-        </div>
+      <section id="faq" className="rv2-section rv2-soft">
+        <div className="rv2-shell"><div className="rv2-center"><div className="rv2-kicker">FAQ</div><h2 className="rv2-title">Une question ? <span>Une réponse.</span></h2></div><div className="rv2-faq">{faqs.map(([q,a],i)=><div className="rv2-faqitem" key={q}><button className="rv2-faqbutton" onClick={()=>setFaqOuverte(faqOuverte===i?null:i)}><span>{q}</span><span>{faqOuverte===i?"−":"+"}</span></button>{faqOuverte===i&&<div className="rv2-answer">{a}</div>}</div>)}</div></div>
       </section>
 
-      <section className="rv-section">
-        <div className="rv-shell">
-          <div style={{ textAlign: "center" }}>
-            <div className="rv-kicker">Tu hésites encore ?</div>
-            <h2 className="rv-section-title">Les questions que tu te poses<br />avant de commencer.</h2>
-          </div>
-          <div className="rv-objections">
-            {objections.map(([q, a]) => <div className="rv-objection" key={q}><strong>{q}</strong><span>{a}</span></div>)}
-          </div>
-        </div>
+      <section className="rv2-final">
+        <div className="rv2-shell"><div className="rv2-kicker">Le prochain niveau</div><h2>Tu n'as pas besoin de plus d'outils.<br/>Tu as besoin d'un <span style={{color:"#82D69E"}}>système.</span></h2><p>Centralise ton activité, donne à chaque membre son espace, retrouve chaque commande et transforme tes données clients en nouvelles opportunités.</p>{cta("Créer mon espace RecuVente →")}<div style={{fontSize:9,color:"#697970",marginTop:12}}>Commandes · Closing · Livraison · Campagnes · Retargeting · Boutique · Immobilier · Restaurant</div></div>
       </section>
 
-      {plans.length > 0 && (
-        <section id="tarifs" className="rv-section rv-pricing">
-          <div className="rv-shell">
-            <div style={{ textAlign: "center" }}>
-              <div className="rv-kicker">Des plans qui suivent ta croissance</div>
-              <h2 className="rv-section-title">Commence petit.<br /><span style={{ color: "#1A7A3C" }}>Grandis sans changer d'outil.</span></h2>
-              <p className="rv-section-lead">Teste RecuVente pendant 7 jours. Choisis ensuite le plan qui correspond à ton activité.</p>
-            </div>
-            <div className="rv-pricing-grid">
-              {plans.map((p, i) => {
-                const featured = i === 1;
-                const max = p.max_commandes_mois ? `${p.max_commandes_mois.toLocaleString("fr-FR")} commandes/mois` : "Commandes illimitées";
-                const members = p.max_membres ? `${p.max_membres} membres max` : "Membres illimités";
-                const featureList = [
-                  max,
-                  members,
-                  "Gestion des commandes",
-                  "Clients & produits",
-                  i > 0 ? "Équipe & livreurs" : "Fonctions essentielles",
-                  i > 1 ? "Fonctions avancées" : "Tableau de bord",
-                ];
-                return (
-                  <div className={`rv-plan ${featured ? "featured" : ""}`} key={p.id}>
-                    {featured && <div className="rv-plan-badge">LE PLUS CHOISI</div>}
-                    <div className="rv-plan-name">{p.nom}</div>
-                    <div className="rv-plan-price">{Number(p.prix).toLocaleString("fr-FR")} <span>{p.devise}/mois</span></div>
-                    <div className="rv-plan-desc">{featured ? "Pour les équipes qui veulent vraiment structurer leur activité." : "Pour démarrer avec une gestion simple et efficace."}</div>
-                    <div className="rv-plan-list">
-                      {featureList.map(item => <div key={item}><span style={{ color: "#1A7A3C", fontWeight: 800 }}>✓</span>{item}</div>)}
-                    </div>
-                    <a href="?auth=1" onClick={allerInscription} className={`rv-plan-btn ${featured ? "primary" : "secondary"}`}>Commencer l'essai gratuit</a>
-                    <div className="rv-plan-note">7 jours · sans carte bancaire</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section id="faq" className="rv-section rv-section-soft">
-        <div className="rv-shell">
-          <div style={{ textAlign: "center" }}>
-            <div className="rv-kicker">FAQ</div>
-            <h2 className="rv-section-title">Pas de zone grise.</h2>
-            <p className="rv-section-lead">Voici les réponses aux questions les plus importantes avant de te lancer.</p>
-          </div>
-          <div className="rv-faq">
-            {faq.map(([q, r], i) => (
-              <div className="rv-faq-item" key={q}>
-                <button className="rv-faq-btn" onClick={() => setFaqOuverte(faqOuverte === i ? null : i)}>
-                  <span>{q}</span><span style={{ color: "#1A7A3C", fontSize: 18 }}>{faqOuverte === i ? "−" : "+"}</span>
-                </button>
-                {faqOuverte === i && <div className="rv-faq-answer">{r}</div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="rv-final">
-        <div className="rv-shell">
-          <div className="rv-kicker">Le prochain niveau commence ici</div>
-          <h2 className="rv-display">Ton business mérite un système, pas un bricolage.</h2>
-          <p>Crée ton espace RecuVente, teste pendant 7 jours et découvre ce que ça change lorsque toutes tes opérations sont enfin au même endroit.</p>
-          <a href="?auth=1" onClick={allerInscription} className="rv-btn-primary">🚀 Créer mon espace gratuitement</a>
-          <div className="rv-final-note">7 jours d'essai · Sans carte bancaire · Tes données restent dans ton espace</div>
-        </div>
-      </section>
-
-      <footer className="rv-footer">
-        <div className="rv-shell">
-          <div>RecuVente — Le système de pilotage de ton commerce</div>
-          <div className="rv-footer-links">
-            <a href="?page=impact">Rapport d'impact</a>
-            <a href="?page=cgu">Conditions d'utilisation</a>
-            <a href="?page=confidentialite">Confidentialité</a>
-          </div>
-        </div>
-      </footer>
-
-      <div className="rv-mobile-cta">
-        <a href="?auth=1" onClick={allerInscription}>🚀 Commencer gratuitement</a>
-      </div>
+      <footer className="rv2-footer">RecuVente — Un seul écosystème pour piloter plusieurs activités.<br/><a href="?page=cgu" style={{color:"#89928D",textDecoration:"underline"}}>Conditions</a> · <a href="?page=confidentialite" style={{color:"#89928D",textDecoration:"underline"}}>Confidentialité</a></footer>
+      <div className="rv2-mobile"><a href="?auth=1">🚀 Commencer avec RecuVente</a></div>
     </div>
   );
 }

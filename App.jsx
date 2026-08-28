@@ -908,6 +908,98 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
   );
 }
 
+function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
+  const nonTraitees = todoAujourdhui.total;
+  const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
+  const aRisque = todoAujourdhui.sansNouvelles.length;
+  const echouees = todoAujourdhui.jamaisContactees.filter((c) => c.statut === "echouee").length
+    + todoAujourdhui.sansNouvelles.filter((c) => c.statut === "echouee").length
+    + todoAujourdhui.aRelivrer.filter((c) => c.statut === "echouee").length;
+  const recuperables = Math.max(0, nonTraitees - jamaisRappeles);
+
+  const potentielTotal = todoAujourdhui.argentARisque + todoAujourdhui.argentRecuperable;
+
+  const livreurAControler = [...depotsParLivreur].sort((a, b) => b.aDeposer - a.aDeposer)[0];
+
+  const etapes = [
+    { label: `${nonTraitees} commande${nonTraitees > 1 ? "s" : ""} non traitée${nonTraitees > 1 ? "s" : ""}`, valeur: nonTraitees },
+    { label: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s" : ""} jamais rappelé${jamaisRappeles > 1 ? "s" : ""}`, valeur: jamaisRappeles },
+    { label: `${aRisque} commande${aRisque > 1 ? "s" : ""} à risque`, valeur: aRisque },
+    { label: `${echouees} livraison${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""}`, valeur: echouees },
+    { label: `${recuperables} client${recuperables > 1 ? "s" : ""} récupérable${recuperables > 1 ? "s" : ""}`, valeur: recuperables },
+  ].filter((e) => e.valeur > 0);
+
+  const actions = [];
+  if (jamaisRappeles > 0) {
+    actions.push({ num: "01", titre: "RAPPELER", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
+  }
+  if (echouees > 0) {
+    actions.push({ num: "02", titre: "RÉCUPÉRER", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
+  }
+  if (livreurAControler && livreurAControler.aDeposer > 0) {
+    actions.push({ num: "03", titre: "CONTRÔLER", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
+  }
+  if (clientsARelancer.length > 0) {
+    actions.push({ num: "04", titre: "RELANCER", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
+  }
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      {etapes.length > 0 && (
+        <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 16, padding: "18px 20px", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#f0a0a0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 12 }}>
+            🔴 Argent en train de se perdre — aujourd'hui
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {etapes.map((e, i) => (
+              <div key={i}>
+                <div style={{ color: "white", fontSize: 13, fontWeight: 600, padding: "4px 0" }}>{e.label}</div>
+                {i < etapes.length - 1 && <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, paddingLeft: 4 }}>↓</div>}
+              </div>
+            ))}
+          </div>
+
+          {potentielTotal > 0 && (
+            <>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "14px 0 12px" }} />
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>💰 Potentiel à récupérer</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: "#e8920a", marginTop: 3, marginBottom: 12 }}>
+                {potentielTotal.toLocaleString("fr-FR")} {currency}
+              </div>
+              <button onClick={onVoirRecovery} style={{ width: "100%", background: "#e8920a", color: "#16231F", border: "none", borderRadius: 9, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                RÉCUPÉRER CES VENTES →
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {actions.length > 0 && (
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: "18px 20px" }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>🎯 Ton business aujourd'hui</div>
+          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>
+            {actions.length} action{actions.length > 1 ? "s" : ""} prioritaire{actions.length > 1 ? "s" : ""} à traiter
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {actions.map((a) => (
+              <div key={a.num} style={{ borderLeft: `3px solid ${a.couleur}`, paddingLeft: 12 }}>
+                <div style={{ fontSize: 10.5, color: a.couleur, fontWeight: 700, letterSpacing: "0.03em" }}>{a.num} — {a.titre}</div>
+                <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 2 }}>{a.desc}</div>
+                {a.potentiel > 0 && (
+                  <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>Potentiel : {a.potentiel.toLocaleString("fr-FR")} {currency}</div>
+                )}
+                <button onClick={a.action} style={{ marginTop: 6, background: a.couleur, color: "white", border: "none", borderRadius: 7, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
+                  {a.bouton}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCritique, meilleurLivreur, beneficeReel, currency, onVoirAujourdhui }) {
   const lignes = [];
 
@@ -2547,6 +2639,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 ))}
               </div>
             </div>
+          )}
+
+          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0)) && (
+            <RadarDesFuitesEtActions
+              todoAujourdhui={todoAujourdhui}
+              clientsARelancer={clientsARelancer}
+              depotsParLivreur={depotsParLivreur}
+              currency={workspace.currency}
+              onVoirRecovery={() => setVue("recovery")}
+              onVoirCompta={() => setVue("compta")}
+              onVoirClients={() => setVue("clients")}
+            />
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>

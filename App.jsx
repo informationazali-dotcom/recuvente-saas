@@ -896,7 +896,7 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
   );
 }
 
-function RVStoreBuilder({ workspace, produits = [], onClose }) {
+function RVStoreBuilder({ workspace, produits = [], clients = [], onClose }) {
   const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
   const activityType = workspace?.activity_type || 'cod_ecommerce';
   const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
@@ -931,7 +931,7 @@ function RVStoreBuilder({ workspace, produits = [], onClose }) {
     sections:activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer'],
     bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}]
   };
-  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null'); const merged=saved&&typeof saved==='object'?{...defaults,...saved}:defaults; return {...merged, sections:Array.isArray(merged.sections)?merged.sections.filter(x=>typeof x==='string'):defaults.sections, bundles:Array.isArray(merged.bundles)?merged.bundles:defaults.bundles, selectedProductIds:Array.isArray(merged.selectedProductIds)?merged.selectedProductIds:[], selectedCollectionIds:Array.isArray(merged.selectedCollectionIds)?merged.selectedCollectionIds:[], gallery:Array.isArray(merged.gallery)?merged.gallery:[]};}catch(_){return defaults}});
+  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}});
   const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
   const [collections,setCollections]=useState([]);
   useEffect(()=>{let alive=true;(async()=>{if(!workspace?.id)return;const {data}=await supabase.from('collections').select('*').eq('workspace_id',workspace.id).order('ordre',{ascending:true});if(alive)setCollections(data||[]);})();return()=>{alive=false}},[workspace?.id]);
@@ -3157,7 +3157,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
-      {showStoreBuilder && <RVStoreBuilder workspace={workspace} produits={produits} onClose={() => setShowStoreBuilder(false)} />}
+      {showStoreBuilder && <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} onClose={() => setShowStoreBuilder(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}

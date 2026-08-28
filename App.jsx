@@ -252,12 +252,6 @@ export default function App() {
   if (pageParam === "cgu" || pageParam === "confidentialite") return <PageLegale page={pageParam} />;
   if (pageParam === "impact") return <PageImpact />;
 
-  const boutiqueParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("boutique") : null;
-  if (boutiqueParam) return <PublicStorefront workspaceId={boutiqueParam} />;
-
-  const centreParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("centre") : null;
-  if (centreParam === "commandes" && workspace) return <CommerceCommandCenter workspace={workspace} session={session} />;
-
   if (!session) {
     const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
     const wantsLogin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1";
@@ -268,9 +262,6 @@ export default function App() {
 
   const isAdminRoute = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
   if (isAdminRoute) return <AdminPanel session={session} />;
-
-  const builderParam = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("builder") === "1";
-  if (builderParam && workspace) return <RVStoreBuilder workspace={workspace} session={session} />;
 
   if (workspace === undefined) return <Centered>Chargement de ton espace…</Centered>;
   if (workspace === null) return <CreateWorkspaceScreen onCreate={creerWorkspace} loading={loadingWorkspace} />;
@@ -294,421 +285,6 @@ export default function App() {
       )}
     </>
   );
-}
-
-
-
-/* ================================================================
-   RECUVENTE — STORE BUILDER / CORE COMMERCIAL V1
-   - Sections réellement ajoutables, supprimables, déplaçables
-   - Brouillon / publication via storefront_configs
-   - Collections + sélection massive de produits
-   - Sections Best-sellers / Nouveautés / Promotions / Catalogue
-   - Bundles par produit
-   - Livraison générale + exceptions par produit
-   - Header / Footer / FAQ / Avis modifiables
-   - Aperçu mobile / tablette / desktop
-   ================================================================ */
-
-const RV_STORE_DEFAULT_SECTIONS = [
-  { id: crypto.randomUUID?.() || String(Date.now()), type: "hero", title: "Hero / couverture", enabled: true, height: 520, data: { image: "", eyebrow: "NOUVEAU", heading: "Une boutique qui donne envie d'acheter", text: "Présente ton offre avec une expérience moderne, rapide et pensée pour le mobile.", button: "Commander maintenant" } },
-  { id: crypto.randomUUID?.() || String(Date.now()+1), type: "collections", title: "Collections", enabled: true, height: 360, data: { collectionIds: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+2), type: "best_sellers", title: "Best-sellers", enabled: true, height: 500, data: { mode: "collection", collectionId: "", productIds: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+3), type: "new_arrivals", title: "Nouveautés", enabled: true, height: 500, data: { mode: "collection", collectionId: "", productIds: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+4), type: "promotions", title: "Promotions", enabled: true, height: 500, data: { mode: "collection", collectionId: "", productIds: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+5), type: "catalogue", title: "Nos produits", enabled: true, height: 600, data: { mode: "all", productIds: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+6), type: "image_text", title: "Image + texte", enabled: true, height: 420, data: { image: "", heading: "Une expérience pensée pour tes clients", text: "Explique ici ton avantage, ta promesse ou ton histoire.", button: "En savoir plus", imageSide: "left" } },
-  { id: crypto.randomUUID?.() || String(Date.now()+7), type: "before_after", title: "Avant / Après", enabled: true, height: 440, data: { before: "", after: "", heading: "Le changement en un coup d'œil" } },
-  { id: crypto.randomUUID?.() || String(Date.now()+8), type: "reviews", title: "Avis clients", enabled: true, height: 440, data: { heading: "Ils nous font confiance", items: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+9), type: "faq", title: "FAQ", enabled: true, height: 440, data: { heading: "Questions fréquentes", items: [] } },
-  { id: crypto.randomUUID?.() || String(Date.now()+10), type: "cta", title: "Appel à l'action", enabled: true, height: 300, data: { heading: "Prêt à passer à l'action ?", text: "Commande maintenant directement depuis cette boutique.", button: "Commander" } },
-  { id: crypto.randomUUID?.() || String(Date.now()+11), type: "footer", title: "Footer", enabled: true, height: 330, data: { description: "", phone: "", whatsapp: "", facebook: "", instagram: "", tiktok: "", delivery: "Livraison rapide et paiement à la livraison.", returns: "Retours selon les conditions de la boutique.", privacy: "Tes données sont utilisées uniquement pour traiter ta commande." } }
-];
-
-const RV_SECTION_LIBRARY = [
-  ["announcement", "📣 Barre d'annonce"], ["hero", "🖼️ Hero / couverture"], ["collections", "🗂️ Collections"],
-  ["best_sellers", "🔥 Best-sellers"], ["new_arrivals", "✨ Nouveautés"], ["promotions", "🏷️ Promotions"],
-  ["catalogue", "🛍️ Catalogue produits"], ["image_text", "🖼️ Image + texte"], ["before_after", "↔️ Avant / Après"],
-  ["reviews", "⭐ Avis clients"], ["faq", "❓ FAQ"], ["trust", "🛡️ Réassurance"], ["cta", "🎯 Appel à l'action"], ["footer", "🦶 Footer"]
-];
-
-function rvNewSection(type) {
-  const id = (crypto.randomUUID?.() || `sec_${Date.now()}_${Math.random().toString(36).slice(2)}`);
-  const base = { id, type, title: RV_SECTION_LIBRARY.find(x => x[0] === type)?.[1]?.replace(/^\S+\s/, "") || "Section", enabled: true, height: type === "footer" ? 330 : 420, data: {} };
-  if (type === "hero") base.data = { image:"", eyebrow:"", heading:"Ta promesse principale", text:"Présente ton offre ici.", button:"Commander" };
-  if (type === "collections") base.data = { collectionIds:[] };
-  if (["best_sellers","new_arrivals","promotions"].includes(type)) base.data = { mode:"collection", collectionId:"", productIds:[] };
-  if (type === "catalogue") base.data = { mode:"all", productIds:[] };
-  if (type === "image_text") base.data = { image:"", heading:"Titre de la section", text:"Ton texte ici.", button:"En savoir plus", imageSide:"left" };
-  if (type === "before_after") base.data = { before:"", after:"", heading:"Avant / Après" };
-  if (type === "reviews") base.data = { heading:"Ils nous font confiance", items:[{name:"Client",rating:5,text:"Excellent produit et service."}] };
-  if (type === "faq") base.data = { heading:"Questions fréquentes", items:[{q:"Comment commander ?",a:"Choisis ton produit, renseigne tes coordonnées et confirme ta commande."}] };
-  if (type === "cta") base.data = { heading:"Prêt à commander ?", text:"Passe ta commande maintenant.", button:"Commander" };
-  if (type === "trust") base.data = { heading:"Pourquoi commander chez nous ?", items:["Paiement à la livraison","Livraison rapide","Service client disponible"] };
-  if (type === "announcement") base.data = { text:"Livraison partout selon les zones disponibles." };
-  if (type === "footer") base.data = { description:"", phone:"", whatsapp:"", facebook:"", instagram:"", tiktok:"", delivery:"", returns:"", privacy:"" };
-  return base;
-}
-
-function RVField({ label, children }) {
-  return <label style={{display:"block",marginBottom:13}}><div style={{fontSize:10,fontWeight:900,textTransform:"uppercase",letterSpacing:0.5,color:"#6d756f",marginBottom:6}}>{label}</div>{children}</label>;
-}
-const rvInput = {width:"100%",boxSizing:"border-box",border:"1px solid #dce4df",borderRadius:10,padding:"11px 12px",fontSize:13,background:"#fff",outline:"none"};
-
-function RVImageUpload({ label, value, onChange, workspaceId, multiple=false }) {
-  const [busy,setBusy]=useState(false);
-  async function upload(e){
-    const files=[...(e.target.files||[])]; if(!files.length) return;
-    setBusy(true);
-    try {
-      const urls=[];
-      for(const file of files){
-        if(file.size>8*1024*1024){ alert("Image trop lourde : maximum 8 Mo."); continue; }
-        const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
-        const path=`storefront/${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const {error}=await supabase.storage.from("boutique").upload(path,file,{upsert:true});
-        if(error) throw error;
-        urls.push(supabase.storage.from("boutique").getPublicUrl(path).data.publicUrl);
-      }
-      onChange(multiple ? [...(Array.isArray(value)?value:[]),...urls] : (urls[0]||value));
-    } catch(e){ alert("Erreur upload : "+e.message); } finally {setBusy(false);}
-  }
-  return <div>
-    <label style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:46,border:"1px dashed #bfcac3",borderRadius:10,cursor:"pointer",background:"#f8faf9",fontSize:12,fontWeight:800,color:"#2d5d45"}}>
-      <input type="file" accept="image/*" multiple={multiple} onChange={upload} style={{display:"none"}} />{busy?"⏳ Upload...":"📤 "+label}
-    </label>
-    {multiple && Array.isArray(value) && value.length>0 && <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginTop:8}}>{value.map((u,i)=><div key={i} style={{position:"relative"}}><img src={u} style={{width:"100%",height:70,objectFit:"cover",borderRadius:8}}/><button onClick={()=>onChange(value.filter((_,j)=>j!==i))} style={{position:"absolute",right:3,top:3,border:0,borderRadius:99,background:"#fff",cursor:"pointer"}}>×</button></div>)}</div>}
-    {!multiple && value && <img src={value} alt="" style={{width:"100%",height:130,objectFit:"cover",borderRadius:10,marginTop:8}}/>}
-  </div>;
-}
-
-function RVProductPicker({ produits, selected, setSelected, allMode=false }) {
-  const ids=new Set(selected||[]);
-  function toggle(id){ const n=new Set(ids); n.has(id)?n.delete(id):n.add(id); setSelected([...n]); }
-  return <div style={{border:"1px solid #dfe7e2",borderRadius:12,overflow:"hidden"}}>
-    <div style={{padding:10,background:"#f6f9f7",display:"flex",gap:7,flexWrap:"wrap"}}>
-      <button onClick={()=>setSelected(produits.map(p=>p.id))} style={{...rvBtnSecondary}}>Tout sélectionner</button>
-      <button onClick={()=>setSelected([])} style={{...rvBtnSecondary}}>Tout retirer</button>
-      <span style={{marginLeft:"auto",fontSize:11,fontWeight:900,alignSelf:"center"}}>{allMode?produits.length:ids.size} produit(s)</span>
-    </div>
-    <div style={{maxHeight:310,overflowY:"auto"}}>{produits.map(p=><label key={p.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",borderTop:"1px solid #eef2ef",cursor:"pointer"}}>
-      <input type="checkbox" checked={ids.has(p.id)} onChange={()=>toggle(p.id)} />
-      {p.photo_url?<img src={p.photo_url} style={{width:42,height:42,objectFit:"cover",borderRadius:7}}/>:<div style={{width:42,height:42,borderRadius:7,background:"#edf2ee"}}/>}
-      <div style={{minWidth:0,flex:1}}><div style={{fontWeight:850,fontSize:12}}>{p.nom}</div><div style={{fontSize:10,color:"#77817a"}}>{p.prix_vente?Number(p.prix_vente).toLocaleString("fr-FR"):"Prix non renseigné"}</div></div>
-    </label>)}</div>
-  </div>;
-}
-
-function RVSectionEditor({ section, setSection, produits, collections, workspaceId }) {
-  const d=section.data||{};
-  const patch=(x)=>setSection({...section,data:{...d,...x}});
-  const picker=(ids)=> <RVProductPicker produits={produits} selected={ids} setSelected={v=>patch({productIds:v})}/>;
-  return <div>
-    <RVField label="Nom de la section"><input style={rvInput} value={section.title||""} onChange={e=>setSection({...section,title:e.target.value})}/></RVField>
-    <RVField label="Hauteur de la section"><input type="range" min="180" max="900" value={section.height||420} onChange={e=>setSection({...section,height:Number(e.target.value)})} style={{width:"100%"}}/><div style={{fontSize:10,color:"#758078"}}>{section.height}px — glisse au doigt sur mobile</div></RVField>
-    {section.type==="announcement" && <RVField label="Texte"><input style={rvInput} value={d.text||""} onChange={e=>patch({text:e.target.value})}/></RVField>}
-    {section.type==="hero" && <>
-      <RVImageUpload label="Télécharger la couverture" value={d.image} onChange={v=>patch({image:v})} workspaceId={workspaceId}/>
-      <RVField label="Petit texte"><input style={rvInput} value={d.eyebrow||""} onChange={e=>patch({eyebrow:e.target.value})}/></RVField>
-      <RVField label="Titre"><input style={rvInput} value={d.heading||""} onChange={e=>patch({heading:e.target.value})}/></RVField>
-      <RVField label="Description"><textarea style={{...rvInput,minHeight:90}} value={d.text||""} onChange={e=>patch({text:e.target.value})}/></RVField>
-      <RVField label="Bouton"><input style={rvInput} value={d.button||""} onChange={e=>patch({button:e.target.value})}/></RVField>
-    </>}
-    {section.type==="collections" && <RVField label="Collections affichées"><div style={{border:"1px solid #dfe7e2",borderRadius:10,padding:8,maxHeight:260,overflow:"auto"}}>{collections.map(c=><label key={c.id} style={{display:"flex",gap:8,padding:8,fontSize:12}}><input type="checkbox" checked={(d.collectionIds||[]).includes(c.id)} onChange={()=>{const a=new Set(d.collectionIds||[]);a.has(c.id)?a.delete(c.id):a.add(c.id);patch({collectionIds:[...a]})}}/>{c.nom}</label>)}</div></RVField>}
-    {["best_sellers","new_arrivals","promotions"].includes(section.type) && <>
-      <RVField label="Source"><select style={rvInput} value={d.mode||"collection"} onChange={e=>patch({mode:e.target.value})}><option value="collection">Une collection</option><option value="manual">Sélection manuelle</option></select></RVField>
-      {d.mode==="collection" ? <RVField label="Collection"><select style={rvInput} value={d.collectionId||""} onChange={e=>patch({collectionId:e.target.value})}><option value="">Choisir une collection</option>{collections.map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</select></RVField> : <RVField label="Produits">{picker(d.productIds||[])}</RVField>}
-    </>}
-    {section.type==="catalogue" && <>
-      <RVField label="Afficher"><select style={rvInput} value={d.mode||"all"} onChange={e=>patch({mode:e.target.value})}><option value="all">Tout le catalogue</option><option value="manual">Sélection manuelle</option></select></RVField>
-      {d.mode==="manual" && <RVField label="Produits">{picker(d.productIds||[])}</RVField>}
-    </>}
-    {section.type==="image_text" && <>
-      <RVImageUpload label="Télécharger l'image" value={d.image} onChange={v=>patch({image:v})} workspaceId={workspaceId}/>
-      <RVField label="Titre"><input style={rvInput} value={d.heading||""} onChange={e=>patch({heading:e.target.value})}/></RVField>
-      <RVField label="Texte"><textarea style={{...rvInput,minHeight:90}} value={d.text||""} onChange={e=>patch({text:e.target.value})}/></RVField>
-      <RVField label="Bouton"><input style={rvInput} value={d.button||""} onChange={e=>patch({button:e.target.value})}/></RVField>
-      <RVField label="Image"><select style={rvInput} value={d.imageSide||"left"} onChange={e=>patch({imageSide:e.target.value})}><option value="left">À gauche</option><option value="right">À droite</option></select></RVField>
-    </>}
-    {section.type==="before_after" && <>
-      <RVImageUpload label="Image AVANT" value={d.before} onChange={v=>patch({before:v})} workspaceId={workspaceId}/>
-      <RVImageUpload label="Image APRÈS" value={d.after} onChange={v=>patch({after:v})} workspaceId={workspaceId}/>
-      <RVField label="Titre"><input style={rvInput} value={d.heading||""} onChange={e=>patch({heading:e.target.value})}/></RVField>
-    </>}
-    {section.type==="reviews" && <RVRepeatEditor items={d.items||[]} setItems={items=>patch({items})} kind="review"/>}
-    {section.type==="faq" && <RVRepeatEditor items={d.items||[]} setItems={items=>patch({items})} kind="faq"/>}
-    {section.type==="trust" && <RVRepeatEditor items={d.items||[]} setItems={items=>patch({items})} kind="trust"/>}
-    {section.type==="cta" && <><RVField label="Titre"><input style={rvInput} value={d.heading||""} onChange={e=>patch({heading:e.target.value})}/></RVField><RVField label="Texte"><textarea style={{...rvInput,minHeight:80}} value={d.text||""} onChange={e=>patch({text:e.target.value})}/></RVField><RVField label="Bouton"><input style={rvInput} value={d.button||""} onChange={e=>patch({button:e.target.value})}/></RVField></>}
-    {section.type==="footer" && <>
-      {[["description","Description"],["phone","Téléphone"],["whatsapp","WhatsApp"],["facebook","Facebook"],["instagram","Instagram"],["tiktok","TikTok"],["delivery","Politique de livraison"],["returns","Politique de retour"],["privacy","Politique de confidentialité"]].map(([k,l])=><RVField key={k} label={l}><textarea style={{...rvInput,minHeight:k.includes("policy")||["delivery","returns","privacy"].includes(k)?70:44}} value={d[k]||""} onChange={e=>patch({[k]:e.target.value})}/></RVField>)}
-    </>}
-  </div>;
-}
-
-function RVRepeatEditor({items,setItems,kind}){
-  function update(i,key,val){setItems(items.map((x,j)=>j===i?{...x,[key]:val}:x));}
-  function add(){setItems([...items,kind==="review"?{name:"Nouveau client",rating:5,text:"Votre avis ici."}:kind==="faq"?{q:"Nouvelle question",a:"Nouvelle réponse."}:"Nouvel avantage"]);}
-  return <div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><strong style={{fontSize:12}}>{kind==="review"?"Avis":kind==="faq"?"Questions":"Arguments"}</strong><button onClick={add} style={rvBtnPrimary}>+ Ajouter</button></div>{items.map((x,i)=><div key={i} style={{border:"1px solid #e1e8e3",borderRadius:10,padding:10,marginBottom:8,background:"#fafcfb"}}>
-    {kind==="review" && <><input style={{...rvInput,marginBottom:7}} value={x.name||""} onChange={e=>update(i,"name",e.target.value)}/><select style={{...rvInput,marginBottom:7}} value={x.rating||5} onChange={e=>update(i,"rating",Number(e.target.value))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{"★".repeat(n)}</option>)}</select><textarea style={{...rvInput,minHeight:65}} value={x.text||""} onChange={e=>update(i,"text",e.target.value)}/></>}
-    {kind==="faq" && <><input style={{...rvInput,marginBottom:7}} value={x.q||""} onChange={e=>update(i,"q",e.target.value)}/><textarea style={{...rvInput,minHeight:70}} value={x.a||""} onChange={e=>update(i,"a",e.target.value)}/></>}
-    {kind==="trust" && <input style={rvInput} value={x||""} onChange={e=>{const a=[...items];a[i]=e.target.value;setItems(a)}}/>}
-    <button onClick={()=>setItems(items.filter((_,j)=>j!==i))} style={{marginTop:7,border:0;background:"transparent",color:"#b63d31",fontSize:11,fontWeight:800,cursor:"pointer"}}>Supprimer</button>
-  </div>)}</div>
-}
-
-const rvBtnPrimary={border:0,borderRadius:9,padding:"9px 12px",background:"#16824d",color:"#fff",fontSize:11,fontWeight:900,cursor:"pointer"};
-const rvBtnSecondary={border:"1px solid #d6e0da",borderRadius:8,padding:"8px 10px",background:"#fff",fontSize:10,fontWeight:850,cursor:"pointer",color:"#294536"};
-
-function RVStorePreview({config,workspace,produits,collections,device="desktop"}){
-  const secs=(config?.sections||[]).filter(s=>s.enabled!==false);
-  const byIds=(ids)=>produits.filter(p=>(ids||[]).includes(p.id));
-  function productsFor(s){
-    const d=s.data||{};
-    if(s.type==="catalogue") return d.mode==="manual"?byIds(d.productIds):produits;
-    if(["best_sellers","new_arrivals","promotions"].includes(s.type)){
-      if(d.mode==="manual") return byIds(d.productIds);
-      const c=collections.find(x=>x.id===d.collectionId); return c?produits.filter(p=>c.__productIds?.includes(p.id)):[];
-    }
-    return [];
-  }
-  return <div style={{background:"#fff",minHeight:"100%",fontFamily:"Inter,Arial,sans-serif"}}>
-    <style>{`@media(max-width:700px){.rv-pgrid{grid-template-columns:repeat(2,1fr)!important}.rv-grid2{grid-template-columns:1fr!important}.rv-store-nav{padding:12px!important}.rv-store-hero{padding:48px 18px!important}.rv-store-title{font-size:36px!important}}`}</style>
-    <div className="rv-store-nav" style={{height:64,padding:"0 28px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid #edf1ee",position:"sticky",top:0,background:"rgba(255,255,255,.94)",backdropFilter:"blur(10px)",zIndex:4}}><strong style={{fontSize:18}}>{workspace?.name||"Ma boutique"}</strong><div style={{display:"flex",gap:10,fontSize:11,fontWeight:800}}><span>Recherche</span><span>Panier (0)</span></div></div>
-    {secs.map(s=>{
-      const d=s.data||{};
-      if(s.type==="announcement") return <div key={s.id} style={{background:"#13261c",color:"#fff",textAlign:"center",padding:9,fontSize:11,fontWeight:800}}>{d.text}</div>;
-      if(s.type==="hero") return <section key={s.id} className="rv-store-hero" style={{minHeight:s.height||520,padding:"80px 7%",display:"flex",alignItems:"center",background:d.image?`linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.15)),url(${d.image}) center/cover`:"linear-gradient(135deg,#0c1b13,#1b5b3d)",color:"#fff"}}><div style={{maxWidth:720}}><div style={{fontSize:11,fontWeight:900,letterSpacing:2,opacity:.8}}>{d.eyebrow}</div><h1 className="rv-store-title" style={{fontSize:64,lineHeight:.95,margin:"12px 0",letterSpacing:-2}}>{d.heading}</h1><p style={{fontSize:16,lineHeight:1.7,maxWidth:620,opacity:.9}}>{d.text}</p><button style={{...rvBtnPrimary,padding:"14px 20px",marginTop:10}}>{d.button}</button></div></section>;
-      if(s.type==="collections") return <section key={s.id} style={{padding:"45px 6%"}}><h2 style={{fontSize:28}}>Collections</h2><div className="rv-pgrid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>{collections.filter(c=>(d.collectionIds||[]).includes(c.id)).map(c=><div key={c.id} style={{padding:22,border:"1px solid #e4ebe6",borderRadius:14,fontWeight:900}}>{c.nom}</div>)}</div></section>;
-      if(["best_sellers","new_arrivals","promotions","catalogue"].includes(s.type)) {const ps=productsFor(s);return <section key={s.id} style={{padding:"45px 6%"}}><h2 style={{fontSize:28}}>{s.title}</h2><div className="rv-pgrid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>{ps.map(p=><div key={p.id} style={{border:"1px solid #e5ebe7",borderRadius:14,overflow:"hidden",background:"#fff"}}>{p.photo_url?<img src={p.photo_url} style={{width:"100%",aspectRatio:"1",objectFit:"cover"}}/>:<div style={{aspectRatio:"1",background:"#f1f4f2"}}/>}<div style={{padding:12}}><div style={{fontWeight:850,fontSize:13}}>{p.nom}</div><div style={{fontWeight:950,marginTop:5}}>{p.prix_vente?Number(p.prix_vente).toLocaleString("fr-FR")+" "+(workspace?.currency||"XOF"):"Prix sur demande"}</div></div></div>)}</div></section>}
-      if(s.type==="image_text") return <section key={s.id} className="rv-grid2" style={{padding:"50px 6%",display:"grid",gridTemplateColumns:"1fr 1fr",gap:35,alignItems:"center"}}>{d.image&&<img src={d.image} style={{width:"100%",height:320,objectFit:"cover",borderRadius:18,order:d.imageSide==="right"?2:1}}/>}<div style={{order:d.imageSide==="right"?1:2}}><h2 style={{fontSize:34}}>{d.heading}</h2><p style={{lineHeight:1.8,color:"#68736c"}}>{d.text}</p><button style={rvBtnPrimary}>{d.button}</button></div></section>;
-      if(s.type==="before_after") return <section key={s.id} style={{padding:"50px 6%"}}><h2 style={{fontSize:30}}>{d.heading}</h2><div className="rv-grid2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>{[d.before,d.after].map((u,i)=><div key={i}>{u?<img src={u} style={{width:"100%",height:330,objectFit:"cover",borderRadius:18}}/>:<div style={{height:330,background:"#f1f4f2",borderRadius:18}}/>}<strong style={{display:"block",textAlign:"center",padding:8}}>{i?"APRÈS":"AVANT"}</strong></div>)}</div></section>;
-      if(s.type==="reviews") return <section key={s.id} style={{padding:"50px 6%",background:"#f7faf8"}}><h2 style={{fontSize:30}}>{d.heading}</h2><div className="rv-pgrid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:15}}>{(d.items||[]).map((x,i)=><div key={i} style={{padding:20,background:"#fff",borderRadius:14}}><div style={{color:"#d89218"}}>{"★".repeat(Number(x.rating)||5)}</div><p style={{lineHeight:1.7}}>{x.text}</p><strong>{x.name}</strong></div>)}</div></section>;
-      if(s.type==="faq") return <section key={s.id} style={{padding:"50px 6%",maxWidth:1000,margin:"auto"}}><h2 style={{fontSize:30}}>{d.heading}</h2>{(d.items||[]).map((x,i)=><details key={i} style={{borderTop:"1px solid #dfe6e1",padding:"17px 0"}}><summary style={{fontWeight:900,cursor:"pointer"}}>{x.q}</summary><p style={{color:"#68736c",lineHeight:1.7}}>{x.a}</p></details>)}</section>;
-      if(s.type==="trust") return <section key={s.id} style={{padding:"40px 6%",background:"#f7faf8"}}><h2 style={{fontSize:27}}>{d.heading}</h2><div style={{display:"flex",gap:10,flexWrap:"wrap"}}>{(d.items||[]).map((x,i)=><div key={i} style={{padding:"12px 15px",borderRadius:999,background:"#fff",border:"1px solid #e1e9e4",fontWeight:800,fontSize:12}}>✓ {x}</div>)}</div></section>;
-      if(s.type==="cta") return <section key={s.id} style={{padding:"75px 20px",textAlign:"center",background:"#102319",color:"#fff"}}><h2 style={{fontSize:40,margin:0}}>{d.heading}</h2><p style={{opacity:.75}}>{d.text}</p><button style={{...rvBtnPrimary,marginTop:8}}>{d.button}</button></section>;
-      if(s.type==="footer") return <footer key={s.id} style={{background:"#07110b",color:"#dfe8e2",padding:"45px 6%"}}><h3>{workspace?.name}</h3><p style={{color:"#91a097",maxWidth:550}}>{d.description}</p><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18,fontSize:11,color:"#91a097"}}><div><strong style={{color:"#fff"}}>Contact</strong><p>{d.phone}</p><p>{d.whatsapp}</p></div><div><strong style={{color:"#fff"}}>Informations</strong><p>{d.delivery}</p><p>{d.returns}</p></div><div><strong style={{color:"#fff"}}>Politiques</strong><p>{d.privacy}</p></div></div></footer>;
-      return null;
-    })}
-  </div>;
-}
-
-function RVStoreBuilder({workspace,session}){
-  const [config,setConfig]=useState(null); const [published,setPublished]=useState(false); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [selected,setSelected]=useState(null); const [tab,setTab]=useState("structure"); const [device,setDevice]=useState("desktop"); const [produits,setProduits]=useState([]); const [collections,setCollections]=useState([]);
-  const workspaceId=workspace.id;
-  useEffect(()=>{loadAll()},[workspaceId]);
-  async function loadAll(){
-    setLoading(true);
-    const [{data:cfg},{data:ps},{data:cs}]=await Promise.all([
-      supabase.from("storefront_configs").select("config,published").eq("workspace_id",workspaceId).maybeSingle(),
-      supabase.from("produits").select("*").eq("workspace_id",workspaceId).order("created_at",{ascending:false}),
-      supabase.from("collections").select("*").eq("workspace_id",workspaceId).order("ordre")
-    ]);
-    const colIds=(cs||[]).map(c=>c.id); let links=[];
-    if(colIds.length) {const {data:l}=await supabase.from("collection_produits").select("collection_id,produit_id").in("collection_id",colIds);links=l||[];}
-    const cc=(cs||[]).map(c=>({...c,__productIds:links.filter(x=>x.collection_id===c.id).map(x=>x.produit_id)}));
-    setProduits(ps||[]);setCollections(cc);
-    let c=cfg?.config||null;
-    if(!c) c={version:1,theme:{primary:"#16824d",accent:"#f28a24"},commerce:{bundles:{},delivery:{generalLocal:Number(workspace.frais_livraison||0),generalShipping:Number(workspace.frais_expedition||0),exceptions:{}}},sections:RV_STORE_DEFAULT_SECTIONS};
-    if(!Array.isArray(c.sections)) c.sections=RV_STORE_DEFAULT_SECTIONS;
-    if(!c.commerce) c.commerce={bundles:{},delivery:{generalLocal:Number(workspace.frais_livraison||0),generalShipping:Number(workspace.frais_expedition||0),exceptions:{}}};
-    if(!c.commerce.bundles) c.commerce.bundles={};
-    if(!c.commerce.delivery) c.commerce.delivery={generalLocal:Number(workspace.frais_livraison||0),generalShipping:Number(workspace.frais_expedition||0),exceptions:{}};
-    setConfig(c);setPublished(!!cfg?.published);setLoading(false);
-  }
-  async function save(makePublic=false){
-    setSaving(true);
-    const next={...config,version:1,updatedAt:new Date().toISOString()};
-    const {error}=await supabase.from("storefront_configs").upsert({workspace_id:workspaceId,config:next,published:makePublic},{onConflict:"workspace_id"});
-    if(error) alert("Erreur de sauvegarde : "+error.message); else {setConfig(next);if(makePublic)setPublished(true);}
-    setSaving(false);
-  }
-  async function unpublish(){const {error}=await supabase.from("storefront_configs").update({published:false}).eq("workspace_id",workspaceId);if(error)alert(error.message);else setPublished(false);}
-  function move(i,dir){const a=[...config.sections];const j=i+dir;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];setConfig({...config,sections:a});setSelected(j);}
-  function remove(i){if(!confirm("Supprimer cette section ?"))return;const a=config.sections.filter((_,j)=>j!==i);setConfig({...config,sections:a});setSelected(null);}
-  function add(type){const a=[...config.sections,rvNewSection(type)];setConfig({...config,sections:a});setSelected(a.length-1);setTab("edit");}
-  if(loading)return <Centered>Chargement du constructeur…</Centered>;
-  const section=config.sections[selected];
-  const publicUrl=`${window.location.origin}${window.location.pathname}?boutique=${workspaceId}`;
-  return <div style={{minHeight:"100vh",background:"#f2f5f3",fontFamily:"Inter,Arial,sans-serif",color:"#16231f"}}>
-    <style>{`@media(max-width:800px){.rv-builder-grid{grid-template-columns:1fr!important}.rv-builder-side{border-right:0!important;border-bottom:1px solid #dce5df;max-height:none!important}.rv-preview-wrap{min-height:65vh!important}.rv-builder-top{flex-wrap:wrap!important;height:auto!important;padding:10px!important}.rv-builder-actions{width:100%;justify-content:space-between!important}.rv-device{display:none!important}}`}</style>
-    <header className="rv-builder-top" style={{height:64,background:"#fff",borderBottom:"1px solid #dce5df",display:"flex",alignItems:"center",gap:14,padding:"0 18px",position:"sticky",top:0,zIndex:20}}>
-      <button onClick={()=>window.history.back()} style={{...rvBtnSecondary}}>← Quitter</button><strong style={{fontSize:14}}>🛍️ {workspace.name} — Constructeur</strong><span style={{fontSize:10,fontWeight:900,color:published?"#16824d":"#c27a1a",background:published?"#eaf7ef":"#fff5df",padding:"6px 9px",borderRadius:999}}>{published?"● PUBLIÉE":"● BROUILLON"}</span>
-      <div className="rv-builder-actions" style={{marginLeft:"auto",display:"flex",gap:7,alignItems:"center"}}><button style={rvBtnSecondary} onClick={()=>window.open(publicUrl,"_blank")}>👁️ Aperçu public</button><button style={rvBtnSecondary} onClick={()=>save(false)} disabled={saving}>{saving?"Enregistrement…":"Enregistrer"}</button><button style={rvBtnPrimary} onClick={()=>save(true)} disabled={saving}>🚀 Publier</button>{published&&<button style={{...rvBtnSecondary,color:"#a53b31"}} onClick={unpublish}>Dépublier</button>}</div>
-    </header>
-    <div className="rv-builder-grid" style={{display:"grid",gridTemplateColumns:"340px 1fr",minHeight:"calc(100vh - 64px)"}}>
-      <aside className="rv-builder-side" style={{background:"#fff",borderRight:"1px solid #dce5df",padding:12,overflowY:"auto",maxHeight:"calc(100vh - 64px)"}}>
-        <div style={{display:"flex",gap:5,marginBottom:12}}><button onClick={()=>setTab("structure")} style={{...rvBtnSecondary,background:tab==="structure"?"#eaf4ee":"#fff",flex:1}}>🧱 Structure</button><button onClick={()=>setTab("edit")} style={{...rvBtnSecondary,background:tab==="edit"?"#eaf4ee":"#fff",flex:1}}>✏️ Modifier</button><button onClick={()=>setTab("commerce")} style={{...rvBtnSecondary,background:tab==="commerce"?"#eaf4ee":"#fff",flex:1}}>💰 Commerce</button></div>
-        {tab==="structure" && <>
-          <div style={{fontSize:11,color:"#738078",lineHeight:1.5,marginBottom:10}}>Chaque bloc est indépendant. Tu peux <b>ajouter, supprimer, déplacer et désactiver</b> n'importe quelle section.</div>
-          {config.sections.map((s,i)=><div key={s.id} onClick={()=>{setSelected(i);setTab("edit")}} style={{border:"1px solid "+(selected===i?"#16824d":"#e1e8e3"),background:selected===i?"#f1faf4":"#fff",borderRadius:11,padding:10,marginBottom:7,cursor:"pointer"}}><div style={{display:"flex",alignItems:"center",gap:7}}><span style={{fontSize:14}}>☷</span><div style={{flex:1,minWidth:0}}><div style={{fontWeight:900,fontSize:11,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.title}</div><div style={{fontSize:9,color:"#7b857e"}}>{s.type} · {s.enabled===false?"désactivée":"visible"}</div></div><button onClick={e=>{e.stopPropagation();move(i,-1)}} disabled={i===0} style={rvIconBtn}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} disabled={i===config.sections.length-1} style={rvIconBtn}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{...rvIconBtn,color:"#b53c30"}}>×</button></div></div>)}
-          <div style={{borderTop:"1px solid #e3e9e5",marginTop:12,paddingTop:12}}><strong style={{fontSize:11}}>+ Ajouter une section</strong><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8}}>{RV_SECTION_LIBRARY.map(([t,l])=><button key={t} onClick={()=>add(t)} style={{...rvBtnSecondary,textAlign:"left",padding:"9px 8px"}}>{l}</button>)}</div></div>
-        </>}
-        {tab==="commerce" && <div>
-          <div style={{fontSize:11,color:"#68736c",lineHeight:1.5,marginBottom:14}}>Le cœur commercial de ta boutique : <b>packs par produit</b> et <b>frais de livraison</b>. Les réglages sont enregistrés dans la configuration de la boutique.</div>
-          <div style={{fontWeight:900,fontSize:12,marginBottom:8}}>🚚 Frais généraux</div>
-          <RVField label="Livraison locale / Abidjan"><input type="number" style={rvInput} value={config.commerce?.delivery?.generalLocal??workspace.frais_livraison??0} onChange={e=>setConfig({...config,commerce:{...config.commerce,delivery:{...config.commerce.delivery,generalLocal:Number(e.target.value)}}})}/></RVField>
-          <RVField label="Expédition"><input type="number" style={rvInput} value={config.commerce?.delivery?.generalShipping??workspace.frais_expedition??0} onChange={e=>setConfig({...config,commerce:{...config.commerce,delivery:{...config.commerce.delivery,generalShipping:Number(e.target.value)}}})}/></RVField>
-          <div style={{fontWeight:900,fontSize:12,margin:"18px 0 8px"}}>🚚 Exceptions de livraison par produit</div>
-          {produits.map(p=>{const ex=config.commerce?.delivery?.exceptions?.[p.id]||{};return <div key={p.id} style={{border:"1px solid #e1e8e3",borderRadius:11,padding:10,marginBottom:8}}><div style={{fontWeight:900,fontSize:12,marginBottom:7}}>{p.nom}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}><input type="number" placeholder="Abidjan / local" style={{...rvInput,padding:8}} value={ex.local??""} onChange={e=>{const ex2={...ex,local:e.target.value===""?undefined:Number(e.target.value)};setConfig({...config,commerce:{...config.commerce,delivery:{...config.commerce.delivery,exceptions:{...config.commerce.delivery.exceptions,[p.id]:ex2}}}})}}/><input type="number" placeholder="Expédition" style={{...rvInput,padding:8}} value={ex.shipping??""} onChange={e=>{const ex2={...ex,shipping:e.target.value===""?undefined:Number(e.target.value)};setConfig({...config,commerce:{...config.commerce,delivery:{...config.commerce.delivery,exceptions:{...config.commerce.delivery.exceptions,[p.id]:ex2}}}})}}/></div></div>})}
-          <div style={{fontWeight:900,fontSize:12,margin:"18px 0 8px"}}>📦 Bundles par produit</div>
-          {produits.map(p=>{const list=config.commerce?.bundles?.[p.id]||[];return <div key={p.id} style={{border:"1px solid #e1e8e3",borderRadius:11,padding:10,marginBottom:9}}><div style={{fontWeight:900,fontSize:12,marginBottom:8}}>{p.nom}</div>{list.map((b,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"58px 1fr 95px 30px",gap:6,marginBottom:6}}><input type="number" min="1" style={{...rvInput,padding:8}} value={b.qty||1} onChange={e=>{const a=list.map((x,j)=>j===i?{...x,qty:Number(e.target.value)}:x);setConfig({...config,commerce:{...config.commerce,bundles:{...config.commerce.bundles,[p.id]:a}}})}}/><input style={{...rvInput,padding:8}} placeholder="Nom du pack" value={b.label||""} onChange={e=>{const a=list.map((x,j)=>j===i?{...x,label:e.target.value}:x);setConfig({...config,commerce:{...config.commerce,bundles:{...config.commerce.bundles,[p.id]:a}}})}}/><input type="number" style={{...rvInput,padding:8}} placeholder="Prix" value={b.price??""} onChange={e=>{const a=list.map((x,j)=>j===i?{...x,price:Number(e.target.value)}:x);setConfig({...config,commerce:{...config.commerce,bundles:{...config.commerce.bundles,[p.id]:a}}})}}/><button onClick={()=>{const a=list.filter((_,j)=>j!==i);setConfig({...config,commerce:{...config.commerce,bundles:{...config.commerce.bundles,[p.id]:a}}})}} style={{border:0,background:"#fff0ed",color:"#b33e32",borderRadius:8}}>×</button></div>)}<button onClick={()=>{const n=list.length+2;const a=[...list,{qty:n,label:`Pack x${n}`,price:Number(p.prix_vente||0)*n}];setConfig({...config,commerce:{...config.commerce,bundles:{...config.commerce.bundles,[p.id]:a}}})}} style={rvBtnSecondary}>+ Ajouter un pack à ce produit</button></div>})}
-        </div>}
-        {tab==="edit" && <>{section?<><button onClick={()=>setTab("structure")} style={{...rvBtnSecondary,marginBottom:12}}>← Retour aux sections</button><RVSectionEditor section={section} setSection={v=>{const a=[...config.sections];a[selected]=v;setConfig({...config,sections:a})}} produits={produits} collections={collections} workspaceId={workspaceId}/></>:<div style={{padding:25,textAlign:"center",color:"#77817a"}}>Sélectionne une section.</div>}</>}
-      </aside>
-      <main className="rv-preview-wrap" style={{padding:14,minWidth:0,overflow:"auto"}}>
-        <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:10}}>{[["mobile","📱 Mobile"],["tablet","▣ Tablette"],["desktop","💻 Desktop"]].map(([d,l])=><button key={d} className="rv-device" onClick={()=>setDevice(d)} style={{...rvBtnSecondary,background:device===d?"#162c21":"#fff",color:device===d?"#fff":"#294536"}}>{l}</button>)}</div>
-        <div style={{margin:"auto",background:"#fff",borderRadius:16,boxShadow:"0 14px 40px rgba(22,35,31,.12)",overflow:"hidden",width:device==="mobile"?390:device==="tablet"?820:"100%",maxWidth:"100%",minHeight:device==="mobile"?700:500}}><RVStorePreview config={config} workspace={workspace} produits={produits} collections={collections} device={device}/></div>
-      </main>
-    </div>
-  </div>;
-}
-const rvIconBtn={border:0,background:"transparent",cursor:"pointer",fontWeight:900,fontSize:13,padding:"3px 5px"};
-
-function PublicStorefront({workspaceId}){
-  const [workspace,setWorkspace]=useState(null);const [config,setConfig]=useState(null);const [produits,setProduits]=useState([]);const [collections,setCollections]=useState([]);const [selectedProduct,setSelectedProduct]=useState(null);const [bundle,setBundle]=useState(null);const [qty,setQty]=useState(1);const [form,setForm]=useState({nom:"",telephone:"",ville:"Abidjan",commune:"",adresse:""});const [sending,setSending]=useState(false);const [success,setSuccess]=useState(null);
-  useEffect(()=>{load()},[workspaceId]);
-  async function load(){
-    const [{data:w},{data:c},{data:p},{data:cs}]=await Promise.all([
-      supabase.from("workspaces").select("id,name,currency,logo_url,banniere_url,couleur_marque,description_boutique,politique_livraison,politique_retours,politique_confidentialite,whatsapp_number,frais_livraison,frais_expedition").eq("id",workspaceId).maybeSingle(),
-      supabase.from("storefront_configs").select("config,published").eq("workspace_id",workspaceId).eq("published",true).maybeSingle(),
-      supabase.from("produits").select("*").eq("workspace_id",workspaceId).order("created_at",{ascending:false}),
-      supabase.from("collections").select("*").eq("workspace_id",workspaceId).order("ordre")
-    ]);
-    const links=cs?.length?((await supabase.from("collection_produits").select("collection_id,produit_id").in("collection_id",cs.map(x=>x.id))).data||[]):[];
-    setWorkspace(w);setProduits(p||[]);setCollections((cs||[]).map(x=>({...x,__productIds:links.filter(l=>l.collection_id===x.id).map(l=>l.produit_id)})));setConfig(c?.config||null);
-  }
-  async function order(){
-    if(!selectedProduct)return; if(!form.nom.trim()||!form.telephone.trim()){alert("Renseigne ton nom et ton téléphone.");return;}
-    setSending(true);
-    const commerce=config?.commerce?.delivery||{}; const ex=commerce.exceptions?.[selectedProduct.id]||{}; const livraison=form.ville?.toLowerCase().includes("abidjan")?Number(ex.local??commerce.generalLocal??workspace?.frais_livraison||0):Number(ex.shipping??commerce.generalShipping??workspace?.frais_expedition||0);
-    const prix=Number(selectedProduct.prix_vente||0); const bundlePrice=bundle?Number(bundle.price||0):prix*qty; const total=bundlePrice+livraison;
-    const notes=[bundle?`Bundle: ${bundle.label||bundle.nom||"Pack"}`:"",`Quantité: ${qty}`,`Livraison: ${livraison}`].filter(Boolean).join(" | ");
-    const produitTexte = `${selectedProduct.nom}${qty > 1 ? ` x${qty}` : ""}`;
-    const {data,error}=await supabase.from("commandes").insert([{workspace_id:workspaceId,client:form.nom.trim(),tel:form.telephone.trim(),produit:produitTexte,montant:total,ville:form.ville.trim(),commune:form.commune.trim(),adresse:form.adresse.trim(),statut:"en_cours",notes:`Source: boutique publique | ${notes}` }]).select().single();
-    setSending(false);if(error){alert("Impossible de créer la commande : "+error.message);return;}setSuccess(data);setSelectedProduct(null);setQty(1);
-  }
-  if(!workspace||!config)return <div style={{minHeight:"100vh",display:"grid",placeItems:"center",fontFamily:"Arial",padding:30,textAlign:"center"}}>Cette boutique n'est pas encore publiée.</div>;
-  const publicConfig={...config,sections:(config.sections||[]).map(s=>({...s}))};
-  const openProduct=(p)=>{setSelectedProduct(p);setBundle(null);setQty(1);setSuccess(null)};
-  const byIds=ids=>produits.filter(p=>(ids||[]).includes(p.id));
-  function psFor(s){const d=s.data||{};if(s.type==="catalogue")return d.mode==="manual"?byIds(d.productIds):produits;if(["best_sellers","new_arrivals","promotions"].includes(s.type)){if(d.mode==="manual")return byIds(d.productIds);const c=collections.find(x=>x.id===d.collectionId);return c?produits.filter(p=>c.__productIds?.includes(p.id)):[];}return []}
-  return <div style={{fontFamily:"Inter,Arial,sans-serif",color:"#16231f",background:"#fff"}}>
-    <style>{`*{box-sizing:border-box}.rv-public-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.rv-public-grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:600px){.rv-public-grid{grid-template-columns:repeat(2,1fr);gap:10px}.rv-public-h1{font-size:40px!important}.rv-public-pad{padding:38px 16px!important}}`}</style>
-    <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(255,255,255,.96)",backdropFilter:"blur(10px)",borderBottom:"1px solid #e7ece8",padding:"13px 5%",display:"flex",alignItems:"center",justifyContent:"space-between"}}><strong style={{fontSize:18}}>{workspace.name}</strong><div style={{fontSize:11,fontWeight:900}}>🔎 Recherche &nbsp; 🛒 Panier</div></div>
-    {(publicConfig.sections||[]).filter(s=>s.enabled!==false).map(s=>{
-      const d=s.data||{};
-      if(s.type==="announcement")return <div key={s.id} style={{background:"#13261c",color:"#fff",textAlign:"center",padding:8,fontSize:11,fontWeight:900}}>{d.text}</div>;
-      if(s.type==="hero")return <section key={s.id} className="rv-public-pad" style={{minHeight:s.height||520,padding:"75px 7%",display:"flex",alignItems:"center",background:d.image?`linear-gradient(90deg,rgba(0,0,0,.7),rgba(0,0,0,.15)),url(${d.image}) center/cover`:"linear-gradient(135deg,#0a1a11,#1c6240)",color:"#fff"}}><div style={{maxWidth:700}}><small style={{fontWeight:900,letterSpacing:2}}>{d.eyebrow}</small><h1 className="rv-public-h1" style={{fontSize:62,lineHeight:.96,letterSpacing:-2,margin:"12px 0"}}>{d.heading}</h1><p style={{fontSize:16,lineHeight:1.7,maxWidth:620,opacity:.9}}>{d.text}</p><button onClick={()=>document.querySelector(".rv-products")?.scrollIntoView({behavior:"smooth"})} style={{...rvBtnPrimary,padding:"14px 20px"}}>{d.button||"Commander"}</button></div></section>;
-      if(s.type==="collections")return <section key={s.id} className="rv-public-pad" style={{padding:"48px 6%"}}><h2>Collections</h2><div className="rv-public-grid">{collections.filter(c=>(d.collectionIds||[]).includes(c.id)).map(c=><div key={c.id} style={{padding:22,border:"1px solid #e4ebe6",borderRadius:14,fontWeight:900}}>{c.nom}</div>)}</div></section>;
-      if(["best_sellers","new_arrivals","promotions","catalogue"].includes(s.type)){const ps=psFor(s);return <section key={s.id} className="rv-products rv-public-pad" style={{padding:"48px 6%"}}><h2>{s.title}</h2><div className="rv-public-grid">{ps.map(p=><button key={p.id} onClick={()=>openProduct(p)} style={{border:"1px solid #e3e9e5",borderRadius:14,background:"#fff",padding:0,textAlign:"left",overflow:"hidden",cursor:"pointer"}}>{p.photo_url?<img src={p.photo_url} style={{width:"100%",aspectRatio:"1",objectFit:"cover"}}/>:<div style={{width:"100%",aspectRatio:"1",background:"#f1f4f2"}}/>}<div style={{padding:11}}><strong style={{fontSize:12}}>{p.nom}</strong><div style={{fontWeight:950,marginTop:5}}>{p.prix_vente?Number(p.prix_vente).toLocaleString("fr-FR"):"Prix sur demande"} {workspace.currency}</div></div></button>)}</div></section>}
-      if(s.type==="image_text")return <section key={s.id} className="rv-public-pad" style={{padding:"55px 6%",display:"grid",gridTemplateColumns:"1fr 1fr",gap:30,alignItems:"center"}}><img src={d.image} style={{width:"100%",borderRadius:18}}/><div><h2>{d.heading}</h2><p style={{lineHeight:1.8,color:"#68736c"}}>{d.text}</p></div></section>;
-      if(s.type==="before_after")return <section key={s.id} className="rv-public-pad" style={{padding:"55px 6%"}}><h2>{d.heading}</h2><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:15}}>{[d.before,d.after].map((u,i)=><img key={i} src={u} style={{width:"100%",height:320,objectFit:"cover",borderRadius:18}}/>)}</div></section>;
-      if(s.type==="reviews")return <section key={s.id} className="rv-public-pad" style={{padding:"55px 6%",background:"#f7faf8"}}><h2>{d.heading}</h2><div className="rv-public-grid">{(d.items||[]).map((x,i)=><div key={i} style={{background:"#fff",borderRadius:14,padding:18}}><div style={{color:"#d58b16"}}>{"★".repeat(Number(x.rating)||5)}</div><p>{x.text}</p><strong>{x.name}</strong></div>)}</div></section>;
-      if(s.type==="faq")return <section key={s.id} className="rv-public-pad" style={{padding:"55px 10%",maxWidth:1100,margin:"auto"}}><h2>{d.heading}</h2>{(d.items||[]).map((x,i)=><details key={i} style={{borderTop:"1px solid #dfe6e1",padding:"17px 0"}}><summary style={{fontWeight:900}}>{x.q}</summary><p style={{color:"#68736c",lineHeight:1.7}}>{x.a}</p></details>)}</section>;
-      if(s.type==="trust")return <section key={s.id} style={{padding:"38px 6%",background:"#f7faf8",display:"flex",gap:10,flexWrap:"wrap"}}>{(d.items||[]).map((x,i)=><span key={i} style={{padding:"10px 14px",borderRadius:999,background:"#fff",fontWeight:850,fontSize:11}}>✓ {x}</span>)}</section>;
-      if(s.type==="cta")return <section key={s.id} style={{padding:"70px 20px",textAlign:"center",background:"#102319",color:"#fff"}}><h2>{d.heading}</h2><p>{d.text}</p><button onClick={()=>document.querySelector(".rv-products")?.scrollIntoView({behavior:"smooth"})} style={rvBtnPrimary}>{d.button}</button></section>;
-      if(s.type==="footer")return <footer key={s.id} style={{background:"#07110b",color:"#dfe8e2",padding:"45px 6%"}}><h3>{workspace.name}</h3><p style={{color:"#91a097",maxWidth:600}}>{d.description||workspace.description_boutique}</p><div style={{color:"#91a097",fontSize:11,lineHeight:1.8}}><div>📞 {d.phone}</div><div>💬 {d.whatsapp}</div><div>🚚 {d.delivery||workspace.politique_livraison}</div><div>↩️ {d.returns||workspace.politique_retours}</div><div>🔒 {d.privacy||workspace.politique_confidentialite}</div></div></footer>;
-      return null;
-    })}
-    {selectedProduct&&<div onClick={()=>setSelectedProduct(null)} style={{position:"fixed",inset:0,zIndex:80,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",padding:0}}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",width:"100%",maxWidth:760,maxHeight:"92vh",overflowY:"auto",borderRadius:"22px 22px 0 0",padding:18}}>{success?<div style={{padding:"45px 15px",textAlign:"center"}}><div style={{fontSize:45}}>✅</div><h2>Commande enregistrée</h2><p>Merci {success.client || ""}. Ta commande est bien reçue.</p><p style={{fontSize:12,color:"#6d7770"}}>Référence : {success.id}</p><button onClick={()=>setSuccess(null)} style={rvBtnPrimary}>Continuer</button></div>:<div><button onClick={()=>setSelectedProduct(null)} style={{...rvBtnSecondary,float:"right"}}>×</button><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}><div>{selectedProduct.photo_url?<img src={selectedProduct.photo_url} style={{width:"100%",borderRadius:15}}/>:<div style={{aspectRatio:"1",background:"#f1f4f2",borderRadius:15}}/>}</div><div><h2>{selectedProduct.nom}</h2><div style={{fontSize:22,fontWeight:950}}>{Number(selectedProduct.prix_vente||0).toLocaleString("fr-FR")} {workspace.currency}</div><p style={{color:"#68736c",lineHeight:1.6}}>{selectedProduct.description||""}</p>{(config?.commerce?.bundles?.[selectedProduct.id]||[]).length>0 && <div style={{margin:"14px 0"}}><div style={{fontSize:11,fontWeight:900,marginBottom:7}}>📦 Choisir un pack</div><div style={{display:"grid",gap:7}}>{(config.commerce.bundles[selectedProduct.id]||[]).map((b,i)=><button key={i} onClick={()=>{setBundle(b);setQty(Number(b.qty)||1)}} style={{textAlign:"left",padding:10,border:"1px solid "+(bundle===b?"#16824d":"#dfe7e2"),background:bundle===b?"#eef9f2":"#fff",borderRadius:10,cursor:"pointer"}}><b>{b.label||`Pack x${b.qty}`}</b><span style={{float:"right",fontWeight:900}}>{Number(b.price||0).toLocaleString("fr-FR")} {workspace.currency}</span></button>)}</div></div>}<label style={{fontSize:11,fontWeight:900}}>Quantité</label><div style={{display:"flex",gap:7,margin:"7px 0 15px"}}><button onClick={()=>setQty(Math.max(1,qty-1))} style={rvBtnSecondary}>−</button><input value={qty} onChange={e=>setQty(Math.max(1,Number(e.target.value)||1))} style={{...rvInput,width:70,textAlign:"center"}}/><button onClick={()=>setQty(qty+1)} style={rvBtnSecondary}>+</button></div><div style={{padding:12,background:"#f6faf7",borderRadius:12,fontSize:11,marginBottom:12}}>🚚 Abidjan : {Number((config?.commerce?.delivery?.exceptions?.[selectedProduct.id]?.local) ?? (config?.commerce?.delivery?.generalLocal ?? workspace.frais_livraison ?? 0)).toLocaleString("fr-FR")} {workspace.currency}<br/>📦 Expédition : {Number((config?.commerce?.delivery?.exceptions?.[selectedProduct.id]?.shipping) ?? (config?.commerce?.delivery?.generalShipping ?? workspace.frais_expedition ?? 0)).toLocaleString("fr-FR") } {workspace.currency}</div>{[["nom","Nom complet"],["telephone","Téléphone"],["ville","Ville"],["commune","Commune"],["adresse","Adresse"]].map(([k,l])=><input key={k} placeholder={l} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} style={{...rvInput,marginBottom:7}}/>)}<button disabled={sending} onClick={order} style={{...rvBtnPrimary,width:"100%",padding:14}}>{sending?"Envoi…":"🛍️ Commander à la livraison"}</button></div></div></div>}</div></div>}
-  </div>;
-}
-
-
-function CommerceCommandCenter({ workspace, session }) {
-  const [commandes, setCommandes] = useState([]);
-  const [closers, setClosers] = useState([]);
-  const [livreurs, setLivreurs] = useState([]);
-  const [filter, setFilter] = useState("toutes");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState(null);
-
-  async function load() {
-    setLoading(true);
-    const [{ data: cs }, { data: cl }, { data: lv }] = await Promise.all([
-      supabase.from("commandes").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(300),
-      supabase.from("closers").select("*").eq("workspace_id", workspace.id).order("nom"),
-      supabase.from("livreurs").select("*").eq("workspace_id", workspace.id).order("nom")
-    ]);
-    setCommandes(cs || []); setClosers(cl || []); setLivreurs(lv || []); setLoading(false);
-  }
-  useEffect(() => { load(); }, [workspace.id]);
-
-  async function updateCommande(id, patch, label) {
-    setSavingId(id);
-    const { error } = await supabase.from("commandes").update(patch).eq("id", id).eq("workspace_id", workspace.id);
-    if (error) alert(error.message);
-    else {
-      setCommandes(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
-      try { await supabase.from("relances").insert([{ commande_id: id, note: `Centre commercial : ${label}` }]); } catch {}
-    }
-    setSavingId(null);
-  }
-
-  const filtered = commandes.filter(c => {
-    const q = search.trim().toLowerCase();
-    const matchesSearch = !q || [c.client, c.tel, c.produit, c.ville, c.commune, c.id].some(v => String(v || "").toLowerCase().includes(q));
-    const matchesFilter = filter === "toutes" || (filter === "nouvelles" && c.statut === "en_cours" && !c.closer) || c.statut === filter;
-    return matchesSearch && matchesFilter;
-  });
-
-  const money = n => `${Number(n || 0).toLocaleString("fr-FR")} ${workspace.currency}`;
-  const counts = {
-    toutes: commandes.length,
-    nouvelles: commandes.filter(c => c.statut === "en_cours" && !c.closer).length,
-    confirmee: commandes.filter(c => c.statut === "confirmee").length,
-    echouee: commandes.filter(c => c.statut === "echouee").length,
-    livree: commandes.filter(c => c.statut === "livree").length
-  };
-
-  const statuts = [
-    ["en_cours", "🟠 À traiter"],
-    ["confirmee", "🟢 Confirmée"],
-    ["livree", "✅ Livrée"],
-    ["echouee", "🔴 Échouée"]
-  ];
-
-  if (loading) return <Centered>Chargement du centre commercial…</Centered>;
-
-  return <div style={{ minHeight: "100vh", background: "#f4f7f5", color: "#16231f", fontFamily: "Inter,Arial,sans-serif", paddingBottom: 30 }}>
-    <style>{`@media(max-width:760px){.rvcc-grid{grid-template-columns:1fr!important}.rvcc-kpis{grid-template-columns:repeat(2,1fr)!important}.rvcc-table-head{display:none!important}.rvcc-row{grid-template-columns:1fr!important;gap:10px!important}.rvcc-actions{flex-wrap:wrap!important}.rvcc-filter{overflow:auto!important;justify-content:flex-start!important}.rvcc-mobile-full{width:100%!important}}`}</style>
-    <header style={{ position:"sticky", top:0, zIndex:20, background:"rgba(255,255,255,.96)", backdropFilter:"blur(12px)", borderBottom:"1px solid #dfe7e2", padding:"12px 4%", display:"flex", alignItems:"center", gap:12 }}>
-      <button onClick={()=>window.history.back()} style={{...rvBtnSecondary}}>← Retour</button>
-      <div style={{minWidth:0}}><div style={{fontSize:10,fontWeight:900,color:"#16824d",letterSpacing:1.2}}>RECUVENTE · CORE COMMERCIAL</div><strong style={{fontSize:16}}>Centre des commandes</strong></div>
-      <button onClick={load} style={{...rvBtnSecondary,marginLeft:"auto"}}>↻ Actualiser</button>
-    </header>
-
-    <main style={{maxWidth:1300,margin:"auto",padding:"22px 4%"}}>
-      <div className="rvcc-kpis" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:18}}>
-        {[["toutes","📦","Toutes"],["nouvelles","⚡","À traiter"],["confirmee","✓","Confirmées"],["livree","🚚","Livrées"],["echouee","↻","À récupérer"]].map(([k,icon,label])=><button key={k} onClick={()=>setFilter(k)} style={{textAlign:"left",padding:15,border:"1px solid "+(filter===k?"#16824d":"#dfe7e2"),background:filter===k?"#ecf8f0":"#fff",borderRadius:14,cursor:"pointer"}}><div style={{fontSize:18}}>{icon}</div><div style={{fontSize:10,fontWeight:900,color:"#68736c",marginTop:6}}>{label}</div><div style={{fontSize:22,fontWeight:950,marginTop:2}}>{counts[k]}</div></button>)}
-      </div>
-
-      <div style={{background:"#fff",border:"1px solid #dfe7e2",borderRadius:16,padding:14,marginBottom:14,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔎 Rechercher client, téléphone, produit, ville…" className="rvcc-mobile-full" style={{...rvInput,flex:"1 1 280px",margin:0}}/>
-        <div className="rvcc-filter" style={{display:"flex",gap:6}}>{[["toutes","Toutes"],["nouvelles","À traiter"],["en_cours","En cours"],["confirmee","Confirmées"],["livree","Livrées"],["echouee","Échouées"]].map(([k,l])=><button key={k} onClick={()=>setFilter(k)} style={{...rvBtnSecondary,whiteSpace:"nowrap",background:filter===k?"#162c21":"#fff",color:filter===k?"#fff":"#294536"}}>{l}</button>)}</div>
-      </div>
-
-      <div style={{background:"#fff",border:"1px solid #dfe7e2",borderRadius:18,overflow:"hidden"}}>
-        <div className="rvcc-table-head" style={{display:"grid",gridTemplateColumns:"1.8fr 1.3fr 1.1fr 1.1fr 1.7fr",gap:10,padding:"11px 16px",background:"#f7faf8",borderBottom:"1px solid #e4ebe7",fontSize:9,fontWeight:900,color:"#718078",textTransform:"uppercase"}}><span>Client / commande</span><span>Montant</span><span>Statut</span><span>Équipe</span><span>Actions</span></div>
-        {filtered.length===0 ? <div style={{padding:45,textAlign:"center",color:"#77827b"}}>Aucune commande pour ce filtre.</div> : filtered.map(c=>{
-          const busy=savingId===c.id;
-          return <div className="rvcc-row" key={c.id} style={{display:"grid",gridTemplateColumns:"1.8fr 1.3fr 1.1fr 1.1fr 1.7fr",gap:10,padding:14,alignItems:"center",borderBottom:"1px solid #edf1ee"}}>
-            <div><div style={{fontWeight:950,fontSize:13}}>{c.client||"Client"}</div><div style={{fontSize:11,color:"#68736c",marginTop:3}}>{c.tel||"—"} · {c.produit||"Commande"}</div><div style={{fontSize:10,color:"#89928c",marginTop:3}}>{c.ville||""}{c.commune?` · ${c.commune}`:""}</div></div>
-            <div><strong style={{fontSize:14}}>{money(c.montant)}</strong><div style={{fontSize:9,color:"#89928c"}}>{new Date(c.created_at).toLocaleString("fr-FR")}</div></div>
-            <select disabled={busy} value={c.statut||"en_cours"} onChange={e=>updateCommande(c.id,{statut:e.target.value,...(e.target.value==="confirmee"?{confirmed_at:new Date().toISOString(),confirmed_by:session?.user?.email||"Admin"}:{})},`Statut → ${e.target.value}`)} style={{...rvInput,padding:"8px 9px",fontSize:11}}>{statuts.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>
-            <div style={{display:"grid",gap:5}}><select disabled={busy} value={c.closer||""} onChange={e=>updateCommande(c.id,{closer:e.target.value||null},`Closer → ${e.target.value||"non assigné"}`)} style={{...rvInput,padding:"7px 8px",fontSize:10}}><option value="">🎧 Closer…</option>{closers.map(x=><option key={x.id||x.nom} value={x.nom}>{x.nom}</option>)}</select><select disabled={busy} value={c.livreur||""} onChange={e=>updateCommande(c.id,{livreur:e.target.value||null},`Livreur → ${e.target.value||"non assigné"}`)} style={{...rvInput,padding:"7px 8px",fontSize:10}}><option value="">🚚 Livreur…</option>{livreurs.map(x=><option key={x.id||x.nom} value={x.nom}>{x.nom}</option>)}</select></div>
-            <div className="rvcc-actions" style={{display:"flex",gap:6,alignItems:"center"}}>{c.tel&&<a href={`https://wa.me/${cleanPhoneForWhatsApp(c.tel)}?text=${encodeURIComponent(`Bonjour ${(c.client||"").split(" ")[0]} 👋, nous vous contactons au sujet de votre commande ${c.produit||""}.`)}`} target="_blank" rel="noreferrer" style={{...rvBtnSecondary,textDecoration:"none",fontSize:11}}>💬 WhatsApp</a>}{c.statut!=="confirmee"&&<button disabled={busy} onClick={()=>updateCommande(c.id,{statut:"confirmee",confirmed_at:new Date().toISOString(),confirmed_by:session?.user?.email||"Admin"},"Commande confirmée")} style={{...rvBtnPrimary,fontSize:11}}>✓ Confirmer</button>}{c.statut!=="livree"&&<button disabled={busy} onClick={()=>updateCommande(c.id,{statut:"livree"},"Commande livrée")} style={{...rvBtnSecondary,fontSize:11}}>✓ Livrée</button>}</div>
-          </div>
-        })}
-      </div>
-
-      <div className="rvcc-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginTop:14}}>
-        <div style={{background:"#162c21",color:"#fff",borderRadius:16,padding:20}}><div style={{fontSize:10,fontWeight:900,letterSpacing:1.2,opacity:.7}}>VALEUR DU PIPELINE</div><div style={{fontSize:30,fontWeight:950,marginTop:5}}>{money(commandes.filter(c=>c.statut!=="echouee").reduce((s,c)=>s+Number(c.montant||0),0))}</div><p style={{fontSize:11,lineHeight:1.6,opacity:.75,marginBottom:0}}>Commandes non échouées actuellement présentes dans ton espace.</p></div>
-        <div style={{background:"#fff",border:"1px solid #dfe7e2",borderRadius:16,padding:20}}><div style={{fontSize:10,fontWeight:900,color:"#718078",letterSpacing:1.2}}>TAUX DE CONFIRMATION</div><div style={{fontSize:30,fontWeight:950,marginTop:5}}>{commandes.length?Math.round(commandes.filter(c=>c.statut==="confirmee"||c.statut==="livree").length/commandes.length*100):0}%</div><p style={{fontSize:11,lineHeight:1.6,color:"#68736c",marginBottom:0}}>Indicateur simple pour suivre la qualité du traitement des commandes COD.</p></div>
-      </div>
-    </main>
-  </div>;
 }
 
 function Centered({ children }) {
@@ -2887,28 +2463,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             📁 Collections
           </button>
         )}
-        {(workspace.role === "owner" || workspace.role === "admin") && (
+        {workspace.role === "owner" && (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px" }} />
-            {workspace.role === "owner" && (
-              <button
-                onClick={() => setShowTeam(true)}
-                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-              >
-                👥 Gérer l'équipe
-              </button>
-            )}
             <button
-              onClick={() => { window.location.href = `${window.location.pathname}?builder=1`; }}
-              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 700, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              onClick={() => setShowTeam(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
-              🧱 Construire ma boutique
+              👥 Gérer l'équipe
             </button>
             <button
               onClick={() => setShowIntegrations(true)}
-              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
-              🛍️ Gestion boutique
+              🛍️ Ma Boutique
             </button>
             <button
               onClick={() => setShowAbonnement(true)}
@@ -3719,7 +3287,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         }}
       >
         {[
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "centre_commercial", label: "Centre", icon: Target }] : []),
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
@@ -3733,7 +3300,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           return (
             <button
               key={t.key}
-              onClick={() => t.key === "centre_commercial" ? (window.location.search = "?centre=commandes") : setVue(t.key)}
+              onClick={() => setVue(t.key)}
               style={{
                 flex: 1,
                 background: "none",
@@ -9115,12 +8682,6 @@ function IntegrationsModal({ workspace, onClose }) {
             <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6 }}>Enregistre ton numéro WhatsApp d'abord ⬆️</div>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => { window.location.href = `${window.location.pathname}?builder=1`; }}
-          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", background:"linear-gradient(135deg,#162c21,#1f9d6e)", color:"white", border:"none", borderRadius:12, padding:"15px 0", fontWeight:900, fontSize:14, cursor:"pointer", marginBottom:20, boxShadow:"0 10px 24px rgba(22,44,33,.18)" }}
-        >🧱 Ouvrir le constructeur complet</button>
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5, color: "#8A6412", marginBottom: 4 }}>

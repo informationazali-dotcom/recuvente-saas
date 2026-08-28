@@ -367,8 +367,350 @@ function LandingPage() {
         .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:700px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
         .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
         .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
-        .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
-        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
+        /* =========================================================
+           RECUVENTE — SECTION "DU CLIC AU DERNIER FRANC"
+           DESIGN PREMIUM / CONVERSION
+           ========================================================= */
+
+        .rvx-dark{
+          position:relative;
+          overflow:hidden;
+          background:
+            radial-gradient(circle at 15% 15%,rgba(46,139,87,.16),transparent 32%),
+            radial-gradient(circle at 90% 80%,rgba(255,122,0,.09),transparent 28%),
+            linear-gradient(135deg,#050b08 0%,#07130d 50%,#09180f 100%);
+          color:#fff;
+        }
+
+        .rvx-dark:before{
+          content:"";
+          position:absolute;
+          width:700px;
+          height:700px;
+          left:50%;
+          top:180px;
+          transform:translateX(-50%);
+          background:radial-gradient(circle,rgba(46,139,87,.08),transparent 65%);
+          pointer-events:none;
+        }
+
+        .rvx-dark > .wrap{
+          position:relative;
+          z-index:2;
+        }
+
+        .rvx-dark .rvx-kicker{
+          display:inline-flex;
+          align-items:center;
+          gap:8px;
+          padding:7px 11px;
+          border:1px solid rgba(130,216,159,.18);
+          background:rgba(130,216,159,.055);
+          border-radius:999px;
+          color:#82d89f;
+          font-size:8px;
+          letter-spacing:.16em;
+        }
+
+        .rvx-dark .rvx-title{
+          max-width:850px;
+          margin-left:auto;
+          margin-right:auto;
+          text-shadow:0 10px 40px rgba(0,0,0,.25);
+        }
+
+        .rvx-dark .rvx-title span{color:#82d89f}
+
+        .rvx-dark .rvx-desc{
+          max-width:620px;
+          color:#84938a;
+        }
+
+        .rvx-chain{
+          position:relative;
+          display:grid;
+          grid-template-columns:repeat(7,1fr);
+          gap:7px;
+          margin-top:48px;
+        }
+
+        .rvx-chain:before{
+          content:"";
+          position:absolute;
+          top:50%;
+          left:4%;
+          right:4%;
+          height:1px;
+          background:linear-gradient(
+            90deg,
+            transparent,
+            rgba(130,216,159,.22),
+            rgba(255,122,0,.35),
+            rgba(130,216,159,.22),
+            transparent
+          );
+          z-index:0;
+        }
+
+        .rvx-step{
+          position:relative;
+          z-index:1;
+          min-height:112px;
+          padding:17px 8px 14px;
+          border:1px solid rgba(255,255,255,.075);
+          background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.025));
+          border-radius:14px;
+          text-align:center;
+          backdrop-filter:blur(12px);
+          box-shadow:0 15px 45px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04);
+          transition:transform .22s ease,border-color .22s ease,background .22s ease;
+        }
+
+        .rvx-step:hover{
+          transform:translateY(-5px);
+          border-color:rgba(130,216,159,.25);
+          background:linear-gradient(145deg,rgba(46,139,87,.13),rgba(255,255,255,.035));
+        }
+
+        .rvx-step b{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          width:32px;
+          height:32px;
+          border-radius:9px;
+          background:rgba(255,122,0,.1);
+          border:1px solid rgba(255,122,0,.2);
+          font:800 12px monospace;
+          color:#ff8b20;
+        }
+
+        .rvx-step strong{
+          display:block;
+          margin-top:10px;
+          font-size:8.5px;
+          font-weight:900;
+          letter-spacing:.04em;
+          color:#f5f8f5;
+        }
+
+        .rvx-step span{
+          display:block;
+          margin-top:5px;
+          color:#718078;
+          font-size:7.5px;
+          line-height:1.45;
+        }
+
+        .rvx-grid2{
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:16px;
+          margin-top:46px;
+        }
+
+        .rvx-dark .rvx-card{
+          position:relative;
+          min-height:350px;
+          overflow:hidden;
+          border-radius:22px;
+          padding:32px;
+          color:#fff;
+          border:1px solid rgba(255,255,255,.09);
+          background:linear-gradient(145deg,#102219 0%,#0c1a13 55%,#09150f 100%);
+          box-shadow:0 30px 80px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035);
+        }
+
+        .rvx-dark .rvx-card:before{
+          content:"";
+          position:absolute;
+          width:260px;
+          height:260px;
+          right:-100px;
+          top:-100px;
+          border-radius:50%;
+          background:radial-gradient(circle,rgba(46,139,87,.18),transparent 68%);
+          pointer-events:none;
+        }
+
+        .rvx-dark .rvx-card:after{
+          content:"";
+          position:absolute;
+          left:32px;
+          right:32px;
+          top:0;
+          height:2px;
+          background:linear-gradient(90deg,#2e8b57,rgba(46,139,87,0));
+        }
+
+        .rvx-dark .rvx-card h3{
+          position:relative;
+          z-index:1;
+          margin:0;
+          font:900 clamp(24px,2.4vw,31px) Georgia,serif;
+          line-height:1.05;
+          letter-spacing:-.045em;
+          color:#fff;
+        }
+
+        .rvx-dark .rvx-card p{
+          position:relative;
+          z-index:1;
+          max-width:520px;
+          margin:13px 0 0;
+          color:#84938a;
+          font-size:11px;
+          line-height:1.7;
+        }
+
+        .rvx-card-label{
+          position:relative;
+          z-index:2;
+          display:inline-flex;
+          align-items:center;
+          gap:7px;
+          margin-bottom:15px;
+          padding:6px 9px;
+          border-radius:7px;
+          background:rgba(255,255,255,.045);
+          border:1px solid rgba(255,255,255,.08);
+          color:#8d9b93;
+          font-size:7px;
+          font-weight:900;
+          letter-spacing:.14em;
+          text-transform:uppercase;
+        }
+
+        .rvx-card-label-dot{
+          width:6px;
+          height:6px;
+          border-radius:50%;
+          background:#82d89f;
+          box-shadow:0 0 0 4px rgba(130,216,159,.08);
+        }
+
+        .rvx-card.money .rvx-card-label-dot{
+          background:#ff7a00;
+          box-shadow:0 0 0 4px rgba(255,122,0,.08);
+        }
+
+        .rvx-dark .rvx-list{
+          position:relative;
+          z-index:2;
+          display:grid;
+          gap:8px;
+          margin-top:25px;
+        }
+
+        .rvx-dark .rvx-list div{
+          display:flex;
+          align-items:center;
+          min-height:37px;
+          padding:9px 11px;
+          border:1px solid rgba(255,255,255,.055);
+          border-radius:9px;
+          background:rgba(255,255,255,.025);
+          color:#dce5df;
+          font-size:9.5px;
+          font-weight:650;
+          transition:.2s ease;
+        }
+
+        .rvx-dark .rvx-list div:hover{
+          background:rgba(255,255,255,.055);
+          transform:translateX(3px);
+        }
+
+        .rvx-dark .rvx-list b{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          flex:0 0 20px;
+          width:20px;
+          height:20px;
+          margin-right:9px;
+          border-radius:6px;
+          background:rgba(46,139,87,.13);
+          color:#82d89f;
+          font-size:10px;
+        }
+
+        .rvx-dark .rvx-card.money .rvx-list b{
+          background:rgba(255,122,0,.1);
+          color:#ff8b20;
+        }
+
+        .rvx-dark .rvx-card.money{
+          background:
+            radial-gradient(circle at 90% 10%,rgba(255,122,0,.11),transparent 34%),
+            linear-gradient(145deg,#13231a 0%,#0d1b13 55%,#09150f 100%);
+        }
+
+        .rvx-dark .rvx-card.money:after{
+          background:linear-gradient(90deg,#ff7a00,rgba(255,122,0,0));
+        }
+
+        .rvx-card-highlight{
+          position:relative;
+          z-index:2;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:15px;
+          margin-top:24px;
+          padding:13px 15px;
+          border-radius:11px;
+          background:rgba(255,255,255,.035);
+          border:1px solid rgba(255,255,255,.065);
+        }
+
+        .rvx-card-highlight span{
+          color:#718078;
+          font-size:8px;
+          font-weight:700;
+        }
+
+        .rvx-card-highlight strong{
+          color:#82d89f;
+          font:800 12px monospace;
+        }
+
+        .rvx-card.money .rvx-card-highlight strong{
+          color:#ff8b20;
+        }
+
+        @media(max-width:900px){
+          .rvx-chain{grid-template-columns:repeat(4,1fr)}
+          .rvx-chain:before{display:none}
+          .rvx-grid2{grid-template-columns:1fr}
+        }
+
+        @media(max-width:650px){
+          .rvx-chain{
+            grid-template-columns:repeat(2,1fr);
+            gap:8px;
+            margin-top:35px;
+          }
+
+          .rvx-step{min-height:100px}
+
+          .rvx-dark .rvx-card{
+            min-height:auto;
+            padding:25px 20px;
+            border-radius:18px;
+          }
+
+          .rvx-dark .rvx-card:after{
+            left:20px;
+            right:20px;
+          }
+
+          .rvx-dark .rvx-card h3{font-size:25px}
+          .rvx-dark .rvx-card p{font-size:10.5px}
+
+          .rvx-card-highlight{margin-top:19px}
+        }
+
         .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
         .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
         .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
@@ -388,7 +730,123 @@ function LandingPage() {
         <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
       </div></section>
 
-      <section className="rvx-section rvx-dark"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Voici la chaîne que RecuVente transforme en données, actions et décisions.</p></div><div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div><div className="rvx-grid2"><div className="rvx-card"><h3>Tu veux retrouver une commande ?</h3><p>Tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</p><div className="rvx-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div><div className="rvx-card dark"><h3>Tu veux comprendre ton argent ?</h3><p>Relie commandes, paiements, coûts, commissions, dépôts et bénéfices au même endroit.</p><div className="rvx-list">{["Montant encaissé","À récupérer","Dépôt attendu","Coût produit","Bénéfice réel"].map((x) => <div key={x}><b style={{color:"#ff7a00"}}>→</b>{x}</div>)}</div></div></div></div></section>
+      <section className="rvx-section rvx-dark">
+        <div className="wrap">
+
+          <div className="rvx-center">
+            <div className="rvx-kicker">
+              <span>●</span>
+              De bout en bout
+            </div>
+
+            <h2 className="rvx-title">
+              Du <span>clic publicitaire</span><br/>
+              au dernier franc.
+            </h2>
+
+            <p className="rvx-desc">
+              Voici la chaîne que RecuVente transforme en données,
+              actions et décisions.
+            </p>
+          </div>
+
+          <div className="rvx-chain">
+            {[
+              ["01","PUBLICITÉ","Pixel · campagne"],
+              ["02","BOUTIQUE","Produit · commande"],
+              ["03","CLOSING","Appel · confirmation"],
+              ["04","ATTRIBUTION","Closer · livreur"],
+              ["05","LIVRAISON","GPS · résultat"],
+              ["06","ENCAISSEMENT","Paiement · dépôt"],
+              ["07","RÉACTIVATION","Client · relance"]
+            ].map((x) => (
+              <div className="rvx-step" key={x[0]}>
+                <b>{x[0]}</b>
+                <strong>{x[1]}</strong>
+                <span>{x[2]}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="rvx-grid2">
+
+            <div className="rvx-card">
+              <div className="rvx-card-label">
+                <span className="rvx-card-label-dot"></span>
+                TRAÇABILITÉ TOTALE
+              </div>
+
+              <h3>
+                Tu veux retrouver<br/>
+                une commande ?
+              </h3>
+
+              <p>
+                Tu peux descendre jusqu'au détail d'une commande,
+                d'un client, d'un produit ou d'un membre de ton équipe.
+              </p>
+
+              <div className="rvx-card-highlight">
+                <span>Chaque étape laisse une trace.</span>
+                <strong>360°</strong>
+              </div>
+
+              <div className="rvx-list">
+                {[
+                  "Quel client a été appelé ?",
+                  "Quel closer a confirmé ?",
+                  "Quel produit a été remis ?",
+                  "Quel livreur l'a reçu ?",
+                  "Livré, échoué ou reprogrammé ?"
+                ].map((x) => (
+                  <div key={x}>
+                    <b>✓</b>
+                    {x}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rvx-card money">
+              <div className="rvx-card-label">
+                <span className="rvx-card-label-dot"></span>
+                PILOTAGE FINANCIER
+              </div>
+
+              <h3>
+                Tu veux comprendre<br/>
+                ton argent ?
+              </h3>
+
+              <p>
+                Relie commandes, paiements, coûts, commissions,
+                dépôts et bénéfices au même endroit.
+              </p>
+
+              <div className="rvx-card-highlight">
+                <span>Du chiffre d'affaires au bénéfice réel.</span>
+                <strong>€ → 💰</strong>
+              </div>
+
+              <div className="rvx-list">
+                {[
+                  "Montant encaissé",
+                  "À récupérer",
+                  "Dépôt attendu",
+                  "Coût produit",
+                  "Bénéfice réel"
+                ].map((x) => (
+                  <div key={x}>
+                    <b>→</b>
+                    {x}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
 
       <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></section>
 

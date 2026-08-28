@@ -896,113 +896,6 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
   );
 }
 
-function RVStoreBuilder({ workspace, produits = [], clients = [], onClose }) {
-  const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
-  const activityType = workspace?.activity_type || 'cod_ecommerce';
-  const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
-  const sectionCatalog = {
-    announcement:{icon:'📣',label:'Barre d’annonce',description:'Message promotionnel ou information importante.'},
-    hero:{icon:'✨',label:'Hero / couverture',description:'Grande image, titre, sous-titre et bouton.'},
-    collections:{icon:'🗂️',label:'Collections',description:'Sélectionne exactement les collections à afficher.'},
-    bestsellers:{icon:'🔥',label:'Meilleures ventes',description:'Sélectionne les produits à mettre en avant.'},
-    bundles:{icon:'📦',label:'Bundles / Packs',description:'Offres quantité pour augmenter le panier moyen.'},
-    products:{icon:'🛍️',label:'Catalogue produits',description:'Sélectionne les produits visibles dans cette section.'},
-    benefits:{icon:'🛡️',label:'Réassurance',description:'Paiement COD, livraison, garantie et support.'},
-    testimonials:{icon:'⭐',label:'Avis clients',description:'Preuves sociales.'},
-    promo:{icon:'🏷️',label:'Promotion',description:'Offre spéciale.'},
-    gallery:{icon:'🖼️',label:'Galerie',description:'Ajoute tes propres images.'},
-    faq:{icon:'❓',label:'FAQ',description:'Questions et réponses.'},
-    whatsapp:{icon:'💬',label:'WhatsApp',description:'Contact rapide.'},
-    cod_form:{icon:'📝',label:'Bon de commande COD',description:'Quantité, frais de livraison et total.'},
-    delivery:{icon:'🚚',label:'Livraison',description:'Zones et délais.'},
-    contact:{icon:'🎯',label:'CTA final',description:'Dernier appel à l’action.'},
-    footer:{icon:'▦',label:'Footer',description:'Coordonnées et liens.'}
-  };
-  const defaults = {
-    theme:'premium', couleur:workspace?.couleur_marque || '#1a7a3c', nom:workspace?.name || 'Ma boutique',
-    description:workspace?.description_boutique || 'Une boutique professionnelle, pensée pour convertir.',
-    livraison:workspace?.politique_livraison || 'Livraison rapide et suivi de commande.', logo:workspace?.logo_url || '', banniere:workspace?.banniere_url || '',
-    paiement:'cod', fraisLivraison:Number(workspace?.frais_livraison || 0), fraisExpedition:Number(workspace?.frais_expedition || 0),
-    shippingLabel:'Frais de livraison', buttonText:activityType==='restaurant'?'Commander maintenant':activityType.includes('location')?'Réserver maintenant':'Acheter maintenant',
-    announcement:'🚀 Livraison suivie • Paiement à la livraison • Support rapide',
-    heroTitle:activityType==='restaurant'?'Découvrez notre menu':activityType==='location_immobiliere'?'Trouvez votre prochain séjour':activityType==='location_vehicule'?'Louez le véhicule qui vous correspond':'Votre boutique. Votre marque. Votre business.',
-    heroSubtitle:'Une expérience moderne, rapide et pensée pour transformer les visiteurs en clients.', promoTitle:'Une offre à ne pas manquer', promoText:'Profitez de nos offres du moment.', whatsapp:'Bonjour, je souhaite avoir plus d’informations.',
-    selectedProductIds:[], selectedCollectionIds:[], gallery:[],
-    sections:activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer'],
-    bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}]
-  };
-  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}});
-  const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
-  const [collections,setCollections]=useState([]);
-  useEffect(()=>{let alive=true;(async()=>{if(!workspace?.id)return;const {data}=await supabase.from('collections').select('*').eq('workspace_id',workspace.id).order('ordre',{ascending:true});if(alive)setCollections(data||[]);})();return()=>{alive=false}},[workspace?.id]);
-  const products=useMemo(()=>produits.map((p,i)=>({id:p.id||`p-${i}`,name:p.nom||p.name||p.titre||p.title||`Produit ${i+1}`,price:Number(p.prix_vente??p.prix??p.price??p.montant??0),image:p.image_url||p.image||p.photo||p.photo_url||'',category:p.collection||p.categorie||p.category||'Collection',description:p.description||p.desc||'Découvrez ce produit.'})),[produits]);
-  const derivedCollections=useMemo(()=>collections.length?collections:[...new Map(products.map(p=>[p.category,{id:`derived-${p.category}`,nom:p.category,count:products.filter(x=>x.category===p.category).length}])).values()],[collections,products]);
-  const selectedProducts=useMemo(()=>products.filter(p=>config.selectedProductIds?.includes(p.id)),[products,config.selectedProductIds]);
-  const fallbackProducts=selectedProducts.length?selectedProducts:products.slice(0,8);
-  const bestsellers=fallbackProducts.slice(0,4);
-  function update(k,v){setConfig(c=>({...c,[k]:v}));}
-  function toggleArray(key,id){setConfig(c=>{const a=new Set(c[key]||[]);a.has(id)?a.delete(id):a.add(id);return {...c,[key]:[...a]}})}
-  function move(i,d){setConfig(c=>{const a=[...c.sections],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,sections:a}})}
-  function remove(i){setConfig(c=>({...c,sections:c.sections.filter((_,j)=>j!==i)}))}
-  function addSection(type){setConfig(c=>({...c,sections:[...c.sections,type]}));setSelected(type);setShowAdd(false)}
-  async function uploadImage(kind,file){
-    if(!file)return; if(file.size>8*1024*1024){alert('Image trop lourde (maximum 8 Mo).');return;} setUploading(kind);
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path=`${workspace.id}/builder-${kind}-${Date.now()}.${ext}`;
-    const {error}=await supabase.storage.from('boutique').upload(path,file,{upsert:true,contentType:file.type||undefined});
-    if(error){alert('Impossible d’envoyer l’image : '+error.message);setUploading(null);return;}
-    const {data}=supabase.storage.from('boutique').getPublicUrl(path); const url=data.publicUrl;
-    if(kind==='hero') update('banniere',url); else if(kind==='logo') update('logo',url); else if(kind==='gallery') setConfig(c=>({...c,gallery:[...(c.gallery||[]),url]}));
-    setUploading(null);
-  }
-  async function save(){setSaving(true);setSaved(false);try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){} if(workspace?.id){const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0};const {error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id);if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return;}}setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200)}
-  async function publish(){await save();setPublished(true);setTimeout(()=>setPublished(false),2500)}
-  const fieldStyle={width:'100%',boxSizing:'border-box',border:'1px solid #dfe6e1',borderRadius:10,padding:'10px 11px',fontSize:12,outline:'none',background:'#fff'};
-  const labelStyle={display:'block',fontSize:10.5,color:'#647168',fontWeight:750,marginBottom:10}; const cardStyle={background:'#fff',border:'1px solid #e4ebe5',borderRadius:16,boxShadow:'0 8px 24px rgba(17,38,26,.045)'};
-  const FileButton=({kind,label})=><label style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,border:'1px solid #cfdad2',background:'#f8fbf8',color:'#1a7a3c',borderRadius:10,padding:'9px 12px',fontSize:11,fontWeight:900,cursor:'pointer',width:'100%',boxSizing:'border-box'}}>{uploading===kind?'⏳ Envoi...':`📤 ${label}`}<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>uploadImage(kind,e.target.files?.[0])}/></label>;
-  function PreviewSection({type}){
-    const common={padding:'28px 22px',borderBottom:'1px solid #edf1ee'};
-    if(type==='announcement')return <div style={{...common,padding:'9px 14px',background:config.couleur,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
-    if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${config.couleur},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div><div style={{padding:'22px 20px 28px'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div><button style={{border:0,borderRadius:10,padding:'12px 19px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div></div>;
-    if(type==='collections')return <div style={common}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:3},1fr)`,gap:10}}>{derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id)).slice(0,6).map(c=><div key={c.id} style={{padding:'18px 10px',borderRadius:12,background:'#f5f8f5',textAlign:'center'}}><div style={{fontSize:20}}>🗂️</div><div style={{fontWeight:850,fontSize:11.5,marginTop:6}}>{c.nom||c.name}</div><div style={{fontSize:10,color:'#7c877f',marginTop:3}}>{c.count||0} article(s)</div></div>)}</div></div>;
-    if(type==='bestsellers'||type==='products')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:fallbackProducts).slice(0,8).map((p,i)=><div key={p.id||i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:config.couleur,marginTop:4}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:config.couleur,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
-    if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const total=base*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+config.couleur:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}><div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:config.couleur,marginTop:10}}>{base?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:config.couleur,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
-    if(type==='gallery')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Notre univers</h3>{config.gallery?.length?<div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8}}>{config.gallery.map((u,i)=><img key={i} src={u} alt="" style={{width:'100%',height:device==='mobile'?100:130,objectFit:'cover',borderRadius:10}}/>)}</div>:<div style={{padding:30,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#7a857e',fontSize:11}}>Ajoute tes images depuis le panneau de droite.</div>}</div>;
-    if(type==='cod_form')return <div style={{...common,background:'#f7faf7'}}><div style={{maxWidth:520,margin:'0 auto'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:config.couleur}}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>📝 Bon de commande — Paiement à la livraison</h3></div><div style={{background:'#fff',border:'1px solid #e1e8e2',borderRadius:14,padding:14}}><div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':'1fr 1fr',gap:8}}>{['Nom complet','Téléphone WhatsApp','Ville / commune','Adresse de livraison'].map(x=><div key={x} style={{border:'1px solid #e0e6e1',borderRadius:9,padding:11,fontSize:10.5,color:'#8a948d'}}>{x}</div>)}</div><div style={{marginTop:10,padding:11,borderRadius:10,background:'#f5f8f5',fontSize:11.5,color:'#435047'}}>🚚 Livraison : <b>{Number(config.fraisLivraison||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b> · 🚛 Expédition : <b>{Number(config.fraisExpedition||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b></div><button style={{marginTop:10,width:'100%',border:0,borderRadius:10,padding:12,background:config.couleur,color:'#fff',fontWeight:950}}>Confirmer ma commande — paiement à la livraison</button></div></div></div>;
-    if(type==='benefits')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Pourquoi acheter chez nous ?</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{[['🛡️','Paiement à la livraison'],['🚚','Livraison suivie'],['💬','Support rapide']].map(x=><div key={x[1]} style={{padding:14,borderRadius:11,background:'#f6f9f6'}}><div style={{fontSize:20}}>{x[0]}</div><div style={{fontWeight:850,fontSize:11.5,marginTop:7}}>{x[1]}</div></div>)}</div></div>;
-    if(type==='promo')return <div style={{...common,background:'#f7f2e7',textAlign:'center'}}><div style={{fontSize:10,fontWeight:900,color:'#b16b00'}}>OFFRE LIMITÉE</div><h3 style={{fontSize:24,margin:'7px 0',color:'#162119'}}>{config.promoTitle}</h3><p style={{fontSize:12,color:'#6f776f'}}>{config.promoText}</p><button style={{border:0,borderRadius:9,padding:'10px 18px',background:'#e8920a',fontWeight:900}}>Profiter de l'offre</button></div>;
-    if(type==='testimonials')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>⭐ Ils nous font confiance</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:10}}>{['Une expérience simple et rapide.','La commande a été parfaitement suivie.','Je recommande sans hésiter.'].map((t,i)=><div key={i} style={{padding:15,border:'1px solid #e6ece7',borderRadius:12}}><div style={{color:'#e8920a'}}>★★★★★</div><div style={{fontSize:11.5,lineHeight:1.55,color:'#435047',marginTop:7}}>“{t}”</div><div style={{fontSize:10,fontWeight:800,marginTop:9}}>Client</div></div>)}</div></div>;
-    if(type==='faq')return <div style={common}><h3 style={{margin:'0 0 12px',fontSize:19,color:'#14221b'}}>Questions fréquentes</h3>{['Comment commander ?','Quels sont les délais ?','Comment suivre ma commande ?'].map(q=><div key={q} style={{padding:'12px 2px',borderBottom:'1px solid #e7ece8',fontSize:11.5,fontWeight:800,display:'flex',justifyContent:'space-between'}}>{q}<span>＋</span></div>)}</div>;
-    if(type==='whatsapp')return <div style={{...common,textAlign:'center',background:'#f4faf5'}}><div style={{fontSize:26}}>💬</div><h3 style={{margin:'7px 0',fontSize:19,color:'#14221b'}}>Besoin d'aide ?</h3><p style={{fontSize:11.5,color:'#68756d'}}>Écris-nous directement sur WhatsApp.</p><button style={{border:0,borderRadius:10,padding:'10px 18px',background:'#168a45',color:'#fff',fontWeight:900}}>Ouvrir WhatsApp</button></div>;
-    if(type==='delivery')return <div style={common}><h3 style={{margin:'0 0 9px',fontSize:19,color:'#14221b'}}>🚚 Livraison</h3><p style={{fontSize:11.5,color:'#68756d',lineHeight:1.6}}>{config.livraison}</p></div>;
-    if(type==='contact')return <div style={{...common,textAlign:'center',background:'#0d2417',color:'#fff'}}><h3 style={{margin:'0 0 8px',fontSize:24}}>Prêt à passer à l'action ?</h3><p style={{fontSize:11.5,color:'rgba(255,255,255,.68)'}}>Commandez, réservez ou contactez-nous maintenant.</p><button style={{border:0,borderRadius:10,padding:'11px 20px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div>;
-    if(type==='footer')return <div style={{padding:'24px 20px',background:'#101b15',color:'#fff',fontSize:10.5}}><div style={{fontWeight:900,fontSize:14}}>{config.nom}</div><div style={{opacity:.65,marginTop:6}}>{config.description}</div><div style={{opacity:.45,marginTop:14}}>© {new Date().getFullYear()} • Tous droits réservés</div></div>;
-    return <div style={common}/>;
-  }
-  function Editor(){
-    const type=selected;
-    if(type==='hero')return <><label style={labelStyle}>Titre principal<input style={fieldStyle} value={config.heroTitle} onChange={e=>update('heroTitle',e.target.value)}/></label><label style={labelStyle}>Sous-titre<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.heroSubtitle} onChange={e=>update('heroSubtitle',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label>{config.banniere&&<img src={config.banniere} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:10,marginBottom:8}}/>}<FileButton kind="hero" label="Télécharger / changer la couverture"/><label style={{...labelStyle,marginTop:8}}>Ou URL de couverture<input style={fieldStyle} placeholder="https://..." value={config.banniere} onChange={e=>update('banniere',e.target.value)}/></label></>;
-    if(type==='announcement')return <label style={labelStyle}>Message<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.announcement} onChange={e=>update('announcement',e.target.value)}/></label>;
-    if(type==='collections')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Clique sur les collections à afficher. Si aucune n’est sélectionnée, toutes les collections seront affichées.</div>{derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{const id=c.id;const on=config.selectedCollectionIds?.includes(id);return <button key={id} onClick={()=>toggleArray('selectedCollectionIds',id)} style={{textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:'9px 10px',cursor:'pointer',fontSize:11,fontWeight:800,color:'#233128'}}>{on?'☑':'□'} {c.nom||c.name} <span style={{float:'right',color:'#87928a'}}>{c.count||0}</span></button>})}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucune collection. Crée d’abord une collection dans « Produits → Collections ».</div>}</div>;
-    if(type==='products'||type==='bestsellers')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Sélectionne les produits. Si aucun n’est sélectionné, RecuVente utilise automatiquement ton catalogue.</div>{products.length?<div style={{display:'grid',gap:6,maxHeight:300,overflow:'auto'}}>{products.map(p=>{const on=config.selectedProductIds?.includes(p.id);return <button key={p.id} onClick={()=>toggleArray('selectedProductIds',p.id)} style={{display:'flex',alignItems:'center',gap:8,textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:7,cursor:'pointer'}}>{p.image?<img src={p.image} alt="" style={{width:38,height:38,objectFit:'cover',borderRadius:7}}/>:<span style={{width:38,height:38,borderRadius:7,background:'#eef3ee',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>🛍️</span>}<span style={{flex:1,fontSize:10.8,fontWeight:850,color:'#233128'}}>{on?'☑ ':'□ '}{p.name}</span><span style={{fontSize:10,fontWeight:900,color:'#1a7a3c'}}>{p.price.toLocaleString('fr-FR')}</span></button>})}</div>:<div style={{padding:12,background:'#fff6e8',borderRadius:9,fontSize:11}}>Aucun produit dans ton espace. Va dans « Produits » puis importe ton CSV Shopify.</div>}</div>;
-    if(type==='gallery')return <div><FileButton kind="gallery" label="Ajouter une image à la galerie"/>{config.gallery?.length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:7,marginTop:10}}>{config.gallery.map((u,i)=><div key={i} style={{position:'relative'}}><img src={u} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:8}}/><button onClick={()=>setConfig(c=>({...c,gallery:c.gallery.filter((_,j)=>j!==i)}))} style={{position:'absolute',right:4,top:4,border:0,borderRadius:999,background:'#fff',color:'#b63d2c',cursor:'pointer'}}>×</button></div>)}</div>}</div>;
-    if(type==='bundles')return <div><div style={{fontSize:10.5,color:'#68756d',marginBottom:10}}>Configure tes offres par quantité.</div>{(config.bundles||[]).map((b,i)=><div key={b.id||i} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:10,marginBottom:8}}><div style={{display:'grid',gridTemplateColumns:'1fr 70px',gap:7}}><label style={labelStyle}>Nom<input style={fieldStyle} value={b.label} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,label:e.target.value}:x)}))}/></label><label style={labelStyle}>Qté<input type="number" min="1" style={fieldStyle} value={b.qty} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,qty:Math.max(1,Number(e.target.value)||1)}:x)}))}/></label></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><label style={labelStyle}>Remise %<input type="number" min="0" max="90" style={fieldStyle} value={b.discount} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,discount:Math.min(90,Math.max(0,Number(e.target.value)||0))}:x)}))}/></label><label style={labelStyle}>Badge<input style={fieldStyle} value={b.badge||''} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,badge:e.target.value}:x)}))}/></label></div></div>)}<button onClick={()=>setConfig(c=>({...c,bundles:[...(c.bundles||[]),{id:'b'+Date.now(),qty:(c.bundles?.length||0)+1,label:'Pack x'+((c.bundles?.length||0)+1),discount:10,badge:'Offre'}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un bundle</button></div>;
-    if(type==='cod_form')return <div><div style={{padding:11,borderRadius:10,background:'#f4faf5',border:'1px solid #d9eadc',marginBottom:10}}><div style={{fontSize:11,fontWeight:950,color:'#1a7a3c'}}>💵 Paiement COD activé</div><div style={{fontSize:10.5,color:'#607068',marginTop:4}}>Prévu pour le marché africain. Le paiement en ligne pourra être connecté plus tard.</div></div><label style={labelStyle}>Frais de livraison locale<input type="number" min="0" style={fieldStyle} value={config.fraisLivraison} onChange={e=>update('fraisLivraison',e.target.value)}/></label><label style={labelStyle}>Frais d'expédition<input type="number" min="0" style={fieldStyle} value={config.fraisExpedition} onChange={e=>update('fraisExpedition',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label></div>;
-    if(type==='delivery')return <label style={labelStyle}>Politique de livraison<textarea style={{...fieldStyle,resize:'vertical'}} rows={5} value={config.livraison} onChange={e=>update('livraison',e.target.value)}/></label>;
-    if(type==='promo')return <><label style={labelStyle}>Titre de l'offre<input style={fieldStyle} value={config.promoTitle} onChange={e=>update('promoTitle',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.promoText} onChange={e=>update('promoText',e.target.value)}/></label></>;
-    if(type==='whatsapp')return <label style={labelStyle}>Message WhatsApp<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.whatsapp} onChange={e=>update('whatsapp',e.target.value)}/></label>;
-    return <div style={{padding:12,background:'#f5f8f5',borderRadius:11,fontSize:11.5,color:'#657169',lineHeight:1.55}}>Cette section est maintenant sélectionnable et configurable. Les produits et collections sont ceux de ton espace RecuVente.</div>;
-  }
-  return <div style={{...cardStyle,padding:14,overflow:'hidden'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7}}><button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{published?'✓ Publiée':'🚀 Publier'}</button></div></div>
-    <div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':device==='tablet'?'190px minmax(0,1fr)':'220px minmax(0,1fr) 290px',gap:12,alignItems:'start'}}>
-      <div style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer'}}><span>{sectionCatalog[s]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
-      <div style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,borderBottom:'1px solid #edf1ee'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950,color:'#14221b'}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>R</span>}{config.nom}</div><div style={{display:'flex',gap:12,fontSize:10,color:'#68756d'}}><span>Accueil</span><span>Catalogue</span><span>Contact</span><span>🛒</span></div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
-      <div style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique.</div></div>
-    </div>
-  </div>;
-}
-
-
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
@@ -1051,7 +944,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showClosers, setShowClosers] = useState(false);
   const [showCampagne, setShowCampagne] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
-  const [showStoreBuilder, setShowStoreBuilder] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
 
@@ -2289,7 +2182,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               👥 Gérer l'équipe
             </button>
             <button
-              onClick={() => setShowStoreBuilder(true)}
+              onClick={() => setShowBuilder(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               🛍️ Ma Boutique
@@ -2352,7 +2245,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
                   </button>
-                  <button onClick={() => setShowStoreBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                  <button onClick={() => setShowBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🛍️
                   </button>
                 </>
@@ -3157,7 +3050,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
-      {showStoreBuilder && <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} onClose={() => setShowStoreBuilder(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}
@@ -3175,7 +3067,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
@@ -3398,6 +3290,8 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
       if (form.client.trim() && montantValide) onAdd({ ...form, mode_vente: "sur_place", montant_paye: "" });
     }
   }
+
+  if (showBuilder) return <RVStoreBuilder workspace={workspace} onClose={() => setShowBuilder(false)} />;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
@@ -5375,7 +5269,7 @@ function AvisModal({ workspaceId, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, workspace, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -5394,7 +5288,6 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
-  const [showBundlesLivraison, setShowBundlesLivraison] = useState(false);
 
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
@@ -5526,8 +5419,6 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         <div style={{ fontSize: 11, color: "#8A9089", marginTop: -4, marginBottom: 14 }}>
           Le coût d'achat sera à 0 par défaut après import — pense à le renseigner ensuite pour chaque produit.
         </div>
-
-        <button onClick={() => setShowBundlesLivraison(true)} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 10, padding: "12px 14px", fontWeight: 800, fontSize: 13, cursor: "pointer", marginBottom: 14, boxShadow: "0 8px 20px rgba(22,35,31,0.12)" }}>🎁 Packs / Bundles & 🚚 Frais de livraison</button>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           <input placeholder="Nom du produit" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />
@@ -5676,136 +5567,6 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               </div>
             );
           })}
-        </div>
-      </div>
-      {showBundlesLivraison && <BundlesLivraisonModal produits={produits} workspace={workspace} currency={currency} onClose={() => setShowBundlesLivraison(false)} />}
-    </div>
-  );
-}
-
-function BundlesLivraisonModal({ produits, workspace, currency, onClose }) {
-  const storageKey = `rv_bundles_livraison_${workspace.id}`;
-  const [produitId, setProduitId] = useState(produits[0]?.id || "");
-  const [bundles, setBundles] = useState([]);
-  const [livraisons, setLivraisons] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [bundleForm, setBundleForm] = useState({ nom: "", quantite: 2, prix: "", actif: true });
-  const [shipping, setShipping] = useState({ local: workspace.frais_livraison ?? 0, expedition: workspace.frais_expedition ?? 0 });
-  const produitChoisi = produits.find((p) => p.id === produitId);
-
-  useEffect(() => { charger(); }, [workspace.id]);
-
-  async function charger() {
-    setLoading(true);
-    let bundleData = [];
-    let livraisonData = [];
-    let dbOk = true;
-    try {
-      const b = await supabase.from("bundles_produits").select("*").eq("workspace_id", workspace.id).order("quantite");
-      if (b.error) dbOk = false; else bundleData = b.data || [];
-      const l = await supabase.from("produits_livraison").select("*").eq("workspace_id", workspace.id);
-      if (l.error) dbOk = false; else livraisonData = l.data || [];
-    } catch (e) { dbOk = false; }
-    if (!dbOk) {
-      try {
-        const local = JSON.parse(localStorage.getItem(storageKey) || "{}");
-        bundleData = local.bundles || [];
-        livraisonData = local.livraisons || [];
-      } catch (e) {}
-    }
-    setBundles(bundleData);
-    const map = {};
-    livraisonData.forEach((x) => { map[x.produit_id] = x; });
-    setLivraisons(map);
-    setLoading(false);
-  }
-
-  async function saveFallback(nextBundles, nextLivraisons) {
-    try { localStorage.setItem(storageKey, JSON.stringify({ bundles: nextBundles, livraisons: Object.values(nextLivraisons) })); } catch (e) {}
-  }
-
-  async function ajouterBundle() {
-    if (!produitId || !bundleForm.nom.trim() || Number(bundleForm.quantite) < 2 || Number(bundleForm.prix) <= 0) return;
-    setSaving(true);
-    const payload = { workspace_id: workspace.id, produit_id: produitId, nom: bundleForm.nom.trim(), quantite: Number(bundleForm.quantite), prix: Number(bundleForm.prix), actif: bundleForm.actif };
-    const { data, error } = await supabase.from("bundles_produits").insert([payload]).select().single();
-    const item = error ? { ...payload, id: `local-${Date.now()}` } : data;
-    const nextBundles = [...bundles, item];
-    setBundles(nextBundles);
-    await saveFallback(nextBundles, livraisons);
-    setBundleForm({ nom: "", quantite: 2, prix: "", actif: true });
-    setSaving(false);
-  }
-
-  async function supprimerBundle(id) {
-    if (!String(id).startsWith("local-")) await supabase.from("bundles_produits").delete().eq("id", id);
-    const nextBundles = bundles.filter((b) => b.id !== id);
-    setBundles(nextBundles);
-    await saveFallback(nextBundles, livraisons);
-  }
-
-  async function enregistrerLivraisonProduit() {
-    if (!produitId) return;
-    setSaving(true);
-    const current = livraisons[produitId] || {};
-    const payload = { workspace_id: workspace.id, produit_id: produitId, mode: current.mode || "inherit", frais_livraison: Number(current.frais_livraison) || 0, frais_expedition: Number(current.frais_expedition) || 0 };
-    const { data, error } = await supabase.from("produits_livraison").upsert([payload], { onConflict: "workspace_id,produit_id" }).select().single();
-    const nextLivraisons = { ...livraisons, [produitId]: error ? { ...payload, id: current.id || `local-${Date.now()}` } : data };
-    setLivraisons(nextLivraisons);
-    await saveFallback(bundles, nextLivraisons);
-    setSaving(false);
-  }
-
-  async function enregistrerFraisGeneraux() {
-    setSaving(true);
-    await supabase.from("workspaces").update({ frais_livraison: Number(shipping.local) || 0, frais_expedition: Number(shipping.expedition) || 0 }).eq("id", workspace.id);
-    setSaving(false);
-  }
-
-  const bundlesProduit = bundles.filter((b) => b.produit_id === produitId);
-  const config = livraisons[produitId] || { mode: "inherit", frais_livraison: 0, frais_expedition: 0 };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.72)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FAFAF7", width: "100%", maxWidth: 760, maxHeight: "94vh", overflowY: "auto", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,0.3)" }}>
-        <div style={{ position: "sticky", top: 0, zIndex: 2, background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div><div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>Optimisation COD</div><div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 800, color: "#16231F" }}>🎁 Bundles & livraison</div></div>
-          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #DDD8CC", background: "white", cursor: "pointer", fontSize: 18 }}>×</button>
-        </div>
-        <div style={{ padding: 20 }}>
-          <div style={{ background: "#16231F", color: "white", borderRadius: 16, padding: 18, marginBottom: 18 }}><div style={{ fontWeight: 800, fontSize: 15 }}>📈 Augmente le panier moyen avec le COD</div><div style={{ fontSize: 12, opacity: .78, lineHeight: 1.55, marginTop: 5 }}>Chaque bundle est lié à un produit précis. Les frais généraux peuvent être hérités ou remplacés par produit.</div></div>
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>1. Produit concerné</div>
-            <select value={produitId} onChange={(e) => setProduitId(e.target.value)} style={{ width: "100%", padding: "11px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, background: "white" }}>
-              {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}{p.prix_vente ? ` — ${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : ""}</option>)}
-            </select>
-          </div>
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>🎁 Bundles / Packs quantité</div><div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Exemple : 2 pièces à 15 000, 3 pièces à 20 000. L'offre est attachée uniquement au produit sélectionné.</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1.3fr .6fr .9fr", gap: 8, marginBottom: 8 }}>
-              <input placeholder="Nom (ex: Pack Économique)" value={bundleForm.nom} onChange={(e) => setBundleForm({ ...bundleForm, nom: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
-              <input type="number" min="2" value={bundleForm.quantite} onChange={(e) => setBundleForm({ ...bundleForm, quantite: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
-              <input type="number" min="1" placeholder={`Prix ${currency}`} value={bundleForm.prix} onChange={(e) => setBundleForm({ ...bundleForm, prix: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
-            </div>
-            <button disabled={saving} onClick={ajouterBundle} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "+ Ajouter le bundle à ce produit"}</button>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 12 }}>
-              {bundlesProduit.map((b) => <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9 }}><div><strong style={{ fontSize: 12.5 }}>{b.nom}</strong><div style={{ fontSize: 11, color: "#6B7168", marginTop: 2 }}>{b.quantite} pièces · {Number(b.prix).toLocaleString("fr-FR")} {currency}</div></div><button onClick={() => supprimerBundle(b.id)} style={{ border: "none", background: "#FBEAE6", color: "#D64933", borderRadius: 7, padding: "6px 9px", cursor: "pointer" }}>🗑️</button></div>)}
-              {bundlesProduit.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12, padding: 12 }}>Aucun bundle pour ce produit.</div>}
-            </div>
-          </div>
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 5 }}>🚚 Frais de livraison — produit sélectionné</div><div style={{ fontSize: 11.5, color: "#8A9089", lineHeight: 1.5, marginBottom: 12 }}>Choisis si ce produit suit les frais généraux, possède ses propres frais ou offre la livraison gratuite.</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>{[["inherit","Utiliser les frais généraux"],["custom","Frais propres"],["free","Gratuit"]].map(([value,label]) => <button key={value} onClick={() => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: value } })} style={{ flex: 1, minWidth: 145, padding: "9px 10px", borderRadius: 9, border: `1px solid ${config.mode === value ? "#1a7a3c" : "#DDD8CC"}`, background: config.mode === value ? "#EAF3DE" : "white", color: config.mode === value ? "#3B6D11" : "#16231F", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>{label}</button>)}</div>
-            {config.mode === "custom" && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}><label style={{ fontSize: 11.5, color: "#6B7168" }}>🏍️ Local<input type="number" value={config.frais_livraison ?? 0} onChange={(e) => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: "custom", frais_livraison: e.target.value } })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label><label style={{ fontSize: 11.5, color: "#6B7168" }}>🚛 Expédition<input type="number" value={config.frais_expedition ?? 0} onChange={(e) => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: "custom", frais_expedition: e.target.value } })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label></div>}
-            <button disabled={saving} onClick={enregistrerLivraisonProduit} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "Enregistrer les frais de ce produit"}</button>
-          </div>
-          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 5 }}>🌍 Frais généraux de la boutique</div><div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Base appliquée aux produits qui utilisent la règle générale.</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}><label style={{ fontSize: 11.5, color: "#6B7168" }}>🏍️ Livraison locale<input type="number" value={shipping.local} onChange={(e) => setShipping({ ...shipping, local: e.target.value })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label><label style={{ fontSize: 11.5, color: "#6B7168" }}>🚛 Expédition<input type="number" value={shipping.expedition} onChange={(e) => setShipping({ ...shipping, expedition: e.target.value })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label></div>
-            <button disabled={saving} onClick={enregistrerFraisGeneraux} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "Enregistrer les frais généraux"}</button>
-          </div>
-          {loading && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12, paddingTop: 12 }}>Chargement des configurations…</div>}
         </div>
       </div>
     </div>
@@ -7989,7 +7750,117 @@ function AideModal({ onClose }) {
   );
 }
 
+
+
+/* =========================
+   RECUVENTE — STORE BUILDER
+   Isolé de la LandingPage pour éviter toute régression.
+========================= */
+function RVStoreBuilder({ workspace, onClose }) {
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [bundles, setBundles] = useState([]);
+  const [deliveryRules, setDeliveryRules] = useState({});
+  const [sections, setSections] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`rv_builder_${workspace.id}`)) || [
+      { id:"hero", type:"Hero", visible:true },
+      { id:"collections", type:"Collections", visible:true },
+      { id:"best", type:"Best-sellers", visible:true },
+      { id:"new", type:"Nouveautés", visible:true },
+      { id:"promo", type:"Promotions", visible:true },
+      { id:"catalogue", type:"Catalogue produits", visible:true },
+      { id:"image-text", type:"Image + texte", visible:true },
+      { id:"reviews", type:"Avis clients", visible:true },
+      { id:"faq", type:"FAQ", visible:true },
+      { id:"delivery", type:"Livraison", visible:true },
+      { id:"footer", type:"Footer", visible:true },
+    ]; } catch { return []; }
+  });
+  const [draftBundle, setDraftBundle] = useState({ nom:"Pack 2", quantite:2, prix:"" });
+  const [delivery, setDelivery] = useState({ mode:"inherit", frais_livraison:"", frais_expedition:"" });
+  const [tab, setTab] = useState("structure");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.from("produits").select("*").eq("workspace_id", workspace.id).order("nom");
+      if (mounted) setProducts(data || []);
+      const { data: bs } = await supabase.from("bundles_produits").select("*").eq("workspace_id", workspace.id).eq("actif", true).order("quantite");
+      if (mounted) setBundles(bs || []);
+    })();
+    return () => { mounted = false; };
+  }, [workspace.id]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const row = bundles.find(b => b.produit_id === selectedProduct);
+    setDeliveryRules(r => r);
+    (async () => {
+      const { data } = await supabase.from("produits_livraison").select("*").eq("workspace_id", workspace.id).eq("produit_id", selectedProduct).maybeSingle();
+      setDelivery(data ? { mode:data.mode, frais_livraison:data.frais_livraison, frais_expedition:data.frais_expedition } : { mode:"inherit", frais_livraison:"", frais_expedition:"" });
+    })();
+  }, [selectedProduct, workspace.id]);
+
+  function move(i, dir) {
+    const j=i+dir; if(j<0 || j>=sections.length) return;
+    const next=[...sections]; [next[i],next[j]]=[next[j],next[i]]; setSections(next);
+  }
+  function addSection() {
+    const type=window.prompt("Nom de la nouvelle section", "Nouvelle section");
+    if(!type) return;
+    setSections(s => [...s, {id:`custom-${Date.now()}`, type, visible:true}]);
+  }
+  function removeSection(i) { if(window.confirm("Supprimer cette section ?")) setSections(s=>s.filter((_,x)=>x!==i)); }
+  function saveStructure() {
+    localStorage.setItem(`rv_builder_${workspace.id}`, JSON.stringify(sections));
+    setMessage("Structure enregistrée"); setTimeout(()=>setMessage(""),1800);
+  }
+  async function addBundle() {
+    if(!selectedProduct || !draftBundle.nom || Number(draftBundle.quantite)<2 || draftBundle.prix==="") return alert("Sélectionne un produit et renseigne le nom, la quantité et le prix du pack.");
+    const payload={workspace_id:workspace.id, produit_id:selectedProduct, nom:draftBundle.nom.trim(), quantite:Number(draftBundle.quantite), prix:Number(draftBundle.prix), actif:true};
+    const { data, error }=await supabase.from("bundles_produits").insert([payload]).select().single();
+    if(error) return alert("Impossible d'enregistrer le pack : "+error.message);
+    setBundles(b=>[...b,data]); setDraftBundle({nom:`Pack ${Number(draftBundle.quantite)+1}`,quantite:Number(draftBundle.quantite)+1,prix:""});
+  }
+  async function deleteBundle(id) { const {error}=await supabase.from("bundles_produits").delete().eq("id",id); if(!error) setBundles(b=>b.filter(x=>x.id!==id)); }
+  async function saveDelivery() {
+    if(!selectedProduct) return alert("Sélectionne d'abord un produit.");
+    const payload={workspace_id:workspace.id, produit_id:selectedProduct, mode:delivery.mode, frais_livraison:Number(delivery.frais_livraison)||0, frais_expedition:Number(delivery.frais_expedition)||0, updated_at:new Date().toISOString()};
+    const {error}=await supabase.from("produits_livraison").upsert(payload,{onConflict:"workspace_id,produit_id"});
+    if(error) return alert("Impossible d'enregistrer la livraison : "+error.message);
+    setMessage("Frais de livraison enregistrés"); setTimeout(()=>setMessage(""),1800);
+  }
+  const productBundles=bundles.filter(b=>b.produit_id===selectedProduct);
+  return <div style={{position:"fixed",inset:0,zIndex:100,background:"#F7F5EF",overflowY:"auto"}}>
+    <div style={{maxWidth:1180,margin:"0 auto",padding:"18px 16px 60px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:18}}>
+        <div><div style={{fontSize:11,color:"#1a7a3c",fontWeight:800,textTransform:"uppercase",letterSpacing:1.2}}>RecuVente · Store Builder</div><h1 style={{margin:"4px 0",fontSize:26,color:"#16231F"}}>Construis ta boutique</h1><div style={{fontSize:13,color:"#6B7168"}}>Ajoute, supprime, déplace et configure réellement tes sections.</div></div>
+        <button onClick={onClose} style={{border:"1px solid #DDD8CC",background:"white",borderRadius:10,padding:"10px 14px",cursor:"pointer",fontWeight:700}}>← Retour</button>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+        {[['structure','🧱 Structure'],['bundles','🎁 Bundles'],['delivery','🚚 Livraison']].map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{border:tab===id?"2px solid #1a7a3c":"1px solid #DDD8CC",background:tab===id?"#EAF3DE":"white",borderRadius:10,padding:"10px 14px",fontWeight:700,cursor:"pointer"}}>{label}</button>)}
+        {message && <div style={{marginLeft:"auto",background:"#EAF3DE",padding:"10px 14px",borderRadius:10,color:"#1a7a3c",fontWeight:700}}>{message}</div>}
+      </div>
+      {tab==="structure" && <div style={{background:"white",border:"1px solid #E3DFD4",borderRadius:16,padding:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div><b>Structure de la page</b><div style={{fontSize:12,color:"#8A9089"}}>L'ordre ci-dessous est l'ordre affiché sur la boutique.</div></div><div style={{display:"flex",gap:8}}><button onClick={addSection} style={{background:"#16231F",color:"white",border:0,borderRadius:9,padding:"10px 13px",fontWeight:700,cursor:"pointer"}}>＋ Ajouter une section</button><button onClick={saveStructure} style={{background:"#1a7a3c",color:"white",border:0,borderRadius:9,padding:"10px 13px",fontWeight:700,cursor:"pointer"}}>💾 Enregistrer</button></div></div>
+        <div style={{display:"grid",gap:8}}>{sections.map((s,i)=><div key={s.id} style={{display:"flex",alignItems:"center",gap:10,border:"1px solid #ECE8DC",borderRadius:11,padding:12,opacity:s.visible?1:.55}}><span style={{fontWeight:800,width:26,textAlign:"center"}}>{i+1}</span><div style={{flex:1}}><b>{s.type}</b><div style={{fontSize:11,color:"#8A9089"}}>{s.visible?"Visible":"Masquée"}</div></div><button onClick={()=>move(i,-1)} disabled={i===0} title="Monter">↑</button><button onClick={()=>move(i,1)} disabled={i===sections.length-1} title="Descendre">↓</button><button onClick={()=>setSections(x=>x.map((a,k)=>k===i?{...a,visible:!a.visible}:a))} title="Afficher / masquer">👁️</button><button onClick={()=>removeSection(i)} title="Supprimer" style={{color:"#B23A22"}}>🗑️</button></div>)}</div>
+      </div>}
+      {tab!=="structure" && <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:14}}>
+        <div style={{background:"white",border:"1px solid #E3DFD4",borderRadius:16,padding:16}}>
+          <h2 style={{fontSize:18,marginTop:0}}>📦 Produit</h2><select value={selectedProduct} onChange={e=>setSelectedProduct(e.target.value)} style={{width:"100%",padding:12,border:"1px solid #D9D4C8",borderRadius:9}}><option value="">Sélectionner un produit…</option>{products.map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</select>
+          {tab==="bundles" && <div style={{marginTop:18}}><h2 style={{fontSize:18}}>🎁 Packs / Bundles</h2><div style={{display:"grid",gap:8}}><input placeholder="Nom du pack" value={draftBundle.nom} onChange={e=>setDraftBundle(x=>({...x,nom:e.target.value}))} style={{padding:11,border:"1px solid #D9D4C8",borderRadius:9}}/><div style={{display:"flex",gap:8}}><input type="number" min="2" placeholder="Quantité" value={draftBundle.quantite} onChange={e=>setDraftBundle(x=>({...x,quantite:e.target.value}))} style={{flex:1,padding:11,border:"1px solid #D9D4C8",borderRadius:9}}/><input type="number" min="0" placeholder="Prix FCFA" value={draftBundle.prix} onChange={e=>setDraftBundle(x=>({...x,prix:e.target.value}))} style={{flex:1,padding:11,border:"1px solid #D9D4C8",borderRadius:9}}/></div><button onClick={addBundle} style={{marginTop:8,width:"100%",background:"#1a7a3c",color:"white",border:0,borderRadius:9,padding:11,fontWeight:700}}>＋ Ajouter ce pack au produit</button></div>}
+          {tab==="delivery" && <div style={{marginTop:18}}><h2 style={{fontSize:18}}>🚚 Frais de livraison</h2><label style={{display:"block",fontSize:12,fontWeight:700,marginBottom:6}}>Mode</label><select value={delivery.mode} onChange={e=>setDelivery(x=>({...x,mode:e.target.value}))} style={{width:"100%",padding:11,border:"1px solid #D9D4C8",borderRadius:9}}><option value="inherit">Utiliser les frais généraux</option><option value="custom">Frais propres à ce produit</option><option value="free">Livraison gratuite</option></select>{delivery.mode==="custom"&&<div style={{display:"grid",gap:8,marginTop:10}}><input type="number" placeholder="Livraison locale / Abidjan" value={delivery.frais_livraison} onChange={e=>setDelivery(x=>({...x,frais_livraison:e.target.value}))} style={{padding:11,border:"1px solid #D9D4C8",borderRadius:9}}/><input type="number" placeholder="Expédition / autre ville" value={delivery.frais_expedition} onChange={e=>setDelivery(x=>({...x,frais_expedition:e.target.value}))} style={{padding:11,border:"1px solid #D9D4C8",borderRadius:9}}/></div>}<button onClick={saveDelivery} style={{marginTop:10,width:"100%",background:"#1a7a3c",color:"white",border:0,borderRadius:9,padding:11,fontWeight:700}}>💾 Enregistrer les frais</button></div>}
+        </div>
+        <div style={{background:"white",border:"1px solid #E3DFD4",borderRadius:16,padding:16}}>{tab==="bundles"?<><h2 style={{fontSize:18,marginTop:0}}>Offres de {products.find(p=>p.id===selectedProduct)?.nom||"ce produit"}</h2>{!selectedProduct&&<div style={{color:"#8A9089"}}>Sélectionne un produit à gauche.</div>}{productBundles.map(b=><div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid #EEEAE0",padding:"11px 0"}}><div><b>{b.nom}</b><div style={{fontSize:12,color:"#6B7168"}}>{b.quantite} pièces · {Number(b.prix).toLocaleString("fr-FR")} FCFA</div></div><button onClick={()=>deleteBundle(b.id)} style={{border:0,background:"#FBEAE6",color:"#B23A22",borderRadius:8,padding:8,cursor:"pointer"}}>Supprimer</button></div>)}{selectedProduct&&productBundles.length===0&&<div style={{color:"#8A9089"}}>Aucun pack pour ce produit.</div>}</>:<><h2 style={{fontSize:18,marginTop:0}}>Règle de livraison</h2><p style={{fontSize:13,color:"#6B7168",lineHeight:1.6}}>Chaque produit peut utiliser les frais généraux ou avoir ses propres frais. Le mode est enregistré dans <b>produits_livraison</b>.</p></>}</div>
+      </div>}
+    </div>
+  </div>;
+}
+
 function IntegrationsModal({ workspace, onClose }) {
+  const [showBuilder, setShowBuilder] = useState(false);
   const [copie, setCopie] = useState(false);
   const [journalAudit, setJournalAudit] = useState(null);
   const [afficherJournalAudit, setAfficherJournalAudit] = useState(false);
@@ -8117,7 +7988,7 @@ function IntegrationsModal({ workspace, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>🛍️ Ma Boutique</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontWeight: 700, fontSize: 18 }}>🛍️ Ma Boutique</div><button onClick={() => setShowBuilder(true)} style={{ background: "#16231F", color: "white", border: "none", borderRadius: 9, padding: "8px 11px", cursor: "pointer", fontWeight: 700 }}>🧱 Construire ma boutique</button></div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 

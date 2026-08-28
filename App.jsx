@@ -2351,6 +2351,27 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setVue(t.key)}
+            style={{
+              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
+              background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
+              color: vue === t.key ? "white" : "rgba(255,255,255,0.6)",
+              fontSize: 14, fontWeight: vue === t.key ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+            Pilotage financier
+          </div>
+        )}
+        {[
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
           ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
@@ -2450,18 +2471,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {workspace.role === "owner" && (
                 <>
                   <button onClick={() => setShowTeam(true)} className="rv-saas-tabs-mobile" aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     👥
-                  </button>
-                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📦
                   </button>
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
@@ -2469,6 +2487,27 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowIntegrations(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🛍️
                   </button>
+                </>
+              )}
+              {(workspace.role === "owner" || workspace.role === "admin") && (
+                <>
+                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    📦
+                  </button>
+                  <button onClick={() => setVue("rapprochement")} className="rv-saas-tabs-mobile" aria-label="Rapprochement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    🔗
+                  </button>
+                  <button onClick={() => setVue("score_business")} className="rv-saas-tabs-mobile" aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    🧭
+                  </button>
+                  <button onClick={() => setVue("validations")} className="rv-saas-tabs-mobile" aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    ✅
+                  </button>
+                  {workspace.activity_type === "restaurant" && (
+                    <button onClick={() => setVue("menu_restaurant")} className="rv-saas-tabs-mobile" aria-label="Menu" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                      📋
+                    </button>
+                  )}
                 </>
               )}
               <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
@@ -3205,14 +3244,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {[
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
-          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }, { key: "menu_restaurant", label: "Menu", icon: Boxes }] : []),
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
-          { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
-          ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
-          ...(workspace.role === "owner" ? [{ key: "score_business", label: "Score", icon: Compass }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;

@@ -156,8 +156,6 @@ export default function App() {
   });
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [showAjouterEspace, setShowAjouterEspace] = useState(false);
-  // V2: ouverture native du constructeur sans dépendre d'une navigation/recharge de page
-  const [showStoreBuilder, setShowStoreBuilder] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -257,6 +255,9 @@ export default function App() {
   const boutiqueParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("boutique") : null;
   if (boutiqueParam) return <PublicStorefront workspaceId={boutiqueParam} />;
 
+  const centreParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("centre") : null;
+  if (centreParam === "commandes" && workspace) return <CommerceCommandCenter workspace={workspace} session={session} />;
+
   if (!session) {
     const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
     const wantsLogin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1";
@@ -269,7 +270,7 @@ export default function App() {
   if (isAdminRoute) return <AdminPanel session={session} />;
 
   const builderParam = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("builder") === "1";
-  if ((builderParam || showStoreBuilder) && workspace) return <RVStoreBuilder workspace={workspace} session={session} onExit={() => { setShowStoreBuilder(false); if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname); }} />;
+  if (builderParam && workspace) return <RVStoreBuilder workspace={workspace} session={session} />;
 
   if (workspace === undefined) return <Centered>Chargement de ton espace…</Centered>;
   if (workspace === null) return <CreateWorkspaceScreen onCreate={creerWorkspace} loading={loadingWorkspace} />;
@@ -283,7 +284,6 @@ export default function App() {
         workspacesDisponibles={workspacesDisponibles}
         onChangerEspace={changerEspace}
         onDemanderAjoutEspace={() => setShowAjouterEspace(true)}
-        onOpenBuilder={() => setShowStoreBuilder(true)}
       />
       {showAjouterEspace && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }} onClick={() => setShowAjouterEspace(false)}>
@@ -492,7 +492,7 @@ function RVStorePreview({config,workspace,produits,collections,device="desktop"}
   </div>;
 }
 
-function RVStoreBuilder({workspace,session,onExit}){
+function RVStoreBuilder({workspace,session}){
   const [config,setConfig]=useState(null); const [published,setPublished]=useState(false); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [selected,setSelected]=useState(null); const [tab,setTab]=useState("structure"); const [device,setDevice]=useState("desktop"); const [produits,setProduits]=useState([]); const [collections,setCollections]=useState([]);
   const workspaceId=workspace.id;
   useEffect(()=>{loadAll()},[workspaceId]);
@@ -532,7 +532,7 @@ function RVStoreBuilder({workspace,session,onExit}){
   return <div style={{minHeight:"100vh",background:"#f2f5f3",fontFamily:"Inter,Arial,sans-serif",color:"#16231f"}}>
     <style>{`@media(max-width:800px){.rv-builder-grid{grid-template-columns:1fr!important}.rv-builder-side{border-right:0!important;border-bottom:1px solid #dce5df;max-height:none!important}.rv-preview-wrap{min-height:65vh!important}.rv-builder-top{flex-wrap:wrap!important;height:auto!important;padding:10px!important}.rv-builder-actions{width:100%;justify-content:space-between!important}.rv-device{display:none!important}}`}</style>
     <header className="rv-builder-top" style={{height:64,background:"#fff",borderBottom:"1px solid #dce5df",display:"flex",alignItems:"center",gap:14,padding:"0 18px",position:"sticky",top:0,zIndex:20}}>
-      <button onClick={()=>onExit ? onExit() : window.history.back()} style={{...rvBtnSecondary}}>← Quitter</button><strong style={{fontSize:14}}>🛍️ {workspace.name} — Constructeur <span style={{fontSize:9,background:"#162c21",color:"#fff",padding:"4px 7px",borderRadius:999,marginLeft:5}}>CORE V2</span></strong><span style={{fontSize:10,fontWeight:900,color:published?"#16824d":"#c27a1a",background:published?"#eaf7ef":"#fff5df",padding:"6px 9px",borderRadius:999}}>{published?"● PUBLIÉE":"● BROUILLON"}</span>
+      <button onClick={()=>window.history.back()} style={{...rvBtnSecondary}}>← Quitter</button><strong style={{fontSize:14}}>🛍️ {workspace.name} — Constructeur</strong><span style={{fontSize:10,fontWeight:900,color:published?"#16824d":"#c27a1a",background:published?"#eaf7ef":"#fff5df",padding:"6px 9px",borderRadius:999}}>{published?"● PUBLIÉE":"● BROUILLON"}</span>
       <div className="rv-builder-actions" style={{marginLeft:"auto",display:"flex",gap:7,alignItems:"center"}}><button style={rvBtnSecondary} onClick={()=>window.open(publicUrl,"_blank")}>👁️ Aperçu public</button><button style={rvBtnSecondary} onClick={()=>save(false)} disabled={saving}>{saving?"Enregistrement…":"Enregistrer"}</button><button style={rvBtnPrimary} onClick={()=>save(true)} disabled={saving}>🚀 Publier</button>{published&&<button style={{...rvBtnSecondary,color:"#a53b31"}} onClick={unpublish}>Dépublier</button>}</div>
     </header>
     <div className="rv-builder-grid" style={{display:"grid",gridTemplateColumns:"340px 1fr",minHeight:"calc(100vh - 64px)"}}>
@@ -583,7 +583,8 @@ function PublicStorefront({workspaceId}){
     const commerce=config?.commerce?.delivery||{}; const ex=commerce.exceptions?.[selectedProduct.id]||{}; const livraison=form.ville?.toLowerCase().includes("abidjan")?Number(ex.local??commerce.generalLocal??workspace?.frais_livraison||0):Number(ex.shipping??commerce.generalShipping??workspace?.frais_expedition||0);
     const prix=Number(selectedProduct.prix_vente||0); const bundlePrice=bundle?Number(bundle.price||0):prix*qty; const total=bundlePrice+livraison;
     const notes=[bundle?`Bundle: ${bundle.label||bundle.nom||"Pack"}`:"",`Quantité: ${qty}`,`Livraison: ${livraison}`].filter(Boolean).join(" | ");
-    const {data,error}=await supabase.from("commandes").insert([{workspace_id:workspaceId,client_nom:form.nom,client_telephone:form.telephone,produit_nom:selectedProduct.nom,quantite:qty,prix_unitaire:prix,montant_total:total,ville:form.ville,commune:form.commune,adresse_livraison:form.adresse,statut:"en_cours",notes}]).select().single();
+    const produitTexte = `${selectedProduct.nom}${qty > 1 ? ` x${qty}` : ""}`;
+    const {data,error}=await supabase.from("commandes").insert([{workspace_id:workspaceId,client:form.nom.trim(),tel:form.telephone.trim(),produit:produitTexte,montant:total,ville:form.ville.trim(),commune:form.commune.trim(),adresse:form.adresse.trim(),statut:"en_cours",notes:`Source: boutique publique | ${notes}` }]).select().single();
     setSending(false);if(error){alert("Impossible de créer la commande : "+error.message);return;}setSuccess(data);setSelectedProduct(null);setQty(1);
   }
   if(!workspace||!config)return <div style={{minHeight:"100vh",display:"grid",placeItems:"center",fontFamily:"Arial",padding:30,textAlign:"center"}}>Cette boutique n'est pas encore publiée.</div>;
@@ -609,7 +610,104 @@ function PublicStorefront({workspaceId}){
       if(s.type==="footer")return <footer key={s.id} style={{background:"#07110b",color:"#dfe8e2",padding:"45px 6%"}}><h3>{workspace.name}</h3><p style={{color:"#91a097",maxWidth:600}}>{d.description||workspace.description_boutique}</p><div style={{color:"#91a097",fontSize:11,lineHeight:1.8}}><div>📞 {d.phone}</div><div>💬 {d.whatsapp}</div><div>🚚 {d.delivery||workspace.politique_livraison}</div><div>↩️ {d.returns||workspace.politique_retours}</div><div>🔒 {d.privacy||workspace.politique_confidentialite}</div></div></footer>;
       return null;
     })}
-    {selectedProduct&&<div onClick={()=>setSelectedProduct(null)} style={{position:"fixed",inset:0,zIndex:80,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",padding:0}}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",width:"100%",maxWidth:760,maxHeight:"92vh",overflowY:"auto",borderRadius:"22px 22px 0 0",padding:18}}>{success?<div style={{padding:"45px 15px",textAlign:"center"}}><div style={{fontSize:45}}>✅</div><h2>Commande enregistrée</h2><p>Merci {success.client_nom}. Ta commande est bien reçue.</p><p style={{fontSize:12,color:"#6d7770"}}>Référence : {success.id}</p><button onClick={()=>setSuccess(null)} style={rvBtnPrimary}>Continuer</button></div>:<div><button onClick={()=>setSelectedProduct(null)} style={{...rvBtnSecondary,float:"right"}}>×</button><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}><div>{selectedProduct.photo_url?<img src={selectedProduct.photo_url} style={{width:"100%",borderRadius:15}}/>:<div style={{aspectRatio:"1",background:"#f1f4f2",borderRadius:15}}/>}</div><div><h2>{selectedProduct.nom}</h2><div style={{fontSize:22,fontWeight:950}}>{Number(selectedProduct.prix_vente||0).toLocaleString("fr-FR")} {workspace.currency}</div><p style={{color:"#68736c",lineHeight:1.6}}>{selectedProduct.description||""}</p>{(config?.commerce?.bundles?.[selectedProduct.id]||[]).length>0 && <div style={{margin:"14px 0"}}><div style={{fontSize:11,fontWeight:900,marginBottom:7}}>📦 Choisir un pack</div><div style={{display:"grid",gap:7}}>{(config.commerce.bundles[selectedProduct.id]||[]).map((b,i)=><button key={i} onClick={()=>{setBundle(b);setQty(Number(b.qty)||1)}} style={{textAlign:"left",padding:10,border:"1px solid "+(bundle===b?"#16824d":"#dfe7e2"),background:bundle===b?"#eef9f2":"#fff",borderRadius:10,cursor:"pointer"}}><b>{b.label||`Pack x${b.qty}`}</b><span style={{float:"right",fontWeight:900}}>{Number(b.price||0).toLocaleString("fr-FR")} {workspace.currency}</span></button>)}</div></div>}<label style={{fontSize:11,fontWeight:900}}>Quantité</label><div style={{display:"flex",gap:7,margin:"7px 0 15px"}}><button onClick={()=>setQty(Math.max(1,qty-1))} style={rvBtnSecondary}>−</button><input value={qty} onChange={e=>setQty(Math.max(1,Number(e.target.value)||1))} style={{...rvInput,width:70,textAlign:"center"}}/><button onClick={()=>setQty(qty+1)} style={rvBtnSecondary}>+</button></div><div style={{padding:12,background:"#f6faf7",borderRadius:12,fontSize:11,marginBottom:12}}>🚚 Abidjan : {Number((config?.commerce?.delivery?.exceptions?.[selectedProduct.id]?.local) ?? (config?.commerce?.delivery?.generalLocal ?? workspace.frais_livraison ?? 0)).toLocaleString("fr-FR")} {workspace.currency}<br/>📦 Expédition : {Number((config?.commerce?.delivery?.exceptions?.[selectedProduct.id]?.shipping) ?? (config?.commerce?.delivery?.generalShipping ?? workspace.frais_expedition ?? 0)).toLocaleString("fr-FR") } {workspace.currency}</div>{[["nom","Nom complet"],["telephone","Téléphone"],["ville","Ville"],["commune","Commune"],["adresse","Adresse"]].map(([k,l])=><input key={k} placeholder={l} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} style={{...rvInput,marginBottom:7}}/>)}<button disabled={sending} onClick={order} style={{...rvBtnPrimary,width:"100%",padding:14}}>{sending?"Envoi…":"🛍️ Commander à la livraison"}</button></div></div></div>}</div></div>}
+    {selectedProduct&&<div onClick={()=>setSelectedProduct(null)} style={{position:"fixed",inset:0,zIndex:80,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",padding:0}}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",width:"100%",maxWidth:760,maxHeight:"92vh",overflowY:"auto",borderRadius:"22px 22px 0 0",padding:18}}>{success?<div style={{padding:"45px 15px",textAlign:"center"}}><div style={{fontSize:45}}>✅</div><h2>Commande enregistrée</h2><p>Merci {success.client || ""}. Ta commande est bien reçue.</p><p style={{fontSize:12,color:"#6d7770"}}>Référence : {success.id}</p><button onClick={()=>setSuccess(null)} style={rvBtnPrimary}>Continuer</button></div>:<div><button onClick={()=>setSelectedProduct(null)} style={{...rvBtnSecondary,float:"right"}}>×</button><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}><div>{selectedProduct.photo_url?<img src={selectedProduct.photo_url} style={{width:"100%",borderRadius:15}}/>:<div style={{aspectRatio:"1",background:"#f1f4f2",borderRadius:15}}/>}</div><div><h2>{selectedProduct.nom}</h2><div style={{fontSize:22,fontWeight:950}}>{Number(selectedProduct.prix_vente||0).toLocaleString("fr-FR")} {workspace.currency}</div><p style={{color:"#68736c",lineHeight:1.6}}>{selectedProduct.description||""}</p>{(config?.commerce?.bundles?.[selectedProduct.id]||[]).length>0 && <div style={{margin:"14px 0"}}><div style={{fontSize:11,fontWeight:900,marginBottom:7}}>📦 Choisir un pack</div><div style={{display:"grid",gap:7}}>{(config.commerce.bundles[selectedProduct.id]||[]).map((b,i)=><button key={i} onClick={()=>{setBundle(b);setQty(Number(b.qty)||1)}} style={{textAlign:"left",padding:10,border:"1px solid "+(bundle===b?"#16824d":"#dfe7e2"),background:bundle===b?"#eef9f2":"#fff",borderRadius:10,cursor:"pointer"}}><b>{b.label||`Pack x${b.qty}`}</b><span style={{float:"right",fontWeight:900}}>{Number(b.price||0).toLocaleString("fr-FR")} {workspace.currency}</span></button>)}</div></div>}<label style={{fontSize:11,fontWeight:900}}>Quantité</label><div style={{display:"flex",gap:7,margin:"7px 0 15px"}}><button onClick={()=>setQty(Math.max(1,qty-1))} style={rvBtnSecondary}>−</button><input value={qty} onChange={e=>setQty(Math.max(1,Number(e.target.value)||1))} style={{...rvInput,width:70,textAlign:"center"}}/><button onClick={()=>setQty(qty+1)} style={rvBtnSecondary}>+</button></div><div style={{padding:12,background:"#f6faf7",borderRadius:12,fontSize:11,marginBottom:12}}>🚚 Abidjan : {Number((config?.commerce?.delivery?.exceptions?.[selectedProduct.id]?.local) ?? (config?.commerce?.delivery?.generalLocal ?? workspace.frais_livraison ?? 0)).toLocaleString("fr-FR")} {workspace.currency}<br/>📦 Expédition : {Number((config?.commerce?.delivery?.exceptions?.[selectedProduct.id]?.shipping) ?? (config?.commerce?.delivery?.generalShipping ?? workspace.frais_expedition ?? 0)).toLocaleString("fr-FR") } {workspace.currency}</div>{[["nom","Nom complet"],["telephone","Téléphone"],["ville","Ville"],["commune","Commune"],["adresse","Adresse"]].map(([k,l])=><input key={k} placeholder={l} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} style={{...rvInput,marginBottom:7}}/>)}<button disabled={sending} onClick={order} style={{...rvBtnPrimary,width:"100%",padding:14}}>{sending?"Envoi…":"🛍️ Commander à la livraison"}</button></div></div></div>}</div></div>}
+  </div>;
+}
+
+
+function CommerceCommandCenter({ workspace, session }) {
+  const [commandes, setCommandes] = useState([]);
+  const [closers, setClosers] = useState([]);
+  const [livreurs, setLivreurs] = useState([]);
+  const [filter, setFilter] = useState("toutes");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+
+  async function load() {
+    setLoading(true);
+    const [{ data: cs }, { data: cl }, { data: lv }] = await Promise.all([
+      supabase.from("commandes").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(300),
+      supabase.from("closers").select("*").eq("workspace_id", workspace.id).order("nom"),
+      supabase.from("livreurs").select("*").eq("workspace_id", workspace.id).order("nom")
+    ]);
+    setCommandes(cs || []); setClosers(cl || []); setLivreurs(lv || []); setLoading(false);
+  }
+  useEffect(() => { load(); }, [workspace.id]);
+
+  async function updateCommande(id, patch, label) {
+    setSavingId(id);
+    const { error } = await supabase.from("commandes").update(patch).eq("id", id).eq("workspace_id", workspace.id);
+    if (error) alert(error.message);
+    else {
+      setCommandes(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+      try { await supabase.from("relances").insert([{ commande_id: id, note: `Centre commercial : ${label}` }]); } catch {}
+    }
+    setSavingId(null);
+  }
+
+  const filtered = commandes.filter(c => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q || [c.client, c.tel, c.produit, c.ville, c.commune, c.id].some(v => String(v || "").toLowerCase().includes(q));
+    const matchesFilter = filter === "toutes" || (filter === "nouvelles" && c.statut === "en_cours" && !c.closer) || c.statut === filter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const money = n => `${Number(n || 0).toLocaleString("fr-FR")} ${workspace.currency}`;
+  const counts = {
+    toutes: commandes.length,
+    nouvelles: commandes.filter(c => c.statut === "en_cours" && !c.closer).length,
+    confirmee: commandes.filter(c => c.statut === "confirmee").length,
+    echouee: commandes.filter(c => c.statut === "echouee").length,
+    livree: commandes.filter(c => c.statut === "livree").length
+  };
+
+  const statuts = [
+    ["en_cours", "🟠 À traiter"],
+    ["confirmee", "🟢 Confirmée"],
+    ["livree", "✅ Livrée"],
+    ["echouee", "🔴 Échouée"]
+  ];
+
+  if (loading) return <Centered>Chargement du centre commercial…</Centered>;
+
+  return <div style={{ minHeight: "100vh", background: "#f4f7f5", color: "#16231f", fontFamily: "Inter,Arial,sans-serif", paddingBottom: 30 }}>
+    <style>{`@media(max-width:760px){.rvcc-grid{grid-template-columns:1fr!important}.rvcc-kpis{grid-template-columns:repeat(2,1fr)!important}.rvcc-table-head{display:none!important}.rvcc-row{grid-template-columns:1fr!important;gap:10px!important}.rvcc-actions{flex-wrap:wrap!important}.rvcc-filter{overflow:auto!important;justify-content:flex-start!important}.rvcc-mobile-full{width:100%!important}}`}</style>
+    <header style={{ position:"sticky", top:0, zIndex:20, background:"rgba(255,255,255,.96)", backdropFilter:"blur(12px)", borderBottom:"1px solid #dfe7e2", padding:"12px 4%", display:"flex", alignItems:"center", gap:12 }}>
+      <button onClick={()=>window.history.back()} style={{...rvBtnSecondary}}>← Retour</button>
+      <div style={{minWidth:0}}><div style={{fontSize:10,fontWeight:900,color:"#16824d",letterSpacing:1.2}}>RECUVENTE · CORE COMMERCIAL</div><strong style={{fontSize:16}}>Centre des commandes</strong></div>
+      <button onClick={load} style={{...rvBtnSecondary,marginLeft:"auto"}}>↻ Actualiser</button>
+    </header>
+
+    <main style={{maxWidth:1300,margin:"auto",padding:"22px 4%"}}>
+      <div className="rvcc-kpis" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:18}}>
+        {[["toutes","📦","Toutes"],["nouvelles","⚡","À traiter"],["confirmee","✓","Confirmées"],["livree","🚚","Livrées"],["echouee","↻","À récupérer"]].map(([k,icon,label])=><button key={k} onClick={()=>setFilter(k)} style={{textAlign:"left",padding:15,border:"1px solid "+(filter===k?"#16824d":"#dfe7e2"),background:filter===k?"#ecf8f0":"#fff",borderRadius:14,cursor:"pointer"}}><div style={{fontSize:18}}>{icon}</div><div style={{fontSize:10,fontWeight:900,color:"#68736c",marginTop:6}}>{label}</div><div style={{fontSize:22,fontWeight:950,marginTop:2}}>{counts[k]}</div></button>)}
+      </div>
+
+      <div style={{background:"#fff",border:"1px solid #dfe7e2",borderRadius:16,padding:14,marginBottom:14,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔎 Rechercher client, téléphone, produit, ville…" className="rvcc-mobile-full" style={{...rvInput,flex:"1 1 280px",margin:0}}/>
+        <div className="rvcc-filter" style={{display:"flex",gap:6}}>{[["toutes","Toutes"],["nouvelles","À traiter"],["en_cours","En cours"],["confirmee","Confirmées"],["livree","Livrées"],["echouee","Échouées"]].map(([k,l])=><button key={k} onClick={()=>setFilter(k)} style={{...rvBtnSecondary,whiteSpace:"nowrap",background:filter===k?"#162c21":"#fff",color:filter===k?"#fff":"#294536"}}>{l}</button>)}</div>
+      </div>
+
+      <div style={{background:"#fff",border:"1px solid #dfe7e2",borderRadius:18,overflow:"hidden"}}>
+        <div className="rvcc-table-head" style={{display:"grid",gridTemplateColumns:"1.8fr 1.3fr 1.1fr 1.1fr 1.7fr",gap:10,padding:"11px 16px",background:"#f7faf8",borderBottom:"1px solid #e4ebe7",fontSize:9,fontWeight:900,color:"#718078",textTransform:"uppercase"}}><span>Client / commande</span><span>Montant</span><span>Statut</span><span>Équipe</span><span>Actions</span></div>
+        {filtered.length===0 ? <div style={{padding:45,textAlign:"center",color:"#77827b"}}>Aucune commande pour ce filtre.</div> : filtered.map(c=>{
+          const busy=savingId===c.id;
+          return <div className="rvcc-row" key={c.id} style={{display:"grid",gridTemplateColumns:"1.8fr 1.3fr 1.1fr 1.1fr 1.7fr",gap:10,padding:14,alignItems:"center",borderBottom:"1px solid #edf1ee"}}>
+            <div><div style={{fontWeight:950,fontSize:13}}>{c.client||"Client"}</div><div style={{fontSize:11,color:"#68736c",marginTop:3}}>{c.tel||"—"} · {c.produit||"Commande"}</div><div style={{fontSize:10,color:"#89928c",marginTop:3}}>{c.ville||""}{c.commune?` · ${c.commune}`:""}</div></div>
+            <div><strong style={{fontSize:14}}>{money(c.montant)}</strong><div style={{fontSize:9,color:"#89928c"}}>{new Date(c.created_at).toLocaleString("fr-FR")}</div></div>
+            <select disabled={busy} value={c.statut||"en_cours"} onChange={e=>updateCommande(c.id,{statut:e.target.value,...(e.target.value==="confirmee"?{confirmed_at:new Date().toISOString(),confirmed_by:session?.user?.email||"Admin"}:{})},`Statut → ${e.target.value}`)} style={{...rvInput,padding:"8px 9px",fontSize:11}}>{statuts.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>
+            <div style={{display:"grid",gap:5}}><select disabled={busy} value={c.closer||""} onChange={e=>updateCommande(c.id,{closer:e.target.value||null},`Closer → ${e.target.value||"non assigné"}`)} style={{...rvInput,padding:"7px 8px",fontSize:10}}><option value="">🎧 Closer…</option>{closers.map(x=><option key={x.id||x.nom} value={x.nom}>{x.nom}</option>)}</select><select disabled={busy} value={c.livreur||""} onChange={e=>updateCommande(c.id,{livreur:e.target.value||null},`Livreur → ${e.target.value||"non assigné"}`)} style={{...rvInput,padding:"7px 8px",fontSize:10}}><option value="">🚚 Livreur…</option>{livreurs.map(x=><option key={x.id||x.nom} value={x.nom}>{x.nom}</option>)}</select></div>
+            <div className="rvcc-actions" style={{display:"flex",gap:6,alignItems:"center"}}>{c.tel&&<a href={`https://wa.me/${cleanPhoneForWhatsApp(c.tel)}?text=${encodeURIComponent(`Bonjour ${(c.client||"").split(" ")[0]} 👋, nous vous contactons au sujet de votre commande ${c.produit||""}.`)}`} target="_blank" rel="noreferrer" style={{...rvBtnSecondary,textDecoration:"none",fontSize:11}}>💬 WhatsApp</a>}{c.statut!=="confirmee"&&<button disabled={busy} onClick={()=>updateCommande(c.id,{statut:"confirmee",confirmed_at:new Date().toISOString(),confirmed_by:session?.user?.email||"Admin"},"Commande confirmée")} style={{...rvBtnPrimary,fontSize:11}}>✓ Confirmer</button>}{c.statut!=="livree"&&<button disabled={busy} onClick={()=>updateCommande(c.id,{statut:"livree"},"Commande livrée")} style={{...rvBtnSecondary,fontSize:11}}>✓ Livrée</button>}</div>
+          </div>
+        })}
+      </div>
+
+      <div className="rvcc-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginTop:14}}>
+        <div style={{background:"#162c21",color:"#fff",borderRadius:16,padding:20}}><div style={{fontSize:10,fontWeight:900,letterSpacing:1.2,opacity:.7}}>VALEUR DU PIPELINE</div><div style={{fontSize:30,fontWeight:950,marginTop:5}}>{money(commandes.filter(c=>c.statut!=="echouee").reduce((s,c)=>s+Number(c.montant||0),0))}</div><p style={{fontSize:11,lineHeight:1.6,opacity:.75,marginBottom:0}}>Commandes non échouées actuellement présentes dans ton espace.</p></div>
+        <div style={{background:"#fff",border:"1px solid #dfe7e2",borderRadius:16,padding:20}}><div style={{fontSize:10,fontWeight:900,color:"#718078",letterSpacing:1.2}}>TAUX DE CONFIRMATION</div><div style={{fontSize:30,fontWeight:950,marginTop:5}}>{commandes.length?Math.round(commandes.filter(c=>c.statut==="confirmee"||c.statut==="livree").length/commandes.length*100):0}%</div><p style={{fontSize:11,lineHeight:1.6,color:"#68736c",marginBottom:0}}>Indicateur simple pour suivre la qualité du traitement des commandes COD.</p></div>
+      </div>
+    </main>
   </div>;
 }
 
@@ -1491,7 +1589,7 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
   );
 }
 
-function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace, onOpenBuilder }) {
+function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
@@ -2801,7 +2899,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               </button>
             )}
             <button
-              onClick={() => { if (onOpenBuilder) onOpenBuilder(); else window.location.assign(`${window.location.pathname}?builder=1`); }}
+              onClick={() => { window.location.href = `${window.location.pathname}?builder=1`; }}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 700, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               🧱 Construire ma boutique
@@ -3621,6 +3719,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         }}
       >
         {[
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "centre_commercial", label: "Centre", icon: Target }] : []),
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
@@ -3634,7 +3733,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           return (
             <button
               key={t.key}
-              onClick={() => setVue(t.key)}
+              onClick={() => t.key === "centre_commercial" ? (window.location.search = "?centre=commandes") : setVue(t.key)}
               style={{
                 flex: 1,
                 background: "none",
@@ -9019,7 +9118,7 @@ function IntegrationsModal({ workspace, onClose }) {
 
         <button
           type="button"
-          onClick={() => { if (onOpenBuilder) onOpenBuilder(); else window.location.assign(`${window.location.pathname}?builder=1`); }}
+          onClick={() => { window.location.href = `${window.location.pathname}?builder=1`; }}
           style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", background:"linear-gradient(135deg,#162c21,#1f9d6e)", color:"white", border:"none", borderRadius:12, padding:"15px 0", fontWeight:900, fontSize:14, cursor:"pointer", marginBottom:20, boxShadow:"0 10px 24px rgba(22,44,33,.18)" }}
         >🧱 Ouvrir le constructeur complet</button>
 

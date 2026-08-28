@@ -2374,6 +2374,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {[
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
           ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -2499,6 +2500,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   </button>
                   <button onClick={() => setVue("score_business")} className="rv-saas-tabs-mobile" aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🧭
+                  </button>
+                  <button onClick={() => setVue("simulateur")} className="rv-saas-tabs-mobile" aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    📊
                   </button>
                   <button onClick={() => setVue("validations")} className="rv-saas-tabs-mobile" aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     ✅
@@ -3086,6 +3090,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           currency={workspace.currency}
           depotsParLivreur={depotsParLivreur}
         />
+      )}
+
+      {vue === "simulateur" && (
+        <SimulateurCampagneView currency={workspace.currency} />
       )}
 
       {vue === "rapprochement" && (
@@ -7377,6 +7385,154 @@ function RapprochementView({ workspace, commandes, onValide }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function SimulateurCampagneView({ currency }) {
+  const [form, setForm] = useState({
+    prixVente: "",
+    coutProduit: "",
+    coutLivraison: "1500",
+    commissionCloser: "",
+    budgetPub: "",
+    tauxConfirmation: "60",
+    tauxLivraison: "80",
+    coutParCommande: "",
+  });
+
+  function champ(cle, val) {
+    setForm({ ...form, [cle]: val });
+  }
+
+  const resultats = useMemo(() => {
+    const prixVente = Number(form.prixVente) || 0;
+    const coutProduit = Number(form.coutProduit) || 0;
+    const coutLivraison = Number(form.coutLivraison) || 0;
+    const commission = Number(form.commissionCloser) || 0;
+    const budgetPub = Number(form.budgetPub) || 0;
+    const coutParCommande = Number(form.coutParCommande) || 0;
+    const tauxConfirmation = Number(form.tauxConfirmation) || 0;
+    const tauxLivraisonPct = Number(form.tauxLivraison) || 0;
+
+    if (!prixVente || !budgetPub || !coutParCommande) return null;
+
+    const commandesEstimees = Math.round(budgetPub / coutParCommande);
+    const commandesConfirmees = Math.round(commandesEstimees * (tauxConfirmation / 100));
+    const livraisons = Math.round(commandesConfirmees * (tauxLivraisonPct / 100));
+
+    const chiffreAffaires = livraisons * prixVente;
+    const coutsProduits = livraisons * coutProduit;
+    const coutsLivraisons = livraisons * coutLivraison;
+    const coutsCommissions = livraisons * commission;
+    const coutsTotaux = coutsProduits + coutsLivraisons + coutsCommissions + budgetPub;
+    const beneficeEstime = chiffreAffaires - coutsTotaux;
+
+    const margeParLivraison = prixVente - coutProduit - coutLivraison - commission;
+    const seuilRentabilite = margeParLivraison > 0 ? Math.ceil(budgetPub / margeParLivraison) : null;
+
+    return { commandesEstimees, commandesConfirmees, livraisons, chiffreAffaires, coutsTotaux, beneficeEstime, seuilRentabilite, margeParLivraison };
+  }, [form]);
+
+  const champStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 10 };
+  const labelStyle = { fontSize: 11, color: "#8A9089", marginBottom: 3, display: "block" };
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>📊 Simulateur de campagne</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
+        Avant de dépenser en publicité, sais combien de commandes livrées il te faut pour être rentable.
+      </div>
+
+      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 14 }}>Ton produit</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Prix de vente ({currency})</label>
+            <input type="number" value={form.prixVente} onChange={(e) => champ("prixVente", e.target.value)} style={champStyle} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Coût produit ({currency})</label>
+            <input type="number" value={form.coutProduit} onChange={(e) => champ("coutProduit", e.target.value)} style={champStyle} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Coût livraison ({currency})</label>
+            <input type="number" value={form.coutLivraison} onChange={(e) => champ("coutLivraison", e.target.value)} style={champStyle} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Commission closer ({currency})</label>
+            <input type="number" value={form.commissionCloser} onChange={(e) => champ("commissionCloser", e.target.value)} style={champStyle} />
+          </div>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 10, marginBottom: 14 }}>Ta publicité</div>
+        <label style={labelStyle}>Budget publicitaire total ({currency})</label>
+        <input type="number" value={form.budgetPub} onChange={(e) => champ("budgetPub", e.target.value)} style={champStyle} />
+        <label style={labelStyle}>Coût estimé par commande générée ({currency}) — ce que ta pub coûte pour obtenir une commande</label>
+        <input type="number" value={form.coutParCommande} onChange={(e) => champ("coutParCommande", e.target.value)} style={champStyle} />
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Taux de confirmation estimé (%)</label>
+            <input type="number" value={form.tauxConfirmation} onChange={(e) => champ("tauxConfirmation", e.target.value)} style={champStyle} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Taux de livraison estimé (%)</label>
+            <input type="number" value={form.tauxLivraison} onChange={(e) => champ("tauxLivraison", e.target.value)} style={{ ...champStyle, marginBottom: 0 }} />
+          </div>
+        </div>
+      </div>
+
+      {resultats && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Commandes estimées</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesEstimees}</div>
+            </div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Confirmées</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesConfirmees}</div>
+            </div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Livraisons</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.livraisons}</div>
+            </div>
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Chiffre d'affaires</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, marginTop: 3 }}>{resultats.chiffreAffaires.toLocaleString("fr-FR")}</div>
+            </div>
+          </div>
+
+          <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice estimé</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: resultats.beneficeEstime >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+              {resultats.beneficeEstime.toLocaleString("fr-FR")} {currency}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+              Coûts totaux (produits + livraisons + commissions + pub) : {resultats.coutsTotaux.toLocaleString("fr-FR")} {currency}
+            </div>
+          </div>
+
+          {resultats.margeParLivraison <= 0 ? (
+            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#D64933", fontWeight: 600 }}>
+              🔴 Ta marge par livraison ({resultats.margeParLivraison.toLocaleString("fr-FR")} {currency}) est négative ou nulle — cette campagne ne peut pas devenir rentable avec ces chiffres, quel que soit le volume.
+            </div>
+          ) : (
+            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#3B6D11", fontWeight: 600 }}>
+              🟢 À partir de <strong>{resultats.seuilRentabilite} commande{resultats.seuilRentabilite > 1 ? "s" : ""} livrée{resultats.seuilRentabilite > 1 ? "s" : ""}</strong>, cette campagne devient rentable.
+            </div>
+          )}
+        </>
+      )}
+
+      {!resultats && (
+        <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "20px 0" }}>
+          Remplis au moins le prix de vente, le budget publicitaire et le coût par commande pour voir la simulation.
+        </div>
+      )}
     </div>
   );
 }

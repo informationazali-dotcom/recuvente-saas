@@ -173,7 +173,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison)")
       .eq("user_id", userId);
     if (!error && data && data.length > 0) {
       const liste = data.filter((d) => d.workspaces).map((d) => ({ ...d.workspaces, role: d.role }));
@@ -8131,6 +8131,7 @@ function IntegrationsModal({ workspace, onClose }) {
     facebook_url: workspace.facebook_url || "",
     instagram_url: workspace.instagram_url || "",
     tiktok_url: workspace.tiktok_url || "",
+    frais_livraison: workspace.frais_livraison ?? 0,
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
@@ -8511,6 +8512,33 @@ function IntegrationsModal({ workspace, onClose }) {
           </div>
           <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
             Trouve-le sur business.facebook.com → Gestionnaire d'événements → ton pixel → onglet "API Conversions" → "Générer un token d'accès".
+          </div>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🚚 Frais de livraison
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Affiché sur chaque page produit de ta boutique publique, et ajouté automatiquement au montant de la commande. Laisse à 0 si la livraison est gratuite.
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="number"
+              value={personnalisation.frais_livraison ?? ""}
+              onChange={(e) => setPersonnalisation({ ...personnalisation, frais_livraison: e.target.value })}
+              placeholder="0"
+              style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
+            />
+            <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
+            <button
+              onClick={async () => {
+                await supabase.from("workspaces").update({ frais_livraison: Number(personnalisation.frais_livraison) || 0 }).eq("id", workspace.id);
+              }}
+              style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+            >
+              Enregistrer
+            </button>
           </div>
         </div>
 

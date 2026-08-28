@@ -368,7 +368,7 @@ function LandingPage() {
         .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
         .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
         .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
-        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff;color:var(--ink)}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-dark .rvx-card:not(.dark){color:var(--ink)}.rvx-dark .rvx-card:not(.dark) h3{color:var(--ink)}.rvx-dark .rvx-card:not(.dark) .rvx-list div{color:var(--ink)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
+        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
         .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
         .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
         .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
@@ -852,7 +852,7 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
 
 function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
   const [ouvert, setOuvert] = useState(false);
-  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", restaurant: "🍽️", location_vehicule: "🚗" };
+  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
 
   return (
     <div style={{ position: "relative", marginBottom: 18, display: "flex", gap: 6 }}>
@@ -890,418 +890,6 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
           >
             + Ajouter un autre espace
           </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-/* ============================================================
-   RECUVENTE OS — EXTENSION MODULAIRE NON DESTRUCTIVE
-   Cette couche n'écrase aucun module existant. Elle fournit
-   une navigation unifiée pour les nouvelles capacités.
-   ============================================================ */
-
-const RV_ACTIVITY_CONFIG = {
-  cod_ecommerce: { icon: "📦", label: "E-commerce COD", modules: ["store", "orders", "customers", "closers", "couriers", "recovery", "profit"] },
-  retail: { icon: "🏪", label: "Commerce / magasin", modules: ["sales", "products", "inventory", "customers", "finance", "profit"] },
-  restaurant: { icon: "🍽️", label: "Restaurant", modules: ["menu", "tables", "kitchen", "orders", "delivery", "customers", "finance"] },
-  location_immobiliere: { icon: "🏠", label: "Location immobilière", modules: ["properties", "calendar", "reservations", "customers", "payments", "contracts", "profit"] },
-  location_vehicule: { icon: "🚗", label: "Location de véhicules", modules: ["vehicles", "calendar", "reservations", "customers", "payments", "maintenance", "profit"] },
-};
-
-function RVActivityConfig({ activityType }) {
-  return RV_ACTIVITY_CONFIG[activityType] || RV_ACTIVITY_CONFIG.cod_ecommerce;
-}
-
-
-function RVStoreBuilder({ workspace, produits = [], clients = [] }) {
-  const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
-  const activityType = workspace?.activity_type || 'cod_ecommerce';
-  const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
-  const sectionCatalog = {
-    announcement:{icon:'📣',label:'Barre d’annonce',description:'Message promotionnel ou information importante.'},
-    hero:{icon:'✨',label:'Hero / couverture',description:'Grande image, titre, sous-titre et bouton.'},
-    collections:{icon:'🗂️',label:'Collections',description:'Sélectionne exactement les collections à afficher.'},
-    bestsellers:{icon:'🔥',label:'Meilleures ventes',description:'Sélectionne les produits à mettre en avant.'},
-    bundles:{icon:'📦',label:'Bundles / Packs',description:'Offres quantité pour augmenter le panier moyen.'},
-    products:{icon:'🛍️',label:'Catalogue produits',description:'Sélectionne les produits visibles dans cette section.'},
-    benefits:{icon:'🛡️',label:'Réassurance',description:'Paiement COD, livraison, garantie et support.'},
-    testimonials:{icon:'⭐',label:'Avis clients',description:'Preuves sociales.'},
-    promo:{icon:'🏷️',label:'Promotion',description:'Offre spéciale.'},
-    gallery:{icon:'🖼️',label:'Galerie',description:'Ajoute tes propres images.'},
-    faq:{icon:'❓',label:'FAQ',description:'Questions et réponses.'},
-    whatsapp:{icon:'💬',label:'WhatsApp',description:'Contact rapide.'},
-    cod_form:{icon:'📝',label:'Bon de commande COD',description:'Quantité, frais de livraison et total.'},
-    delivery:{icon:'🚚',label:'Livraison',description:'Zones et délais.'},
-    contact:{icon:'🎯',label:'CTA final',description:'Dernier appel à l’action.'},
-    footer:{icon:'▦',label:'Footer',description:'Coordonnées et liens.'}
-  };
-  const defaults = {
-    theme:'premium', couleur:workspace?.couleur_marque || '#1a7a3c', nom:workspace?.name || 'Ma boutique',
-    description:workspace?.description_boutique || 'Une boutique professionnelle, pensée pour convertir.',
-    livraison:workspace?.politique_livraison || 'Livraison rapide et suivi de commande.', logo:workspace?.logo_url || '', banniere:workspace?.banniere_url || '',
-    paiement:'cod', fraisLivraison:Number(workspace?.frais_livraison || 0), fraisExpedition:Number(workspace?.frais_expedition || 0),
-    shippingLabel:'Frais de livraison', buttonText:activityType==='restaurant'?'Commander maintenant':activityType.includes('location')?'Réserver maintenant':'Acheter maintenant',
-    announcement:'🚀 Livraison suivie • Paiement à la livraison • Support rapide',
-    heroTitle:activityType==='restaurant'?'Découvrez notre menu':activityType==='location_immobiliere'?'Trouvez votre prochain séjour':activityType==='location_vehicule'?'Louez le véhicule qui vous correspond':'Votre boutique. Votre marque. Votre business.',
-    heroSubtitle:'Une expérience moderne, rapide et pensée pour transformer les visiteurs en clients.', promoTitle:'Une offre à ne pas manquer', promoText:'Profitez de nos offres du moment.', whatsapp:'Bonjour, je souhaite avoir plus d’informations.',
-    selectedProductIds:[], selectedCollectionIds:[], gallery:[],
-    sections:activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer'],
-    bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}]
-  };
-  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}});
-  const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
-  const [collections,setCollections]=useState([]);
-  useEffect(()=>{let alive=true;(async()=>{if(!workspace?.id)return;const {data}=await supabase.from('collections').select('*').eq('workspace_id',workspace.id).order('ordre',{ascending:true});if(alive)setCollections(data||[]);})();return()=>{alive=false}},[workspace?.id]);
-  const products=useMemo(()=>produits.map((p,i)=>({id:p.id||`p-${i}`,name:p.nom||p.name||p.titre||p.title||`Produit ${i+1}`,price:Number(p.prix_vente??p.prix??p.price??p.montant??0),image:p.image_url||p.image||p.photo||p.photo_url||'',category:p.collection||p.categorie||p.category||'Collection',description:p.description||p.desc||'Découvrez ce produit.'})),[produits]);
-  const derivedCollections=useMemo(()=>collections.length?collections:[...new Map(products.map(p=>[p.category,{id:`derived-${p.category}`,nom:p.category,count:products.filter(x=>x.category===p.category).length}])).values()],[collections,products]);
-  const selectedProducts=useMemo(()=>products.filter(p=>config.selectedProductIds?.includes(p.id)),[products,config.selectedProductIds]);
-  const fallbackProducts=selectedProducts.length?selectedProducts:products.slice(0,8);
-  const bestsellers=fallbackProducts.slice(0,4);
-  function update(k,v){setConfig(c=>({...c,[k]:v}));}
-  function toggleArray(key,id){setConfig(c=>{const a=new Set(c[key]||[]);a.has(id)?a.delete(id):a.add(id);return {...c,[key]:[...a]}})}
-  function move(i,d){setConfig(c=>{const a=[...c.sections],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,sections:a}})}
-  function remove(i){setConfig(c=>({...c,sections:c.sections.filter((_,j)=>j!==i)}))}
-  function addSection(type){setConfig(c=>({...c,sections:[...c.sections,type]}));setSelected(type);setShowAdd(false)}
-  async function uploadImage(kind,file){
-    if(!file)return; if(file.size>8*1024*1024){alert('Image trop lourde (maximum 8 Mo).');return;} setUploading(kind);
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path=`${workspace.id}/builder-${kind}-${Date.now()}.${ext}`;
-    const {error}=await supabase.storage.from('boutique').upload(path,file,{upsert:true,contentType:file.type||undefined});
-    if(error){alert('Impossible d’envoyer l’image : '+error.message);setUploading(null);return;}
-    const {data}=supabase.storage.from('boutique').getPublicUrl(path); const url=data.publicUrl;
-    if(kind==='hero') update('banniere',url); else if(kind==='logo') update('logo',url); else if(kind==='gallery') setConfig(c=>({...c,gallery:[...(c.gallery||[]),url]}));
-    setUploading(null);
-  }
-  async function save(){setSaving(true);setSaved(false);try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){} if(workspace?.id){const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0};const {error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id);if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return;}}setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200)}
-  async function publish(){await save();setPublished(true);setTimeout(()=>setPublished(false),2500)}
-  const fieldStyle={width:'100%',boxSizing:'border-box',border:'1px solid #dfe6e1',borderRadius:10,padding:'10px 11px',fontSize:12,outline:'none',background:'#fff'};
-  const labelStyle={display:'block',fontSize:10.5,color:'#647168',fontWeight:750,marginBottom:10}; const cardStyle={background:'#fff',border:'1px solid #e4ebe5',borderRadius:16,boxShadow:'0 8px 24px rgba(17,38,26,.045)'};
-  const FileButton=({kind,label})=><label style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,border:'1px solid #cfdad2',background:'#f8fbf8',color:'#1a7a3c',borderRadius:10,padding:'9px 12px',fontSize:11,fontWeight:900,cursor:'pointer',width:'100%',boxSizing:'border-box'}}>{uploading===kind?'⏳ Envoi...':`📤 ${label}`}<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>uploadImage(kind,e.target.files?.[0])}/></label>;
-  function PreviewSection({type}){
-    const common={padding:'28px 22px',borderBottom:'1px solid #edf1ee'};
-    if(type==='announcement')return <div style={{...common,padding:'9px 14px',background:config.couleur,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
-    if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${config.couleur},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div><div style={{padding:'22px 20px 28px'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div><button style={{border:0,borderRadius:10,padding:'12px 19px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div></div>;
-    if(type==='collections')return <div style={common}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:3},1fr)`,gap:10}}>{derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id)).slice(0,6).map(c=><div key={c.id} style={{padding:'18px 10px',borderRadius:12,background:'#f5f8f5',textAlign:'center'}}><div style={{fontSize:20}}>🗂️</div><div style={{fontWeight:850,fontSize:11.5,marginTop:6}}>{c.nom||c.name}</div><div style={{fontSize:10,color:'#7c877f',marginTop:3}}>{c.count||0} article(s)</div></div>)}</div></div>;
-    if(type==='bestsellers'||type==='products')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:fallbackProducts).slice(0,8).map((p,i)=><div key={p.id||i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:config.couleur,marginTop:4}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:config.couleur,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
-    if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const total=base*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+config.couleur:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}><div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:config.couleur,marginTop:10}}>{base?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:config.couleur,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
-    if(type==='gallery')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Notre univers</h3>{config.gallery?.length?<div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8}}>{config.gallery.map((u,i)=><img key={i} src={u} alt="" style={{width:'100%',height:device==='mobile'?100:130,objectFit:'cover',borderRadius:10}}/>)}</div>:<div style={{padding:30,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#7a857e',fontSize:11}}>Ajoute tes images depuis le panneau de droite.</div>}</div>;
-    if(type==='cod_form')return <div style={{...common,background:'#f7faf7'}}><div style={{maxWidth:520,margin:'0 auto'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:config.couleur}}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>📝 Bon de commande — Paiement à la livraison</h3></div><div style={{background:'#fff',border:'1px solid #e1e8e2',borderRadius:14,padding:14}}><div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':'1fr 1fr',gap:8}}>{['Nom complet','Téléphone WhatsApp','Ville / commune','Adresse de livraison'].map(x=><div key={x} style={{border:'1px solid #e0e6e1',borderRadius:9,padding:11,fontSize:10.5,color:'#8a948d'}}>{x}</div>)}</div><div style={{marginTop:10,padding:11,borderRadius:10,background:'#f5f8f5',fontSize:11.5,color:'#435047'}}>🚚 Livraison : <b>{Number(config.fraisLivraison||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b> · 🚛 Expédition : <b>{Number(config.fraisExpedition||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b></div><button style={{marginTop:10,width:'100%',border:0,borderRadius:10,padding:12,background:config.couleur,color:'#fff',fontWeight:950}}>Confirmer ma commande — paiement à la livraison</button></div></div></div>;
-    if(type==='benefits')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Pourquoi acheter chez nous ?</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{[['🛡️','Paiement à la livraison'],['🚚','Livraison suivie'],['💬','Support rapide']].map(x=><div key={x[1]} style={{padding:14,borderRadius:11,background:'#f6f9f6'}}><div style={{fontSize:20}}>{x[0]}</div><div style={{fontWeight:850,fontSize:11.5,marginTop:7}}>{x[1]}</div></div>)}</div></div>;
-    if(type==='promo')return <div style={{...common,background:'#f7f2e7',textAlign:'center'}}><div style={{fontSize:10,fontWeight:900,color:'#b16b00'}}>OFFRE LIMITÉE</div><h3 style={{fontSize:24,margin:'7px 0',color:'#162119'}}>{config.promoTitle}</h3><p style={{fontSize:12,color:'#6f776f'}}>{config.promoText}</p><button style={{border:0,borderRadius:9,padding:'10px 18px',background:'#e8920a',fontWeight:900}}>Profiter de l'offre</button></div>;
-    if(type==='testimonials')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>⭐ Ils nous font confiance</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:10}}>{['Une expérience simple et rapide.','La commande a été parfaitement suivie.','Je recommande sans hésiter.'].map((t,i)=><div key={i} style={{padding:15,border:'1px solid #e6ece7',borderRadius:12}}><div style={{color:'#e8920a'}}>★★★★★</div><div style={{fontSize:11.5,lineHeight:1.55,color:'#435047',marginTop:7}}>“{t}”</div><div style={{fontSize:10,fontWeight:800,marginTop:9}}>Client</div></div>)}</div></div>;
-    if(type==='faq')return <div style={common}><h3 style={{margin:'0 0 12px',fontSize:19,color:'#14221b'}}>Questions fréquentes</h3>{['Comment commander ?','Quels sont les délais ?','Comment suivre ma commande ?'].map(q=><div key={q} style={{padding:'12px 2px',borderBottom:'1px solid #e7ece8',fontSize:11.5,fontWeight:800,display:'flex',justifyContent:'space-between'}}>{q}<span>＋</span></div>)}</div>;
-    if(type==='whatsapp')return <div style={{...common,textAlign:'center',background:'#f4faf5'}}><div style={{fontSize:26}}>💬</div><h3 style={{margin:'7px 0',fontSize:19,color:'#14221b'}}>Besoin d'aide ?</h3><p style={{fontSize:11.5,color:'#68756d'}}>Écris-nous directement sur WhatsApp.</p><button style={{border:0,borderRadius:10,padding:'10px 18px',background:'#168a45',color:'#fff',fontWeight:900}}>Ouvrir WhatsApp</button></div>;
-    if(type==='delivery')return <div style={common}><h3 style={{margin:'0 0 9px',fontSize:19,color:'#14221b'}}>🚚 Livraison</h3><p style={{fontSize:11.5,color:'#68756d',lineHeight:1.6}}>{config.livraison}</p></div>;
-    if(type==='contact')return <div style={{...common,textAlign:'center',background:'#0d2417',color:'#fff'}}><h3 style={{margin:'0 0 8px',fontSize:24}}>Prêt à passer à l'action ?</h3><p style={{fontSize:11.5,color:'rgba(255,255,255,.68)'}}>Commandez, réservez ou contactez-nous maintenant.</p><button style={{border:0,borderRadius:10,padding:'11px 20px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div>;
-    if(type==='footer')return <div style={{padding:'24px 20px',background:'#101b15',color:'#fff',fontSize:10.5}}><div style={{fontWeight:900,fontSize:14}}>{config.nom}</div><div style={{opacity:.65,marginTop:6}}>{config.description}</div><div style={{opacity:.45,marginTop:14}}>© {new Date().getFullYear()} • Tous droits réservés</div></div>;
-    return <div style={common}/>;
-  }
-  function Editor(){
-    const type=selected;
-    if(type==='hero')return <><label style={labelStyle}>Titre principal<input style={fieldStyle} value={config.heroTitle} onChange={e=>update('heroTitle',e.target.value)}/></label><label style={labelStyle}>Sous-titre<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.heroSubtitle} onChange={e=>update('heroSubtitle',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label>{config.banniere&&<img src={config.banniere} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:10,marginBottom:8}}/>}<FileButton kind="hero" label="Télécharger / changer la couverture"/><label style={{...labelStyle,marginTop:8}}>Ou URL de couverture<input style={fieldStyle} placeholder="https://..." value={config.banniere} onChange={e=>update('banniere',e.target.value)}/></label></>;
-    if(type==='announcement')return <label style={labelStyle}>Message<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.announcement} onChange={e=>update('announcement',e.target.value)}/></label>;
-    if(type==='collections')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Clique sur les collections à afficher. Si aucune n’est sélectionnée, toutes les collections seront affichées.</div>{derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{const id=c.id;const on=config.selectedCollectionIds?.includes(id);return <button key={id} onClick={()=>toggleArray('selectedCollectionIds',id)} style={{textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:'9px 10px',cursor:'pointer',fontSize:11,fontWeight:800,color:'#233128'}}>{on?'☑':'□'} {c.nom||c.name} <span style={{float:'right',color:'#87928a'}}>{c.count||0}</span></button>})}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucune collection. Crée d’abord une collection dans « Produits → Collections ».</div>}</div>;
-    if(type==='products'||type==='bestsellers')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Sélectionne les produits. Si aucun n’est sélectionné, RecuVente utilise automatiquement ton catalogue.</div>{products.length?<div style={{display:'grid',gap:6,maxHeight:300,overflow:'auto'}}>{products.map(p=>{const on=config.selectedProductIds?.includes(p.id);return <button key={p.id} onClick={()=>toggleArray('selectedProductIds',p.id)} style={{display:'flex',alignItems:'center',gap:8,textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:7,cursor:'pointer'}}>{p.image?<img src={p.image} alt="" style={{width:38,height:38,objectFit:'cover',borderRadius:7}}/>:<span style={{width:38,height:38,borderRadius:7,background:'#eef3ee',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>🛍️</span>}<span style={{flex:1,fontSize:10.8,fontWeight:850,color:'#233128'}}>{on?'☑ ':'□ '}{p.name}</span><span style={{fontSize:10,fontWeight:900,color:'#1a7a3c'}}>{p.price.toLocaleString('fr-FR')}</span></button>})}</div>:<div style={{padding:12,background:'#fff6e8',borderRadius:9,fontSize:11}}>Aucun produit dans ton espace. Va dans « Produits » puis importe ton CSV Shopify.</div>}</div>;
-    if(type==='gallery')return <div><FileButton kind="gallery" label="Ajouter une image à la galerie"/>{config.gallery?.length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:7,marginTop:10}}>{config.gallery.map((u,i)=><div key={i} style={{position:'relative'}}><img src={u} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:8}}/><button onClick={()=>setConfig(c=>({...c,gallery:c.gallery.filter((_,j)=>j!==i)}))} style={{position:'absolute',right:4,top:4,border:0,borderRadius:999,background:'#fff',color:'#b63d2c',cursor:'pointer'}}>×</button></div>)}</div>}</div>;
-    if(type==='bundles')return <div><div style={{fontSize:10.5,color:'#68756d',marginBottom:10}}>Configure tes offres par quantité.</div>{(config.bundles||[]).map((b,i)=><div key={b.id||i} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:10,marginBottom:8}}><div style={{display:'grid',gridTemplateColumns:'1fr 70px',gap:7}}><label style={labelStyle}>Nom<input style={fieldStyle} value={b.label} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,label:e.target.value}:x)}))}/></label><label style={labelStyle}>Qté<input type="number" min="1" style={fieldStyle} value={b.qty} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,qty:Math.max(1,Number(e.target.value)||1)}:x)}))}/></label></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><label style={labelStyle}>Remise %<input type="number" min="0" max="90" style={fieldStyle} value={b.discount} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,discount:Math.min(90,Math.max(0,Number(e.target.value)||0))}:x)}))}/></label><label style={labelStyle}>Badge<input style={fieldStyle} value={b.badge||''} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,badge:e.target.value}:x)}))}/></label></div></div>)}<button onClick={()=>setConfig(c=>({...c,bundles:[...(c.bundles||[]),{id:'b'+Date.now(),qty:(c.bundles?.length||0)+1,label:'Pack x'+((c.bundles?.length||0)+1),discount:10,badge:'Offre'}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un bundle</button></div>;
-    if(type==='cod_form')return <div><div style={{padding:11,borderRadius:10,background:'#f4faf5',border:'1px solid #d9eadc',marginBottom:10}}><div style={{fontSize:11,fontWeight:950,color:'#1a7a3c'}}>💵 Paiement COD activé</div><div style={{fontSize:10.5,color:'#607068',marginTop:4}}>Prévu pour le marché africain. Le paiement en ligne pourra être connecté plus tard.</div></div><label style={labelStyle}>Frais de livraison locale<input type="number" min="0" style={fieldStyle} value={config.fraisLivraison} onChange={e=>update('fraisLivraison',e.target.value)}/></label><label style={labelStyle}>Frais d'expédition<input type="number" min="0" style={fieldStyle} value={config.fraisExpedition} onChange={e=>update('fraisExpedition',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label></div>;
-    if(type==='delivery')return <label style={labelStyle}>Politique de livraison<textarea style={{...fieldStyle,resize:'vertical'}} rows={5} value={config.livraison} onChange={e=>update('livraison',e.target.value)}/></label>;
-    if(type==='promo')return <><label style={labelStyle}>Titre de l'offre<input style={fieldStyle} value={config.promoTitle} onChange={e=>update('promoTitle',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.promoText} onChange={e=>update('promoText',e.target.value)}/></label></>;
-    if(type==='whatsapp')return <label style={labelStyle}>Message WhatsApp<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.whatsapp} onChange={e=>update('whatsapp',e.target.value)}/></label>;
-    return <div style={{padding:12,background:'#f5f8f5',borderRadius:11,fontSize:11.5,color:'#657169',lineHeight:1.55}}>Cette section est maintenant sélectionnable et configurable. Les produits et collections sont ceux de ton espace RecuVente.</div>;
-  }
-  return <div style={{...cardStyle,padding:14,overflow:'hidden'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7}}><button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{published?'✓ Publiée':'🚀 Publier'}</button></div></div>
-    <div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':device==='tablet'?'190px minmax(0,1fr)':'220px minmax(0,1fr) 290px',gap:12,alignItems:'start'}}>
-      <div style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer'}}><span>{sectionCatalog[s]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
-      <div style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,borderBottom:'1px solid #edf1ee'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950,color:'#14221b'}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>R</span>}{config.nom}</div><div style={{display:'flex',gap:12,fontSize:10,color:'#68756d'}}><span>Accueil</span><span>Catalogue</span><span>Contact</span><span>🛒</span></div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
-      <div style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique.</div></div>
-    </div>
-  </div>;
-}
-
-function RecuVenteOSPanel({ workspace, commandes = [], produits = [], clients = [], livreurs = [], closers = [] }) {
-  const [tab, setTab] = useState("overview");
-  const [previewDevice, setPreviewDevice] = useState("desktop");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [store, setStore] = useState(() => ({
-    couleur: workspace?.couleur_marque || "#1a7a3c",
-    nom: workspace?.name || "Ma boutique",
-    description: workspace?.description_boutique || "Une boutique professionnelle, pensée pour convertir.",
-    livraison: workspace?.politique_livraison || "Livraison rapide et suivi de commande.",
-    logo: workspace?.logo_url || "",
-    banniere: workspace?.banniere_url || "",
-  }));
-  const [sectionOrder, setSectionOrder] = useState(["hero", "benefits", "products", "testimonials", "faq", "contact"]);
-  const cfg = RV_ACTIVITY_CONFIG[workspace?.activity_type] || RV_ACTIVITY_CONFIG.cod_ecommerce;
-  const currency = workspace?.currency || "XOF";
-
-  const confirmed = commandes.filter(c => c.statut === "confirmee");
-  const failed = commandes.filter(c => c.statut === "echouee");
-  const pending = commandes.filter(c => !["confirmee", "echouee", "livree", "annulee"].includes(c.statut));
-  const delivered = commandes.filter(c => c.statut === "livree");
-  const revenue = confirmed.reduce((n, c) => n + Number(c.montant || 0), 0);
-  const risk = failed.reduce((n, c) => n + Number(c.montant || 0), 0);
-  const successRate = commandes.length ? Math.round((confirmed.length / commandes.length) * 100) : 0;
-  const deliveryRate = commandes.length ? Math.round((delivered.length / commandes.length) * 100) : 0;
-  const stockCritique = produits.filter(p => Number(p.stock ?? p.quantite ?? 999999) <= 5).length;
-  const score = Math.min(100, Math.round(successRate * .45 + deliveryRate * .30 + Math.min(20, commandes.length) + (stockCritique === 0 ? 15 : Math.max(0, 15 - stockCritique * 3))));
-
-  const labels = {
-    hero: "Hero",
-    benefits: "Avantages",
-    products: "Produits",
-    testimonials: "Avis clients",
-    faq: "FAQ",
-    contact: "Contact / CTA",
-  };
-
-  function moveSection(index, direction) {
-    const next = [...sectionOrder];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    setSectionOrder(next);
-  }
-
-  async function sauvegarderBoutique() {
-    if (!workspace?.id) return;
-    setSaving(true);
-    setSaved(false);
-    const { error } = await supabase.from("workspaces").update({
-      name: store.nom,
-      couleur_marque: store.couleur,
-      description_boutique: store.description,
-      politique_livraison: store.livraison,
-      logo_url: store.logo || null,
-      banniere_url: store.banniere || null,
-    }).eq("id", workspace.id);
-    setSaving(false);
-    if (error) {
-      alert("Impossible d'enregistrer la boutique : " + error.message);
-      return;
-    }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
-  }
-
-  const activityCards = {
-    cod_ecommerce: [
-      ["📦", "Commandes", commandes.length, "Suivi du premier contact à la livraison"],
-      ["🛒", "Produits", produits.length, "Catalogue connecté à ton activité"],
-      ["📞", "Closers", closers.length, "Équipe commerciale"],
-      ["🚚", "Livreurs", livreurs.length, "Livraison et encaissement"],
-    ],
-    retail: [
-      ["🏪", "Ventes", commandes.length, "Vision des ventes du magasin"],
-      ["📦", "Stock", produits.length, "Produits et niveaux de stock"],
-      ["👥", "Clients", clients.length, "Historique et fidélisation"],
-      ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Chiffre d'affaires suivi"],
-    ],
-    restaurant: [
-      ["🍽️", "Commandes", commandes.length, "Sur place, à emporter ou livraison"],
-      ["📋", "Carte", produits.length, "Produits / plats disponibles"],
-      ["👥", "Clients", clients.length, "Historique des clients"],
-      ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Performance commerciale"],
-    ],
-    location_immobiliere: [
-      ["🏠", "Biens", produits.length, "Biens à louer / présenter"],
-      ["📅", "Réservations", commandes.length, "Suivi des demandes et séjours"],
-      ["👥", "Clients", clients.length, "Locataires et prospects"],
-      ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-    ],
-    location_vehicule: [
-      ["🚗", "Véhicules", produits.length, "Parc disponible"],
-      ["📅", "Réservations", commandes.length, "Disponibilité et planning"],
-      ["👥", "Clients", clients.length, "Conducteurs et historique"],
-      ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-    ],
-  };
-
-  const cards = activityCards[workspace?.activity_type] || activityCards.cod_ecommerce;
-  const actionItems = [
-    failed.length && { icon: "🔴", title: "Récupérer les commandes échouées", count: failed.length, detail: risk.toLocaleString("fr-FR") + " " + currency + " à récupérer" },
-    pending.length && { icon: "🟠", title: "Traiter les commandes en attente", count: pending.length, detail: "Ne laisse pas ces prospects refroidir" },
-    stockCritique > 0 && { icon: "📦", title: "Vérifier le stock critique", count: stockCritique, detail: "Évite les ventes impossibles à livrer" },
-    clients.length > 0 && { icon: "🔄", title: "Réactiver tes clients", count: clients.length, detail: "Transforme l'historique en nouvelles ventes" },
-  ].filter(Boolean);
-
-  const operationalByActivity = {
-    cod_ecommerce: {
-      title: "Cockpit E-commerce",
-      subtitle: "Commande → confirmation → livraison → encaissement → récupération.",
-      modules: [
-        ["📞", "Closing", pending.length, "Commandes qui attendent encore une action commerciale"],
-        ["🚚", "Livraison", confirmed.length - delivered.length > 0 ? confirmed.length - delivered.length : 0, "Commandes confirmées pas encore livrées"],
-        ["💰", "Valeur à récupérer", risk.toLocaleString("fr-FR") + " " + currency, "Montant des commandes échouées"],
-        ["📦", "Stock critique", stockCritique, "Produits à surveiller avant de vendre davantage"],
-      ]
-    },
-    retail: {
-      title: "Cockpit Commerce",
-      subtitle: "Ventes, stock, clients et marge au même endroit.",
-      modules: [
-        ["🛒", "Ventes", commandes.length, "Transactions suivies dans RecuVente"],
-        ["📦", "Stock critique", stockCritique, "Produits à réapprovisionner ou surveiller"],
-        ["👥", "Clients", clients.length, "Base client exploitable pour la fidélisation"],
-        ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Chiffre d'affaires confirmé"],
-      ]
-    },
-    restaurant: {
-      title: "Cockpit Restaurant",
-      subtitle: "Commande, service, cuisine et encaissement dans un même flux.",
-      modules: [
-        ["🍽️", "Commandes", commandes.length, "Commandes suivies"],
-        ["🔥", "À traiter", pending.length, "Commandes encore ouvertes ou en attente"],
-        ["👥", "Clients", clients.length, "Clients connus dans RecuVente"],
-        ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Chiffre d'affaires confirmé"],
-      ]
-    },
-    location_immobiliere: {
-      title: "Cockpit Location immobilière",
-      subtitle: "Demandes, locataires, disponibilités et encaissements.",
-      modules: [
-        ["🏠", "Biens", produits.length, "Biens / offres actuellement référencés"],
-        ["📅", "Demandes", commandes.length, "Réservations ou demandes suivies"],
-        ["⏳", "En attente", pending.length, "Demandes nécessitant encore une action"],
-        ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-      ]
-    },
-    location_vehicule: {
-      title: "Cockpit Location de véhicules",
-      subtitle: "Parc, disponibilité, réservations, retours et revenus.",
-      modules: [
-        ["🚗", "Parc", produits.length, "Véhicules / matériels référencés"],
-        ["📅", "Réservations", commandes.length, "Demandes et réservations suivies"],
-        ["⏳", "À traiter", pending.length, "Dossiers nécessitant une action"],
-        ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-      ]
-    }
-  };
-  const operational = operationalByActivity[workspace?.activity_type] || operationalByActivity.cod_ecommerce;
-
-  return (
-    <div style={{ padding: "0 20px 44px" }}>
-      <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg,#06110b 0%,#0d2b1b 52%,#1a7a3c 100%)", borderRadius: 24, padding: 24, color: "white", marginBottom: 16, boxShadow: "0 20px 55px rgba(9,55,31,.22)" }}>
-        <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", right: -100, top: -150, background: "rgba(255,255,255,.07)" }} />
-        <div style={{ position: "relative", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div>
-            <div style={{ fontSize: 10.5, opacity: .62, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 900 }}>RECUVENTE OS • PILOTAGE INTELLIGENT</div>
-            <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-.045em", marginTop: 6 }}>{cfg.icon} {cfg.label}</div>
-            <div style={{ color: "rgba(255,255,255,.72)", fontSize: 13, marginTop: 6, maxWidth: 620 }}>Une seule plateforme pour vendre, gérer, récupérer et faire grandir ton activité.</div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,.10)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 16, padding: "12px 16px", minWidth: 145 }}>
-            <div style={{ fontSize: 10, opacity: .62, textTransform: "uppercase", letterSpacing: ".08em" }}>Business Score</div>
-            <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 4 }}>{score}<span style={{ fontSize: 14, opacity: .55 }}>/100</span></div>
-          </div>
-        </div>
-        <div style={{ position: "relative", display: "flex", gap: 7, flexWrap: "wrap", marginTop: 20 }}>
-          {[['overview','⚡ Pilotage'],['metier','🧩 Cockpit métier'],['store','🛍️ Store Builder'],['actions','🎯 Actions'],['analytics','📊 Intelligence']].map(([key,label]) => (
-            <button key={key} onClick={() => setTab(key)} style={{ border: tab===key ? "1px solid rgba(255,255,255,.38)" : "1px solid rgba(255,255,255,.08)", background: tab===key ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.07)", color: "white", borderRadius: 11, padding: "9px 12px", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>{label}</button>
-          ))}
-        </div>
-      </div>
-
-      {tab === "overview" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, marginBottom: 14 }}>
-            {cards.map(([icon,title,value,detail]) => (
-              <div key={title} style={{ background: "white", border: "1px solid #e7ece8", borderRadius: 16, padding: 16, boxShadow: "0 8px 25px rgba(17,38,26,.04)" }}>
-                <div style={{ fontSize: 20 }}>{icon}</div><div style={{ fontSize: 11, color: "#7a847d", marginTop: 8 }}>{title}</div><div style={{ fontSize: 21, fontWeight: 900, color: "#122019", marginTop: 2 }}>{value}</div><div style={{ fontSize: 10.5, color: "#879189", marginTop: 5, lineHeight: 1.35 }}>{detail}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(260px,.65fr)", gap: 14 }}>
-            <div style={{ background: "white", border: "1px solid #e7ece8", borderRadius: 18, padding: 19 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:10 }}><div><div style={{ fontWeight: 900, fontSize: 16 }}>🎯 Ce qui mérite ton attention maintenant</div><div style={{ color:"#78837b",fontSize:11.5,marginTop:4 }}>RecuVente transforme les données déjà présentes en décisions concrètes.</div></div><button onClick={()=>setTab("actions")} style={{border:0,background:"#edf6ee",color:"#1a7a3c",borderRadius:9,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>Tout voir</button></div>
-              <div style={{ marginTop: 15, display: "grid", gap: 8 }}>
-                {actionItems.slice(0,4).map((a,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:11,padding:"11px 12px",background:i===0?"#fff7f4":"#f7faf7",border:"1px solid "+(i===0?"#f2ddd6":"#e8eee8"),borderRadius:12}}><div style={{fontSize:18}}>{a.icon}</div><div style={{flex:1}}><div style={{fontSize:12.5,fontWeight:800,color:"#203027"}}>{a.title}</div><div style={{fontSize:10.5,color:"#7a847d",marginTop:3}}>{a.detail}</div></div><div style={{fontSize:18,fontWeight:900,color:i===0?"#c84b31":"#1a7a3c"}}>{a.count}</div></div>)}
-                {actionItems.length===0 && <div style={{padding:16,background:"#f3f8f2",borderRadius:12,color:"#47704e",fontSize:12,fontWeight:700}}>✅ Rien d'urgent détecté. Ton activité est sous contrôle.</div>}
-              </div>
-            </div>
-            <div style={{ background: "#0c2115", borderRadius: 18, padding: 19, color: "white" }}>
-              <div style={{ fontWeight: 900, fontSize: 15 }}>🚀 RecuVente peut devenir ton centre de contrôle</div>
-              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.65)", lineHeight: 1.55, marginTop: 9 }}>Boutique en ligne, activité physique, restaurant, location de maisons ou de voitures : l'espace s'adapte à ton métier.</div>
-              <div style={{ display:"grid",gap:7,marginTop:14 }}>{cfg.modules.slice(0,7).map(m=><div key={m} style={{fontSize:11,padding:"7px 9px",background:"rgba(255,255,255,.07)",borderRadius:8}}>✓ {m}</div>)}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "store" && (
-        <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} />
-      )}
-
-      {tab === "metier" && (
-        <div>
-          <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:20,marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:15,flexWrap:"wrap"}}>
-              <div>
-                <div style={{fontWeight:900,fontSize:20}}>{operational.title}</div>
-                <div style={{fontSize:12,color:"#6f7b73",marginTop:5}}>{operational.subtitle}</div>
-              </div>
-              <div style={{background:"#eef6ef",color:"#1a7a3c",padding:"8px 11px",borderRadius:10,fontSize:10.5,fontWeight:900}}>ACTIVITÉ : {cfg.label.toUpperCase()}</div>
-            </div>
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:10,marginBottom:14}}>
-            {operational.modules.map(([icon,title,value,detail]) => (
-              <div key={title} style={{background:"white",border:"1px solid #e7ece8",borderRadius:16,padding:16}}>
-                <div style={{fontSize:22}}>{icon}</div>
-                <div style={{fontSize:11,color:"#7a847d",marginTop:8}}>{title}</div>
-                <div style={{fontSize:23,fontWeight:900,color:"#122019",marginTop:2}}>{value}</div>
-                <div style={{fontSize:10.5,color:"#879189",lineHeight:1.4,marginTop:5}}>{detail}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.4fr) minmax(250px,.6fr)",gap:14}}>
-            <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:19}}>
-              <div style={{fontWeight:900,fontSize:15}}>🗺️ Flux opérationnel</div>
-              <div style={{fontSize:11,color:"#7a847d",marginTop:4}}>La même logique de pilotage, adaptée automatiquement à ton activité.</div>
-              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:18}}>
-                {(workspace?.activity_type === "restaurant"
-                  ? ["Commande","Cuisine","Service","Paiement"]
-                  : workspace?.activity_type === "location_immobiliere"
-                  ? ["Demande","Disponibilité","Réservation","Paiement"]
-                  : workspace?.activity_type === "location_vehicule"
-                  ? ["Demande","Disponibilité","Réservation","Retour","Paiement"]
-                  : workspace?.activity_type === "retail"
-                  ? ["Vente","Stock","Encaissement","Client"]
-                  : ["Commande","Closing","Livraison","Encaissement"]
-                ).map((step,i)=>(
-                  <React.Fragment key={step}>
-                    <div style={{padding:"10px 12px",background:i===0?"#eaf5eb":"#f7f9f7",border:"1px solid #e3ebe4",borderRadius:10,fontSize:11,fontWeight:850,color:"#203027"}}>{i+1}. {step}</div>
-                    {i < (workspace?.activity_type === "location_vehicule" ? 4 : 3) && <span style={{color:"#9aa49d",fontWeight:900}}>→</span>}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-            <div style={{background:"#0c2115",color:"white",borderRadius:18,padding:19}}>
-              <div style={{fontWeight:900,fontSize:15}}>🚀 Prochaine action</div>
-              <div style={{fontSize:11.5,color:"rgba(255,255,255,.68)",lineHeight:1.55,marginTop:7}}>
-                Les écrans métier sont maintenant séparés du cœur RecuVente. Cette couche est prête à recevoir les opérations réelles de chaque activité sans modifier le moteur commun.
-              </div>
-              <button onClick={()=>setTab("actions")} style={{marginTop:15,width:"100%",border:0,borderRadius:9,padding:"10px 12px",background:"#e8920a",color:"#172119",fontSize:11,fontWeight:900,cursor:"pointer"}}>Ouvrir le Centre d'actions →</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "actions" && (
-        <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:20}}>
-          <div style={{fontWeight:900,fontSize:19}}>🎯 Recovery & Action Center</div><div style={{fontSize:12,color:"#6f7b73",marginTop:4}}>La priorité n'est plus de regarder les chiffres : c'est de savoir quoi faire ensuite.</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:10,marginTop:16}}>{actionItems.map((a,i)=><div key={i} style={{border:"1px solid #e6ebe6",borderRadius:14,padding:16,background:i===0?"#fff9f7":"#fbfcfb"}}><div style={{fontSize:24}}>{a.icon}</div><div style={{fontWeight:900,fontSize:13,marginTop:9}}>{a.title}</div><div style={{fontSize:24,fontWeight:900,color:i===0?"#c84b31":"#1a7a3c",marginTop:6}}>{a.count}</div><div style={{fontSize:11,color:"#748078",lineHeight:1.4,marginTop:3}}>{a.detail}</div><button onClick={()=>setTab("overview")} style={{marginTop:12,border:0,borderRadius:8,padding:"8px 10px",background:"#eef5ef",color:"#1a7a3c",fontSize:10.5,fontWeight:800,cursor:"pointer"}}>Voir dans le pilotage →</button></div>)}</div>
-        </div>
-      )}
-
-      {tab === "analytics" && (
-        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 300px",gap:14}}>
-          <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:20}}><div style={{fontWeight:900,fontSize:18}}>📊 Business Intelligence</div><div style={{fontSize:12,color:"#6f7b73",marginTop:4}}>Un score lisible pour savoir si ton activité convertit, livre et protège sa marge.</div><div style={{display:"flex",alignItems:"center",gap:25,marginTop:22,flexWrap:"wrap"}}><div style={{width:150,height:150,borderRadius:"50%",background:`conic-gradient(${store.couleur} ${score*3.6}deg,#e9eee9 0)`,display:"grid",placeItems:"center"}}><div style={{width:118,height:118,borderRadius:"50%",background:"white",display:"grid",placeItems:"center",fontSize:35,fontWeight:900,color:"#15221b"}}>{score}</div></div><div style={{flex:1,minWidth:220}}>{[["Conversion confirmée",successRate],["Livraison",deliveryRate],["Volume d'activité",Math.min(100,commandes.length*5)],["Stock maîtrisé",stockCritique===0?100:Math.max(0,100-stockCritique*15)]].map(([l,v])=><div key={l} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,fontWeight:750}}><span>{l}</span><span>{v}%</span></div><div style={{height:7,background:"#edf1ed",borderRadius:999,overflow:"hidden",marginTop:5}}><div style={{height:"100%",width:v+"%",background:store.couleur,borderRadius:999}}/></div></div>)}</div></div></div>
-          <div style={{background:"#0c2115",color:"white",borderRadius:18,padding:20}}><div style={{fontWeight:900,fontSize:16}}>💡 La prochaine évolution</div><div style={{fontSize:12,color:"rgba(255,255,255,.68)",lineHeight:1.55,marginTop:8}}>Brancher progressivement ces indicateurs sur des règles d'automatisation : relances, alertes, réactivation clients, suivi des réservations et protection de marge.</div><div style={{marginTop:16,padding:12,background:"rgba(255,255,255,.07)",borderRadius:11,fontSize:11}}>Architecture prête pour évoluer sans remplacer ton cœur actuel.</div></div>
         </div>
       )}
     </div>
@@ -2545,7 +2133,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "os_pilotage", label: "⚡ Pilotage OS" }, { key: "os_boutique", label: "🛍️ Store Builder" }] : []),
         ].map((t) => (
           <button
             key={t.key}
@@ -2765,17 +2352,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       <SubscriptionBanner subscription={subscription} />
-
-      {(vue === "os_pilotage" || vue === "os_boutique") && (
-        <RecuVenteOSPanel
-          workspace={workspace}
-          commandes={commandes}
-          produits={produits}
-          clients={clients}
-          livreurs={livreurs}
-          closers={closers}
-        />
-      )}
 
       {notifPermission === "default" && (
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -3473,7 +3049,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
-      {showIntegrations && <IntegrationsModal workspace={workspace} produits={produits} clients={clients} onClose={() => setShowIntegrations(false)} />}
+      {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}
 
@@ -5529,7 +5105,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#f7faf8", borderRadius: 20, padding: 20, width: "100%", maxWidth: 1280, maxHeight: "94vh", overflowY: "auto", boxSizing: "border-box" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>
             {collectionOuverte ? `📁 ${collectionOuverteNom}` : "📁 Collections"}
@@ -8171,7 +7747,213 @@ function AideModal({ onClose }) {
   );
 }
 
-function IntegrationsModal({ workspace, produits = [], clients = [], onClose }) {
+
+function StoreBuilderModal({ workspace, onClose }) {
+  const storageKey = `rv_store_builder_${workspace.id}`;
+  const activity = workspace.activity_type === "cod_ecommerce" ? "ecommerce" : (workspace.activity_type || "ecommerce");
+  const [tab, setTab] = useState("structure");
+  const [saving, setSaving] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [collectionProducts, setCollectionProducts] = useState({});
+  const [selectedSection, setSelectedSection] = useState("hero");
+  const [uploading, setUploading] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 800);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 800);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const [config, setConfig] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+      if (saved) return saved;
+    } catch {}
+    return {
+      version: 2,
+      name: workspace.name || "Ma boutique",
+      description: workspace.description_boutique || "",
+      logo: workspace.logo_url || "",
+      heroImage: workspace.banniere_url || "",
+      primary: workspace.couleur_marque || "#1a7a3c",
+      heroTitle: activity === "restaurant" ? "Découvrez notre menu" : activity === "location_immobiliere" ? "Trouvez votre prochain logement" : activity === "location_vehicule" ? "Louez le véhicule qu'il vous faut" : "Bienvenue dans notre boutique",
+      heroText: workspace.description_boutique || "Qualité, simplicité et commande rapide.",
+      heroButton: activity === "restaurant" ? "Voir le menu" : activity === "location_immobiliere" ? "Voir les biens" : activity === "location_vehicule" ? "Voir les véhicules" : "Découvrir nos produits",
+      announcement: "🚚 Paiement à la livraison • Commande simple et rapide",
+      sections: [
+        { id: "announcement", type: "announcement", label: "Barre d'annonce", enabled: true },
+        { id: "hero", type: "hero", label: "Hero / couverture", enabled: true },
+        { id: "collections", type: "collections", label: "Collections", enabled: true },
+        { id: "best", type: "best", label: "Meilleures ventes", enabled: true },
+        { id: "catalog", type: "catalog", label: "Catalogue produits", enabled: true },
+        { id: "bundles", type: "bundles", label: "Packs / Bundles", enabled: true },
+        { id: "trust", type: "trust", label: "Réassurance", enabled: true },
+        { id: "promo", type: "promo", label: "Promotion", enabled: true },
+        { id: "reviews", type: "reviews", label: "Avis clients", enabled: true },
+        { id: "gallery", type: "gallery", label: "Galerie", enabled: true },
+        { id: "faq", type: "faq", label: "FAQ", enabled: true },
+        { id: "cta", type: "cta", label: "Appel à l'action", enabled: true },
+        { id: "footer", type: "footer", label: "Footer", enabled: true },
+      ],
+      selectedProducts: [],
+      selectedCollections: [],
+      bundles: [
+        { id: "b1", title: "1 unité", quantity: 1, discount: 0, badge: "" },
+        { id: "b2", title: "Pack ×2", quantity: 2, discount: 10, badge: "Économise 10%" },
+        { id: "b3", title: "Pack ×3", quantity: 3, discount: 15, badge: "⭐ Meilleure offre" },
+      ],
+      gallery: [],
+      promoTitle: "Offre spéciale",
+      promoText: "Profite de notre offre du moment.",
+      ctaTitle: "Prêt à commander ?",
+      ctaText: "Commande en quelques secondes avec paiement à la livraison.",
+    };
+  });
+
+  useEffect(() => {
+    let actif = true;
+    (async () => {
+      const [{ data: p }, { data: c }] = await Promise.all([
+        supabase.from("produits").select("*").eq("workspace_id", workspace.id).order("nom"),
+        supabase.from("collections").select("*").eq("workspace_id", workspace.id).order("ordre"),
+      ]);
+      if (!actif) return;
+      setProducts(p || []);
+      setCollections(c || []);
+      if (c?.length) {
+        const ids = c.map(x => x.id);
+        const { data: cp } = await supabase.from("collection_produits").select("collection_id, produit_id").in("collection_id", ids);
+        const map = {};
+        (cp || []).forEach(row => { (map[row.collection_id] ||= []).push(row.produit_id); });
+        if (actif) setCollectionProducts(map);
+      }
+    })();
+    return () => { actif = false; };
+  }, [workspace.id]);
+
+  function updateConfig(patch) { setConfig(c => ({ ...c, ...patch })); }
+  function updateSection(id, patch) {
+    setConfig(c => ({ ...c, sections: c.sections.map(s => s.id === id ? { ...s, ...patch } : s) }));
+  }
+  function moveSection(id, dir) {
+    setConfig(c => {
+      const arr = [...c.sections]; const i = arr.findIndex(s => s.id === id); const j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length) return c;
+      [arr[i], arr[j]] = [arr[j], arr[i]]; return { ...c, sections: arr };
+    });
+  }
+  function removeSection(id) { updateSection(id, { enabled: false }); }
+  function restoreSection(id) { updateSection(id, { enabled: true }); }
+  function toggleInArray(key, id) {
+    setConfig(c => ({ ...c, [key]: c[key].includes(id) ? c[key].filter(x => x !== id) : [...c[key], id] }));
+  }
+  async function uploadStoreImage(kind, file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return alert("Choisis une image.");
+    if (file.size > 8 * 1024 * 1024) return alert("Image trop lourde : maximum 8 Mo.");
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${workspace.id}/builder-${kind}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("boutique").upload(path, file, { upsert: true });
+    if (error) { setUploading(false); return alert("Impossible d'envoyer l'image : " + error.message); }
+    const { data } = supabase.storage.from("boutique").getPublicUrl(path);
+    if (kind === "logo") updateConfig({ logo: data.publicUrl });
+    else if (kind === "hero") updateConfig({ heroImage: data.publicUrl });
+    else setConfig(c => ({ ...c, gallery: [...(c.gallery || []), data.publicUrl] }));
+    setUploading(false);
+  }
+  async function save() {
+    setSaving(true);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(config));
+      const patch = {
+        logo_url: config.logo || null,
+        banniere_url: config.heroImage || null,
+        couleur_marque: config.primary,
+        description_boutique: config.description,
+      };
+      await supabase.from("workspaces").update(patch).eq("id", workspace.id);
+      alert("✅ Boutique enregistrée.");
+    } finally { setSaving(false); }
+  }
+  const visibleSections = config.sections.filter(s => s.enabled);
+  const selected = config.sections.find(s => s.id === selectedSection) || config.sections[0];
+  const selectedProducts = products.filter(p => config.selectedProducts.includes(p.id));
+  const basePrice = Number(selectedProducts[0]?.prix_vente || selectedProducts[0]?.prix || 0);
+
+  const activityLabel = {
+    ecommerce: "E-commerce", commerce: "Commerce", restaurant: "Restaurant",
+    location_immobiliere: "Immobilier", location_vehicule: "Location de véhicules"
+  }[activity] || "Activité";
+
+  const input = { width: "100%", boxSizing: "border-box", padding: "11px 12px", border: "1px solid #D9E2DC", borderRadius: 10, fontSize: 14, outline: "none", background: "#fff" };
+  const label = { display: "block", fontSize: 12, fontWeight: 800, color: "#53615A", marginBottom: 6, marginTop: 14 };
+  const card = { background: "#fff", border: "1px solid #E1E8E3", borderRadius: 14, padding: 14, marginBottom: 12 };
+
+  function renderEditor() {
+    if (!selected) return null;
+    if (selected.id === "hero") return <div>
+      <h3 style={{ margin: 0 }}>🖼️ Hero / couverture</h3>
+      <label style={label}>Titre</label><input style={input} value={config.heroTitle} onChange={e => updateConfig({ heroTitle: e.target.value })} />
+      <label style={label}>Texte</label><textarea style={{...input,minHeight:90}} value={config.heroText} onChange={e => updateConfig({ heroText:e.target.value })}/>
+      <label style={label}>Texte du bouton</label><input style={input} value={config.heroButton} onChange={e => updateConfig({ heroButton:e.target.value })}/>
+      <label style={label}>Image de couverture</label>
+      {config.heroImage && <img src={config.heroImage} alt="Couverture" style={{width:"100%",height:130,objectFit:"cover",borderRadius:12,marginBottom:8}}/>}
+      <label style={{display:"block",border:"2px dashed #B9CDBF",borderRadius:12,padding:18,textAlign:"center",cursor:"pointer",color:"#1a7a3c",fontWeight:800}}>
+        {uploading ? "Envoi en cours…" : "📤 Télécharger / changer la couverture"}
+        <input type="file" accept="image/*" hidden onChange={e => uploadStoreImage("hero", e.target.files?.[0])}/>
+      </label>
+    </div>;
+    if (selected.id === "announcement") return <div><h3 style={{margin:0}}>📢 Barre d'annonce</h3><label style={label}>Message</label><input style={input} value={config.announcement} onChange={e=>updateConfig({announcement:e.target.value})}/></div>;
+    if (selected.id === "collections") return <div><h3 style={{margin:0}}>🗂️ Collections</h3><p style={{fontSize:13,color:"#66736C"}}>Clique sur une collection pour l'activer dans ta boutique.</p>{collections.length===0 ? <div style={card}>Aucune collection. Crée d'abord tes collections dans <b>Collections</b>.</div> : collections.map(c=><button key={c.id} onClick={()=>toggleInArray("selectedCollections",c.id)} style={{...card,width:"100%",textAlign:"left",cursor:"pointer",borderColor:config.selectedCollections.includes(c.id)?config.primary:"#E1E8E3",boxShadow:config.selectedCollections.includes(c.id)?`0 0 0 2px ${config.primary}22`:"none"}}><b>{config.selectedCollections.includes(c.id)?"✓ ":"○ "}{c.nom}</b><span style={{float:"right",color:"#7A8780"}}>{(collectionProducts[c.id]||[]).length} produits</span></button>)}</div>;
+    if (selected.id === "catalog" || selected.id === "best") return <div><h3 style={{margin:0}}>{selected.id === "best" ? "🔥 Meilleures ventes" : "🛍️ Catalogue produits"}</h3><p style={{fontSize:13,color:"#66736C"}}>Sélectionne les produits à afficher. Ils viennent directement de ton espace RecuVente.</p>{products.length===0 ? <div style={card}>Aucun produit trouvé dans cet espace.</div> : products.map(p=><button key={p.id} onClick={()=>toggleInArray("selectedProducts",p.id)} style={{...card,width:"100%",display:"flex",alignItems:"center",gap:10,textAlign:"left",cursor:"pointer",borderColor:config.selectedProducts.includes(p.id)?config.primary:"#E1E8E3"}}>{p.photo_url?<img src={p.photo_url} alt="" style={{width:48,height:48,objectFit:"cover",borderRadius:9}}/>:<div style={{width:48,height:48,borderRadius:9,background:"#EEF3EF",display:"grid",placeItems:"center"}}>📦</div>}<span style={{flex:1}}><b>{p.nom}</b><br/><small>{Number(p.prix_vente||0).toLocaleString("fr-FR")} {workspace.currency||"XOF"}</small></span><b style={{color:config.selectedProducts.includes(p.id)?config.primary:"#A0AAA5"}}>{config.selectedProducts.includes(p.id)?"✓":"○"}</b></button>)}</div>;
+    if (selected.id === "bundles") return <div><h3 style={{margin:0}}>📦 Packs / Bundles COD</h3><p style={{fontSize:13,color:"#66736C"}}>Augmente le panier moyen avec des offres quantité.</p>{config.bundles.map((b,i)=><div key={b.id} style={card}><div style={{display:"flex",gap:8}}><input style={input} value={b.title} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map(x=>x.id===b.id?{...x,title:e.target.value}:x)}))}/><input style={{...input,maxWidth:80}} type="number" min="1" value={b.quantity} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map(x=>x.id===b.id?{...x,quantity:Number(e.target.value)}:x)}))}/></div><label style={label}>Remise %</label><input style={input} type="number" min="0" max="90" value={b.discount} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map(x=>x.id===b.id?{...x,discount:Number(e.target.value)}:x)}))}/><label style={label}>Badge</label><input style={input} value={b.badge} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map(x=>x.id===b.id?{...x,badge:e.target.value}:x)}))}/></div>)}<button onClick={()=>setConfig(c=>({...c,bundles:[...c.bundles,{id:`b${Date.now()}`,title:`Pack ×${c.bundles.length+1}`,quantity:c.bundles.length+1,discount:10,badge:""}]}))} style={{width:"100%",padding:12,borderRadius:10,border:"1px solid #C9D9CE",background:"#F5FAF6",fontWeight:800,cursor:"pointer"}}>＋ Ajouter un bundle</button></div>;
+    if (selected.id === "gallery") return <div><h3 style={{margin:0}}>🖼️ Galerie</h3><label style={{...card,display:"block",textAlign:"center",cursor:"pointer",color:"#1a7a3c",fontWeight:800}}>📤 Ajouter des images<input type="file" accept="image/*" multiple hidden onChange={e=>Array.from(e.target.files||[]).forEach(f=>uploadStoreImage("gallery",f))}/></label><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>{(config.gallery||[]).map((g,i)=><div key={i} style={{position:"relative"}}><img src={g} alt="" style={{width:"100%",height:100,objectFit:"cover",borderRadius:10}}/><button onClick={()=>updateConfig({gallery:config.gallery.filter((_,j)=>j!==i)})} style={{position:"absolute",right:5,top:5,border:0,borderRadius:99,background:"#fff",cursor:"pointer"}}>×</button></div>)}</div></div>;
+    if (selected.id === "promo") return <div><h3 style={{margin:0}}>🏷️ Promotion</h3><label style={label}>Titre</label><input style={input} value={config.promoTitle} onChange={e=>updateConfig({promoTitle:e.target.value})}/><label style={label}>Message</label><textarea style={{...input,minHeight:80}} value={config.promoText} onChange={e=>updateConfig({promoText:e.target.value})}/></div>;
+    if (selected.id === "cta") return <div><h3 style={{margin:0}}>🎯 Appel à l'action</h3><label style={label}>Titre</label><input style={input} value={config.ctaTitle} onChange={e=>updateConfig({ctaTitle:e.target.value})}/><label style={label}>Texte</label><textarea style={{...input,minHeight:80}} value={config.ctaText} onChange={e=>updateConfig({ctaText:e.target.value})}/></div>;
+    if (selected.id === "trust") return <div><h3 style={{margin:0}}>🛡️ Réassurance</h3><p style={{fontSize:13,color:"#66736C"}}>Cette section met en avant paiement à la livraison, livraison locale, commande sécurisée et support WhatsApp.</p></div>;
+    return <div><h3 style={{margin:0}}>{selected.label}</h3><p style={{fontSize:13,color:"#66736C",lineHeight:1.6}}>Cette section est prête dans la structure de ta boutique. Tu peux l'activer, la désactiver ou modifier son contenu dans les réglages dédiés.</p></div>;
+  }
+
+  function Preview() {
+    const width = tab === "previewMobile" ? 375 : tab === "previewTablet" ? 768 : 1100;
+    return <div style={{display:"flex",justifyContent:"center",padding:10,background:"#E8EEE9",minHeight:"100%"}}><div style={{width:"100%",maxWidth:width,background:"white",minHeight:700,boxShadow:"0 20px 50px rgba(0,0,0,.12)",overflow:"hidden"}}>
+      {visibleSections.map(s => <div key={s.id}>
+        {s.id === "announcement" && <div style={{background:config.primary,color:"white",padding:"9px 12px",fontSize:12,textAlign:"center",fontWeight:700}}>{config.announcement}</div>}
+        {s.id === "hero" && <div style={{position:"relative",minHeight:tab==="previewMobile"?260:330,background:config.heroImage?`url(${config.heroImage}) center/cover`:config.primary,color:"white",display:"flex",alignItems:"center",padding:24}}><div style={{position:"absolute",inset:0,background:"linear-gradient(90deg,rgba(0,0,0,.58),rgba(0,0,0,.12))"}}/><div style={{position:"relative",maxWidth:620}}>{config.logo&&<img src={config.logo} alt="" style={{width:48,height:48,objectFit:"cover",borderRadius:10,marginBottom:12}}/>}<h1 style={{fontSize:tab==="previewMobile"?30:44,lineHeight:1.05,margin:"0 0 12px"}}>{config.heroTitle}</h1><p style={{fontSize:15,lineHeight:1.5,margin:"0 0 18px"}}>{config.heroText}</p><button style={{background:"white",color:config.primary,border:0,borderRadius:10,padding:"12px 18px",fontWeight:800}}>{config.heroButton}</button></div></div>}
+        {s.id === "collections" && <div style={{padding:22}}><h2>Collections</h2><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{collections.filter(c=>config.selectedCollections.includes(c.id)).map(c=><div key={c.id} style={{background:"#F1F5F2",padding:18,borderRadius:12,fontWeight:800}}>{c.nom}</div>)}{!config.selectedCollections.length&&<div style={{color:"#89958F"}}>Sélectionne tes collections dans l'éditeur.</div>}</div></div>}
+        {(s.id === "catalog" || s.id === "best") && <div style={{padding:22}}><h2>{s.id === "best"?"🔥 Meilleures ventes":"Nos produits"}</h2><div style={{display:"grid",gridTemplateColumns:tab==="previewMobile"?"repeat(2,1fr)":"repeat(4,1fr)",gap:12}}>{selectedProducts.slice(0,s.id === "best"?4:12).map(p=><div key={p.id} style={{border:"1px solid #E3E8E5",borderRadius:12,overflow:"hidden"}}>{p.photo_url?<img src={p.photo_url} alt="" style={{width:"100%",height:140,objectFit:"cover"}}/>:<div style={{height:140,background:"#F0F4F1",display:"grid",placeItems:"center"}}>📦</div>}<div style={{padding:10}}><b style={{fontSize:13}}>{p.nom}</b><div style={{marginTop:5,fontWeight:900,color:config.primary}}>{Number(p.prix_vente||0).toLocaleString("fr-FR")} {workspace.currency||"XOF"}</div></div></div>)}{!selectedProducts.length&&<div style={{gridColumn:"1/-1",color:"#89958F"}}>Sélectionne tes produits dans l'éditeur.</div>}</div></div>}
+        {s.id === "bundles" && <div style={{padding:22,background:"#FAFCFA"}}><h2>📦 Choisis ton offre</h2><div style={{display:"grid",gridTemplateColumns:tab==="previewMobile"?"1fr":"repeat(3,1fr)",gap:10}}>{config.bundles.map(b=>{const total=basePrice*b.quantity*(1-b.discount/100);return <div key={b.id} style={{border:`2px solid ${b.discount>=10?config.primary:"#E1E8E3"}`,borderRadius:14,padding:14,position:"relative"}}>{b.badge&&<span style={{position:"absolute",top:-9,right:8,background:config.primary,color:"white",padding:"4px 8px",borderRadius:99,fontSize:10,fontWeight:800}}>{b.badge}</span>}<b>{b.title}</b><div style={{fontSize:20,fontWeight:900,marginTop:8}}>{total.toLocaleString("fr-FR")} {workspace.currency||"XOF"}</div></div>})}</div></div>}
+        {s.id === "promo" && <div style={{margin:22,padding:24,borderRadius:16,background:config.primary,color:"white"}}><h2>{config.promoTitle}</h2><p>{config.promoText}</p></div>}
+        {s.id === "trust" && <div style={{padding:22,display:"grid",gridTemplateColumns:tab==="previewMobile"?"1fr":"repeat(3,1fr)",gap:10}}>{["💵 Paiement à la livraison","🚚 Livraison rapide","💬 Support WhatsApp"].map(x=><div key={x} style={{padding:16,border:"1px solid #E1E8E3",borderRadius:12,fontWeight:800,fontSize:13}}>{x}</div>)}</div>}
+        {s.id === "reviews" && <div style={{padding:22}}><h2>⭐ Avis clients</h2><div style={{padding:16,background:"#F5F8F5",borderRadius:12}}>« Une commande simple et rapide. »<br/><small>Client vérifié</small></div></div>}
+        {s.id === "gallery" && <div style={{padding:22}}><h2>Galerie</h2><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>{(config.gallery||[]).map(g=><img key={g} src={g} alt="" style={{width:"100%",height:140,objectFit:"cover",borderRadius:10}}/>)}</div></div>}
+        {s.id === "faq" && <div style={{padding:22}}><h2>Questions fréquentes</h2><details><summary style={{fontWeight:800}}>Comment commander ?</summary><p>Choisis ton produit, ta quantité et remplis le bon de commande.</p></details><details><summary style={{fontWeight:800}}>Comment payer ?</summary><p>Paiement à la livraison (COD).</p></details></div>}
+        {s.id === "cta" && <div style={{padding:28,textAlign:"center",background:"#F1F6F2"}}><h2>{config.ctaTitle}</h2><p>{config.ctaText}</p><button style={{background:config.primary,color:"white",border:0,borderRadius:10,padding:"13px 20px",fontWeight:900}}>Commander maintenant</button></div>}
+        {s.id === "footer" && <div style={{padding:24,background:"#16231F",color:"white",fontSize:12}}><b>{config.name}</b><div style={{marginTop:8,opacity:.75}}>{config.description}</div></div>}
+      </div>)}
+    </div></div>;
+  }
+
+  return <div style={{position:"fixed",inset:0,zIndex:100,background:"#EEF2EF",display:"flex",flexDirection:"column"}}>
+    <div style={{height:64,background:"#10231A",color:"white",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 16px",flexShrink:0}}><div><b style={{fontSize:17}}>🛍️ Constructeur de boutique</b><span style={{marginLeft:8,fontSize:11,background:"#DDF2E2",color:"#176535",padding:"5px 8px",borderRadius:99}}>{activityLabel}</span></div><div style={{display:"flex",gap:8}}><button onClick={save} disabled={saving} style={{background:"#1a7a3c",color:"white",border:0,borderRadius:9,padding:"9px 14px",fontWeight:800}}>{saving?"Enregistrement…":"💾 Enregistrer"}</button><button onClick={onClose} style={{background:"rgba(255,255,255,.12)",color:"white",border:0,borderRadius:9,padding:"9px 12px",fontWeight:800}}>Fermer</button></div></div>
+    <div style={{display:"none"}} aria-hidden="true" />
+    <div style={{display:"flex",gap:8,padding:8,background:"white",borderBottom:"1px solid #DDE5DF",overflowX:"auto",flexShrink:0}}>
+      {[['structure','🧱 Structure'],['edit','✏️ Modifier'],['previewDesktop','🖥️ Aperçu'],['previewMobile','📱 Mobile']].map(([id,t])=><button key={id} onClick={()=>setTab(id)} style={{whiteSpace:"nowrap",border:0,borderRadius:9,padding:"10px 13px",background:tab===id?"#E5F2E8":"#F5F7F6",color:tab===id?config.primary:"#59665F",fontWeight:800,cursor:"pointer"}}>{t}</button>)}
+    </div>
+    {tab.startsWith("preview") ? <div style={{flex:1,overflow:"auto"}}><Preview/></div> : isMobile ? <div style={{flex:1,overflowY:"auto",padding:12}}>
+      {tab === "structure" ? <div>
+        <div style={card}><h2 style={{marginTop:0,fontSize:21}}>🧱 Structure de ta boutique</h2><p style={{color:"#66736C",lineHeight:1.55,fontSize:13}}>Appuie sur une section pour la modifier. Les réglages s'ouvrent sur un écran séparé : aucun panneau n'est écrasé sur mobile.</p></div>
+        {config.sections.map(s=><div key={s.id} style={{display:"flex",gap:6,marginBottom:8}}><button onClick={()=>{setSelectedSection(s.id);setTab("edit")}} style={{flex:1,textAlign:"left",padding:14,borderRadius:12,border:s.id===selectedSection?`2px solid ${config.primary}`:"1px solid #DDE5DF",background:"white",color:"#16231F",fontWeight:800,cursor:"pointer"}}>{s.enabled?"●":"○"} {s.label}<span style={{display:"block",fontSize:11,color:"#7A8780",fontWeight:500,marginTop:3}}>{s.enabled?"Activée — appuie pour modifier":"Désactivée — appuie pour modifier"}</span></button><button title="Monter" onClick={()=>moveSection(s.id,-1)} style={{width:42,border:0,borderRadius:10,background:"white",cursor:"pointer"}}>↑</button><button title="Descendre" onClick={()=>moveSection(s.id,1)} style={{width:42,border:0,borderRadius:10,background:"white",cursor:"pointer"}}>↓</button></div>)}
+      </div> : <div><button onClick={()=>setTab("structure")} style={{border:0,background:"transparent",color:config.primary,fontWeight:800,padding:"4px 0 14px",cursor:"pointer"}}>← Retour aux sections</button>{tab === "edit" && <div style={{...card,padding:18}}>{renderEditor()}</div>}</div>}
+    </div> : <div style={{flex:1,display:"grid",gridTemplateColumns:"minmax(250px,330px) minmax(320px,1fr)",minHeight:0}}>
+      <aside style={{background:"#F7F9F7",borderRight:"1px solid #DDE5DF",padding:12,overflowY:"auto"}}><div style={{fontSize:11,fontWeight:900,color:"#718078",textTransform:"uppercase",marginBottom:8}}>Structure de la boutique</div>{config.sections.map(s=><div key={s.id} style={{display:"flex",gap:5,alignItems:"center",marginBottom:6}}><button onClick={()=>{setSelectedSection(s.id);setTab("edit")}} style={{flex:1,textAlign:"left",padding:"11px 10px",borderRadius:10,border:s.id===selectedSection?`2px solid ${config.primary}`:"1px solid #E0E7E2",background:s.enabled?"white":"#EDF0EE",color:s.enabled?"#16231F":"#89938E",fontWeight:800,cursor:"pointer"}}>{s.enabled?"●":"○"} {s.label}</button><button title="Monter" onClick={()=>moveSection(s.id,-1)} style={{border:0,background:"white",padding:7,cursor:"pointer"}}>↑</button><button title="Descendre" onClick={()=>moveSection(s.id,1)} style={{border:0,background:"white",padding:7,cursor:"pointer"}}>↓</button></div>)}</aside>
+      <main style={{overflowY:"auto",padding:16}}><div style={{maxWidth:760,margin:"0 auto"}}>{tab === "structure" ? <div><div style={{...card}}><h2 style={{marginTop:0}}>Ta boutique, ton design</h2><p style={{color:"#66736C",lineHeight:1.6}}>Sélectionne une section à gauche. Elle devient immédiatement modifiable ici. Les produits et collections viennent de ton espace RecuVente.</p></div><div style={card}><label style={label}>Nom de la boutique</label><input style={input} value={config.name} onChange={e=>updateConfig({name:e.target.value})}/><label style={label}>Description</label><textarea style={{...input,minHeight:80}} value={config.description} onChange={e=>updateConfig({description:e.target.value})}/><label style={label}>Couleur principale</label><div style={{display:"flex",gap:10,alignItems:"center"}}><input type="color" value={config.primary} onChange={e=>updateConfig({primary:e.target.value})} style={{width:48,height:42,border:0}}/><input style={input} value={config.primary} onChange={e=>updateConfig({primary:e.target.value})}/></div><label style={label}>Logo</label>{config.logo&&<img src={config.logo} alt="Logo" style={{width:64,height:64,objectFit:"cover",borderRadius:12,marginBottom:8}}/>}<label style={{display:"block",border:"2px dashed #B9CDBF",borderRadius:12,padding:16,textAlign:"center",cursor:"pointer",color:config.primary,fontWeight:800}}>📤 Télécharger / changer le logo<input type="file" accept="image/*" hidden onChange={e=>uploadStoreImage("logo",e.target.files?.[0])}/></label></div></div> : renderEditor()}</div></main>
+    </div>}
+  </div>;
+}
+
+function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
   const [journalAudit, setJournalAudit] = useState(null);
   const [afficherJournalAudit, setAfficherJournalAudit] = useState(false);
@@ -8212,6 +7994,7 @@ function IntegrationsModal({ workspace, produits = [], clients = [], onClose }) 
   const [capiToken, setCapiToken] = useState(workspace.facebook_capi_token || "");
   const [savingCapiToken, setSavingCapiToken] = useState(false);
   const [capiTokenSaved, setCapiTokenSaved] = useState(false);
+  const [showStoreBuilder, setShowStoreBuilder] = useState(false);
 
   async function sauvegarderPixel() {
     setSavingPixel(true);
@@ -8298,16 +8081,9 @@ function IntegrationsModal({ workspace, produits = [], clients = [], onClose }) 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, background: "#fff", border: "1px solid #e4ebe5", borderRadius: 16, padding: "14px 16px", position: "sticky", top: 0, zIndex: 5 }}>
-          <div>
-            <div style={{ fontWeight: 950, fontSize: 20, color: "#122019" }}>🛍️ Ma Boutique</div>
-            <div style={{ fontSize: 11.5, color: "#748078", marginTop: 3 }}>Construis et personnalise ta boutique comme un mini-Shopify, directement dans RecuVente.</div>
-          </div>
-          <button onClick={onClose} style={{ background: "#f1f5f2", border: "none", width: 36, height: 36, borderRadius: 10, fontSize: 20, cursor: "pointer", color: "#26342c" }}>×</button>
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 18 }}>🛍️ Ma Boutique</div><button onClick={() => setShowStoreBuilder(true)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "8px 11px", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>🧱 Construire ma boutique</button></div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>
@@ -8731,6 +8507,7 @@ function IntegrationsModal({ workspace, produits = [], clients = [], onClose }) 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginTop: 16, fontSize: 12, color: "#8A6412" }}>
           ⚠️ Ce lien est unique à ton entreprise — les commandes créées via ce lien arrivent uniquement dans ton espace, jamais chez une autre entreprise.
         </div>
+      {showStoreBuilder && <StoreBuilderModal workspace={workspace} onClose={() => setShowStoreBuilder(false)} />}
       </div>
     </div>
   );

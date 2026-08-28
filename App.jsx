@@ -367,350 +367,8 @@ function LandingPage() {
         .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:700px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
         .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
         .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
-        /* =========================================================
-           RECUVENTE — SECTION "DU CLIC AU DERNIER FRANC"
-           DESIGN PREMIUM / CONVERSION
-           ========================================================= */
-
-        .rvx-dark{
-          position:relative;
-          overflow:hidden;
-          background:
-            radial-gradient(circle at 15% 15%,rgba(46,139,87,.16),transparent 32%),
-            radial-gradient(circle at 90% 80%,rgba(255,122,0,.09),transparent 28%),
-            linear-gradient(135deg,#050b08 0%,#07130d 50%,#09180f 100%);
-          color:#fff;
-        }
-
-        .rvx-dark:before{
-          content:"";
-          position:absolute;
-          width:700px;
-          height:700px;
-          left:50%;
-          top:180px;
-          transform:translateX(-50%);
-          background:radial-gradient(circle,rgba(46,139,87,.08),transparent 65%);
-          pointer-events:none;
-        }
-
-        .rvx-dark > .wrap{
-          position:relative;
-          z-index:2;
-        }
-
-        .rvx-dark .rvx-kicker{
-          display:inline-flex;
-          align-items:center;
-          gap:8px;
-          padding:7px 11px;
-          border:1px solid rgba(130,216,159,.18);
-          background:rgba(130,216,159,.055);
-          border-radius:999px;
-          color:#82d89f;
-          font-size:8px;
-          letter-spacing:.16em;
-        }
-
-        .rvx-dark .rvx-title{
-          max-width:850px;
-          margin-left:auto;
-          margin-right:auto;
-          text-shadow:0 10px 40px rgba(0,0,0,.25);
-        }
-
-        .rvx-dark .rvx-title span{color:#82d89f}
-
-        .rvx-dark .rvx-desc{
-          max-width:620px;
-          color:#84938a;
-        }
-
-        .rvx-chain{
-          position:relative;
-          display:grid;
-          grid-template-columns:repeat(7,1fr);
-          gap:7px;
-          margin-top:48px;
-        }
-
-        .rvx-chain:before{
-          content:"";
-          position:absolute;
-          top:50%;
-          left:4%;
-          right:4%;
-          height:1px;
-          background:linear-gradient(
-            90deg,
-            transparent,
-            rgba(130,216,159,.22),
-            rgba(255,122,0,.35),
-            rgba(130,216,159,.22),
-            transparent
-          );
-          z-index:0;
-        }
-
-        .rvx-step{
-          position:relative;
-          z-index:1;
-          min-height:112px;
-          padding:17px 8px 14px;
-          border:1px solid rgba(255,255,255,.075);
-          background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.025));
-          border-radius:14px;
-          text-align:center;
-          backdrop-filter:blur(12px);
-          box-shadow:0 15px 45px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04);
-          transition:transform .22s ease,border-color .22s ease,background .22s ease;
-        }
-
-        .rvx-step:hover{
-          transform:translateY(-5px);
-          border-color:rgba(130,216,159,.25);
-          background:linear-gradient(145deg,rgba(46,139,87,.13),rgba(255,255,255,.035));
-        }
-
-        .rvx-step b{
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          width:32px;
-          height:32px;
-          border-radius:9px;
-          background:rgba(255,122,0,.1);
-          border:1px solid rgba(255,122,0,.2);
-          font:800 12px monospace;
-          color:#ff8b20;
-        }
-
-        .rvx-step strong{
-          display:block;
-          margin-top:10px;
-          font-size:8.5px;
-          font-weight:900;
-          letter-spacing:.04em;
-          color:#f5f8f5;
-        }
-
-        .rvx-step span{
-          display:block;
-          margin-top:5px;
-          color:#718078;
-          font-size:7.5px;
-          line-height:1.45;
-        }
-
-        .rvx-grid2{
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:16px;
-          margin-top:46px;
-        }
-
-        .rvx-dark .rvx-card{
-          position:relative;
-          min-height:350px;
-          overflow:hidden;
-          border-radius:22px;
-          padding:32px;
-          color:#fff;
-          border:1px solid rgba(255,255,255,.09);
-          background:linear-gradient(145deg,#102219 0%,#0c1a13 55%,#09150f 100%);
-          box-shadow:0 30px 80px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035);
-        }
-
-        .rvx-dark .rvx-card:before{
-          content:"";
-          position:absolute;
-          width:260px;
-          height:260px;
-          right:-100px;
-          top:-100px;
-          border-radius:50%;
-          background:radial-gradient(circle,rgba(46,139,87,.18),transparent 68%);
-          pointer-events:none;
-        }
-
-        .rvx-dark .rvx-card:after{
-          content:"";
-          position:absolute;
-          left:32px;
-          right:32px;
-          top:0;
-          height:2px;
-          background:linear-gradient(90deg,#2e8b57,rgba(46,139,87,0));
-        }
-
-        .rvx-dark .rvx-card h3{
-          position:relative;
-          z-index:1;
-          margin:0;
-          font:900 clamp(24px,2.4vw,31px) Georgia,serif;
-          line-height:1.05;
-          letter-spacing:-.045em;
-          color:#fff;
-        }
-
-        .rvx-dark .rvx-card p{
-          position:relative;
-          z-index:1;
-          max-width:520px;
-          margin:13px 0 0;
-          color:#84938a;
-          font-size:11px;
-          line-height:1.7;
-        }
-
-        .rvx-card-label{
-          position:relative;
-          z-index:2;
-          display:inline-flex;
-          align-items:center;
-          gap:7px;
-          margin-bottom:15px;
-          padding:6px 9px;
-          border-radius:7px;
-          background:rgba(255,255,255,.045);
-          border:1px solid rgba(255,255,255,.08);
-          color:#8d9b93;
-          font-size:7px;
-          font-weight:900;
-          letter-spacing:.14em;
-          text-transform:uppercase;
-        }
-
-        .rvx-card-label-dot{
-          width:6px;
-          height:6px;
-          border-radius:50%;
-          background:#82d89f;
-          box-shadow:0 0 0 4px rgba(130,216,159,.08);
-        }
-
-        .rvx-card.money .rvx-card-label-dot{
-          background:#ff7a00;
-          box-shadow:0 0 0 4px rgba(255,122,0,.08);
-        }
-
-        .rvx-dark .rvx-list{
-          position:relative;
-          z-index:2;
-          display:grid;
-          gap:8px;
-          margin-top:25px;
-        }
-
-        .rvx-dark .rvx-list div{
-          display:flex;
-          align-items:center;
-          min-height:37px;
-          padding:9px 11px;
-          border:1px solid rgba(255,255,255,.055);
-          border-radius:9px;
-          background:rgba(255,255,255,.025);
-          color:#dce5df;
-          font-size:9.5px;
-          font-weight:650;
-          transition:.2s ease;
-        }
-
-        .rvx-dark .rvx-list div:hover{
-          background:rgba(255,255,255,.055);
-          transform:translateX(3px);
-        }
-
-        .rvx-dark .rvx-list b{
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          flex:0 0 20px;
-          width:20px;
-          height:20px;
-          margin-right:9px;
-          border-radius:6px;
-          background:rgba(46,139,87,.13);
-          color:#82d89f;
-          font-size:10px;
-        }
-
-        .rvx-dark .rvx-card.money .rvx-list b{
-          background:rgba(255,122,0,.1);
-          color:#ff8b20;
-        }
-
-        .rvx-dark .rvx-card.money{
-          background:
-            radial-gradient(circle at 90% 10%,rgba(255,122,0,.11),transparent 34%),
-            linear-gradient(145deg,#13231a 0%,#0d1b13 55%,#09150f 100%);
-        }
-
-        .rvx-dark .rvx-card.money:after{
-          background:linear-gradient(90deg,#ff7a00,rgba(255,122,0,0));
-        }
-
-        .rvx-card-highlight{
-          position:relative;
-          z-index:2;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:15px;
-          margin-top:24px;
-          padding:13px 15px;
-          border-radius:11px;
-          background:rgba(255,255,255,.035);
-          border:1px solid rgba(255,255,255,.065);
-        }
-
-        .rvx-card-highlight span{
-          color:#718078;
-          font-size:8px;
-          font-weight:700;
-        }
-
-        .rvx-card-highlight strong{
-          color:#82d89f;
-          font:800 12px monospace;
-        }
-
-        .rvx-card.money .rvx-card-highlight strong{
-          color:#ff8b20;
-        }
-
-        @media(max-width:900px){
-          .rvx-chain{grid-template-columns:repeat(4,1fr)}
-          .rvx-chain:before{display:none}
-          .rvx-grid2{grid-template-columns:1fr}
-        }
-
-        @media(max-width:650px){
-          .rvx-chain{
-            grid-template-columns:repeat(2,1fr);
-            gap:8px;
-            margin-top:35px;
-          }
-
-          .rvx-step{min-height:100px}
-
-          .rvx-dark .rvx-card{
-            min-height:auto;
-            padding:25px 20px;
-            border-radius:18px;
-          }
-
-          .rvx-dark .rvx-card:after{
-            left:20px;
-            right:20px;
-          }
-
-          .rvx-dark .rvx-card h3{font-size:25px}
-          .rvx-dark .rvx-card p{font-size:10.5px}
-
-          .rvx-card-highlight{margin-top:19px}
-        }
-
+        .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
+        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
         .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
         .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
         .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
@@ -730,123 +388,7 @@ function LandingPage() {
         <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
       </div></section>
 
-      <section className="rvx-section rvx-dark">
-        <div className="wrap">
-
-          <div className="rvx-center">
-            <div className="rvx-kicker">
-              <span>●</span>
-              De bout en bout
-            </div>
-
-            <h2 className="rvx-title">
-              Du <span>clic publicitaire</span><br/>
-              au dernier franc.
-            </h2>
-
-            <p className="rvx-desc">
-              Voici la chaîne que RecuVente transforme en données,
-              actions et décisions.
-            </p>
-          </div>
-
-          <div className="rvx-chain">
-            {[
-              ["01","PUBLICITÉ","Pixel · campagne"],
-              ["02","BOUTIQUE","Produit · commande"],
-              ["03","CLOSING","Appel · confirmation"],
-              ["04","ATTRIBUTION","Closer · livreur"],
-              ["05","LIVRAISON","GPS · résultat"],
-              ["06","ENCAISSEMENT","Paiement · dépôt"],
-              ["07","RÉACTIVATION","Client · relance"]
-            ].map((x) => (
-              <div className="rvx-step" key={x[0]}>
-                <b>{x[0]}</b>
-                <strong>{x[1]}</strong>
-                <span>{x[2]}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="rvx-grid2">
-
-            <div className="rvx-card">
-              <div className="rvx-card-label">
-                <span className="rvx-card-label-dot"></span>
-                TRAÇABILITÉ TOTALE
-              </div>
-
-              <h3>
-                Tu veux retrouver<br/>
-                une commande ?
-              </h3>
-
-              <p>
-                Tu peux descendre jusqu'au détail d'une commande,
-                d'un client, d'un produit ou d'un membre de ton équipe.
-              </p>
-
-              <div className="rvx-card-highlight">
-                <span>Chaque étape laisse une trace.</span>
-                <strong>360°</strong>
-              </div>
-
-              <div className="rvx-list">
-                {[
-                  "Quel client a été appelé ?",
-                  "Quel closer a confirmé ?",
-                  "Quel produit a été remis ?",
-                  "Quel livreur l'a reçu ?",
-                  "Livré, échoué ou reprogrammé ?"
-                ].map((x) => (
-                  <div key={x}>
-                    <b>✓</b>
-                    {x}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rvx-card money">
-              <div className="rvx-card-label">
-                <span className="rvx-card-label-dot"></span>
-                PILOTAGE FINANCIER
-              </div>
-
-              <h3>
-                Tu veux comprendre<br/>
-                ton argent ?
-              </h3>
-
-              <p>
-                Relie commandes, paiements, coûts, commissions,
-                dépôts et bénéfices au même endroit.
-              </p>
-
-              <div className="rvx-card-highlight">
-                <span>Du chiffre d'affaires au bénéfice réel.</span>
-                <strong>€ → 💰</strong>
-              </div>
-
-              <div className="rvx-list">
-                {[
-                  "Montant encaissé",
-                  "À récupérer",
-                  "Dépôt attendu",
-                  "Coût produit",
-                  "Bénéfice réel"
-                ].map((x) => (
-                  <div key={x}>
-                    <b>→</b>
-                    {x}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
+      <section className="rvx-section rvx-dark"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Voici la chaîne que RecuVente transforme en données, actions et décisions.</p></div><div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div><div className="rvx-grid2"><div className="rvx-card"><h3>Tu veux retrouver une commande ?</h3><p>Tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</p><div className="rvx-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div><div className="rvx-card dark"><h3>Tu veux comprendre ton argent ?</h3><p>Relie commandes, paiements, coûts, commissions, dépôts et bénéfices au même endroit.</p><div className="rvx-list">{["Montant encaissé","À récupérer","Dépôt attendu","Coût produit","Bénéfice réel"].map((x) => <div key={x}><b style={{color:"#ff7a00"}}>→</b>{x}</div>)}</div></div></div></div></section>
 
       <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></section>
 
@@ -3524,7 +3066,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
@@ -5724,7 +5266,7 @@ function AvisModal({ workspaceId, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, workspace, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -5743,6 +5285,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
+  const [showBundlesLivraison, setShowBundlesLivraison] = useState(false);
 
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
@@ -5874,6 +5417,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         <div style={{ fontSize: 11, color: "#8A9089", marginTop: -4, marginBottom: 14 }}>
           Le coût d'achat sera à 0 par défaut après import — pense à le renseigner ensuite pour chaque produit.
         </div>
+
+        <button onClick={() => setShowBundlesLivraison(true)} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 10, padding: "12px 14px", fontWeight: 800, fontSize: 13, cursor: "pointer", marginBottom: 14, boxShadow: "0 8px 20px rgba(22,35,31,0.12)" }}>🎁 Packs / Bundles & 🚚 Frais de livraison</button>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           <input placeholder="Nom du produit" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />
@@ -6022,6 +5567,136 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               </div>
             );
           })}
+        </div>
+      </div>
+      {showBundlesLivraison && <BundlesLivraisonModal produits={produits} workspace={workspace} currency={currency} onClose={() => setShowBundlesLivraison(false)} />}
+    </div>
+  );
+}
+
+function BundlesLivraisonModal({ produits, workspace, currency, onClose }) {
+  const storageKey = `rv_bundles_livraison_${workspace.id}`;
+  const [produitId, setProduitId] = useState(produits[0]?.id || "");
+  const [bundles, setBundles] = useState([]);
+  const [livraisons, setLivraisons] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [bundleForm, setBundleForm] = useState({ nom: "", quantite: 2, prix: "", actif: true });
+  const [shipping, setShipping] = useState({ local: workspace.frais_livraison ?? 0, expedition: workspace.frais_expedition ?? 0 });
+  const produitChoisi = produits.find((p) => p.id === produitId);
+
+  useEffect(() => { charger(); }, [workspace.id]);
+
+  async function charger() {
+    setLoading(true);
+    let bundleData = [];
+    let livraisonData = [];
+    let dbOk = true;
+    try {
+      const b = await supabase.from("bundles_produits").select("*").eq("workspace_id", workspace.id).order("quantite");
+      if (b.error) dbOk = false; else bundleData = b.data || [];
+      const l = await supabase.from("produits_livraison").select("*").eq("workspace_id", workspace.id);
+      if (l.error) dbOk = false; else livraisonData = l.data || [];
+    } catch (e) { dbOk = false; }
+    if (!dbOk) {
+      try {
+        const local = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        bundleData = local.bundles || [];
+        livraisonData = local.livraisons || [];
+      } catch (e) {}
+    }
+    setBundles(bundleData);
+    const map = {};
+    livraisonData.forEach((x) => { map[x.produit_id] = x; });
+    setLivraisons(map);
+    setLoading(false);
+  }
+
+  async function saveFallback(nextBundles, nextLivraisons) {
+    try { localStorage.setItem(storageKey, JSON.stringify({ bundles: nextBundles, livraisons: Object.values(nextLivraisons) })); } catch (e) {}
+  }
+
+  async function ajouterBundle() {
+    if (!produitId || !bundleForm.nom.trim() || Number(bundleForm.quantite) < 2 || Number(bundleForm.prix) <= 0) return;
+    setSaving(true);
+    const payload = { workspace_id: workspace.id, produit_id: produitId, nom: bundleForm.nom.trim(), quantite: Number(bundleForm.quantite), prix: Number(bundleForm.prix), actif: bundleForm.actif };
+    const { data, error } = await supabase.from("bundles_produits").insert([payload]).select().single();
+    const item = error ? { ...payload, id: `local-${Date.now()}` } : data;
+    const nextBundles = [...bundles, item];
+    setBundles(nextBundles);
+    await saveFallback(nextBundles, livraisons);
+    setBundleForm({ nom: "", quantite: 2, prix: "", actif: true });
+    setSaving(false);
+  }
+
+  async function supprimerBundle(id) {
+    if (!String(id).startsWith("local-")) await supabase.from("bundles_produits").delete().eq("id", id);
+    const nextBundles = bundles.filter((b) => b.id !== id);
+    setBundles(nextBundles);
+    await saveFallback(nextBundles, livraisons);
+  }
+
+  async function enregistrerLivraisonProduit() {
+    if (!produitId) return;
+    setSaving(true);
+    const current = livraisons[produitId] || {};
+    const payload = { workspace_id: workspace.id, produit_id: produitId, mode: current.mode || "inherit", frais_livraison: Number(current.frais_livraison) || 0, frais_expedition: Number(current.frais_expedition) || 0 };
+    const { data, error } = await supabase.from("produits_livraison").upsert([payload], { onConflict: "workspace_id,produit_id" }).select().single();
+    const nextLivraisons = { ...livraisons, [produitId]: error ? { ...payload, id: current.id || `local-${Date.now()}` } : data };
+    setLivraisons(nextLivraisons);
+    await saveFallback(bundles, nextLivraisons);
+    setSaving(false);
+  }
+
+  async function enregistrerFraisGeneraux() {
+    setSaving(true);
+    await supabase.from("workspaces").update({ frais_livraison: Number(shipping.local) || 0, frais_expedition: Number(shipping.expedition) || 0 }).eq("id", workspace.id);
+    setSaving(false);
+  }
+
+  const bundlesProduit = bundles.filter((b) => b.produit_id === produitId);
+  const config = livraisons[produitId] || { mode: "inherit", frais_livraison: 0, frais_expedition: 0 };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.72)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FAFAF7", width: "100%", maxWidth: 760, maxHeight: "94vh", overflowY: "auto", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,0.3)" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 2, background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div><div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>Optimisation COD</div><div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 800, color: "#16231F" }}>🎁 Bundles & livraison</div></div>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #DDD8CC", background: "white", cursor: "pointer", fontSize: 18 }}>×</button>
+        </div>
+        <div style={{ padding: 20 }}>
+          <div style={{ background: "#16231F", color: "white", borderRadius: 16, padding: 18, marginBottom: 18 }}><div style={{ fontWeight: 800, fontSize: 15 }}>📈 Augmente le panier moyen avec le COD</div><div style={{ fontSize: 12, opacity: .78, lineHeight: 1.55, marginTop: 5 }}>Chaque bundle est lié à un produit précis. Les frais généraux peuvent être hérités ou remplacés par produit.</div></div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>1. Produit concerné</div>
+            <select value={produitId} onChange={(e) => setProduitId(e.target.value)} style={{ width: "100%", padding: "11px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, background: "white" }}>
+              {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}{p.prix_vente ? ` — ${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : ""}</option>)}
+            </select>
+          </div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>🎁 Bundles / Packs quantité</div><div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Exemple : 2 pièces à 15 000, 3 pièces à 20 000. L'offre est attachée uniquement au produit sélectionné.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1.3fr .6fr .9fr", gap: 8, marginBottom: 8 }}>
+              <input placeholder="Nom (ex: Pack Économique)" value={bundleForm.nom} onChange={(e) => setBundleForm({ ...bundleForm, nom: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+              <input type="number" min="2" value={bundleForm.quantite} onChange={(e) => setBundleForm({ ...bundleForm, quantite: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+              <input type="number" min="1" placeholder={`Prix ${currency}`} value={bundleForm.prix} onChange={(e) => setBundleForm({ ...bundleForm, prix: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+            </div>
+            <button disabled={saving} onClick={ajouterBundle} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "+ Ajouter le bundle à ce produit"}</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 12 }}>
+              {bundlesProduit.map((b) => <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9 }}><div><strong style={{ fontSize: 12.5 }}>{b.nom}</strong><div style={{ fontSize: 11, color: "#6B7168", marginTop: 2 }}>{b.quantite} pièces · {Number(b.prix).toLocaleString("fr-FR")} {currency}</div></div><button onClick={() => supprimerBundle(b.id)} style={{ border: "none", background: "#FBEAE6", color: "#D64933", borderRadius: 7, padding: "6px 9px", cursor: "pointer" }}>🗑️</button></div>)}
+              {bundlesProduit.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12, padding: 12 }}>Aucun bundle pour ce produit.</div>}
+            </div>
+          </div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 5 }}>🚚 Frais de livraison — produit sélectionné</div><div style={{ fontSize: 11.5, color: "#8A9089", lineHeight: 1.5, marginBottom: 12 }}>Choisis si ce produit suit les frais généraux, possède ses propres frais ou offre la livraison gratuite.</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>{[["inherit","Utiliser les frais généraux"],["custom","Frais propres"],["free","Gratuit"]].map(([value,label]) => <button key={value} onClick={() => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: value } })} style={{ flex: 1, minWidth: 145, padding: "9px 10px", borderRadius: 9, border: `1px solid ${config.mode === value ? "#1a7a3c" : "#DDD8CC"}`, background: config.mode === value ? "#EAF3DE" : "white", color: config.mode === value ? "#3B6D11" : "#16231F", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>{label}</button>)}</div>
+            {config.mode === "custom" && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}><label style={{ fontSize: 11.5, color: "#6B7168" }}>🏍️ Local<input type="number" value={config.frais_livraison ?? 0} onChange={(e) => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: "custom", frais_livraison: e.target.value } })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label><label style={{ fontSize: 11.5, color: "#6B7168" }}>🚛 Expédition<input type="number" value={config.frais_expedition ?? 0} onChange={(e) => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: "custom", frais_expedition: e.target.value } })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label></div>}
+            <button disabled={saving} onClick={enregistrerLivraisonProduit} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "Enregistrer les frais de ce produit"}</button>
+          </div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 5 }}>🌍 Frais généraux de la boutique</div><div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Base appliquée aux produits qui utilisent la règle générale.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}><label style={{ fontSize: 11.5, color: "#6B7168" }}>🏍️ Livraison locale<input type="number" value={shipping.local} onChange={(e) => setShipping({ ...shipping, local: e.target.value })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label><label style={{ fontSize: 11.5, color: "#6B7168" }}>🚛 Expédition<input type="number" value={shipping.expedition} onChange={(e) => setShipping({ ...shipping, expedition: e.target.value })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label></div>
+            <button disabled={saving} onClick={enregistrerFraisGeneraux} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "Enregistrer les frais généraux"}</button>
+          </div>
+          {loading && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12, paddingTop: 12 }}>Chargement des configurations…</div>}
         </div>
       </div>
     </div>

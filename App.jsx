@@ -367,8 +367,350 @@ function LandingPage() {
         .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:700px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
         .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
         .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
-        .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
-        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff;color:var(--ink)}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-dark .rvx-card:not(.dark){color:var(--ink)}.rvx-dark .rvx-card:not(.dark) h3{color:var(--ink)}.rvx-dark .rvx-card:not(.dark) .rvx-list div{color:var(--ink)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
+        /* =========================================================
+           RECUVENTE — SECTION "DU CLIC AU DERNIER FRANC"
+           DESIGN PREMIUM / CONVERSION
+           ========================================================= */
+
+        .rvx-dark{
+          position:relative;
+          overflow:hidden;
+          background:
+            radial-gradient(circle at 15% 15%,rgba(46,139,87,.16),transparent 32%),
+            radial-gradient(circle at 90% 80%,rgba(255,122,0,.09),transparent 28%),
+            linear-gradient(135deg,#050b08 0%,#07130d 50%,#09180f 100%);
+          color:#fff;
+        }
+
+        .rvx-dark:before{
+          content:"";
+          position:absolute;
+          width:700px;
+          height:700px;
+          left:50%;
+          top:180px;
+          transform:translateX(-50%);
+          background:radial-gradient(circle,rgba(46,139,87,.08),transparent 65%);
+          pointer-events:none;
+        }
+
+        .rvx-dark > .wrap{
+          position:relative;
+          z-index:2;
+        }
+
+        .rvx-dark .rvx-kicker{
+          display:inline-flex;
+          align-items:center;
+          gap:8px;
+          padding:7px 11px;
+          border:1px solid rgba(130,216,159,.18);
+          background:rgba(130,216,159,.055);
+          border-radius:999px;
+          color:#82d89f;
+          font-size:8px;
+          letter-spacing:.16em;
+        }
+
+        .rvx-dark .rvx-title{
+          max-width:850px;
+          margin-left:auto;
+          margin-right:auto;
+          text-shadow:0 10px 40px rgba(0,0,0,.25);
+        }
+
+        .rvx-dark .rvx-title span{color:#82d89f}
+
+        .rvx-dark .rvx-desc{
+          max-width:620px;
+          color:#84938a;
+        }
+
+        .rvx-chain{
+          position:relative;
+          display:grid;
+          grid-template-columns:repeat(7,1fr);
+          gap:7px;
+          margin-top:48px;
+        }
+
+        .rvx-chain:before{
+          content:"";
+          position:absolute;
+          top:50%;
+          left:4%;
+          right:4%;
+          height:1px;
+          background:linear-gradient(
+            90deg,
+            transparent,
+            rgba(130,216,159,.22),
+            rgba(255,122,0,.35),
+            rgba(130,216,159,.22),
+            transparent
+          );
+          z-index:0;
+        }
+
+        .rvx-step{
+          position:relative;
+          z-index:1;
+          min-height:112px;
+          padding:17px 8px 14px;
+          border:1px solid rgba(255,255,255,.075);
+          background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.025));
+          border-radius:14px;
+          text-align:center;
+          backdrop-filter:blur(12px);
+          box-shadow:0 15px 45px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04);
+          transition:transform .22s ease,border-color .22s ease,background .22s ease;
+        }
+
+        .rvx-step:hover{
+          transform:translateY(-5px);
+          border-color:rgba(130,216,159,.25);
+          background:linear-gradient(145deg,rgba(46,139,87,.13),rgba(255,255,255,.035));
+        }
+
+        .rvx-step b{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          width:32px;
+          height:32px;
+          border-radius:9px;
+          background:rgba(255,122,0,.1);
+          border:1px solid rgba(255,122,0,.2);
+          font:800 12px monospace;
+          color:#ff8b20;
+        }
+
+        .rvx-step strong{
+          display:block;
+          margin-top:10px;
+          font-size:8.5px;
+          font-weight:900;
+          letter-spacing:.04em;
+          color:#f5f8f5;
+        }
+
+        .rvx-step span{
+          display:block;
+          margin-top:5px;
+          color:#718078;
+          font-size:7.5px;
+          line-height:1.45;
+        }
+
+        .rvx-grid2{
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:16px;
+          margin-top:46px;
+        }
+
+        .rvx-dark .rvx-card{
+          position:relative;
+          min-height:350px;
+          overflow:hidden;
+          border-radius:22px;
+          padding:32px;
+          color:#fff;
+          border:1px solid rgba(255,255,255,.09);
+          background:linear-gradient(145deg,#102219 0%,#0c1a13 55%,#09150f 100%);
+          box-shadow:0 30px 80px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035);
+        }
+
+        .rvx-dark .rvx-card:before{
+          content:"";
+          position:absolute;
+          width:260px;
+          height:260px;
+          right:-100px;
+          top:-100px;
+          border-radius:50%;
+          background:radial-gradient(circle,rgba(46,139,87,.18),transparent 68%);
+          pointer-events:none;
+        }
+
+        .rvx-dark .rvx-card:after{
+          content:"";
+          position:absolute;
+          left:32px;
+          right:32px;
+          top:0;
+          height:2px;
+          background:linear-gradient(90deg,#2e8b57,rgba(46,139,87,0));
+        }
+
+        .rvx-dark .rvx-card h3{
+          position:relative;
+          z-index:1;
+          margin:0;
+          font:900 clamp(24px,2.4vw,31px) Georgia,serif;
+          line-height:1.05;
+          letter-spacing:-.045em;
+          color:#fff;
+        }
+
+        .rvx-dark .rvx-card p{
+          position:relative;
+          z-index:1;
+          max-width:520px;
+          margin:13px 0 0;
+          color:#84938a;
+          font-size:11px;
+          line-height:1.7;
+        }
+
+        .rvx-card-label{
+          position:relative;
+          z-index:2;
+          display:inline-flex;
+          align-items:center;
+          gap:7px;
+          margin-bottom:15px;
+          padding:6px 9px;
+          border-radius:7px;
+          background:rgba(255,255,255,.045);
+          border:1px solid rgba(255,255,255,.08);
+          color:#8d9b93;
+          font-size:7px;
+          font-weight:900;
+          letter-spacing:.14em;
+          text-transform:uppercase;
+        }
+
+        .rvx-card-label-dot{
+          width:6px;
+          height:6px;
+          border-radius:50%;
+          background:#82d89f;
+          box-shadow:0 0 0 4px rgba(130,216,159,.08);
+        }
+
+        .rvx-card.money .rvx-card-label-dot{
+          background:#ff7a00;
+          box-shadow:0 0 0 4px rgba(255,122,0,.08);
+        }
+
+        .rvx-dark .rvx-list{
+          position:relative;
+          z-index:2;
+          display:grid;
+          gap:8px;
+          margin-top:25px;
+        }
+
+        .rvx-dark .rvx-list div{
+          display:flex;
+          align-items:center;
+          min-height:37px;
+          padding:9px 11px;
+          border:1px solid rgba(255,255,255,.055);
+          border-radius:9px;
+          background:rgba(255,255,255,.025);
+          color:#dce5df;
+          font-size:9.5px;
+          font-weight:650;
+          transition:.2s ease;
+        }
+
+        .rvx-dark .rvx-list div:hover{
+          background:rgba(255,255,255,.055);
+          transform:translateX(3px);
+        }
+
+        .rvx-dark .rvx-list b{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          flex:0 0 20px;
+          width:20px;
+          height:20px;
+          margin-right:9px;
+          border-radius:6px;
+          background:rgba(46,139,87,.13);
+          color:#82d89f;
+          font-size:10px;
+        }
+
+        .rvx-dark .rvx-card.money .rvx-list b{
+          background:rgba(255,122,0,.1);
+          color:#ff8b20;
+        }
+
+        .rvx-dark .rvx-card.money{
+          background:
+            radial-gradient(circle at 90% 10%,rgba(255,122,0,.11),transparent 34%),
+            linear-gradient(145deg,#13231a 0%,#0d1b13 55%,#09150f 100%);
+        }
+
+        .rvx-dark .rvx-card.money:after{
+          background:linear-gradient(90deg,#ff7a00,rgba(255,122,0,0));
+        }
+
+        .rvx-card-highlight{
+          position:relative;
+          z-index:2;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:15px;
+          margin-top:24px;
+          padding:13px 15px;
+          border-radius:11px;
+          background:rgba(255,255,255,.035);
+          border:1px solid rgba(255,255,255,.065);
+        }
+
+        .rvx-card-highlight span{
+          color:#718078;
+          font-size:8px;
+          font-weight:700;
+        }
+
+        .rvx-card-highlight strong{
+          color:#82d89f;
+          font:800 12px monospace;
+        }
+
+        .rvx-card.money .rvx-card-highlight strong{
+          color:#ff8b20;
+        }
+
+        @media(max-width:900px){
+          .rvx-chain{grid-template-columns:repeat(4,1fr)}
+          .rvx-chain:before{display:none}
+          .rvx-grid2{grid-template-columns:1fr}
+        }
+
+        @media(max-width:650px){
+          .rvx-chain{
+            grid-template-columns:repeat(2,1fr);
+            gap:8px;
+            margin-top:35px;
+          }
+
+          .rvx-step{min-height:100px}
+
+          .rvx-dark .rvx-card{
+            min-height:auto;
+            padding:25px 20px;
+            border-radius:18px;
+          }
+
+          .rvx-dark .rvx-card:after{
+            left:20px;
+            right:20px;
+          }
+
+          .rvx-dark .rvx-card h3{font-size:25px}
+          .rvx-dark .rvx-card p{font-size:10.5px}
+
+          .rvx-card-highlight{margin-top:19px}
+        }
+
         .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
         .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
         .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
@@ -388,7 +730,123 @@ function LandingPage() {
         <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
       </div></section>
 
-      <section className="rvx-section rvx-dark"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Voici la chaîne que RecuVente transforme en données, actions et décisions.</p></div><div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div><div className="rvx-grid2"><div className="rvx-card"><h3>Tu veux retrouver une commande ?</h3><p>Tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</p><div className="rvx-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div><div className="rvx-card dark"><h3>Tu veux comprendre ton argent ?</h3><p>Relie commandes, paiements, coûts, commissions, dépôts et bénéfices au même endroit.</p><div className="rvx-list">{["Montant encaissé","À récupérer","Dépôt attendu","Coût produit","Bénéfice réel"].map((x) => <div key={x}><b style={{color:"#ff7a00"}}>→</b>{x}</div>)}</div></div></div></div></section>
+      <section className="rvx-section rvx-dark">
+        <div className="wrap">
+
+          <div className="rvx-center">
+            <div className="rvx-kicker">
+              <span>●</span>
+              De bout en bout
+            </div>
+
+            <h2 className="rvx-title">
+              Du <span>clic publicitaire</span><br/>
+              au dernier franc.
+            </h2>
+
+            <p className="rvx-desc">
+              Voici la chaîne que RecuVente transforme en données,
+              actions et décisions.
+            </p>
+          </div>
+
+          <div className="rvx-chain">
+            {[
+              ["01","PUBLICITÉ","Pixel · campagne"],
+              ["02","BOUTIQUE","Produit · commande"],
+              ["03","CLOSING","Appel · confirmation"],
+              ["04","ATTRIBUTION","Closer · livreur"],
+              ["05","LIVRAISON","GPS · résultat"],
+              ["06","ENCAISSEMENT","Paiement · dépôt"],
+              ["07","RÉACTIVATION","Client · relance"]
+            ].map((x) => (
+              <div className="rvx-step" key={x[0]}>
+                <b>{x[0]}</b>
+                <strong>{x[1]}</strong>
+                <span>{x[2]}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="rvx-grid2">
+
+            <div className="rvx-card">
+              <div className="rvx-card-label">
+                <span className="rvx-card-label-dot"></span>
+                TRAÇABILITÉ TOTALE
+              </div>
+
+              <h3>
+                Tu veux retrouver<br/>
+                une commande ?
+              </h3>
+
+              <p>
+                Tu peux descendre jusqu'au détail d'une commande,
+                d'un client, d'un produit ou d'un membre de ton équipe.
+              </p>
+
+              <div className="rvx-card-highlight">
+                <span>Chaque étape laisse une trace.</span>
+                <strong>360°</strong>
+              </div>
+
+              <div className="rvx-list">
+                {[
+                  "Quel client a été appelé ?",
+                  "Quel closer a confirmé ?",
+                  "Quel produit a été remis ?",
+                  "Quel livreur l'a reçu ?",
+                  "Livré, échoué ou reprogrammé ?"
+                ].map((x) => (
+                  <div key={x}>
+                    <b>✓</b>
+                    {x}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rvx-card money">
+              <div className="rvx-card-label">
+                <span className="rvx-card-label-dot"></span>
+                PILOTAGE FINANCIER
+              </div>
+
+              <h3>
+                Tu veux comprendre<br/>
+                ton argent ?
+              </h3>
+
+              <p>
+                Relie commandes, paiements, coûts, commissions,
+                dépôts et bénéfices au même endroit.
+              </p>
+
+              <div className="rvx-card-highlight">
+                <span>Du chiffre d'affaires au bénéfice réel.</span>
+                <strong>€ → 💰</strong>
+              </div>
+
+              <div className="rvx-list">
+                {[
+                  "Montant encaissé",
+                  "À récupérer",
+                  "Dépôt attendu",
+                  "Coût produit",
+                  "Bénéfice réel"
+                ].map((x) => (
+                  <div key={x}>
+                    <b>→</b>
+                    {x}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
 
       <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></section>
 
@@ -852,7 +1310,7 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
 
 function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
   const [ouvert, setOuvert] = useState(false);
-  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", restaurant: "🍽️", location_vehicule: "🚗" };
+  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
 
   return (
     <div style={{ position: "relative", marginBottom: 18, display: "flex", gap: 6 }}>
@@ -890,339 +1348,6 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
           >
             + Ajouter un autre espace
           </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-/* ============================================================
-   RECUVENTE OS — EXTENSION MODULAIRE NON DESTRUCTIVE
-   Cette couche n'écrase aucun module existant. Elle fournit
-   une navigation unifiée pour les nouvelles capacités.
-   ============================================================ */
-
-const RV_ACTIVITY_CONFIG = {
-  cod_ecommerce: { icon: "📦", label: "E-commerce COD", modules: ["store", "orders", "customers", "closers", "couriers", "recovery", "profit"] },
-  retail: { icon: "🏪", label: "Commerce / magasin", modules: ["sales", "products", "inventory", "customers", "finance", "profit"] },
-  restaurant: { icon: "🍽️", label: "Restaurant", modules: ["menu", "tables", "kitchen", "orders", "delivery", "customers", "finance"] },
-  location_immobiliere: { icon: "🏠", label: "Location immobilière", modules: ["properties", "calendar", "reservations", "customers", "payments", "contracts", "profit"] },
-  location_vehicule: { icon: "🚗", label: "Location de véhicules", modules: ["vehicles", "calendar", "reservations", "customers", "payments", "maintenance", "profit"] },
-};
-
-function RVActivityConfig({ activityType }) {
-  return RV_ACTIVITY_CONFIG[activityType] || RV_ACTIVITY_CONFIG.cod_ecommerce;
-}
-
-function RecuVenteOSPanel({ workspace, commandes = [], produits = [], clients = [], livreurs = [], closers = [] }) {
-  const [tab, setTab] = useState("overview");
-  const [previewDevice, setPreviewDevice] = useState("desktop");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [store, setStore] = useState(() => ({
-    couleur: workspace?.couleur_marque || "#1a7a3c",
-    nom: workspace?.name || "Ma boutique",
-    description: workspace?.description_boutique || "Une boutique professionnelle, pensée pour convertir.",
-    livraison: workspace?.politique_livraison || "Livraison rapide et suivi de commande.",
-    logo: workspace?.logo_url || "",
-    banniere: workspace?.banniere_url || "",
-  }));
-  const [sectionOrder, setSectionOrder] = useState(["hero", "benefits", "products", "testimonials", "faq", "contact"]);
-  const cfg = RV_ACTIVITY_CONFIG[workspace?.activity_type] || RV_ACTIVITY_CONFIG.cod_ecommerce;
-  const currency = workspace?.currency || "XOF";
-
-  const confirmed = commandes.filter(c => c.statut === "confirmee");
-  const failed = commandes.filter(c => c.statut === "echouee");
-  const pending = commandes.filter(c => !["confirmee", "echouee", "livree", "annulee"].includes(c.statut));
-  const delivered = commandes.filter(c => c.statut === "livree");
-  const revenue = confirmed.reduce((n, c) => n + Number(c.montant || 0), 0);
-  const risk = failed.reduce((n, c) => n + Number(c.montant || 0), 0);
-  const successRate = commandes.length ? Math.round((confirmed.length / commandes.length) * 100) : 0;
-  const deliveryRate = commandes.length ? Math.round((delivered.length / commandes.length) * 100) : 0;
-  const stockCritique = produits.filter(p => Number(p.stock ?? p.quantite ?? 999999) <= 5).length;
-  const score = Math.min(100, Math.round(successRate * .45 + deliveryRate * .30 + Math.min(20, commandes.length) + (stockCritique === 0 ? 15 : Math.max(0, 15 - stockCritique * 3))));
-
-  const labels = {
-    hero: "Hero",
-    benefits: "Avantages",
-    products: "Produits",
-    testimonials: "Avis clients",
-    faq: "FAQ",
-    contact: "Contact / CTA",
-  };
-
-  function moveSection(index, direction) {
-    const next = [...sectionOrder];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    setSectionOrder(next);
-  }
-
-  async function sauvegarderBoutique() {
-    if (!workspace?.id) return;
-    setSaving(true);
-    setSaved(false);
-    const { error } = await supabase.from("workspaces").update({
-      name: store.nom,
-      couleur_marque: store.couleur,
-      description_boutique: store.description,
-      politique_livraison: store.livraison,
-      logo_url: store.logo || null,
-      banniere_url: store.banniere || null,
-    }).eq("id", workspace.id);
-    setSaving(false);
-    if (error) {
-      alert("Impossible d'enregistrer la boutique : " + error.message);
-      return;
-    }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
-  }
-
-  const activityCards = {
-    cod_ecommerce: [
-      ["📦", "Commandes", commandes.length, "Suivi du premier contact à la livraison"],
-      ["🛒", "Produits", produits.length, "Catalogue connecté à ton activité"],
-      ["📞", "Closers", closers.length, "Équipe commerciale"],
-      ["🚚", "Livreurs", livreurs.length, "Livraison et encaissement"],
-    ],
-    retail: [
-      ["🏪", "Ventes", commandes.length, "Vision des ventes du magasin"],
-      ["📦", "Stock", produits.length, "Produits et niveaux de stock"],
-      ["👥", "Clients", clients.length, "Historique et fidélisation"],
-      ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Chiffre d'affaires suivi"],
-    ],
-    restaurant: [
-      ["🍽️", "Commandes", commandes.length, "Sur place, à emporter ou livraison"],
-      ["📋", "Carte", produits.length, "Produits / plats disponibles"],
-      ["👥", "Clients", clients.length, "Historique des clients"],
-      ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Performance commerciale"],
-    ],
-    location_immobiliere: [
-      ["🏠", "Biens", produits.length, "Biens à louer / présenter"],
-      ["📅", "Réservations", commandes.length, "Suivi des demandes et séjours"],
-      ["👥", "Clients", clients.length, "Locataires et prospects"],
-      ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-    ],
-    location_vehicule: [
-      ["🚗", "Véhicules", produits.length, "Parc disponible"],
-      ["📅", "Réservations", commandes.length, "Disponibilité et planning"],
-      ["👥", "Clients", clients.length, "Conducteurs et historique"],
-      ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-    ],
-  };
-
-  const cards = activityCards[workspace?.activity_type] || activityCards.cod_ecommerce;
-  const actionItems = [
-    failed.length && { icon: "🔴", title: "Récupérer les commandes échouées", count: failed.length, detail: risk.toLocaleString("fr-FR") + " " + currency + " à récupérer" },
-    pending.length && { icon: "🟠", title: "Traiter les commandes en attente", count: pending.length, detail: "Ne laisse pas ces prospects refroidir" },
-    stockCritique > 0 && { icon: "📦", title: "Vérifier le stock critique", count: stockCritique, detail: "Évite les ventes impossibles à livrer" },
-    clients.length > 0 && { icon: "🔄", title: "Réactiver tes clients", count: clients.length, detail: "Transforme l'historique en nouvelles ventes" },
-  ].filter(Boolean);
-
-  const operationalByActivity = {
-    cod_ecommerce: {
-      title: "Cockpit E-commerce",
-      subtitle: "Commande → confirmation → livraison → encaissement → récupération.",
-      modules: [
-        ["📞", "Closing", pending.length, "Commandes qui attendent encore une action commerciale"],
-        ["🚚", "Livraison", confirmed.length - delivered.length > 0 ? confirmed.length - delivered.length : 0, "Commandes confirmées pas encore livrées"],
-        ["💰", "Valeur à récupérer", risk.toLocaleString("fr-FR") + " " + currency, "Montant des commandes échouées"],
-        ["📦", "Stock critique", stockCritique, "Produits à surveiller avant de vendre davantage"],
-      ]
-    },
-    retail: {
-      title: "Cockpit Commerce",
-      subtitle: "Ventes, stock, clients et marge au même endroit.",
-      modules: [
-        ["🛒", "Ventes", commandes.length, "Transactions suivies dans RecuVente"],
-        ["📦", "Stock critique", stockCritique, "Produits à réapprovisionner ou surveiller"],
-        ["👥", "Clients", clients.length, "Base client exploitable pour la fidélisation"],
-        ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Chiffre d'affaires confirmé"],
-      ]
-    },
-    restaurant: {
-      title: "Cockpit Restaurant",
-      subtitle: "Commande, service, cuisine et encaissement dans un même flux.",
-      modules: [
-        ["🍽️", "Commandes", commandes.length, "Commandes suivies"],
-        ["🔥", "À traiter", pending.length, "Commandes encore ouvertes ou en attente"],
-        ["👥", "Clients", clients.length, "Clients connus dans RecuVente"],
-        ["💰", "CA confirmé", revenue.toLocaleString("fr-FR") + " " + currency, "Chiffre d'affaires confirmé"],
-      ]
-    },
-    location_immobiliere: {
-      title: "Cockpit Location immobilière",
-      subtitle: "Demandes, locataires, disponibilités et encaissements.",
-      modules: [
-        ["🏠", "Biens", produits.length, "Biens / offres actuellement référencés"],
-        ["📅", "Demandes", commandes.length, "Réservations ou demandes suivies"],
-        ["⏳", "En attente", pending.length, "Demandes nécessitant encore une action"],
-        ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-      ]
-    },
-    location_vehicule: {
-      title: "Cockpit Location de véhicules",
-      subtitle: "Parc, disponibilité, réservations, retours et revenus.",
-      modules: [
-        ["🚗", "Parc", produits.length, "Véhicules / matériels référencés"],
-        ["📅", "Réservations", commandes.length, "Demandes et réservations suivies"],
-        ["⏳", "À traiter", pending.length, "Dossiers nécessitant une action"],
-        ["💰", "Revenus", revenue.toLocaleString("fr-FR") + " " + currency, "Revenus confirmés"],
-      ]
-    }
-  };
-  const operational = operationalByActivity[workspace?.activity_type] || operationalByActivity.cod_ecommerce;
-
-  return (
-    <div style={{ padding: "0 20px 44px" }}>
-      <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(135deg,#06110b 0%,#0d2b1b 52%,#1a7a3c 100%)", borderRadius: 24, padding: 24, color: "white", marginBottom: 16, boxShadow: "0 20px 55px rgba(9,55,31,.22)" }}>
-        <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", right: -100, top: -150, background: "rgba(255,255,255,.07)" }} />
-        <div style={{ position: "relative", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div>
-            <div style={{ fontSize: 10.5, opacity: .62, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 900 }}>RECUVENTE OS • PILOTAGE INTELLIGENT</div>
-            <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-.045em", marginTop: 6 }}>{cfg.icon} {cfg.label}</div>
-            <div style={{ color: "rgba(255,255,255,.72)", fontSize: 13, marginTop: 6, maxWidth: 620 }}>Une seule plateforme pour vendre, gérer, récupérer et faire grandir ton activité.</div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,.10)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 16, padding: "12px 16px", minWidth: 145 }}>
-            <div style={{ fontSize: 10, opacity: .62, textTransform: "uppercase", letterSpacing: ".08em" }}>Business Score</div>
-            <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 4 }}>{score}<span style={{ fontSize: 14, opacity: .55 }}>/100</span></div>
-          </div>
-        </div>
-        <div style={{ position: "relative", display: "flex", gap: 7, flexWrap: "wrap", marginTop: 20 }}>
-          {[['overview','⚡ Pilotage'],['metier','🧩 Cockpit métier'],['store','🛍️ Store Builder'],['actions','🎯 Actions'],['analytics','📊 Intelligence']].map(([key,label]) => (
-            <button key={key} onClick={() => setTab(key)} style={{ border: tab===key ? "1px solid rgba(255,255,255,.38)" : "1px solid rgba(255,255,255,.08)", background: tab===key ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.07)", color: "white", borderRadius: 11, padding: "9px 12px", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>{label}</button>
-          ))}
-        </div>
-      </div>
-
-      {tab === "overview" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, marginBottom: 14 }}>
-            {cards.map(([icon,title,value,detail]) => (
-              <div key={title} style={{ background: "white", border: "1px solid #e7ece8", borderRadius: 16, padding: 16, boxShadow: "0 8px 25px rgba(17,38,26,.04)" }}>
-                <div style={{ fontSize: 20 }}>{icon}</div><div style={{ fontSize: 11, color: "#7a847d", marginTop: 8 }}>{title}</div><div style={{ fontSize: 21, fontWeight: 900, color: "#122019", marginTop: 2 }}>{value}</div><div style={{ fontSize: 10.5, color: "#879189", marginTop: 5, lineHeight: 1.35 }}>{detail}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(260px,.65fr)", gap: 14 }}>
-            <div style={{ background: "white", border: "1px solid #e7ece8", borderRadius: 18, padding: 19 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:10 }}><div><div style={{ fontWeight: 900, fontSize: 16 }}>🎯 Ce qui mérite ton attention maintenant</div><div style={{ color:"#78837b",fontSize:11.5,marginTop:4 }}>RecuVente transforme les données déjà présentes en décisions concrètes.</div></div><button onClick={()=>setTab("actions")} style={{border:0,background:"#edf6ee",color:"#1a7a3c",borderRadius:9,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>Tout voir</button></div>
-              <div style={{ marginTop: 15, display: "grid", gap: 8 }}>
-                {actionItems.slice(0,4).map((a,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:11,padding:"11px 12px",background:i===0?"#fff7f4":"#f7faf7",border:"1px solid "+(i===0?"#f2ddd6":"#e8eee8"),borderRadius:12}}><div style={{fontSize:18}}>{a.icon}</div><div style={{flex:1}}><div style={{fontSize:12.5,fontWeight:800,color:"#203027"}}>{a.title}</div><div style={{fontSize:10.5,color:"#7a847d",marginTop:3}}>{a.detail}</div></div><div style={{fontSize:18,fontWeight:900,color:i===0?"#c84b31":"#1a7a3c"}}>{a.count}</div></div>)}
-                {actionItems.length===0 && <div style={{padding:16,background:"#f3f8f2",borderRadius:12,color:"#47704e",fontSize:12,fontWeight:700}}>✅ Rien d'urgent détecté. Ton activité est sous contrôle.</div>}
-              </div>
-            </div>
-            <div style={{ background: "#0c2115", borderRadius: 18, padding: 19, color: "white" }}>
-              <div style={{ fontWeight: 900, fontSize: 15 }}>🚀 RecuVente peut devenir ton centre de contrôle</div>
-              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.65)", lineHeight: 1.55, marginTop: 9 }}>Boutique en ligne, activité physique, restaurant, location de maisons ou de voitures : l'espace s'adapte à ton métier.</div>
-              <div style={{ display:"grid",gap:7,marginTop:14 }}>{cfg.modules.slice(0,7).map(m=><div key={m} style={{fontSize:11,padding:"7px 9px",background:"rgba(255,255,255,.07)",borderRadius:8}}>✓ {m}</div>)}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "store" && (
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:12}}>
-            <div><div style={{fontSize:19,fontWeight:900,color:"#122019"}}>🛍️ Store Builder</div><div style={{fontSize:11.5,color:"#748078",marginTop:3}}>Personnalise ta boutique sans devoir reconstruire ton site.</div></div>
-            <button onClick={sauvegarderBoutique} disabled={saving} style={{background:saved?"#1f9d6e":store.couleur,color:"white",border:0,borderRadius:10,padding:"10px 15px",fontSize:12,fontWeight:900,cursor:saving?"wait":"pointer"}}>{saving?"Enregistrement…":saved?"✓ Boutique enregistrée":"Publier les changements"}</button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"210px minmax(0,1fr) 270px",gap:12,alignItems:"start"}}>
-            <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:16,padding:12}}>
-              <div style={{fontWeight:900,fontSize:13,marginBottom:8}}>Structure</div>
-              {sectionOrder.map((s,i)=><div key={s} style={{display:"flex",alignItems:"center",gap:4,padding:"8px 4px",borderBottom:"1px solid #f0f2ef"}}><span style={{flex:1,fontSize:11.5,fontWeight:750}}>{labels[s]}</span><button onClick={()=>moveSection(i,-1)} style={{border:0,background:"none",cursor:"pointer"}}>↑</button><button onClick={()=>moveSection(i,1)} style={{border:0,background:"none",cursor:"pointer"}}>↓</button></div>)}
-              <div style={{fontSize:10.5,color:"#7c877f",lineHeight:1.45,marginTop:12}}>Chaque section peut devenir un bloc éditable du futur constructeur visuel.</div>
-            </div>
-            <div style={{background:"#eaf0eb",borderRadius:16,padding:15,minHeight:610,display:"flex",justifyContent:"center",overflow:"auto"}}>
-              <div style={{width:previewDevice==="mobile"?375:previewDevice==="tablet"?680:"100%",maxWidth:"100%",background:"white",borderRadius:14,overflow:"hidden",boxShadow:"0 16px 45px rgba(0,0,0,.10)",transition:"width .2s"}}>
-                <div style={{background:store.couleur,color:"white",padding:"13px 16px",display:"flex",alignItems:"center",gap:10,fontWeight:900}}>{store.logo?<img src={store.logo} alt="Logo" style={{width:28,height:28,objectFit:"contain",borderRadius:7,background:"white"}}/>:null}<span>{store.nom}</span></div>
-                {sectionOrder.map(s=><div key={s} style={{padding:s==="hero"?"42px 20px":"26px 18px",borderBottom:"1px solid #edf0ec",textAlign:"center",background:s==="hero"?"linear-gradient(180deg,#f7fbf7,#ffffff)":"white"}}>{s==="hero"&&store.banniere?<img src={store.banniere} alt="Bannière" style={{width:"100%",height:120,objectFit:"cover",borderRadius:12,marginBottom:15}}/>:null}<div style={{fontWeight:900,fontSize:s==="hero"?25:16,color:"#14221b"}}>{s==="hero"?store.description:labels[s]}</div>{s==="products"?<div style={{fontSize:11.5,color:"#718078",marginTop:7}}>{produits.length} produit(s) connecté(s)</div>:null}{s==="benefits"?<div style={{display:"flex",justifyContent:"center",gap:7,flexWrap:"wrap",marginTop:12}}>{["Paiement sécurisé","Livraison suivie","Support WhatsApp"].map(x=><span key={x} style={{background:"#f2f7f2",padding:"7px 9px",borderRadius:999,fontSize:10.5,fontWeight:700}}>{x}</span>)}</div>:null}{s==="contact"?<button style={{marginTop:12,border:0,borderRadius:10,padding:"11px 20px",background:store.couleur,color:"white",fontWeight:900}}>Commander maintenant</button>:null}</div>)}
-              </div>
-            </div>
-            <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:16,padding:15}}>
-              <div style={{fontWeight:900,fontSize:13}}>⚙️ Personnalisation</div>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:13}}>Nom de la boutique<input value={store.nom} onChange={e=>setStore({...store,nom:e.target.value})} style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:12}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>Couleur principale<div style={{display:"flex",gap:7,marginTop:5}}><input type="color" value={store.couleur} onChange={e=>setStore({...store,couleur:e.target.value})} style={{width:42,height:35,border:0,padding:0}}/><input value={store.couleur} onChange={e=>setStore({...store,couleur:e.target.value})} style={{flex:1,border:"1px solid #dfe5df",borderRadius:8,padding:"8px",fontSize:11}}/></div></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>Description<textarea value={store.description} onChange={e=>setStore({...store,description:e.target.value})} rows={4} style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11.5,resize:"vertical"}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>Politique de livraison<textarea value={store.livraison} onChange={e=>setStore({...store,livraison:e.target.value})} rows={3} style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11.5,resize:"vertical"}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>URL logo<input value={store.logo} onChange={e=>setStore({...store,logo:e.target.value})} placeholder="https://..." style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>URL bannière<input value={store.banniere} onChange={e=>setStore({...store,banniere:e.target.value})} placeholder="https://..." style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11}}/></label>
-              <div style={{display:"flex",gap:6,marginTop:14}}>{[["desktop","Desktop"],["tablet","Tablette"],["mobile","Mobile"]].map(([k,l])=><button key={k} onClick={()=>setPreviewDevice(k)} style={{flex:1,border:"1px solid #dfe5df",background:previewDevice===k?store.couleur:"white",color:previewDevice===k?"white":"#26352c",borderRadius:8,padding:"7px 4px",fontSize:10,cursor:"pointer"}}>{l}</button>)}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "metier" && (
-        <div>
-          <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:20,marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:15,flexWrap:"wrap"}}>
-              <div>
-                <div style={{fontWeight:900,fontSize:20}}>{operational.title}</div>
-                <div style={{fontSize:12,color:"#6f7b73",marginTop:5}}>{operational.subtitle}</div>
-              </div>
-              <div style={{background:"#eef6ef",color:"#1a7a3c",padding:"8px 11px",borderRadius:10,fontSize:10.5,fontWeight:900}}>ACTIVITÉ : {cfg.label.toUpperCase()}</div>
-            </div>
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:10,marginBottom:14}}>
-            {operational.modules.map(([icon,title,value,detail]) => (
-              <div key={title} style={{background:"white",border:"1px solid #e7ece8",borderRadius:16,padding:16}}>
-                <div style={{fontSize:22}}>{icon}</div>
-                <div style={{fontSize:11,color:"#7a847d",marginTop:8}}>{title}</div>
-                <div style={{fontSize:23,fontWeight:900,color:"#122019",marginTop:2}}>{value}</div>
-                <div style={{fontSize:10.5,color:"#879189",lineHeight:1.4,marginTop:5}}>{detail}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.4fr) minmax(250px,.6fr)",gap:14}}>
-            <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:19}}>
-              <div style={{fontWeight:900,fontSize:15}}>🗺️ Flux opérationnel</div>
-              <div style={{fontSize:11,color:"#7a847d",marginTop:4}}>La même logique de pilotage, adaptée automatiquement à ton activité.</div>
-              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:18}}>
-                {(workspace?.activity_type === "restaurant"
-                  ? ["Commande","Cuisine","Service","Paiement"]
-                  : workspace?.activity_type === "location_immobiliere"
-                  ? ["Demande","Disponibilité","Réservation","Paiement"]
-                  : workspace?.activity_type === "location_vehicule"
-                  ? ["Demande","Disponibilité","Réservation","Retour","Paiement"]
-                  : workspace?.activity_type === "retail"
-                  ? ["Vente","Stock","Encaissement","Client"]
-                  : ["Commande","Closing","Livraison","Encaissement"]
-                ).map((step,i)=>(
-                  <React.Fragment key={step}>
-                    <div style={{padding:"10px 12px",background:i===0?"#eaf5eb":"#f7f9f7",border:"1px solid #e3ebe4",borderRadius:10,fontSize:11,fontWeight:850,color:"#203027"}}>{i+1}. {step}</div>
-                    {i < (workspace?.activity_type === "location_vehicule" ? 4 : 3) && <span style={{color:"#9aa49d",fontWeight:900}}>→</span>}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-            <div style={{background:"#0c2115",color:"white",borderRadius:18,padding:19}}>
-              <div style={{fontWeight:900,fontSize:15}}>🚀 Prochaine action</div>
-              <div style={{fontSize:11.5,color:"rgba(255,255,255,.68)",lineHeight:1.55,marginTop:7}}>
-                Les écrans métier sont maintenant séparés du cœur RecuVente. Cette couche est prête à recevoir les opérations réelles de chaque activité sans modifier le moteur commun.
-              </div>
-              <button onClick={()=>setTab("actions")} style={{marginTop:15,width:"100%",border:0,borderRadius:9,padding:"10px 12px",background:"#e8920a",color:"#172119",fontSize:11,fontWeight:900,cursor:"pointer"}}>Ouvrir le Centre d'actions →</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "actions" && (
-        <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:20}}>
-          <div style={{fontWeight:900,fontSize:19}}>🎯 Recovery & Action Center</div><div style={{fontSize:12,color:"#6f7b73",marginTop:4}}>La priorité n'est plus de regarder les chiffres : c'est de savoir quoi faire ensuite.</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:10,marginTop:16}}>{actionItems.map((a,i)=><div key={i} style={{border:"1px solid #e6ebe6",borderRadius:14,padding:16,background:i===0?"#fff9f7":"#fbfcfb"}}><div style={{fontSize:24}}>{a.icon}</div><div style={{fontWeight:900,fontSize:13,marginTop:9}}>{a.title}</div><div style={{fontSize:24,fontWeight:900,color:i===0?"#c84b31":"#1a7a3c",marginTop:6}}>{a.count}</div><div style={{fontSize:11,color:"#748078",lineHeight:1.4,marginTop:3}}>{a.detail}</div><button onClick={()=>setTab("overview")} style={{marginTop:12,border:0,borderRadius:8,padding:"8px 10px",background:"#eef5ef",color:"#1a7a3c",fontSize:10.5,fontWeight:800,cursor:"pointer"}}>Voir dans le pilotage →</button></div>)}</div>
-        </div>
-      )}
-
-      {tab === "analytics" && (
-        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 300px",gap:14}}>
-          <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:18,padding:20}}><div style={{fontWeight:900,fontSize:18}}>📊 Business Intelligence</div><div style={{fontSize:12,color:"#6f7b73",marginTop:4}}>Un score lisible pour savoir si ton activité convertit, livre et protège sa marge.</div><div style={{display:"flex",alignItems:"center",gap:25,marginTop:22,flexWrap:"wrap"}}><div style={{width:150,height:150,borderRadius:"50%",background:`conic-gradient(${store.couleur} ${score*3.6}deg,#e9eee9 0)`,display:"grid",placeItems:"center"}}><div style={{width:118,height:118,borderRadius:"50%",background:"white",display:"grid",placeItems:"center",fontSize:35,fontWeight:900,color:"#15221b"}}>{score}</div></div><div style={{flex:1,minWidth:220}}>{[["Conversion confirmée",successRate],["Livraison",deliveryRate],["Volume d'activité",Math.min(100,commandes.length*5)],["Stock maîtrisé",stockCritique===0?100:Math.max(0,100-stockCritique*15)]].map(([l,v])=><div key={l} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,fontWeight:750}}><span>{l}</span><span>{v}%</span></div><div style={{height:7,background:"#edf1ed",borderRadius:999,overflow:"hidden",marginTop:5}}><div style={{height:"100%",width:v+"%",background:store.couleur,borderRadius:999}}/></div></div>)}</div></div></div>
-          <div style={{background:"#0c2115",color:"white",borderRadius:18,padding:20}}><div style={{fontWeight:900,fontSize:16}}>💡 La prochaine évolution</div><div style={{fontSize:12,color:"rgba(255,255,255,.68)",lineHeight:1.55,marginTop:8}}>Brancher progressivement ces indicateurs sur des règles d'automatisation : relances, alertes, réactivation clients, suivi des réservations et protection de marge.</div><div style={{marginTop:16,padding:12,background:"rgba(255,255,255,.07)",borderRadius:11,fontSize:11}}>Architecture prête pour évoluer sans remplacer ton cœur actuel.</div></div>
         </div>
       )}
     </div>
@@ -2466,7 +2591,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "os_pilotage", label: "⚡ Pilotage OS" }, { key: "os_boutique", label: "🛍️ Store Builder" }] : []),
         ].map((t) => (
           <button
             key={t.key}
@@ -2686,17 +2810,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       <SubscriptionBanner subscription={subscription} />
-
-      {(vue === "os_pilotage" || vue === "os_boutique") && (
-        <RecuVenteOSPanel
-          workspace={workspace}
-          commandes={commandes}
-          produits={produits}
-          clients={clients}
-          livreurs={livreurs}
-          closers={closers}
-        />
-      )}
 
       {notifPermission === "default" && (
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

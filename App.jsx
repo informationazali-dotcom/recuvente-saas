@@ -7438,6 +7438,22 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
 
   const niveauGlobal = niveauScore(scoreGlobal);
 
+  const recommandations = useMemo(() => {
+    const conseils = {
+      "Taux de livraison": "Regarde tes anomalies produit/zone dans Commandes — un même produit qui échoue souvent dans une zone précise cache souvent un souci d'adresse ou de livreur.",
+      "Taux de récupération": "Va dans Récupération — chaque commande à risque a un bouton direct pour relancer le client sur WhatsApp.",
+      "Santé financière": "Vérifie que tous tes produits ont un coût d'achat ET des frais de transport renseignés dans le catalogue — sinon ton bénéfice réel est sous-estimé, ou tu vends à perte sans le savoir.",
+      "Croissance": "Regarde tes clients à relancer dans l'écran Clients — relancer un ancien client coûte moins cher que d'en trouver un nouveau.",
+      "Fiabilité équipe": "Va dans Compta, section \"Détail par livreur\" — identifie qui a un solde à déposer négatif ou en retard.",
+      "Discipline de suivi": "Des commandes restent \"en cours\" depuis plus de 3 jours — reprogramme-les ou marque-les échouées pour garder ta liste à jour.",
+    };
+    return [...composantes]
+      .sort((a, b) => a.valeur - b.valeur)
+      .slice(0, 3)
+      .filter((c) => c.valeur < 90)
+      .map((c) => ({ ...c, conseil: conseils[c.label] }));
+  }, [composantes]);
+
   return (
     <div style={{ padding: "20px 20px 8px" }}>
       <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🧭 Score Business</div>
@@ -7452,6 +7468,27 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
         </div>
         <div style={{ fontSize: 13, fontWeight: 700, color: niveauGlobal.couleur, marginTop: 6 }}>{niveauGlobal.label}</div>
       </div>
+
+      {recommandations.length > 0 && (
+        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, color: "#8A6412", marginBottom: 10 }}>
+            💡 Les {recommandations.length} choses qui te feraient le plus progresser
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {recommandations.map((r, i) => (
+              <div key={r.label} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#8A6412", color: "white", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                  {i + 1}
+                </div>
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412" }}>{r.icone} {r.label} ({r.valeur}/100)</div>
+                  <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2, lineHeight: 1.45 }}>{r.conseil}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {composantes.map((c) => {

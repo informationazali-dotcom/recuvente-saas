@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
@@ -494,6 +494,7 @@ function PageImpact() {
     </div>
   );
 }
+
 function PageLegale({ page }) {
   const contenu = {
     cgu: {
@@ -778,146 +779,6 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
   );
 }
 
-function LivreurCarteEcartCaisse({ l, workspaceId, currency }) {
-  const [dernierDepot, setDernierDepot] = useState(null);
-
-  useEffect(() => {
-    supabase
-      .from("depots_livreur")
-      .select("*")
-      .eq("workspace_id", workspaceId)
-      .eq("livreur_nom", l.nom)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => setDernierDepot(data && data[0] ? data[0] : null));
-  }, [l.nom, workspaceId]);
-
-  const ecart = dernierDepot ? Number(dernierDepot.montant_declare) - l.aDeposer : null;
-  const ecartSignificatif = ecart !== null && Math.abs(ecart) >= 500;
-
-  return (
-    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
-      <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
-      <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {currency} encaissé</div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
-          Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
-        </div>
-        <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
-          Attendu : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
-        </div>
-      </div>
-
-      {dernierDepot && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0EEE6" }}>
-          <div style={{ fontSize: 11, color: "#8A9089" }}>
-            Dernier dépôt déclaré : <strong style={{ color: "#16231F" }}>{Number(dernierDepot.montant_declare).toLocaleString("fr-FR")} {currency}</strong> — {new Date(dernierDepot.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </div>
-          {ecartSignificatif ? (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 7, padding: "6px 9px", marginTop: 6, fontSize: 11.5, color: "#D64933", fontWeight: 700 }}>
-              🔴 Écart de caisse : {ecart > 0 ? "+" : ""}{ecart.toLocaleString("fr-FR")} {currency}
-            </div>
-          ) : (
-            <div style={{ fontSize: 11, color: "#1F9D6E", marginTop: 4, fontWeight: 600 }}>✅ Caisse correcte</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
-  const nonTraitees = todoAujourdhui.total;
-  const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
-  const aRisque = todoAujourdhui.sansNouvelles.length;
-  const echouees = todoAujourdhui.jamaisContactees.filter((c) => c.statut === "echouee").length
-    + todoAujourdhui.sansNouvelles.filter((c) => c.statut === "echouee").length
-    + todoAujourdhui.aRelivrer.filter((c) => c.statut === "echouee").length;
-  const recuperables = Math.max(0, nonTraitees - jamaisRappeles);
-
-  const potentielTotal = todoAujourdhui.argentARisque + todoAujourdhui.argentRecuperable;
-
-  const livreurAControler = [...depotsParLivreur].sort((a, b) => b.aDeposer - a.aDeposer)[0];
-
-  const etapes = [
-    { label: `${nonTraitees} commande${nonTraitees > 1 ? "s" : ""} non traitée${nonTraitees > 1 ? "s" : ""}`, valeur: nonTraitees },
-    { label: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s" : ""} jamais rappelé${jamaisRappeles > 1 ? "s" : ""}`, valeur: jamaisRappeles },
-    { label: `${aRisque} commande${aRisque > 1 ? "s" : ""} à risque`, valeur: aRisque },
-    { label: `${echouees} livraison${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""}`, valeur: echouees },
-    { label: `${recuperables} client${recuperables > 1 ? "s" : ""} récupérable${recuperables > 1 ? "s" : ""}`, valeur: recuperables },
-  ].filter((e) => e.valeur > 0);
-
-  const actions = [];
-  if (jamaisRappeles > 0) {
-    actions.push({ num: "01", titre: "RAPPELER", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
-  }
-  if (echouees > 0) {
-    actions.push({ num: "02", titre: "RÉCUPÉRER", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
-  }
-  if (livreurAControler && livreurAControler.aDeposer > 0) {
-    actions.push({ num: "03", titre: "CONTRÔLER", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
-  }
-  if (clientsARelancer.length > 0) {
-    actions.push({ num: "04", titre: "RELANCER", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
-  }
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      {etapes.length > 0 && (
-        <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 16, padding: "18px 20px", marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#f0a0a0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 12 }}>
-            🔴 Argent en train de se perdre — aujourd'hui
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {etapes.map((e, i) => (
-              <div key={i}>
-                <div style={{ color: "white", fontSize: 13, fontWeight: 600, padding: "4px 0" }}>{e.label}</div>
-                {i < etapes.length - 1 && <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, paddingLeft: 4 }}>↓</div>}
-              </div>
-            ))}
-          </div>
-
-          {potentielTotal > 0 && (
-            <>
-              <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "14px 0 12px" }} />
-              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>💰 Potentiel à récupérer</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: "#e8920a", marginTop: 3, marginBottom: 12 }}>
-                {potentielTotal.toLocaleString("fr-FR")} {currency}
-              </div>
-              <button onClick={onVoirRecovery} style={{ width: "100%", background: "#e8920a", color: "#16231F", border: "none", borderRadius: 9, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                RÉCUPÉRER CES VENTES →
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {actions.length > 0 && (
-        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: "18px 20px" }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>🎯 Ton business aujourd'hui</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>
-            {actions.length} action{actions.length > 1 ? "s" : ""} prioritaire{actions.length > 1 ? "s" : ""} à traiter
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {actions.map((a) => (
-              <div key={a.num} style={{ borderLeft: `3px solid ${a.couleur}`, paddingLeft: 12 }}>
-                <div style={{ fontSize: 10.5, color: a.couleur, fontWeight: 700, letterSpacing: "0.03em" }}>{a.num} — {a.titre}</div>
-                <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 2 }}>{a.desc}</div>
-                {a.potentiel > 0 && (
-                  <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>Potentiel : {a.potentiel.toLocaleString("fr-FR")} {currency}</div>
-                )}
-                <button onClick={a.action} style={{ marginTop: 6, background: a.couleur, color: "white", border: "none", borderRadius: 7, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
-                  {a.bouton}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCritique, meilleurLivreur, beneficeReel, currency, onVoirAujourdhui }) {
   const lignes = [];
 
@@ -1035,7 +896,7 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
   );
 }
 
-function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuvrirParametresAvances }) {
+function RVStoreBuilder({ workspace, produits = [], clients = [], onClose }) {
   const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
   const activityType = workspace?.activity_type || 'cod_ecommerce';
   const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
@@ -1095,7 +956,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   }
   async function save(){setSaving(true);setSaved(false);try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){} if(workspace?.id){const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0};const {error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id);if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return;}}setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200)}
   async function publish(){await save();setPublished(true);setTimeout(()=>setPublished(false),2500)}
-  const fieldStyle={width:'100%',boxSizing:'border-box',border:'1px solid #dfe6df',borderRadius:10,padding:'10px 11px',fontSize:12,outline:'none',background:'#fff'};
+  const fieldStyle={width:'100%',boxSizing:'border-box',border:'1px solid #dfe6e1',borderRadius:10,padding:'10px 11px',fontSize:12,outline:'none',background:'#fff'};
   const labelStyle={display:'block',fontSize:10.5,color:'#647168',fontWeight:750,marginBottom:10}; const cardStyle={background:'#fff',border:'1px solid #e4ebe5',borderRadius:16,boxShadow:'0 8px 24px rgba(17,38,26,.045)'};
   const FileButton=({kind,label})=><label style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,border:'1px solid #cfdad2',background:'#f8fbf8',color:'#1a7a3c',borderRadius:10,padding:'9px 12px',fontSize:11,fontWeight:900,cursor:'pointer',width:'100%',boxSizing:'border-box'}}>{uploading===kind?'⏳ Envoi...':`📤 ${label}`}<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>uploadImage(kind,e.target.files?.[0])}/></label>;
   function PreviewSection({type}){
@@ -1132,14 +993,15 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     return <div style={{padding:12,background:'#f5f8f5',borderRadius:11,fontSize:11.5,color:'#657169',lineHeight:1.55}}>Cette section est maintenant sélectionnable et configurable. Les produits et collections sont ceux de ton espace RecuVente.</div>;
   }
   return <div style={{...cardStyle,padding:14,overflow:'hidden'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7}}>{onOuvrirParametresAvances && <button onClick={onOuvrirParametresAvances} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>⚙️ Paramètres avancés</button>}<button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{published?'✓ Publiée':'🚀 Publier'}</button></div></div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7}}><button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{published?'✓ Publiée':'🚀 Publier'}</button></div></div>
     <div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':device==='tablet'?'190px minmax(0,1fr)':'220px minmax(0,1fr) 290px',gap:12,alignItems:'start'}}>
       <div style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer'}}><span>{sectionCatalog[s]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
       <div style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,borderBottom:'1px solid #edf1ee'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950,color:'#14221b'}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>R</span>}{config.nom}</div><div style={{display:'flex',gap:12,fontSize:10,color:'#68756d'}}><span>Accueil</span><span>Catalogue</span><span>Contact</span><span>🛒</span></div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
-      <div style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
+      <div style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique.</div></div>
     </div>
   </div>;
 }
+
 
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
   const [commandes, setCommandes] = useState([]);
@@ -2376,30 +2238,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setVue(t.key)}
-            style={{
-              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
-              background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
-              color: vue === t.key ? "white" : "rgba(255,255,255,0.6)",
-              fontSize: 14, fontWeight: vue === t.key ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-
-        {(workspace.role === "owner" || workspace.role === "admin") && (
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
-            Pilotage financier
-          </div>
-        )}
-        {[
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
-          ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -2497,15 +2336,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
               {workspace.role === "owner" && (
                 <>
                   <button onClick={() => setShowTeam(true)} className="rv-saas-tabs-mobile" aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     👥
+                  </button>
+                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    📦
                   </button>
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
@@ -2513,30 +2355,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowStoreBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🛍️
                   </button>
-                </>
-              )}
-              {(workspace.role === "owner" || workspace.role === "admin") && (
-                <>
-                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📦
-                  </button>
-                  <button onClick={() => setVue("rapprochement")} className="rv-saas-tabs-mobile" aria-label="Rapprochement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🔗
-                  </button>
-                  <button onClick={() => setVue("score_business")} className="rv-saas-tabs-mobile" aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🧭
-                  </button>
-                  <button onClick={() => setVue("simulateur")} className="rv-saas-tabs-mobile" aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📊
-                  </button>
-                  <button onClick={() => setVue("validations")} className="rv-saas-tabs-mobile" aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    ✅
-                  </button>
-                  {workspace.activity_type === "restaurant" && (
-                    <button onClick={() => setVue("menu_restaurant")} className="rv-saas-tabs-mobile" aria-label="Menu" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                      📋
-                    </button>
-                  )}
                 </>
               )}
               <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
@@ -2707,18 +2525,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 ))}
               </div>
             </div>
-          )}
-
-          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0)) && (
-            <RadarDesFuitesEtActions
-              todoAujourdhui={todoAujourdhui}
-              clientsARelancer={clientsARelancer}
-              depotsParLivreur={depotsParLivreur}
-              currency={workspace.currency}
-              onVoirRecovery={() => setVue("recovery")}
-              onVoirCompta={() => setVue("compta")}
-              onVoirClients={() => setVue("clients")}
-            />
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -3107,20 +2913,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "score_business" && (
-        <ScoreBusinessView
-          toutesCommandes={commandes}
-          beneficeReel={beneficeReel}
-          caConfirme={caConfirme}
-          currency={workspace.currency}
-          depotsParLivreur={depotsParLivreur}
-        />
-      )}
-
-      {vue === "simulateur" && (
-        <SimulateurCampagneView currency={workspace.currency} />
-      )}
-
       {vue === "rapprochement" && (
         <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
       )}
@@ -3215,7 +3007,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {depotsParLivreur.map((l) => (
-              <LivreurCarteEcartCaisse key={l.nom} l={l} workspaceId={workspace.id} currency={workspace.currency} />
+              <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+                <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+                    Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+                  </div>
+                  <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+                    À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -3266,10 +3069,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {[
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
-          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }, { key: "menu_restaurant", label: "Menu", icon: Boxes }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
+          { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
+          ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;
@@ -3351,19 +3157,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
+      {showStoreBuilder && <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} onClose={() => setShowStoreBuilder(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
-      {showStoreBuilder && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
-          <div style={{ width: "100%", maxWidth: 1200, maxHeight: "94vh", overflowY: "auto" }}>
-            <RVStoreBuilder
-              workspace={workspace}
-              produits={produits}
-              onClose={() => setShowStoreBuilder(false)}
-              onOuvrirParametresAvances={() => { setShowStoreBuilder(false); setShowIntegrations(true); }}
-            />
-          </div>
-        </div>
-      )}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}
 
@@ -3380,7 +3175,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
@@ -5396,17 +5191,6 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     if (collectionOuverte === id) setCollectionOuverte(null);
   }
 
-  async function deplacerCollection(index, direction) {
-    const liste = [...collections];
-    const autreIndex = index + direction;
-    if (autreIndex < 0 || autreIndex >= liste.length) return;
-    const a = liste[index];
-    const b = liste[autreIndex];
-    await supabase.from("collections").update({ ordre: b.ordre }).eq("id", a.id);
-    await supabase.from("collections").update({ ordre: a.ordre }).eq("id", b.id);
-    await charger();
-  }
-
   async function ouvrirGestionProduits(collectionId) {
     setCollectionOuverte(collectionId);
     const { data } = await supabase.from("collection_produits").select("produit_id").eq("collection_id", collectionId);
@@ -5463,12 +5247,8 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {(collections || []).map((c, i) => (
-                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button onClick={() => deplacerCollection(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#DDD8CC" : "#6B7168", cursor: i === 0 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
-                    <button onClick={() => deplacerCollection(i, 1)} disabled={i === collections.length - 1} style={{ background: "none", border: "none", color: i === collections.length - 1 ? "#DDD8CC" : "#6B7168", cursor: i === collections.length - 1 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
-                  </div>
+              {(collections || []).map((c) => (
+                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>
                     {c.nom}
                   </button>
@@ -5476,7 +5256,6 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8 }}>Utilise les flèches ▲▼ pour changer l'ordre d'affichage sur ta boutique.</div>
           </>
         )}
 
@@ -5596,7 +5375,7 @@ function AvisModal({ workspaceId, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, workspace, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -5615,6 +5394,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
+  const [showBundlesLivraison, setShowBundlesLivraison] = useState(false);
 
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
@@ -5746,6 +5526,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         <div style={{ fontSize: 11, color: "#8A9089", marginTop: -4, marginBottom: 14 }}>
           Le coût d'achat sera à 0 par défaut après import — pense à le renseigner ensuite pour chaque produit.
         </div>
+
+        <button onClick={() => setShowBundlesLivraison(true)} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 10, padding: "12px 14px", fontWeight: 800, fontSize: 13, cursor: "pointer", marginBottom: 14, boxShadow: "0 8px 20px rgba(22,35,31,0.12)" }}>🎁 Packs / Bundles & 🚚 Frais de livraison</button>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           <input placeholder="Nom du produit" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />
@@ -5896,6 +5678,136 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
           })}
         </div>
       </div>
+      {showBundlesLivraison && <BundlesLivraisonModal produits={produits} workspace={workspace} currency={currency} onClose={() => setShowBundlesLivraison(false)} />}
+    </div>
+  );
+}
+
+function BundlesLivraisonModal({ produits, workspace, currency, onClose }) {
+  const storageKey = `rv_bundles_livraison_${workspace.id}`;
+  const [produitId, setProduitId] = useState(produits[0]?.id || "");
+  const [bundles, setBundles] = useState([]);
+  const [livraisons, setLivraisons] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [bundleForm, setBundleForm] = useState({ nom: "", quantite: 2, prix: "", actif: true });
+  const [shipping, setShipping] = useState({ local: workspace.frais_livraison ?? 0, expedition: workspace.frais_expedition ?? 0 });
+  const produitChoisi = produits.find((p) => p.id === produitId);
+
+  useEffect(() => { charger(); }, [workspace.id]);
+
+  async function charger() {
+    setLoading(true);
+    let bundleData = [];
+    let livraisonData = [];
+    let dbOk = true;
+    try {
+      const b = await supabase.from("bundles_produits").select("*").eq("workspace_id", workspace.id).order("quantite");
+      if (b.error) dbOk = false; else bundleData = b.data || [];
+      const l = await supabase.from("produits_livraison").select("*").eq("workspace_id", workspace.id);
+      if (l.error) dbOk = false; else livraisonData = l.data || [];
+    } catch (e) { dbOk = false; }
+    if (!dbOk) {
+      try {
+        const local = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        bundleData = local.bundles || [];
+        livraisonData = local.livraisons || [];
+      } catch (e) {}
+    }
+    setBundles(bundleData);
+    const map = {};
+    livraisonData.forEach((x) => { map[x.produit_id] = x; });
+    setLivraisons(map);
+    setLoading(false);
+  }
+
+  async function saveFallback(nextBundles, nextLivraisons) {
+    try { localStorage.setItem(storageKey, JSON.stringify({ bundles: nextBundles, livraisons: Object.values(nextLivraisons) })); } catch (e) {}
+  }
+
+  async function ajouterBundle() {
+    if (!produitId || !bundleForm.nom.trim() || Number(bundleForm.quantite) < 2 || Number(bundleForm.prix) <= 0) return;
+    setSaving(true);
+    const payload = { workspace_id: workspace.id, produit_id: produitId, nom: bundleForm.nom.trim(), quantite: Number(bundleForm.quantite), prix: Number(bundleForm.prix), actif: bundleForm.actif };
+    const { data, error } = await supabase.from("bundles_produits").insert([payload]).select().single();
+    const item = error ? { ...payload, id: `local-${Date.now()}` } : data;
+    const nextBundles = [...bundles, item];
+    setBundles(nextBundles);
+    await saveFallback(nextBundles, livraisons);
+    setBundleForm({ nom: "", quantite: 2, prix: "", actif: true });
+    setSaving(false);
+  }
+
+  async function supprimerBundle(id) {
+    if (!String(id).startsWith("local-")) await supabase.from("bundles_produits").delete().eq("id", id);
+    const nextBundles = bundles.filter((b) => b.id !== id);
+    setBundles(nextBundles);
+    await saveFallback(nextBundles, livraisons);
+  }
+
+  async function enregistrerLivraisonProduit() {
+    if (!produitId) return;
+    setSaving(true);
+    const current = livraisons[produitId] || {};
+    const payload = { workspace_id: workspace.id, produit_id: produitId, mode: current.mode || "inherit", frais_livraison: Number(current.frais_livraison) || 0, frais_expedition: Number(current.frais_expedition) || 0 };
+    const { data, error } = await supabase.from("produits_livraison").upsert([payload], { onConflict: "workspace_id,produit_id" }).select().single();
+    const nextLivraisons = { ...livraisons, [produitId]: error ? { ...payload, id: current.id || `local-${Date.now()}` } : data };
+    setLivraisons(nextLivraisons);
+    await saveFallback(bundles, nextLivraisons);
+    setSaving(false);
+  }
+
+  async function enregistrerFraisGeneraux() {
+    setSaving(true);
+    await supabase.from("workspaces").update({ frais_livraison: Number(shipping.local) || 0, frais_expedition: Number(shipping.expedition) || 0 }).eq("id", workspace.id);
+    setSaving(false);
+  }
+
+  const bundlesProduit = bundles.filter((b) => b.produit_id === produitId);
+  const config = livraisons[produitId] || { mode: "inherit", frais_livraison: 0, frais_expedition: 0 };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.72)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FAFAF7", width: "100%", maxWidth: 760, maxHeight: "94vh", overflowY: "auto", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,0.3)" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 2, background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div><div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>Optimisation COD</div><div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 800, color: "#16231F" }}>🎁 Bundles & livraison</div></div>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #DDD8CC", background: "white", cursor: "pointer", fontSize: 18 }}>×</button>
+        </div>
+        <div style={{ padding: 20 }}>
+          <div style={{ background: "#16231F", color: "white", borderRadius: 16, padding: 18, marginBottom: 18 }}><div style={{ fontWeight: 800, fontSize: 15 }}>📈 Augmente le panier moyen avec le COD</div><div style={{ fontSize: 12, opacity: .78, lineHeight: 1.55, marginTop: 5 }}>Chaque bundle est lié à un produit précis. Les frais généraux peuvent être hérités ou remplacés par produit.</div></div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>1. Produit concerné</div>
+            <select value={produitId} onChange={(e) => setProduitId(e.target.value)} style={{ width: "100%", padding: "11px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, background: "white" }}>
+              {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}{p.prix_vente ? ` — ${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : ""}</option>)}
+            </select>
+          </div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>🎁 Bundles / Packs quantité</div><div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Exemple : 2 pièces à 15 000, 3 pièces à 20 000. L'offre est attachée uniquement au produit sélectionné.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1.3fr .6fr .9fr", gap: 8, marginBottom: 8 }}>
+              <input placeholder="Nom (ex: Pack Économique)" value={bundleForm.nom} onChange={(e) => setBundleForm({ ...bundleForm, nom: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+              <input type="number" min="2" value={bundleForm.quantite} onChange={(e) => setBundleForm({ ...bundleForm, quantite: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+              <input type="number" min="1" placeholder={`Prix ${currency}`} value={bundleForm.prix} onChange={(e) => setBundleForm({ ...bundleForm, prix: e.target.value })} style={{ padding: 10, borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+            </div>
+            <button disabled={saving} onClick={ajouterBundle} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "+ Ajouter le bundle à ce produit"}</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 12 }}>
+              {bundlesProduit.map((b) => <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9 }}><div><strong style={{ fontSize: 12.5 }}>{b.nom}</strong><div style={{ fontSize: 11, color: "#6B7168", marginTop: 2 }}>{b.quantite} pièces · {Number(b.prix).toLocaleString("fr-FR")} {currency}</div></div><button onClick={() => supprimerBundle(b.id)} style={{ border: "none", background: "#FBEAE6", color: "#D64933", borderRadius: 7, padding: "6px 9px", cursor: "pointer" }}>🗑️</button></div>)}
+              {bundlesProduit.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12, padding: 12 }}>Aucun bundle pour ce produit.</div>}
+            </div>
+          </div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 5 }}>🚚 Frais de livraison — produit sélectionné</div><div style={{ fontSize: 11.5, color: "#8A9089", lineHeight: 1.5, marginBottom: 12 }}>Choisis si ce produit suit les frais généraux, possède ses propres frais ou offre la livraison gratuite.</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>{[["inherit","Utiliser les frais généraux"],["custom","Frais propres"],["free","Gratuit"]].map(([value,label]) => <button key={value} onClick={() => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: value } })} style={{ flex: 1, minWidth: 145, padding: "9px 10px", borderRadius: 9, border: `1px solid ${config.mode === value ? "#1a7a3c" : "#DDD8CC"}`, background: config.mode === value ? "#EAF3DE" : "white", color: config.mode === value ? "#3B6D11" : "#16231F", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>{label}</button>)}</div>
+            {config.mode === "custom" && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}><label style={{ fontSize: 11.5, color: "#6B7168" }}>🏍️ Local<input type="number" value={config.frais_livraison ?? 0} onChange={(e) => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: "custom", frais_livraison: e.target.value } })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label><label style={{ fontSize: 11.5, color: "#6B7168" }}>🚛 Expédition<input type="number" value={config.frais_expedition ?? 0} onChange={(e) => setLivraisons({ ...livraisons, [produitId]: { ...config, mode: "custom", frais_expedition: e.target.value } })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label></div>}
+            <button disabled={saving} onClick={enregistrerLivraisonProduit} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "Enregistrer les frais de ce produit"}</button>
+          </div>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 5 }}>🌍 Frais généraux de la boutique</div><div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Base appliquée aux produits qui utilisent la règle générale.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}><label style={{ fontSize: 11.5, color: "#6B7168" }}>🏍️ Livraison locale<input type="number" value={shipping.local} onChange={(e) => setShipping({ ...shipping, local: e.target.value })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label><label style={{ fontSize: 11.5, color: "#6B7168" }}>🚛 Expédition<input type="number" value={shipping.expedition} onChange={(e) => setShipping({ ...shipping, expedition: e.target.value })} style={{ width: "100%", marginTop: 5, padding: 9, borderRadius: 8, border: "1px solid #DDD8CC", boxSizing: "border-box" }} /></label></div>
+            <button disabled={saving} onClick={enregistrerFraisGeneraux} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: 10, fontWeight: 800, cursor: "pointer" }}>{saving ? "Enregistrement…" : "Enregistrer les frais généraux"}</button>
+          </div>
+          {loading && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 12, paddingTop: 12 }}>Chargement des configurations…</div>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -5970,7 +5882,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [confirmees]);
   const [showBilan, setShowBilan] = useState(false);
-  const [showDeclarationDepot, setShowDeclarationDepot] = useState(false);
 
   async function changerStatut(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom, mode_paiement: modePaiement || null } : {};
@@ -6057,13 +5968,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
             </button>
           )}
         </div>
-
-        <button
-          onClick={() => setShowDeclarationDepot(true)}
-          style={{ width: "100%", marginTop: 10, background: "white", color: "#16231F", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
-        >
-          🏦 Déclarer mon dépôt
-        </button>
 
         {showBilan && bilanParJour.length > 0 && (
           <div style={{ marginTop: 10, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 14px" }}>
@@ -6212,80 +6116,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
           </div>
         </div>
       )}
-
-      {showDeclarationDepot && (
-        <DeclarationDepotModal
-          livreur={livreur}
-          montantEncaisse={confirmees.reduce((s, c) => s + Number(c.montant), 0)}
-          commission={confirmees.length * 1500}
-          currency={currency}
-          onClose={() => setShowDeclarationDepot(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function DeclarationDepotModal({ livreur, montantEncaisse, commission, currency, onClose }) {
-  const montantAttendu = montantEncaisse - commission;
-  const [montant, setMontant] = useState(String(montantAttendu));
-  const [enCours, setEnCours] = useState(false);
-  const [fait, setFait] = useState(false);
-
-  async function declarer() {
-    if (!montant || Number(montant) < 0) return;
-    setEnCours(true);
-    await supabase.from("depots_livreur").insert([{
-      workspace_id: livreur.workspace_id,
-      livreur_nom: livreur.nom,
-      montant_declare: Number(montant),
-    }]);
-    setEnCours(false);
-    setFait(true);
-  }
-
-  if (fait) {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 70 }}>
-        <div style={{ background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 340, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Dépôt déclaré</div>
-          <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>{Number(montant).toLocaleString("fr-FR")} {currency} enregistré.</div>
-          <button onClick={onClose} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
-            Fermer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 70 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏦 Déclarer mon dépôt</div>
-        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
-          Montant attendu (encaissé moins ta commission) : <strong>{montantAttendu.toLocaleString("fr-FR")} {currency}</strong>
-        </div>
-
-        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Montant que tu déposes réellement</div>
-        <input
-          type="number"
-          value={montant}
-          onChange={(e) => setMontant(e.target.value)}
-          style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 15, fontWeight: 700, boxSizing: "border-box", marginBottom: 14 }}
-        />
-
-        <button
-          onClick={declarer}
-          disabled={enCours || !montant}
-          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}
-        >
-          {enCours ? "Enregistrement..." : "Confirmer la déclaration"}
-        </button>
-        <button onClick={onClose} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
-          Annuler
-        </button>
-      </div>
     </div>
   );
 }
@@ -7492,287 +7322,6 @@ function RapprochementView({ workspace, commandes, onValide }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function SimulateurCampagneView({ currency }) {
-  const [form, setForm] = useState({
-    prixVente: "",
-    coutProduit: "",
-    coutLivraison: "1500",
-    commissionCloser: "",
-    budgetPub: "",
-    tauxConfirmation: "60",
-    tauxLivraison: "80",
-    coutParCommande: "",
-  });
-
-  function champ(cle, val) {
-    setForm({ ...form, [cle]: val });
-  }
-
-  const resultats = useMemo(() => {
-    const prixVente = Number(form.prixVente) || 0;
-    const coutProduit = Number(form.coutProduit) || 0;
-    const coutLivraison = Number(form.coutLivraison) || 0;
-    const commission = Number(form.commissionCloser) || 0;
-    const budgetPub = Number(form.budgetPub) || 0;
-    const coutParCommande = Number(form.coutParCommande) || 0;
-    const tauxConfirmation = Number(form.tauxConfirmation) || 0;
-    const tauxLivraisonPct = Number(form.tauxLivraison) || 0;
-
-    if (!prixVente || !budgetPub || !coutParCommande) return null;
-
-    const commandesEstimees = Math.round(budgetPub / coutParCommande);
-    const commandesConfirmees = Math.round(commandesEstimees * (tauxConfirmation / 100));
-    const livraisons = Math.round(commandesConfirmees * (tauxLivraisonPct / 100));
-
-    const chiffreAffaires = livraisons * prixVente;
-    const coutsProduits = livraisons * coutProduit;
-    const coutsLivraisons = livraisons * coutLivraison;
-    const coutsCommissions = livraisons * commission;
-    const coutsTotaux = coutsProduits + coutsLivraisons + coutsCommissions + budgetPub;
-    const beneficeEstime = chiffreAffaires - coutsTotaux;
-
-    const margeParLivraison = prixVente - coutProduit - coutLivraison - commission;
-    const seuilRentabilite = margeParLivraison > 0 ? Math.ceil(budgetPub / margeParLivraison) : null;
-
-    return { commandesEstimees, commandesConfirmees, livraisons, chiffreAffaires, coutsTotaux, beneficeEstime, seuilRentabilite, margeParLivraison };
-  }, [form]);
-
-  const champStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 10 };
-  const labelStyle = { fontSize: 11, color: "#8A9089", marginBottom: 3, display: "block" };
-
-  return (
-    <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>📊 Simulateur de campagne</div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-        Avant de dépenser en publicité, sais combien de commandes livrées il te faut pour être rentable.
-      </div>
-
-      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18, marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 14 }}>Ton produit</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Prix de vente ({currency})</label>
-            <input type="number" value={form.prixVente} onChange={(e) => champ("prixVente", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Coût produit ({currency})</label>
-            <input type="number" value={form.coutProduit} onChange={(e) => champ("coutProduit", e.target.value)} style={champStyle} />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Coût livraison ({currency})</label>
-            <input type="number" value={form.coutLivraison} onChange={(e) => champ("coutLivraison", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Commission closer ({currency})</label>
-            <input type="number" value={form.commissionCloser} onChange={(e) => champ("commissionCloser", e.target.value)} style={champStyle} />
-          </div>
-        </div>
-
-        <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 10, marginBottom: 14 }}>Ta publicité</div>
-        <label style={labelStyle}>Budget publicitaire total ({currency})</label>
-        <input type="number" value={form.budgetPub} onChange={(e) => champ("budgetPub", e.target.value)} style={champStyle} />
-        <label style={labelStyle}>Coût estimé par commande générée ({currency}) — ce que ta pub coûte pour obtenir une commande</label>
-        <input type="number" value={form.coutParCommande} onChange={(e) => champ("coutParCommande", e.target.value)} style={champStyle} />
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Taux de confirmation estimé (%)</label>
-            <input type="number" value={form.tauxConfirmation} onChange={(e) => champ("tauxConfirmation", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Taux de livraison estimé (%)</label>
-            <input type="number" value={form.tauxLivraison} onChange={(e) => champ("tauxLivraison", e.target.value)} style={{ ...champStyle, marginBottom: 0 }} />
-          </div>
-        </div>
-      </div>
-
-      {resultats && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Commandes estimées</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesEstimees}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Confirmées</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesConfirmees}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Livraisons</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.livraisons}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Chiffre d'affaires</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, marginTop: 3 }}>{resultats.chiffreAffaires.toLocaleString("fr-FR")}</div>
-            </div>
-          </div>
-
-          <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice estimé</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: resultats.beneficeEstime >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
-              {resultats.beneficeEstime.toLocaleString("fr-FR")} {currency}
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-              Coûts totaux (produits + livraisons + commissions + pub) : {resultats.coutsTotaux.toLocaleString("fr-FR")} {currency}
-            </div>
-          </div>
-
-          {resultats.margeParLivraison <= 0 ? (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#D64933", fontWeight: 600 }}>
-              🔴 Ta marge par livraison ({resultats.margeParLivraison.toLocaleString("fr-FR")} {currency}) est négative ou nulle — cette campagne ne peut pas devenir rentable avec ces chiffres, quel que soit le volume.
-            </div>
-          ) : (
-            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#3B6D11", fontWeight: 600 }}>
-              🟢 À partir de <strong>{resultats.seuilRentabilite} commande{resultats.seuilRentabilite > 1 ? "s" : ""} livrée{resultats.seuilRentabilite > 1 ? "s" : ""}</strong>, cette campagne devient rentable.
-            </div>
-          )}
-        </>
-      )}
-
-      {!resultats && (
-        <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "20px 0" }}>
-          Remplis au moins le prix de vente, le budget publicitaire et le coût par commande pour voir la simulation.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur }) {
-  const composantes = useMemo(() => {
-    const now = new Date();
-    const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
-    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-    const commandesMoisActuel = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisActuel);
-    const commandesMoisPrecedent = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisPrecedent && new Date(c.created_at) < debutMoisActuel);
-
-    // 1. Taux de livraison réussie
-    const traitees = toutesCommandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
-    const tauxLivraison = traitees.length > 0 ? Math.round((toutesCommandes.filter((c) => c.statut === "confirmee").length / traitees.length) * 100) : 100;
-
-    // 2. Taux de récupération (commandes traitées qui finissent confirmées)
-    const echoueesTotal = toutesCommandes.filter((c) => c.statut === "echouee").length;
-    const confirmeesTotal = toutesCommandes.filter((c) => c.statut === "confirmee").length;
-    const totalTraitees2 = echoueesTotal + confirmeesTotal;
-    const tauxRecuperation = totalTraitees2 > 0 ? Math.round((confirmeesTotal / totalTraitees2) * 100) : 100;
-
-    // 3. Santé financière (bénéfice positif par rapport au CA)
-    const margeSante = caConfirme > 0 ? Math.max(0, Math.min(100, Math.round((beneficeReel / caConfirme) * 100 + 50))) : 50;
-
-    // 4. Croissance mois sur mois
-    const croissance = commandesMoisPrecedent.length > 0
-      ? Math.max(0, Math.min(100, Math.round(50 + ((commandesMoisActuel.length - commandesMoisPrecedent.length) / commandesMoisPrecedent.length) * 100)))
-      : (commandesMoisActuel.length > 0 ? 70 : 50);
-
-    // 5. Fiabilité de l'équipe livreurs (moyenne des dépôts positifs = équipe saine financièrement)
-    const fiabiliteEquipe = depotsParLivreur.length > 0
-      ? Math.round((depotsParLivreur.filter((l) => l.aDeposer >= 0).length / depotsParLivreur.length) * 100)
-      : 100;
-
-    // 6. Discipline de suivi (peu de commandes bloquées longtemps en_cours)
-    const enCoursAnciennes = toutesCommandes.filter((c) => c.statut === "en_cours" && (Date.now() - new Date(c.created_at).getTime()) / 86400000 > 3).length;
-    const enCoursTotal = toutesCommandes.filter((c) => c.statut === "en_cours").length;
-    const disciplineSuivi = enCoursTotal > 0 ? Math.round(100 - (enCoursAnciennes / enCoursTotal) * 100) : 100;
-
-    return [
-      { label: "Taux de livraison", valeur: tauxLivraison, icone: "🚚" },
-      { label: "Taux de récupération", valeur: tauxRecuperation, icone: "🎯" },
-      { label: "Santé financière", valeur: margeSante, icone: "💰" },
-      { label: "Croissance", valeur: croissance, icone: "📈" },
-      { label: "Fiabilité équipe", valeur: fiabiliteEquipe, icone: "🤝" },
-      { label: "Discipline de suivi", valeur: disciplineSuivi, icone: "📋" },
-    ];
-  }, [toutesCommandes, beneficeReel, caConfirme, depotsParLivreur]);
-
-  const scoreGlobal = Math.round(composantes.reduce((s, c) => s + c.valeur, 0) / composantes.length);
-
-  function niveauScore(score) {
-    if (score >= 75) return { label: "Excellent", couleur: "#1F9D6E" };
-    if (score >= 55) return { label: "Correct", couleur: "#8A6412" };
-    return { label: "À surveiller", couleur: "#D64933" };
-  }
-
-  const niveauGlobal = niveauScore(scoreGlobal);
-
-  const recommandations = useMemo(() => {
-    const conseils = {
-      "Taux de livraison": "Regarde tes anomalies produit/zone dans Commandes — un même produit qui échoue souvent dans une zone précise cache souvent un souci d'adresse ou de livreur.",
-      "Taux de récupération": "Va dans Récupération — chaque commande à risque a un bouton direct pour relancer le client sur WhatsApp.",
-      "Santé financière": "Vérifie que tous tes produits ont un coût d'achat ET des frais de transport renseignés dans le catalogue — sinon ton bénéfice réel est sous-estimé, ou tu vends à perte sans le savoir.",
-      "Croissance": "Regarde tes clients à relancer dans l'écran Clients — relancer un ancien client coûte moins cher que d'en trouver un nouveau.",
-      "Fiabilité équipe": "Va dans Compta, section \"Détail par livreur\" — identifie qui a un solde à déposer négatif ou en retard.",
-      "Discipline de suivi": "Des commandes restent \"en cours\" depuis plus de 3 jours — reprogramme-les ou marque-les échouées pour garder ta liste à jour.",
-    };
-    return [...composantes]
-      .sort((a, b) => a.valeur - b.valeur)
-      .slice(0, 3)
-      .filter((c) => c.valeur < 90)
-      .map((c) => ({ ...c, conseil: conseils[c.label] }));
-  }, [composantes]);
-
-  return (
-    <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🧭 Score Business</div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-        Le résumé exécutif de ton activité — 6 indicateurs combinés en un seul chiffre.
-      </div>
-
-      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 18, padding: "28px 24px", marginBottom: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Score global</div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 56, color: niveauGlobal.couleur, lineHeight: 1 }}>
-          {scoreGlobal}
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: niveauGlobal.couleur, marginTop: 6 }}>{niveauGlobal.label}</div>
-      </div>
-
-      {recommandations.length > 0 && (
-        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: "#8A6412", marginBottom: 10 }}>
-            💡 Les {recommandations.length} choses qui te feraient le plus progresser
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {recommandations.map((r, i) => (
-              <div key={r.label} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#8A6412", color: "white", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                  {i + 1}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412" }}>{r.icone} {r.label} ({r.valeur}/100)</div>
-                  <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2, lineHeight: 1.45 }}>{r.conseil}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {composantes.map((c) => {
-          const niveau = niveauScore(c.valeur);
-          return (
-            <div key={c.label} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{c.icone} {c.label}</span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: niveau.couleur }}>{c.valeur}</span>
-              </div>
-              <div style={{ background: "#ECE8DC", borderRadius: 999, height: 6, overflow: "hidden" }}>
-                <div style={{ width: `${c.valeur}%`, background: niveau.couleur, height: "100%", borderRadius: 999 }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.6 }}>
-        Calculé à partir de tes 30 derniers jours de commandes, ton bénéfice réel, et la fiabilité de ton équipe. Un score qui remonte reflète une activité qui se solidifie.
       </div>
     </div>
   );

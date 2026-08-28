@@ -3157,7 +3157,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
-      {showStoreBuilder && <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} onClose={() => setShowStoreBuilder(false)} />}
+      {showStoreBuilder && <RVStoreBuilder workspace={workspace} produits={produits} onClose={() => setShowStoreBuilder(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}

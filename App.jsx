@@ -1306,6 +1306,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showBatch, setShowBatch] = useState(false);
   const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
 
+  async function reprogrammerCommande(commandeId, date) {
+    await supabase.from("commandes").update({ date_relivraison: date || null }).eq("id", commandeId);
+    await loadCommandes();
+  }
+
   async function changerStatutRapide(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: session?.user?.email || "Admin", mode_paiement: modePaiement || null } : {};
     await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
@@ -3029,7 +3034,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} />
+              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} />
             ))}
           </div>
         </div>
@@ -4462,7 +4467,7 @@ const STATUTS = {
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, workspace, confirmateurNom, onCelebrate }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -4915,6 +4920,23 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
           >
             ✏️ Modifier les informations
           </button>
+
+          {onReschedule && commande.statut !== "confirmee" && commande.statut !== "annulee" && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", marginBottom: 4 }}>📅 Reprogrammer la livraison</div>
+              <input
+                type="date"
+                value={commande.date_relivraison || ""}
+                onChange={(e) => onReschedule(commande.id, e.target.value)}
+                style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
+              />
+              {commande.date_relivraison && (
+                <div style={{ fontSize: 11, color: "#1a7a3c", marginTop: 4 }}>
+                  📅 Prévue le {new Date(commande.date_relivraison + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                </div>
+              )}
+            </div>
+          )}
 
           <HistoriqueCreances commande={commande} currency={currency} />
           <JournalAppels commandeId={commande.id} />

@@ -368,7 +368,7 @@ function LandingPage() {
         .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
         .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
         .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
-        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
+        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff;color:var(--ink)}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-dark .rvx-card:not(.dark){color:var(--ink)}.rvx-dark .rvx-card:not(.dark) h3{color:var(--ink)}.rvx-dark .rvx-card:not(.dark) .rvx-list div{color:var(--ink)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
         .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
         .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
         .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
@@ -915,6 +915,196 @@ function RVActivityConfig({ activityType }) {
   return RV_ACTIVITY_CONFIG[activityType] || RV_ACTIVITY_CONFIG.cod_ecommerce;
 }
 
+
+function RVStoreBuilder({ workspace, produits = [], clients = [] }) {
+  const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
+  const activityType = workspace?.activity_type || 'cod_ecommerce';
+  const activityLabel = {
+    cod_ecommerce: 'E-commerce',
+    retail: 'Commerce physique',
+    restaurant: 'Restaurant',
+    location_immobiliere: 'Location immobilière',
+    location_vehicule: 'Location de voitures'
+  }[activityType] || 'E-commerce';
+
+  const sectionCatalog = {
+    announcement: { icon: '📣', label: 'Barre d’annonce', description: 'Message promotionnel ou information importante.' },
+    hero: { icon: '✨', label: 'Hero / couverture', description: 'Votre promesse principale avec appel à l’action.' },
+    collections: { icon: '🗂️', label: 'Collections', description: 'Catégories de produits ou offres.' },
+    bestsellers: { icon: '🔥', label: 'Meilleures ventes', description: 'Les produits les plus populaires.' },
+    products: { icon: '🛍️', label: 'Catalogue produits', description: 'Tous les produits sélectionnés.' },
+    benefits: { icon: '🛡️', label: 'Réassurance', description: 'Livraison, paiement, garantie, support.' },
+    testimonials: { icon: '⭐', label: 'Avis clients', description: 'Preuves sociales et témoignages.' },
+    promo: { icon: '🏷️', label: 'Promotion', description: 'Offre spéciale ou réduction.' },
+    gallery: { icon: '🖼️', label: 'Galerie', description: 'Images et univers de la marque.' },
+    faq: { icon: '❓', label: 'FAQ', description: 'Réponses aux objections fréquentes.' },
+    whatsapp: { icon: '💬', label: 'WhatsApp', description: 'Contact et commande rapide.' },
+    delivery: { icon: '🚚', label: 'Livraison', description: 'Zones, délais et politique de livraison.' },
+    contact: { icon: '🎯', label: 'CTA final', description: 'Dernier appel à l’action.' },
+    footer: { icon: '▦', label: 'Footer', description: 'Liens, coordonnées et mentions.' }
+  };
+
+  const defaults = {
+    theme: 'premium',
+    couleur: workspace?.couleur_marque || '#1a7a3c',
+    nom: workspace?.name || 'Ma boutique',
+    description: workspace?.description_boutique || 'Une boutique professionnelle, pensée pour convertir.',
+    livraison: workspace?.politique_livraison || 'Livraison rapide et suivi de commande.',
+    logo: workspace?.logo_url || '',
+    banniere: workspace?.banniere_url || '',
+    buttonText: activityType === 'restaurant' ? 'Commander maintenant' : activityType.includes('location') ? 'Réserver maintenant' : 'Acheter maintenant',
+    announcement: '🚀 Livraison suivie • Paiement sécurisé • Support rapide',
+    heroTitle: activityType === 'restaurant' ? 'Découvrez notre menu' : activityType === 'location_immobiliere' ? 'Trouvez votre prochain séjour' : activityType === 'location_vehicule' ? 'Louez le véhicule qui vous correspond' : 'Votre boutique. Votre marque. Votre business.',
+    heroSubtitle: 'Une expérience moderne, rapide et pensée pour transformer les visiteurs en clients.',
+    promoTitle: 'Une offre à ne pas manquer',
+    promoText: 'Profitez de nos offres du moment.',
+    whatsapp: 'Bonjour, je souhaite avoir plus d’informations.',
+    sections: activityType === 'restaurant'
+      ? ['announcement','hero','collections','products','bestsellers','benefits','testimonials','gallery','faq','whatsapp','contact','footer']
+      : ['announcement','hero','collections','bestsellers','products','benefits','promo','testimonials','gallery','faq','delivery','whatsapp','contact','footer']
+  };
+
+  const [config, setConfig] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      return saved ? { ...defaults, ...saved } : defaults;
+    } catch (_) { return defaults; }
+  });
+  const [selected, setSelected] = useState('hero');
+  const [device, setDevice] = useState('desktop');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [published, setPublished] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const products = useMemo(() => produits.map((p, i) => ({
+    id: p.id || `p-${i}`,
+    name: p.nom || p.name || p.titre || p.title || `Produit ${i + 1}`,
+    price: Number(p.prix ?? p.price ?? p.montant ?? 0),
+    image: p.image_url || p.image || p.photo || p.photo_url || '',
+    category: p.collection || p.categorie || p.category || 'Collection',
+    description: p.description || p.desc || 'Découvrez ce produit.'
+  })), [produits]);
+
+  const collections = useMemo(() => {
+    const m = new Map();
+    products.forEach(p => { if (!m.has(p.category)) m.set(p.category, 0); m.set(p.category, m.get(p.category) + 1); });
+    return [...m.entries()].map(([name,count]) => ({name,count}));
+  }, [products]);
+
+  const bestsellers = products.slice(0, 4);
+
+  function update(key, value) { setConfig(c => ({ ...c, [key]: value })); }
+  function updateSection(index, value) {
+    setConfig(c => ({ ...c, sections: c.sections.map((x,i) => i === index ? value : x) }));
+  }
+  function move(index, dir) {
+    setConfig(c => {
+      const a = [...c.sections], j = index + dir;
+      if (j < 0 || j >= a.length) return c;
+      [a[index], a[j]] = [a[j], a[index]];
+      return { ...c, sections: a };
+    });
+  }
+  function remove(index) {
+    setConfig(c => ({ ...c, sections: c.sections.filter((_,i) => i !== index) }));
+  }
+  function addSection(type) {
+    setConfig(c => ({ ...c, sections: [...c.sections, type] }));
+    setSelected(type);
+    setShowAdd(false);
+  }
+
+  async function save() {
+    setSaving(true); setSaved(false);
+    try { localStorage.setItem(storageKey, JSON.stringify(config)); } catch (_) {}
+    if (workspace?.id) {
+      const { error } = await supabase.from('workspaces').update({
+        name: config.nom,
+        couleur_marque: config.couleur,
+        description_boutique: config.description,
+        politique_livraison: config.livraison,
+        logo_url: config.logo || null,
+        banniere_url: config.banniere || null
+      }).eq('id', workspace.id);
+      if (error) { setSaving(false); alert('Les réglages de base n’ont pas pu être enregistrés : ' + error.message); return; }
+    }
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2200);
+  }
+
+  function publish() { save().then(() => { setPublished(true); setTimeout(() => setPublished(false), 2500); }); }
+
+  const fieldStyle = { width:'100%', boxSizing:'border-box', border:'1px solid #dfe6e1', borderRadius:10, padding:'10px 11px', fontSize:12, outline:'none', background:'#fff' };
+  const labelStyle = { display:'block', fontSize:10.5, color:'#647168', fontWeight:750, marginBottom:10 };
+  const cardStyle = { background:'#fff', border:'1px solid #e4ebe5', borderRadius:16, boxShadow:'0 8px 24px rgba(17,38,26,.045)' };
+
+  function PreviewSection({ type }) {
+    const common = { padding:'28px 22px', borderBottom:'1px solid #edf1ee' };
+    if (type === 'announcement') return <div style={{...common,padding:'9px 14px',background:config.couleur,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
+    if (type === 'hero') return <div style={{...common,padding:'0 0 28px',textAlign:'center'}}>
+      {config.banniere ? <img src={config.banniere} alt="" style={{width:'100%',height:device==='mobile'?150:210,objectFit:'cover',display:'block'}}/> : <div style={{height:device==='mobile'?150:210,background:`linear-gradient(135deg, ${config.couleur}, #0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}
+      <div style={{padding:'22px 20px 0'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div><button style={{border:0,borderRadius:10,padding:'12px 19px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div>
+    </div>;
+    if (type === 'collections') return <div style={{...common}}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:3},1fr)`,gap:10}}>{(collections.length?collections:[{name:'Nouvelle collection',count:0},{name:'Meilleures offres',count:0},{name:'Nouveautés',count:0}]).slice(0,6).map(c=><div key={c.name} style={{padding:'18px 10px',borderRadius:12,background:'#f5f8f5',textAlign:'center'}}><div style={{fontSize:20}}>🗂️</div><div style={{fontWeight:850,fontSize:11.5,marginTop:6}}>{c.name}</div><div style={{fontSize:10,color:'#7c877f',marginTop:3}}>{c.count} article(s)</div></div>)}</div></div>;
+    if (type === 'bestsellers' || type === 'products') return <div style={{...common}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:products.slice(0,8)).map((p,i)=><div key={p.id || i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:config.couleur,marginTop:4}}>{p.price ? p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF') : 'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:config.couleur,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ajoute tes produits depuis RecuVente pour alimenter automatiquement cette section.</div>}</div>;
+    if (type === 'benefits') return <div style={{...common}}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Pourquoi acheter chez nous ?</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{[['🛡️','Paiement sécurisé'],['🚚','Livraison suivie'],['💬','Support rapide']].map(x=><div key={x[1]} style={{padding:14,borderRadius:11,background:'#f6f9f6'}}><div style={{fontSize:20}}>{x[0]}</div><div style={{fontWeight:850,fontSize:11.5,marginTop:7}}>{x[1]}</div></div>)}</div></div>;
+    if (type === 'promo') return <div style={{...common,background:'#f7f2e7',textAlign:'center'}}><div style={{fontSize:10,fontWeight:900,color:'#b16b00',letterSpacing:'.08em'}}>OFFRE LIMITÉE</div><h3 style={{fontSize:24,margin:'7px 0',color:'#162119'}}>{config.promoTitle}</h3><p style={{fontSize:12,color:'#6f776f'}}>{config.promoText}</p><button style={{border:0,borderRadius:9,padding:'10px 18px',background:'#e8920a',color:'#1b211d',fontWeight:900}}>Profiter de l'offre</button></div>;
+    if (type === 'testimonials') return <div style={{...common}}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>⭐ Ils nous font confiance</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:10}}>{['“Une expérience simple et rapide.”','“La commande a été parfaitement suivie.”','“Je recommande sans hésiter.”'].map((t,i)=><div key={i} style={{padding:15,border:'1px solid #e6ece7',borderRadius:12}}><div style={{color:'#e8920a',fontSize:13}}>★★★★★</div><div style={{fontSize:11.5,lineHeight:1.55,color:'#435047',marginTop:7}}>{t}</div><div style={{fontSize:10,fontWeight:800,marginTop:9}}>Client vérifié</div></div>)}</div></div>;
+    if (type === 'gallery') return <div style={{...common}}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Notre univers</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8}}>{[1,2,3,4].map(i=><div key={i} style={{height:device==='mobile'?100:130,borderRadius:10,background:`linear-gradient(${120+i*20}deg,#e8efe9,#cddbd0)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:25}}>✦</div>)}</div></div>;
+    if (type === 'faq') return <div style={{...common}}><h3 style={{margin:'0 0 12px',fontSize:19,color:'#14221b'}}>Questions fréquentes</h3>{['Comment commander ?','Quels sont les délais ?','Comment suivre ma commande ?'].map(q=><div key={q} style={{padding:'12px 2px',borderBottom:'1px solid #e7ece8',fontSize:11.5,fontWeight:800,display:'flex',justifyContent:'space-between'}}>{q}<span>＋</span></div>)}</div>;
+    if (type === 'whatsapp') return <div style={{...common,textAlign:'center',background:'#f4faf5'}}><div style={{fontSize:26}}>💬</div><h3 style={{margin:'7px 0',fontSize:19,color:'#14221b'}}>Besoin d'aide ?</h3><p style={{fontSize:11.5,color:'#68756d'}}>Écris-nous directement sur WhatsApp.</p><button style={{border:0,borderRadius:10,padding:'10px 18px',background:'#168a45',color:'#fff',fontWeight:900}}>Ouvrir WhatsApp</button></div>;
+    if (type === 'delivery') return <div style={{...common}}><h3 style={{margin:'0 0 9px',fontSize:19,color:'#14221b'}}>🚚 Livraison</h3><p style={{fontSize:11.5,color:'#68756d',lineHeight:1.6,margin:0}}>{config.livraison}</p></div>;
+    if (type === 'contact') return <div style={{...common,textAlign:'center',background:'#0d2417',color:'#fff'}}><h3 style={{margin:'0 0 8px',fontSize:24}}>Prêt à passer à l'action ?</h3><p style={{fontSize:11.5,color:'rgba(255,255,255,.68)'}}>Commandez, réservez ou contactez-nous maintenant.</p><button style={{border:0,borderRadius:10,padding:'11px 20px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div>;
+    if (type === 'footer') return <div style={{padding:'24px 20px',background:'#101b15',color:'#fff',fontSize:10.5}}><div style={{fontWeight:900,fontSize:14}}>{config.nom}</div><div style={{opacity:.65,marginTop:6}}>{config.description}</div><div style={{opacity:.45,marginTop:14}}>© {new Date().getFullYear()} • Tous droits réservés</div></div>;
+    return null;
+  }
+
+  function Editor() {
+    const type = selected;
+    if (type === 'hero') return <><label style={labelStyle}>Titre principal<input style={fieldStyle} value={config.heroTitle} onChange={e=>update('heroTitle',e.target.value)} /></label><label style={labelStyle}>Sous-titre<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.heroSubtitle} onChange={e=>update('heroSubtitle',e.target.value)} /></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)} /></label><label style={labelStyle}>URL de la bannière<input style={fieldStyle} placeholder="https://..." value={config.banniere} onChange={e=>update('banniere',e.target.value)} /></label></>;
+    if (type === 'announcement') return <label style={labelStyle}>Message de la barre d’annonce<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.announcement} onChange={e=>update('announcement',e.target.value)} /></label>;
+    if (type === 'promo') return <><label style={labelStyle}>Titre de l'offre<input style={fieldStyle} value={config.promoTitle} onChange={e=>update('promoTitle',e.target.value)} /></label><label style={labelStyle}>Texte de l'offre<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.promoText} onChange={e=>update('promoText',e.target.value)} /></label></>;
+    if (type === 'delivery') return <label style={labelStyle}>Politique de livraison<textarea style={{...fieldStyle,resize:'vertical'}} rows={5} value={config.livraison} onChange={e=>update('livraison',e.target.value)} /></label>;
+    if (type === 'whatsapp') return <label style={labelStyle}>Message WhatsApp prérempli<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.whatsapp} onChange={e=>update('whatsapp',e.target.value)} /></label>;
+    return <div style={{padding:12,background:'#f5f8f5',borderRadius:11,fontSize:11.5,color:'#657169',lineHeight:1.55}}>Cette section est alimentée automatiquement par RecuVente. Tu peux la déplacer, la supprimer ou modifier les réglages généraux. Les produits et collections viennent directement de ton catalogue.</div>;
+  }
+
+  return <div style={{...cardStyle,padding:14,overflow:'hidden'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}>
+      <div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,verticalAlign:'middle',background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Sections, collections, meilleures ventes, réassurance et aperçu en direct.</div></div>
+      <div style={{display:'flex',gap:7}}><button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900}}>{published?'✓ Publiée':'🚀 Publier'}</button></div>
+    </div>
+
+    <div style={{display:'grid',gridTemplateColumns:'220px minmax(0,1fr) 270px',gap:12,alignItems:'start'}}>
+      <div style={{...cardStyle,padding:12,boxShadow:'none'}}>
+        <div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>
+        {config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer'}}><span style={{fontSize:13}}>{sectionCatalog[s]?.icon || '▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label || s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} style={{border:0,background:'transparent',cursor:'pointer',fontSize:11}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} style={{border:0,background:'transparent',cursor:'pointer',fontSize:11}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{border:0,background:'transparent',cursor:'pointer',fontSize:11,color:'#bd4b38'}}>×</button></div>)}
+        <button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:'9px 8px',fontSize:10.5,fontWeight:900,color:'#1a7a3c'}}>＋ Ajouter une section</button>
+        {showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:260,overflow:'auto'}}>{Object.entries(sectionCatalog).map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:'8px',fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}
+      </div>
+
+      <div style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}>
+        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850}}>{l}</button>)}</div>
+        <div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}>
+          <div style={{height:4,background:config.couleur}}/>
+          <div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,borderBottom:'1px solid #edf1ee'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950,color:'#14221b'}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:12}}>R</span>}{config.nom}</div><div style={{display:'flex',gap:12,fontSize:10,color:'#68756d'}}><span>Accueil</span><span>Catalogue</span><span>Contact</span><span>🛒</span></div></div>
+          {config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}
+        </div>
+      </div>
+
+      <div style={{...cardStyle,padding:14,boxShadow:'none'}}>
+        <div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div>
+        <label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)} /></label>
+        <label style={labelStyle}>Couleur principale<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)} /></div></label>
+        <label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)} /></label>
+        <label style={labelStyle}>URL du logo<input style={fieldStyle} placeholder="https://..." value={config.logo} onChange={e=>update('logo',e.target.value)} /></label>
+        <div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label || selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div>
+        <div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12}}><div style={{fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits, collections et meilleures ventes sont automatiquement alimentés par ton catalogue RecuVente. L’ordre et le design de la page sont indépendants du moteur de commandes.</div></div>
+      </div>
+    </div>
+  </div>;
+}
+
 function RecuVenteOSPanel({ workspace, commandes = [], produits = [], clients = [], livreurs = [], closers = [] }) {
   const [tab, setTab] = useState("overview");
   const [previewDevice, setPreviewDevice] = useState("desktop");
@@ -1125,35 +1315,7 @@ function RecuVenteOSPanel({ workspace, commandes = [], produits = [], clients = 
       )}
 
       {tab === "store" && (
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:12}}>
-            <div><div style={{fontSize:19,fontWeight:900,color:"#122019"}}>🛍️ Store Builder</div><div style={{fontSize:11.5,color:"#748078",marginTop:3}}>Personnalise ta boutique sans devoir reconstruire ton site.</div></div>
-            <button onClick={sauvegarderBoutique} disabled={saving} style={{background:saved?"#1f9d6e":store.couleur,color:"white",border:0,borderRadius:10,padding:"10px 15px",fontSize:12,fontWeight:900,cursor:saving?"wait":"pointer"}}>{saving?"Enregistrement…":saved?"✓ Boutique enregistrée":"Publier les changements"}</button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"210px minmax(0,1fr) 270px",gap:12,alignItems:"start"}}>
-            <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:16,padding:12}}>
-              <div style={{fontWeight:900,fontSize:13,marginBottom:8}}>Structure</div>
-              {sectionOrder.map((s,i)=><div key={s} style={{display:"flex",alignItems:"center",gap:4,padding:"8px 4px",borderBottom:"1px solid #f0f2ef"}}><span style={{flex:1,fontSize:11.5,fontWeight:750}}>{labels[s]}</span><button onClick={()=>moveSection(i,-1)} style={{border:0,background:"none",cursor:"pointer"}}>↑</button><button onClick={()=>moveSection(i,1)} style={{border:0,background:"none",cursor:"pointer"}}>↓</button></div>)}
-              <div style={{fontSize:10.5,color:"#7c877f",lineHeight:1.45,marginTop:12}}>Chaque section peut devenir un bloc éditable du futur constructeur visuel.</div>
-            </div>
-            <div style={{background:"#eaf0eb",borderRadius:16,padding:15,minHeight:610,display:"flex",justifyContent:"center",overflow:"auto"}}>
-              <div style={{width:previewDevice==="mobile"?375:previewDevice==="tablet"?680:"100%",maxWidth:"100%",background:"white",borderRadius:14,overflow:"hidden",boxShadow:"0 16px 45px rgba(0,0,0,.10)",transition:"width .2s"}}>
-                <div style={{background:store.couleur,color:"white",padding:"13px 16px",display:"flex",alignItems:"center",gap:10,fontWeight:900}}>{store.logo?<img src={store.logo} alt="Logo" style={{width:28,height:28,objectFit:"contain",borderRadius:7,background:"white"}}/>:null}<span>{store.nom}</span></div>
-                {sectionOrder.map(s=><div key={s} style={{padding:s==="hero"?"42px 20px":"26px 18px",borderBottom:"1px solid #edf0ec",textAlign:"center",background:s==="hero"?"linear-gradient(180deg,#f7fbf7,#ffffff)":"white"}}>{s==="hero"&&store.banniere?<img src={store.banniere} alt="Bannière" style={{width:"100%",height:120,objectFit:"cover",borderRadius:12,marginBottom:15}}/>:null}<div style={{fontWeight:900,fontSize:s==="hero"?25:16,color:"#14221b"}}>{s==="hero"?store.description:labels[s]}</div>{s==="products"?<div style={{fontSize:11.5,color:"#718078",marginTop:7}}>{produits.length} produit(s) connecté(s)</div>:null}{s==="benefits"?<div style={{display:"flex",justifyContent:"center",gap:7,flexWrap:"wrap",marginTop:12}}>{["Paiement sécurisé","Livraison suivie","Support WhatsApp"].map(x=><span key={x} style={{background:"#f2f7f2",padding:"7px 9px",borderRadius:999,fontSize:10.5,fontWeight:700}}>{x}</span>)}</div>:null}{s==="contact"?<button style={{marginTop:12,border:0,borderRadius:10,padding:"11px 20px",background:store.couleur,color:"white",fontWeight:900}}>Commander maintenant</button>:null}</div>)}
-              </div>
-            </div>
-            <div style={{background:"white",border:"1px solid #e7ece8",borderRadius:16,padding:15}}>
-              <div style={{fontWeight:900,fontSize:13}}>⚙️ Personnalisation</div>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:13}}>Nom de la boutique<input value={store.nom} onChange={e=>setStore({...store,nom:e.target.value})} style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:12}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>Couleur principale<div style={{display:"flex",gap:7,marginTop:5}}><input type="color" value={store.couleur} onChange={e=>setStore({...store,couleur:e.target.value})} style={{width:42,height:35,border:0,padding:0}}/><input value={store.couleur} onChange={e=>setStore({...store,couleur:e.target.value})} style={{flex:1,border:"1px solid #dfe5df",borderRadius:8,padding:"8px",fontSize:11}}/></div></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>Description<textarea value={store.description} onChange={e=>setStore({...store,description:e.target.value})} rows={4} style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11.5,resize:"vertical"}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>Politique de livraison<textarea value={store.livraison} onChange={e=>setStore({...store,livraison:e.target.value})} rows={3} style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11.5,resize:"vertical"}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>URL logo<input value={store.logo} onChange={e=>setStore({...store,logo:e.target.value})} placeholder="https://..." style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11}}/></label>
-              <label style={{display:"block",fontSize:10.5,color:"#748078",marginTop:10}}>URL bannière<input value={store.banniere} onChange={e=>setStore({...store,banniere:e.target.value})} placeholder="https://..." style={{width:"100%",boxSizing:"border-box",marginTop:5,border:"1px solid #dfe5df",borderRadius:8,padding:"9px 10px",fontSize:11}}/></label>
-              <div style={{display:"flex",gap:6,marginTop:14}}>{[["desktop","Desktop"],["tablet","Tablette"],["mobile","Mobile"]].map(([k,l])=><button key={k} onClick={()=>setPreviewDevice(k)} style={{flex:1,border:"1px solid #dfe5df",background:previewDevice===k?store.couleur:"white",color:previewDevice===k?"white":"#26352c",borderRadius:8,padding:"7px 4px",fontSize:10,cursor:"pointer"}}>{l}</button>)}</div>
-            </div>
-          </div>
-        </div>
+        <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} />
       )}
 
       {tab === "metier" && (
@@ -3394,7 +3556,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
-      {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
+      {showIntegrations && <IntegrationsModal workspace={workspace} produits={produits} clients={clients} onClose={() => setShowIntegrations(false)} />}
       {showAide && <AideModal onClose={() => setShowAide(false)} />}
       {showBienvenue && <BienvenueModal workspace={workspace} onFermer={fermerBienvenue} onOuvrirAide={() => { fermerBienvenue(); setShowAide(true); }} />}
 
@@ -5450,7 +5612,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#f7faf8", borderRadius: 20, padding: 20, width: "100%", maxWidth: 1280, maxHeight: "94vh", overflowY: "auto", boxSizing: "border-box" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>
             {collectionOuverte ? `📁 ${collectionOuverteNom}` : "📁 Collections"}
@@ -8092,7 +8254,7 @@ function AideModal({ onClose }) {
   );
 }
 
-function IntegrationsModal({ workspace, onClose }) {
+function IntegrationsModal({ workspace, produits = [], clients = [], onClose }) {
   const [copie, setCopie] = useState(false);
   const [journalAudit, setJournalAudit] = useState(null);
   const [afficherJournalAudit, setAfficherJournalAudit] = useState(false);
@@ -8219,9 +8381,16 @@ function IntegrationsModal({ workspace, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>🛍️ Ma Boutique</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, background: "#fff", border: "1px solid #e4ebe5", borderRadius: 16, padding: "14px 16px", position: "sticky", top: 0, zIndex: 5 }}>
+          <div>
+            <div style={{ fontWeight: 950, fontSize: 20, color: "#122019" }}>🛍️ Ma Boutique</div>
+            <div style={{ fontSize: 11.5, color: "#748078", marginTop: 3 }}>Construis et personnalise ta boutique comme un mini-Shopify, directement dans RecuVente.</div>
+          </div>
+          <button onClick={onClose} style={{ background: "#f1f5f2", border: "none", width: 36, height: 36, borderRadius: 10, fontSize: 20, cursor: "pointer", color: "#26342c" }}>×</button>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <RVStoreBuilder workspace={workspace} produits={produits} clients={clients} />
         </div>
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: 16, marginBottom: 20 }}>

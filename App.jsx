@@ -297,241 +297,247 @@ function Centered({ children }) {
 
 function LandingPage() {
   const [plans, setPlans] = useState([]);
-  const [faqOuverte, setFaqOuverte] = useState(null);
-  const [activeModule, setActiveModule] = useState("commerce");
-  const [statsPlateforme, setStatsPlateforme] = useState(null);
+  const [faq, setFaq] = useState(null);
+  const [engine, setEngine] = useState("vendre");
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
-    supabase.rpc("statistiques_plateforme_publiques").then(({ data }) => {
-      if (data && data[0]) setStatsPlateforme(data[0]);
-    });
+    supabase.rpc("statistiques_plateforme_publiques").then(({ data }) => data?.[0] && setStats(data[0]));
   }, []);
 
-  const modules = {
-    commerce: {
-      label: "COMMERCE & COD",
-      title: "De la publicité à l'argent encaissé.",
-      desc: "Une chaîne complète pour recevoir, qualifier, confirmer, expédier, livrer et récupérer chaque commande.",
-      items: [
-        ["📦", "Commandes", "Validées, échouées, refusées, doubles ou suspectes — chaque commande a son statut."],
-        ["☎️", "Closing & appels", "Sais qui a été appelé, quand, résultat de l'appel, numéro faux, injoignable ou client confirmé."],
-        ["🚚", "Livraison", "Attribue les commandes, suis chaque livreur, vois livré, non livré, à récupérer et les montants."],
-        ["📅", "Reprogrammation", "Le client veut demain ? Reprogramme la livraison et retrouve automatiquement les urgences du jour."],
-        ["📍", "Suivi client", "Génère un code de suivi pour que ton client puisse suivre sa commande."],
-        ["🧾", "Documents", "Envoie confirmations, reçus et factures personnalisées directement au client."],
+  const lead = () => window.fbq && window.fbq("track", "Lead");
+
+  const engines = {
+    vendre: {
+      icon:"💰", label:"VENDRE", title:"Transforme ton trafic en ventes suivies.",
+      text:"Crée ta boutique, ajoute tes produits, connecte Shopify si tu l'utilises déjà, installe tes pixels et fais arriver tes commandes dans un même système.",
+      points:[
+        ["🛍️","Boutique en ligne","Catalogue, produits, collections, galerie et avis clients."],
+        ["🎯","Acquisition","Ajoute ton Facebook Pixel et les outils de suivi nécessaires à tes campagnes."],
+        ["🔗","Shopify","Fais remonter automatiquement les commandes Shopify dans RecuVente."],
+        ["📦","Catalogue","Ajoute tes produits ou importe un catalogue CSV Shopify/autre."],
+        ["💳","Vente","Sur place, livraison ou expédition : le mode de vente est suivi dans la commande."],
+        ["📈","Rentabilité","Coûts, frais, ventes et bénéfice réel produit par produit."],
       ]
     },
-    marketing: {
-      label: "CAMPAGNES & RETARGETING",
-      title: "Ne laisse plus dormir tes anciens clients.",
-      desc: "Transforme ton historique de clients en moteur de nouvelles ventes avec des campagnes ciblées.",
-      items: [
-        ["🎯", "Segmentation", "Cible les nouveaux clients, anciens clients, clients ayant acheté 1 fois, 2 fois ou davantage."],
-        ["💬", "WhatsApp", "Contacte directement un client depuis sa fiche et relance au bon moment."],
-        ["🔁", "Retargeting", "Réactive les clients qui ont déjà acheté au lieu de repartir de zéro."],
-        ["📣", "Campagnes", "Prépare des campagnes selon les profils et l'historique d'achat."],
-        ["📊", "Historique", "Comprends qui achète, qui revient et quels clients méritent une nouvelle offre."],
-        ["⚡", "Action rapide", "Passe de la donnée à l'action sans exporter tes clients dans plusieurs outils."],
+    convertir: {
+      icon:"🧠", label:"CONVERTIR", title:"Chaque appel devient une information exploitable.",
+      text:"Ton closer ne travaille plus dans le brouillard. RecuVente suit la qualification, les appels, les statuts et évite les doublons.",
+      points:[
+        ["☎️","Journal d'appels","Sais si le client a été appelé, confirmé, refusé, injoignable ou avec un numéro invalide."],
+        ["🎧","Closer","Chaque closer dispose de son espace et travaille sur les commandes qui lui sont attribuées."],
+        ["🛡️","Anti-doublon","Les commandes en double peuvent être détectées pour éviter plusieurs appels ou livraisons inutiles."],
+        ["🔴","Échec maîtrisé","Une commande échouée reste visible, exploitable et relançable."],
+        ["🎯","Récupération","Les ventes à risque peuvent être identifiées avec un plan d'action de récupération."],
+        ["💬","WhatsApp","Ouvre directement une conversation WhatsApp depuis la fiche client."],
       ]
     },
-    team: {
-      label: "ÉQUIPE & CONTRÔLE",
-      title: "Chaque personne a son espace. Toi, tu gardes la vision.",
-      desc: "RecuVente ne mélange pas les rôles : chaque membre travaille dans une interface adaptée à sa mission.",
-      items: [
-        ["👤", "Closer", "Interface dédiée pour traiter les commandes, appeler les clients, confirmer ou refuser."],
-        ["🚚", "Livreur", "Interface dédiée pour voir ses commandes, confirmer les livraisons et déclarer les résultats."],
-        ["💼", "Comptable", "Vision des encaissements, dépenses, commissions et points financiers."],
-        ["🎯", "Responsable", "Attribue, contrôle et vérifie qui a reçu quoi et ce qui a été réalisé."],
-        ["📦", "Traçabilité produit", "Sais quel produit a été remis par le closing à quel livreur et sur quelle commande."],
-        ["🔐", "Rôles", "Chaque membre accède aux informations dont il a besoin pour travailler."],
+    livrer: {
+      icon:"🚚", label:"LIVRER", title:"De la commande au dernier kilomètre.",
+      text:"Attribue, suis, reprogramme et contrôle. Chaque livreur sait ce qu'il doit faire et toi tu sais ce qui s'est réellement passé.",
+      points:[
+        ["📍","GPS en tournée","Visualise les livreurs en tournée avec leur position."],
+        ["📦","Attribution","Sais quelles commandes ont été remises à quel livreur."],
+        ["📊","Performance","Livrées, échouées, taux de livraison, commissions et montant à déposer."],
+        ["📅","Reprogrammation","Le client veut demain ? La commande peut être reprogrammée."],
+        ["🔔","Priorités du jour","L'écran « Aujourd'hui » fait ressortir les commandes à traiter en priorité."],
+        ["🔎","Suivi client","Génère et partage un lien/code de suivi de commande."],
       ]
     },
-    boutique: {
-      label: "BOUTIQUE EN LIGNE",
-      title: "Crée ta boutique. Lance tes campagnes. Mesure.",
-      desc: "Même si tu n'as pas Shopify, tu peux créer rapidement ta boutique RecuVente et préparer ton acquisition.",
-      items: [
-        ["🛍️", "Boutique rapide", "Crée ton catalogue, tes produits, tes collections et une page de commande."],
-        ["📸", "Produits", "Ajoute photos, prix et informations sans multiplier les outils."],
-        ["🎯", "Pixels", "Ajoute tes pixels et outils de suivi pour mesurer tes campagnes publicitaires."],
-        ["📣", "Acquisition", "Envoie tes campagnes vers ta propre boutique et récupère les commandes."],
-        ["🔗", "Shopify", "Connecte ta boutique Shopify lorsque tu l'utilises déjà."],
-        ["📈", "Pilotage", "Relie acquisition, commandes, clients et résultats dans le même écosystème."],
+    encaisser: {
+      icon:"💵", label:"ENCAISSER", title:"Le chiffre d'affaires n'est pas ton bénéfice.",
+      text:"Relie commandes, paiements, acomptes, dépôts livreurs, commissions, coûts et bénéfices pour comprendre l'argent réellement généré.",
+      points:[
+        ["📲","Mobile Money","Le système prend en compte Cash, Orange Money, Wave, MTN Money et Moov Money."],
+        ["🔗","Rapprochement","Propose de rapprocher une liste de paiements Mobile Money avec les bonnes commandes."],
+        ["🧾","Facturation","Génère des factures PDF avec numérotation et détails de paiement."],
+        ["🧮","Acomptes","Suit les paiements partiels et le solde restant pour le commerce physique."],
+        ["💰","Dépôts livreurs","Calcule le montant que le livreur doit déposer selon les livraisons confirmées."],
+        ["📈","Bénéfice réel","Prend en compte coûts d'achat et frais import/transport pour analyser la rentabilité."],
       ]
     },
-    immobilier: {
-      label: "IMMOBILIER",
-      title: "Tes locations aussi méritent un vrai système.",
-      desc: "RecuVente s'étend au suivi des biens, des locataires et des paiements.",
-      items: [
-        ["🏠", "Biens & locataires", "Organise les informations liées à tes locations."],
-        ["💵", "Loyers", "Suis les paiements et les échéances de chaque locataire."],
-        ["🧾", "Reçus", "Génère un reçu pour confirmer le paiement du locataire."],
-        ["📅", "Échéances", "Garde une vision claire des paiements attendus."],
-        ["📊", "Vue globale", "Retrouve les informations essentielles au même endroit."],
-        ["📂", "Historique", "Conserve une trace des paiements et documents."],
+    fideliser: {
+      icon:"🔁", label:"RÉACTIVER", title:"Ton meilleur client est parfois déjà dans ta base.",
+      text:"Ne recommence pas chaque campagne à zéro. Exploite ton historique client pour relancer, segmenter et récupérer des ventes.",
+      points:[
+        ["👥","Segments","Nouveaux clients, anciens clients, clients ayant acheté une fois, deux fois ou plus."],
+        ["💬","WhatsApp","Contact direct depuis la fiche client pour accélérer les relances."],
+        ["🎯","Retargeting","Réactive les clients qui connaissent déjà ta marque."],
+        ["⚠️","Ventes à risque","Identifie certaines commandes nécessitant une action de récupération."],
+        ["📖","Historique","Retrouve l'historique d'achat et les informations utiles du client."],
+        ["🔔","Relances","Les relances et notifications permettent de ne pas laisser dormir les dossiers."],
       ]
     },
-    restaurant: {
-      label: "RESTAURATION",
-      title: "De la table à la cuisine, puis jusqu'au client.",
-      desc: "Un flux pensé pour suivre la commande en salle, sa préparation, son service et sa livraison.",
-      items: [
-        ["🍽️", "Tables", "Suis la table A, la table B et les commandes associées."],
-        ["🧾", "Commandes", "Chaque commande est rattachée à la table ou au client."],
-        ["👨‍🍳", "Préparation", "Sais quelles commandes sont en préparation et lesquelles sont prêtes."],
-        ["🔔", "Service", "Une commande prête devient immédiatement visible pour le service."],
-        ["🛵", "Livraison", "Les commandes à livrer peuvent être attribuées et suivies."],
-        ["📋", "Menus", "Crée et organise les menus et les produits du restaurant."],
+    piloter: {
+      icon:"🧭", label:"PILOTER", title:"Une entreprise. Une équipe. Une vérité.",
+      text:"Chaque rôle travaille dans son interface et la direction garde une vue globale : commandes, produits, personnes, argent et opérations.",
+      points:[
+        ["👤","Espaces par rôle","Closer, livreur, comptable et responsable travaillent avec des interfaces adaptées."],
+        ["📦","Produits par activité","Analyse les quantités livrées, manquantes ou non livrées produit par produit."],
+        ["🏢","Multi-activité","Crée plusieurs espaces d'activité et bascule de l'un à l'autre."],
+        ["🔐","Isolation","Les données de chaque entreprise sont isolées."],
+        ["📝","Audit","Les opérations importantes peuvent être enregistrées dans un journal d'audit."],
+        ["💾","Sauvegarde / export","Des fonctions d'export permettent de récupérer les données de l'espace."],
       ]
     }
   };
 
-  const cta = (label = "Commencer gratuitement") => (
-    <a href="?auth=1" onClick={() => window.fbq && window.fbq("track", "Lead")} className="rv2-btn rv2-btn-primary">{label} <span>→</span></a>
-  );
-
-  const faqs = [
-    ["RecuVente est-il seulement une application de livraison ?", "Non. La livraison est un des piliers. RecuVente couvre aussi les commandes, le closing, les campagnes, le retargeting, les clients, la comptabilité, les équipes, la boutique en ligne, l'immobilier et la restauration."],
-    ["Est-ce que mon équipe peut avoir des interfaces différentes ?", "Oui. Le closer, le livreur, le comptable et les responsables peuvent travailler avec des espaces adaptés à leur rôle."],
-    ["Puis-je suivre mes livreurs ?", "Oui. Tu peux suivre les commandes attribuées à chaque livreur, les résultats de livraison et les montants à comptabiliser."],
-    ["Puis-je reprogrammer une livraison ?", "Oui. Une commande dont le client demande une livraison à une autre date peut être reprogrammée et réapparaître dans les priorités du jour concerné."],
-    ["Puis-je faire des campagnes à mes anciens clients ?", "Oui. RecuVente permet de travailler sur des segments comme les nouveaux clients, anciens clients et clients ayant acheté une ou plusieurs fois."],
-    ["Puis-je envoyer WhatsApp depuis l'application ?", "L'application permet d'accéder directement à WhatsApp depuis la fiche client pour faciliter le contact."],
-    ["Puis-je créer ma boutique en ligne sans Shopify ?", "Oui. RecuVente permet de créer rapidement une boutique en ligne avec produits, catalogue et commande, puis d'y ajouter les pixels nécessaires à tes campagnes."],
-    ["RecuVente peut-il servir à un restaurant ou à l'immobilier ?", "Oui. L'architecture de la plateforme est conçue pour couvrir plusieurs activités, notamment les tables et commandes en restauration ainsi que les loyers et reçus en immobilier."],
-    ["Y a-t-il un essai ?", "Les plans affichés dans l'application peuvent être utilisés pour commencer selon les conditions de ton abonnement. Consulte les tarifs présentés sur cette page."],
+  const univers = [
+    ["🛒","E-commerce COD","Commandes, closing, livreurs, suivi, récupération et rentabilité."],
+    ["🏪","Commerce physique","Ventes sur place, stock, acomptes, livraison et bénéfice."],
+    ["🏠","Immobilier","Loyers, locataires, paiements, relances et reçus."],
+    ["🍽️","Restaurant","Tables, commandes, cuisine, menus, service et livraison."],
+    ["🚗","Location","Véhicules/matériel, disponibilité, dates et cautions."],
   ];
 
+  const faqs = [
+    ["Est-ce seulement une application de livraison ?","Non. Livraison, commandes, closing, clients, campagnes, boutique, comptabilité, équipe et plusieurs activités sont réunis dans le même écosystème."],
+    ["Puis-je créer ma propre boutique ?","Oui. RecuVente prévoit une boutique publique avec catalogue, produits, collections, galerie et avis clients."],
+    ["Puis-je connecter Shopify ?","Oui. Le code prévoit l'import de catalogue CSV Shopify/autre et l'intégration de commandes Shopify."],
+    ["Puis-je gérer plusieurs activités ?","Oui. Un compte peut disposer de plusieurs espaces d'activité et basculer entre eux."],
+    ["Est-ce que mes livreurs ont leur propre interface ?","Oui. L'application prévoit un espace dédié au travail des livreurs, avec leurs commandes et leur suivi."],
+    ["Puis-je suivre les paiements et la rentabilité ?","Oui. RecuVente gère notamment paiements, acomptes, dépôts livreurs, commissions, coûts et bénéfice réel."],
+    ["Puis-je travailler avec WhatsApp ?","Oui. L'application permet d'ouvrir directement WhatsApp depuis les informations du client et d'envoyer certains documents/liens."],
+    ["Quels métiers peuvent l'utiliser ?","Le code prévoit notamment e-commerce COD, commerce physique, immobilier, restaurant et location de véhicules/matériel."],
+  ];
+
+  const e = engines[engine];
+
   return (
-    <div className="rv2">
+    <div className="rv-galaxy">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap');
-        .rv2{--g:#1A7A3C;--g2:#2E8B57;--o:#FF7A00;--ink:#0F172A;--cream:#F7F6F0;--line:#E5E7E2;--muted:#68736D;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:#fff;overflow:hidden}
-        .rv2 *{box-sizing:border-box}.rv2 a{text-decoration:none}.rv2-shell{width:min(1180px,calc(100% - 36px));margin:auto}.rv2-display{font-family:Fraunces,serif;letter-spacing:-.045em}
-        .rv2-nav{height:72px;background:#07110C;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);position:relative;z-index:10}.rv2-nav-in{height:100%;display:flex;align-items:center;justify-content:space-between}.rv2-logo{font:900 22px Fraunces;color:#fff}.rv2-logo span{color:var(--o)}.rv2-navlinks{display:flex;align-items:center;gap:22px}.rv2-navlinks a{font-size:12px;color:#9EABA3;font-weight:600}.rv2-navlinks .navcta{color:#0D1C13;background:#fff;padding:11px 15px;border-radius:9px}
-        .rv2-hero{color:#fff;background:radial-gradient(circle at 8% 12%,rgba(46,139,87,.38),transparent 30%),radial-gradient(circle at 91% 15%,rgba(255,122,0,.18),transparent 28%),linear-gradient(135deg,#06100B,#0B1B12 58%,#112A1C);padding:72px 0 100px;position:relative}.rv2-hero-grid{display:grid;grid-template-columns:1.03fr .97fr;gap:55px;align-items:center}.rv2-eyebrow{display:inline-flex;gap:8px;align-items:center;border:1px solid rgba(255,122,0,.3);background:rgba(255,122,0,.09);padding:8px 12px;border-radius:99px;color:#FFD2A2;font-size:10px;font-weight:800;letter-spacing:.1em}.rv2-dot{width:7px;height:7px;border-radius:50%;background:var(--o);box-shadow:0 0 0 5px rgba(255,122,0,.1)}
-        .rv2-h1{font:900 clamp(43px,6.2vw,76px) Fraunces;line-height:.95;letter-spacing:-.055em;margin:22px 0}.rv2-h1 span{color:#82D69E}.rv2-sub{font-size:16px;line-height:1.7;color:rgba(255,255,255,.68);max-width:650px}.rv2-actions{display:flex;gap:11px;flex-wrap:wrap;margin-top:28px}.rv2-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:11px;padding:15px 21px;font-size:13px;font-weight:800;transition:.2s}.rv2-btn-primary{background:var(--o);color:#111b14;box-shadow:0 18px 40px rgba(255,122,0,.22)}.rv2-btn-primary:hover{transform:translateY(-2px)}.rv2-btn-dark{border:1px solid rgba(255,255,255,.18);color:#fff;background:rgba(255,255,255,.05)}.rv2-trust{display:flex;gap:18px;flex-wrap:wrap;margin-top:17px;color:#84928A;font-size:10.5px}.rv2-trust b{color:#fff}
-        .rv2-command{background:#0B1510;border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:9px;box-shadow:0 35px 80px rgba(0,0,0,.45);transform:rotateY(-5deg)}.rv2-app{background:#F6F8F4;color:var(--ink);border-radius:15px;overflow:hidden}.rv2-appbar{background:#fff;padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E7EAE5;font:800 12px Fraunces}.rv2-appbar span{color:var(--o)}.rv2-appbody{padding:15px}.rv2-alert{background:#10271A;border-radius:12px;color:#fff;padding:14px;margin-bottom:10px}.rv2-alert small{color:#9DD9AE;font-weight:700}.rv2-money{font:700 25px IBM Plex Mono;margin-top:5px}.rv2-money span{font:10px 'IBM Plex Sans';color:#92A299}.rv2-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.rv2-stat{background:#fff;border:1px solid #E5E9E4;border-radius:9px;padding:10px}.rv2-stat small{display:block;color:#8C9690;font-size:7px}.rv2-stat b{display:block;font:700 14px IBM Plex Mono;margin-top:5px}.rv2-orders{background:#fff;border:1px solid #E5E9E4;border-radius:10px;margin-top:9px;overflow:hidden}.rv2-order{display:flex;justify-content:space-between;padding:9px;border-top:1px solid #EEF0EC;font-size:8px}.rv2-order span{color:var(--g);background:#E7F5EA;padding:4px 6px;border-radius:99px;font-weight:800}
-        .rv2-proof{margin-top:-34px;position:relative;z-index:3}.rv2-proofbox{background:#fff;border:1px solid var(--line);box-shadow:0 20px 55px rgba(15,23,42,.1);border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px}.rv2-proofstats{display:flex;gap:26px}.rv2-proofstats strong{display:block;color:var(--g);font:800 17px IBM Plex Mono}.rv2-proofstats span{font-size:9px;color:#89938D}
-        .rv2-section{padding:90px 0}.rv2-soft{background:var(--cream)}.rv2-dark{background:#09150F;color:#fff}.rv2-center{text-align:center}.rv2-kicker{color:var(--g);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:10px}.rv2-dark .rv2-kicker{color:#88D59F}.rv2-title{font:900 clamp(33px,4.5vw,55px) Fraunces;line-height:1;letter-spacing:-.045em;margin:0}.rv2-title span{color:var(--g)}.rv2-lead{max-width:720px;margin:15px auto 0;color:var(--muted);font-size:14px;line-height:1.7}.rv2-dark .rv2-lead{color:#89958E}
-        .rv2-modules{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin:42px 0 18px}.rv2-module{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 8px;text-align:center;font-size:9px;font-weight:800;color:#637069;transition:.2s}.rv2-module.active{background:var(--g);color:#fff;border-color:var(--g);box-shadow:0 10px 25px rgba(26,122,60,.2)}.rv2-module-icon{font-size:18px;display:block;margin-bottom:5px}
-        .rv2-modulepanel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.06)}.rv2-panelhead{display:flex;align-items:end;justify-content:space-between;gap:20px}.rv2-panelhead h3{font:800 29px Fraunces;margin:4px 0 0}.rv2-panelhead p{max-width:550px;color:var(--muted);font-size:12px;line-height:1.6}.rv2-items{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}.rv2-item{border:1px solid #E7EAE5;border-radius:13px;padding:17px;background:#FBFCFA}.rv2-item-icon{font-size:20px}.rv2-item h4{font-size:13px;margin:9px 0 5px}.rv2-item p{font-size:11px;line-height:1.55;color:var(--muted);margin:0}
-        .rv2-bignumber{display:grid;grid-template-columns:1fr 1fr;gap:0;background:#0D2116;border:1px solid rgba(255,255,255,.09);border-radius:20px;overflow:hidden;margin-top:45px}.rv2-bignumber>div{padding:35px;border-right:1px solid rgba(255,255,255,.08)}.rv2-bignumber>div:last-child{border:0}.rv2-big{font:900 clamp(33px,4vw,52px) IBM Plex Mono;color:#fff}.rv2-bignumber p{color:#8D9A92;font-size:12px;line-height:1.6;margin:8px 0 0}
-        .rv2-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:35px}.rv2-flowitem{padding:19px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.035)}.rv2-flowitem b{color:var(--o);font:700 22px IBM Plex Mono}.rv2-flowitem strong{display:block;font-size:12px;margin-top:8px}.rv2-flowitem span{display:block;color:#78867D;font-size:10px;line-height:1.5;margin-top:4px}
-        .rv2-pain{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}.rv2-card{border:1px solid var(--line);border-radius:18px;padding:25px;background:#fff}.rv2-card.bad{background:#FFF8F6;border-color:#F0DDD7}.rv2-card.good{background:#F3FAF5;border-color:#D8EADC}.rv2-card h3{font:800 23px Fraunces;margin:0 0 9px}.rv2-card p{color:var(--muted);font-size:12px;line-height:1.6}.rv2-list{display:grid;gap:8px;margin-top:15px}.rv2-list div{font-size:11.5px;color:#4B5750}.rv2-list i{font-style:normal;font-weight:900;margin-right:8px}
-        .rv2-pricing{background:linear-gradient(#F8F7F2,#fff)}.rv2-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:42px}.rv2-plan{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;position:relative}.rv2-plan.featured{border:2px solid var(--g);box-shadow:0 24px 55px rgba(26,122,60,.14);transform:translateY(-7px)}.rv2-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--g);color:#fff;padding:5px 12px;border-radius:99px;font-size:8px;font-weight:800;white-space:nowrap}.rv2-plan h3{font:800 21px Fraunces;margin:0}.rv2-price{font:800 28px IBM Plex Mono;color:var(--g);margin-top:10px}.rv2-price small{font:10px 'IBM Plex Sans';color:#8C958F;font-weight:500}.rv2-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:8px}.rv2-plan li{font-size:11px;color:#526058}.rv2-plan li:before{content:'✓';color:var(--g);font-weight:900;margin-right:7px}.rv2-plan a{display:flex;justify-content:center;padding:12px;border-radius:9px;background:var(--g);color:#fff;font-size:11.5px;font-weight:800}
-        .rv2-faq{max-width:800px;margin:40px auto 0;display:grid;gap:8px}.rv2-faqitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.rv2-faqbutton{border:0;background:#fff;width:100%;padding:16px;text-align:left;display:flex;justify-content:space-between;cursor:pointer;font-weight:700;font-size:12.5px}.rv2-answer{padding:0 16px 16px;color:var(--muted);font-size:11.5px;line-height:1.65}
-        .rv2-final{background:radial-gradient(circle at 50% 0,rgba(46,139,87,.3),transparent 43%),linear-gradient(135deg,#06100B,#10261A);color:#fff;text-align:center;padding:95px 0}.rv2-final h2{font:900 clamp(37px,5.4vw,61px) Fraunces;line-height:.98;letter-spacing:-.05em;max-width:780px;margin:0 auto 16px}.rv2-final p{max-width:590px;margin:auto;color:#8B9890;line-height:1.7;font-size:13px}.rv2-footer{text-align:center;padding:28px 0 90px;color:#89928D;font-size:10px}.rv2-mobile{display:none}
-        @media(max-width:900px){.rv2-hero-grid{grid-template-columns:1fr}.rv2-hero{text-align:center}.rv2-sub{margin:auto}.rv2-actions,.rv2-trust{justify-content:center}.rv2-command{transform:none}.rv2-items{grid-template-columns:repeat(2,1fr)}.rv2-plans{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto}.rv2-plan.featured{transform:none}.rv2-modules{grid-template-columns:repeat(3,1fr)}.rv2-navlinks a:not(.navcta){display:none}}
-        @media(max-width:620px){.rv2-shell{width:calc(100% - 28px)}.rv2-hero{padding:45px 0 75px}.rv2-h1{font-size:43px}.rv2-actions{flex-direction:column}.rv2-btn{width:100%}.rv2-proofbox{display:block;text-align:center}.rv2-proofstats{justify-content:center;margin-top:15px;gap:15px;flex-wrap:wrap}.rv2-section{padding:65px 0}.rv2-modules{grid-template-columns:repeat(2,1fr)}.rv2-items,.rv2-pain,.rv2-flow{grid-template-columns:1fr}.rv2-panelhead{display:block}.rv2-bignumber{grid-template-columns:1fr}.rv2-bignumber>div{border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}.rv2-mobile{display:flex;position:fixed;bottom:9px;left:9px;right:9px;z-index:50;background:rgba(255,255,255,.96);padding:7px;border:1px solid #DDE4DE;border-radius:13px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rv2-mobile a{width:100%;text-align:center;background:var(--g);color:#fff;padding:13px;border-radius:9px;font-size:12px;font-weight:800}.rv2-footer{padding-bottom:90px}}
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap');
+        .rv-galaxy{--green:#1A7A3C;--green2:#2E8B57;--orange:#FF7A00;--ink:#0F172A;--dark:#06100B;--muted:#718078;--line:#E3E8E2;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);overflow:hidden;background:#fff}.rv-galaxy *{box-sizing:border-box}.rv-galaxy a{text-decoration:none}.rv-shell{width:min(1180px,calc(100% - 34px));margin:auto}.rv-display{font-family:Fraunces,serif;letter-spacing:-.05em}
+        .rv-nav{height:74px;background:#050B08;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);position:relative;z-index:10}.rv-nav-in{height:100%;display:flex;align-items:center;justify-content:space-between}.rv-logo{font:900 23px Fraunces;color:#fff}.rv-logo span{color:var(--orange)}.rv-navlinks{display:flex;gap:22px;align-items:center}.rv-navlinks a{font-size:11px;color:#9BA79F;font-weight:700}.rv-navlinks .rv-navcta{background:#fff;color:#0C1710;padding:11px 15px;border-radius:9px}
+        .rv-hero{color:#fff;background:radial-gradient(circle at 12% 5%,rgba(46,139,87,.45),transparent 29%),radial-gradient(circle at 95% 10%,rgba(255,122,0,.18),transparent 27%),linear-gradient(135deg,#040806,#0A1810 52%,#10271A);padding:72px 0 100px;position:relative}.rv-hero:after{content:"";position:absolute;inset:auto -10% -60%;height:280px;background:radial-gradient(ellipse,rgba(26,122,60,.18),transparent 65%);pointer-events:none}.rv-hero-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:60px;align-items:center}.rv-eyebrow{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,122,0,.32);background:rgba(255,122,0,.08);padding:8px 12px;border-radius:99px;color:#FFD0A1;font-size:9px;font-weight:800;letter-spacing:.12em}.rv-eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 5px rgba(255,122,0,.12)}.rv-h1{font:900 clamp(45px,6vw,76px) Fraunces;line-height:.92;margin:21px 0;letter-spacing:-.06em}.rv-h1 span{color:#83D89F}.rv-sub{font-size:16px;line-height:1.7;color:#A6B1AA;max-width:650px}.rv-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:27px}.rv-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:15px 21px;border-radius:11px;font-size:12px;font-weight:800}.rv-btn-orange{background:var(--orange);color:#101B13;box-shadow:0 18px 45px rgba(255,122,0,.25)}.rv-btn-ghost{border:1px solid rgba(255,255,255,.14);color:#fff;background:rgba(255,255,255,.04)}.rv-micro{display:flex;gap:17px;flex-wrap:wrap;margin-top:16px;color:#74827A;font-size:9.5px}.rv-micro b{color:#DCE5DF}
+        .rv-orbit{position:relative;min-height:440px}.rv-core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:230px;height:230px;border-radius:50%;background:radial-gradient(circle at 35% 25%,#1B4D2E,#0B1C12 64%);border:1px solid rgba(255,255,255,.15);box-shadow:0 0 0 22px rgba(46,139,87,.045),0 0 0 55px rgba(46,139,87,.025),0 35px 90px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;text-align:center;z-index:3}.rv-core strong{font:900 31px Fraunces}.rv-core strong span{color:var(--orange)}.rv-core small{display:block;color:#93A198;font-size:9px;letter-spacing:.08em;margin-top:6px}.rv-orbit-item{position:absolute;width:155px;padding:13px 12px;border-radius:13px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.11);backdrop-filter:blur(12px);box-shadow:0 18px 40px rgba(0,0,0,.2)}.rv-orbit-item b{font-size:11px;color:#fff}.rv-orbit-item span{display:block;font-size:8.5px;line-height:1.45;color:#839189;margin-top:4px}.rv-o1{left:0;top:12%}.rv-o2{right:0;top:5%}.rv-o3{left:-10px;bottom:10%}.rv-o4{right:-4px;bottom:12%}.rv-o5{left:50%;top:1%;transform:translateX(-50%)}.rv-o6{left:50%;bottom:0;transform:translateX(-50%)}.rv-line{position:absolute;inset:10% 6% 8%;border:1px dashed rgba(130,216,159,.15);border-radius:50%;z-index:1}
+        .rv-proof{margin-top:-37px;position:relative;z-index:4}.rv-proofbox{background:#fff;border:1px solid var(--line);border-radius:17px;box-shadow:0 25px 60px rgba(15,23,42,.11);padding:17px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px}.rv-proofstats{display:flex;gap:25px}.rv-proofstats strong{display:block;font:800 17px IBM Plex Mono;color:var(--green)}.rv-proofstats span{font-size:8.5px;color:#8B958F}
+        .rv-section{padding:92px 0}.rv-soft{background:#F7F7F2}.rv-dark{background:#07110B;color:#fff}.rv-center{text-align:center}.rv-kicker{font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--green);text-transform:uppercase;margin-bottom:10px}.rv-dark .rv-kicker{color:#82D89F}.rv-title{font:900 clamp(35px,4.8vw,58px) Fraunces;line-height:.98;letter-spacing:-.055em;margin:0}.rv-title span{color:var(--green)}.rv-lead{max-width:720px;margin:14px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rv-dark .rv-lead{color:#85928A}
+        .rv-engines{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:39px 0 16px}.rv-engine{border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px 6px;text-align:center;cursor:pointer;font-size:8px;font-weight:800;color:#65716A;transition:.2s}.rv-engine.active{background:var(--green);color:#fff;border-color:var(--green);box-shadow:0 12px 27px rgba(26,122,60,.2)}.rv-engine-icon{display:block;font-size:19px;margin-bottom:5px}.rv-engine-panel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 22px 60px rgba(15,23,42,.06)}.rv-panel-top{display:flex;justify-content:space-between;gap:30px;align-items:end}.rv-panel-top h3{font:800 30px Fraunces;margin:4px 0}.rv-panel-top p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.6}.rv-features{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:23px}.rv-feature{border:1px solid #E7EBE6;border-radius:13px;padding:16px;background:#FBFCFA}.rv-feature .ic{font-size:19px}.rv-feature h4{font-size:12.5px;margin:8px 0 4px}.rv-feature p{font-size:10px;line-height:1.55;color:var(--muted);margin:0}
+        .rv-command{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:40px}.rv-command-card{border-radius:18px;padding:24px;border:1px solid var(--line);background:#fff}.rv-command-card.dark{background:#0D2116;border-color:rgba(255,255,255,.09);color:#fff}.rv-command-card h3{font:800 25px Fraunces;margin:0 0 8px}.rv-command-card p{font-size:11px;line-height:1.6;color:var(--muted)}.rv-command-card.dark p{color:#8D9A92}.rv-mini-list{display:grid;gap:7px;margin-top:15px}.rv-mini-list div{font-size:10.5px}.rv-mini-list b{color:var(--green);margin-right:6px}
+        .rv-flow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:40px}.rv-step{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);border-radius:12px;padding:13px 7px;text-align:center}.rv-step b{font:700 15px IBM Plex Mono;color:var(--orange)}.rv-step strong{display:block;font-size:9px;margin-top:6px}.rv-step span{display:block;color:#728078;font-size:7.5px;line-height:1.4;margin-top:3px}
+        .rv-univers{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:38px}.rv-universe{border-radius:15px;padding:18px 13px;background:#fff;border:1px solid var(--line);transition:.2s}.rv-universe:hover{transform:translateY(-4px);box-shadow:0 17px 35px rgba(15,23,42,.08)}.rv-universe .big{font-size:25px}.rv-universe strong{display:block;font:800 15px Fraunces;margin-top:8px}.rv-universe p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
+        .rv-compare{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:38px}.rv-compare>div{border-radius:18px;padding:24px}.rv-bad{background:#FFF7F5;border:1px solid #F0DCD5}.rv-good{background:#F2FAF4;border:1px solid #D5E8DA}.rv-compare h3{font:800 23px Fraunces;margin:0 0 10px}.rv-compare p{font-size:11px;color:var(--muted);line-height:1.6}.rv-checks{display:grid;gap:8px;margin-top:15px}.rv-checks div{font-size:10.5px}.rv-checks i{font-style:normal;font-weight:900;margin-right:7px}
+        .rv-pricing{background:linear-gradient(#F7F7F2,#fff)}.rv-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px}.rv-plan{background:#fff;border:1px solid var(--line);border-radius:17px;padding:23px;position:relative}.rv-plan.hot{border:2px solid var(--green);box-shadow:0 25px 55px rgba(26,122,60,.14);transform:translateY(-7px)}.rv-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:5px 12px;border-radius:99px;font-size:8px;font-weight:800;white-space:nowrap}.rv-plan h3{font:800 20px Fraunces;margin:0}.rv-price{font:800 27px IBM Plex Mono;color:var(--green);margin-top:9px}.rv-price small{font:9px 'IBM Plex Sans';color:#8B958F;font-weight:500}.rv-plan ul{list-style:none;padding:0;margin:17px 0;display:grid;gap:7px}.rv-plan li{font-size:10px;color:#59645E}.rv-plan li:before{content:"✓";color:var(--green);font-weight:900;margin-right:6px}.rv-plan a{display:block;text-align:center;background:var(--green);color:#fff;padding:11px;border-radius:9px;font-size:11px;font-weight:800}
+        .rv-faq{max-width:820px;margin:37px auto 0;display:grid;gap:7px}.rv-faqitem{border:1px solid var(--line);border-radius:11px;background:#fff;overflow:hidden}.rv-faqq{width:100%;border:0;background:#fff;padding:15px;text-align:left;display:flex;justify-content:space-between;cursor:pointer;font-size:11.5px;font-weight:700}.rv-faqar{padding:0 15px 15px;color:var(--muted);font-size:10.5px;line-height:1.6}
+        .rv-final{background:radial-gradient(circle at 50% 0,rgba(46,139,87,.33),transparent 42%),linear-gradient(135deg,#040806,#10261A);color:#fff;text-align:center;padding:96px 0}.rv-final h2{font:900 clamp(39px,5.8vw,68px) Fraunces;line-height:.93;letter-spacing:-.06em;max-width:900px;margin:0 auto 17px}.rv-final h2 span{color:#82D89F}.rv-final p{max-width:620px;margin:auto;color:#8B9890;font-size:12px;line-height:1.7}.rv-footer{text-align:center;color:#89938D;font-size:9px;padding:27px 0 90px}.rv-mobile{display:none}
+        @media(max-width:950px){.rv-hero-grid{grid-template-columns:1fr}.rv-hero{text-align:center}.rv-sub{margin:auto}.rv-actions,.rv-micro{justify-content:center}.rv-orbit{max-width:600px;width:100%;margin:auto}.rv-flow{grid-template-columns:repeat(4,1fr)}.rv-univers{grid-template-columns:repeat(3,1fr)}.rv-engines{grid-template-columns:repeat(3,1fr)}.rv-navlinks a:not(.rv-navcta){display:none}}
+        @media(max-width:650px){.rv-shell{width:calc(100% - 26px)}.rv-nav{height:64px}.rv-h1{font-size:44px}.rv-hero{padding:48px 0 75px}.rv-actions{flex-direction:column}.rv-btn{width:100%}.rv-orbit{min-height:410px;transform:scale(.9);margin-top:-10px}.rv-proofbox{display:block;text-align:center}.rv-proofstats{justify-content:center;gap:15px;margin-top:15px;flex-wrap:wrap}.rv-section{padding:65px 0}.rv-engines{grid-template-columns:repeat(2,1fr)}.rv-panel-top{display:block}.rv-features,.rv-command,.rv-compare,.rv-plans{grid-template-columns:1fr}.rv-flow{grid-template-columns:repeat(2,1fr)}.rv-univers{grid-template-columns:1fr 1fr}.rv-plan.hot{transform:none}.rv-mobile{display:flex;position:fixed;bottom:8px;left:8px;right:8px;z-index:60;background:rgba(255,255,255,.96);padding:7px;border:1px solid #DCE4DD;border-radius:12px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rv-mobile a{width:100%;text-align:center;background:var(--green);color:#fff;padding:13px;border-radius:8px;font-size:11px;font-weight:800}.rv-footer{padding-bottom:88px}}
       `}</style>
 
-      <header className="rv2-nav">
-        <div className="rv2-shell rv2-nav-in">
-          <a href="?" className="rv2-logo">RECU<span>VENTE</span></a>
-          <nav className="rv2-navlinks">
-            <a href="#univers">Univers</a><a href="#fonctionnalites">Fonctionnalités</a><a href="#tarifs">Tarifs</a><a href="#faq">FAQ</a><a href="?login=1">Connexion</a>
-            <a className="navcta" href="?auth=1">Créer mon espace</a>
+      <header className="rv-nav">
+        <div className="rv-shell rv-nav-in">
+          <a href="?" className="rv-logo">RECU<span>VENTE</span></a>
+          <nav className="rv-navlinks">
+            <a href="#ecosysteme">Écosystème</a><a href="#controle">Contrôle</a><a href="#univers">Métiers</a><a href="#tarifs">Tarifs</a><a href="?login=1">Connexion</a><a href="?auth=1" className="rv-navcta">Créer mon espace →</a>
           </nav>
         </div>
       </header>
 
-      <section className="rv2-hero">
-        <div className="rv2-shell rv2-hero-grid">
+      <section className="rv-hero">
+        <div className="rv-shell rv-hero-grid">
           <div>
-            <div className="rv2-eyebrow"><span className="rv2-dot"/> UNE PLATEFORME. PLUSIEURS ACTIVITÉS. UN SEUL PILOTAGE.</div>
-            <h1 className="rv2-h1">Ton business ne devrait plus dépendre de <span>WhatsApp, Excel et ta mémoire.</span></h1>
-            <p className="rv2-sub">RecuVente réunit commandes, closing, livraison, expédition, clients, campagnes, retargeting, comptabilité, équipe et boutique en ligne — avec des espaces dédiés pour chaque rôle.</p>
-            <div className="rv2-actions">{cta("Découvrir RecuVente gratuitement")}<a href="#fonctionnalites" className="rv2-btn rv2-btn-dark">Voir tout ce que je peux faire →</a></div>
-            <div className="rv2-trust"><span>✓ <b>Un seul espace</b></span><span>✓ <b>Suivi de bout en bout</b></span><span>✓ <b>Conçu pour les réalités africaines</b></span></div>
+            <div className="rv-eyebrow"><i/> L'ÉCOSYSTÈME QUI RELIE TOUT TON BUSINESS</div>
+            <h1 className="rv-h1">Vends.<br/>Convertis.<br/><span>Livres. Encaisse.</span></h1>
+            <p className="rv-sub">Puis recommence avec les mêmes clients. RecuVente relie boutique, commandes, closing, livraison, expédition, équipe, paiements, comptabilité, campagnes, retargeting et clients dans un seul système.</p>
+            <div className="rv-actions"><a href="?auth=1" onClick={lead} className="rv-btn rv-btn-orange">🚀 Créer mon espace gratuitement →</a><a href="#ecosysteme" className="rv-btn rv-btn-ghost">Explorer l'écosystème ↓</a></div>
+            <div className="rv-micro"><span>✓ <b>Boutique incluse</b></span><span>✓ <b>Suivi opérationnel</b></span><span>✓ <b>Multi-activité</b></span><span>✓ <b>Équipe par rôle</b></span></div>
           </div>
-          <div className="rv2-command">
-            <div className="rv2-app">
-              <div className="rv2-appbar"><span style={{color:"#0F172A"}}>RECU<span>VENTE</span></span><span>Vue globale · Aujourd'hui</span></div>
-              <div className="rv2-appbody">
-                <div className="rv2-alert"><small>ARGENT À PILOTER</small><div className="rv2-money">1 240 500 <span>FCFA</span></div><div style={{fontSize:8,color:"#91A198",marginTop:3}}>Encaissements · livraisons · récupérations</div></div>
-                <div className="rv2-grid3">
-                  <div className="rv2-stat"><small>COMMANDES</small><b>148</b></div><div className="rv2-stat"><small>À LIVRER</small><b>23</b></div><div className="rv2-stat"><small>URGENTES</small><b>7</b></div>
-                </div>
-                <div className="rv2-orders">
-                  <div style={{padding:"10px",fontSize:9,fontWeight:800}}>ACTIVITÉ EN DIRECT</div>
-                  {["Commande #1842 · Koffi Y.","Commande #1841 · Aminata K.","Commande #1840 · Fatou D.","Livreur A · 8 commandes"].map((x,i)=><div className="rv2-order" key={x}><span style={{background:"none",color:"#26382D",padding:0}}>{x}</span><span>{["Livrée ✓","Confirmée","À livrer","En tournée"][i]}</span></div>)}
-                </div>
-              </div>
-            </div>
+          <div className="rv-orbit" aria-label="Écosystème RecuVente">
+            <div className="rv-line"/>
+            <div className="rv-core"><div><strong>RECU<span>VENTE</span></strong><small>ONE BUSINESS OS</small></div></div>
+            <div className="rv-orbit-item rv-o1"><b>💰 VENDRE</b><span>Boutique · produits · Shopify · pixels</span></div>
+            <div className="rv-orbit-item rv-o2"><b>🧠 CONVERTIR</b><span>Closing · appels · qualification · anti-doublons</span></div>
+            <div className="rv-orbit-item rv-o3"><b>🚚 LIVRER</b><span>Attribution · GPS · suivi · reprogrammation</span></div>
+            <div className="rv-orbit-item rv-o4"><b>💵 ENCAISSER</b><span>Paiements · dépôts · factures · bénéfice</span></div>
+            <div className="rv-orbit-item rv-o5"><b>🔁 RÉACTIVER</b><span>Clients · WhatsApp · campagnes · retargeting</span></div>
+            <div className="rv-orbit-item rv-o6"><b>🧭 PILOTER</b><span>Équipe · audit · statistiques · activités</span></div>
           </div>
         </div>
       </section>
 
-      <div className="rv2-shell rv2-proof">
-        <div className="rv2-proofbox">
-          <div><strong>Le plus important : tu retrouves enfin une vision globale.</strong><div style={{fontSize:10,color:"#89938D",marginTop:3}}>Et tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</div></div>
-          <div className="rv2-proofstats">
-            <div><strong>{statsPlateforme?.nb_commandes_confirmees ? Number(statsPlateforme.nb_commandes_confirmees).toLocaleString("fr-FR") : "360°"}</strong><span>vision commandes</span></div>
-            <div><strong>24/7</strong><span>accès en ligne</span></div>
-            <div><strong>1</strong><span>écosystème</span></div>
+      <div className="rv-shell rv-proof">
+        <div className="rv-proofbox">
+          <div><strong style={{fontSize:13}}>Une seule vérité opérationnelle.</strong><div style={{fontSize:9,color:"#89938D",marginTop:3}}>Du premier clic publicitaire jusqu'à l'argent réellement encaissé.</div></div>
+          <div className="rv-proofstats">
+            <div><strong>{stats?.nb_commandes_confirmees ? Number(stats.nb_commandes_confirmees).toLocaleString("fr-FR") : "360°"}</strong><span>vision commandes</span></div>
+            <div><strong>1</strong><span>écosystème</span></div><div><strong>24/7</strong><span>accès</span></div>
           </div>
         </div>
       </div>
 
-      <section id="univers" className="rv2-section">
-        <div className="rv2-shell">
-          <div className="rv2-center"><div className="rv2-kicker">Ce n'est pas « juste un outil de livraison »</div><h2 className="rv2-title">C'est un <span>écosystème de gestion.</span></h2><p className="rv2-lead">Choisis un univers et découvre comment RecuVente peut accompagner une activité réelle, de l'acquisition jusqu'au suivi opérationnel.</p></div>
-          <div className="rv2-modules">
-            {Object.entries(modules).map(([key,m],i)=><button className={`rv2-module ${activeModule===key?"active":""}`} key={key} onClick={()=>setActiveModule(key)}><span className="rv2-module-icon">{["🛒","🎯","👥","🛍️","🏠","🍽️"][i]}</span>{m.label}</button>)}
-          </div>
-          <div className="rv2-modulepanel">
-            <div className="rv2-panelhead"><div><div className="rv2-kicker">{modules[activeModule].label}</div><h3>{modules[activeModule].title}</h3></div><p>{modules[activeModule].desc}</p></div>
-            <div className="rv2-items">{modules[activeModule].items.map(([icon,title,desc])=><div className="rv2-item" key={title}><div className="rv2-item-icon">{icon}</div><h4>{title}</h4><p>{desc}</p></div>)}</div>
+      <section id="ecosysteme" className="rv-section">
+        <div className="rv-shell">
+          <div className="rv-center"><div className="rv-kicker">Six moteurs. Un seul système.</div><h2 className="rv-title">RecuVente ne gère pas une étape.<br/><span>Il relie toute la chaîne.</span></h2><p className="rv-lead">Clique sur un moteur et découvre ce que ton équipe peut réellement piloter.</p></div>
+          <div className="rv-engines">{Object.entries(engines).map(([key,v])=><button key={key} onClick={()=>setEngine(key)} className={`rv-engine ${engine===key?"active":""}`}><span className="rv-engine-icon">{v.icon}</span>{v.label}</button>)}</div>
+          <div className="rv-engine-panel">
+            <div className="rv-panel-top"><div><div className="rv-kicker">{e.label}</div><h3>{e.title}</h3></div><p>{e.text}</p></div>
+            <div className="rv-features">{e.points.map(([icon,title,desc])=><div className="rv-feature" key={title}><div className="ic">{icon}</div><h4>{title}</h4><p>{desc}</p></div>)}</div>
           </div>
         </div>
       </section>
 
-      <section id="fonctionnalites" className="rv2-section rv2-dark">
-        <div className="rv2-shell">
-          <div className="rv2-center"><div className="rv2-kicker">Le niveau de contrôle</div><h2 className="rv2-title">Chaque détail compte.<br/><span>RecuVente le garde.</span></h2><p className="rv2-lead">Tu peux partir d'une vue globale puis descendre jusqu'à la moindre information qui explique ce qui s'est passé.</p></div>
-          <div className="rv2-flow">
-            {[["01","Acquisition","Campagne → boutique → pixel → commande."],["02","Closing","Appel → confirmation → qualification → attribution."],["03","Livraison","Livreur → tournée → livré/non livré → dépôt."],["04","Fidélisation","Historique → segmentation → WhatsApp → retargeting."]].map(x=><div className="rv2-flowitem" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}
+      <section id="controle" className="rv-section rv-dark">
+        <div className="rv-shell">
+          <div className="rv-center"><div className="rv-kicker">La chaîne complète</div><h2 className="rv-title">Du <span>premier clic</span><br/>au dernier franc.</h2><p className="rv-lead">Chaque étape produit une information. RecuVente transforme ces informations en contrôle.</p></div>
+          <div className="rv-flow">
+            {[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map(([n,t,d])=><div className="rv-step" key={n}><b>{n}</b><strong>{t}</strong><span>{d}</span></div>)}
           </div>
-          <div className="rv2-bignumber">
-            <div><div className="rv2-big">Commande → Client</div><p>Retrouve le client, son historique, les appels, le statut, le produit, le livreur et le résultat de la livraison.</p></div>
-            <div><div className="rv2-big">Livreur → Argent</div><p>Vois ce que chaque livreur a reçu, livré, non livré et ce qu'il doit déposer. La comptabilité opérationnelle devient lisible.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rv2-section rv2-soft">
-        <div className="rv2-shell">
-          <div className="rv2-center"><div className="rv2-kicker">Pourquoi les équipes perdent de l'argent</div><h2 className="rv2-title">Le problème n'est pas toujours<br/>le manque de ventes.</h2><p className="rv2-lead">C'est le manque de traçabilité entre ce qui a été vendu, confirmé, remis, livré et encaissé.</p></div>
-          <div className="rv2-pain">
-            <div className="rv2-card bad"><h3>Sans système central</h3><p>Les informations se dispersent entre messages, appels, carnets et fichiers.</p><div className="rv2-list">{["Un doublon passe entre les mailles","Un faux numéro fait perdre du temps","On ne sait plus ce que le livreur a réellement reçu","Une commande échouée disparaît dans le flux","Le client veut demain mais personne ne reprogramme","Le chiffre d'affaires ne raconte pas toute l'histoire"].map(x=><div key={x}><i style={{color:"#C94C38"}}>×</i>{x}</div>)}</div></div>
-            <div className="rv2-card good"><h3>Avec RecuVente</h3><p>Chaque étape devient une information exploitable et chaque rôle sait quoi faire.</p><div className="rv2-list">{["Détection des commandes doubles/suspectes","Qualification précise des appels","Traçabilité closing → livreur → client","Commandes validées, échouées et reprogrammées","Urgences du jour visibles le matin","Vue globale + détail quand tu en as besoin"].map(x=><div key={x}><i style={{color:"#1A7A3C"}}>✓</i>{x}</div>)}</div></div>
+          <div className="rv-command">
+            <div className="rv-command-card"><h3>Tu veux savoir ce qui s'est passé ?</h3><p>Descends du tableau de bord jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de l'équipe.</p><div className="rv-mini-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map(x=><div key={x}><b>✓</b>{x}</div>)}</div></div>
+            <div className="rv-command-card dark"><h3>Tu veux savoir où est ton argent ?</h3><p>Relie ventes, paiements, acomptes, commissions, dépôts, coûts et bénéfice réel.</p><div className="rv-mini-list">{["Montant encaissé","À récupérer","Dépôt attendu du livreur","Coût du produit","Bénéfice réel"].map(x=><div key={x}><b>→</b>{x}</div>)}</div></div>
           </div>
         </div>
       </section>
 
-      <section id="tarifs" className="rv2-section rv2-pricing">
-        <div className="rv2-shell">
-          <div className="rv2-center"><div className="rv2-kicker">Grandir sans changer de système</div><h2 className="rv2-title">Choisis ton niveau.<br/><span>Construis le tien.</span></h2><p className="rv2-lead">Commence avec les fonctions adaptées à ton activité et évolue avec RecuVente.</p></div>
-          <div className="rv2-plans">
-            {plans.map((p,i)=><div className={`rv2-plan ${i===1?"featured":""}`} key={p.id}>{i===1&&<div className="rv2-badge">LE PLUS CHOISI</div>}<h3>{p.nom}</h3><div className="rv2-price">{Number(p.prix).toLocaleString("fr-FR")} <small>{p.devise}/mois</small></div><ul><li>Gestion des commandes</li><li>Clients & produits</li><li>{p.max_membres ? `${p.max_membres} membres max` : "Membres selon le plan"}</li><li>Tableau de bord</li><li>Évolution selon le plan</li></ul><a href="?auth=1">Commencer</a></div>)}
+      <section id="univers" className="rv-section rv-soft">
+        <div className="rv-shell">
+          <div className="rv-center"><div className="rv-kicker">Pas seulement pour le COD</div><h2 className="rv-title">Une plateforme qui <span>s'adapte à ton métier.</span></h2><p className="rv-lead">Le code de RecuVente prévoit plusieurs types d'activités. Un même compte peut aussi gérer plusieurs espaces.</p></div>
+          <div className="rv-univers">{univers.map(([icon,title,desc])=><div className="rv-universe" key={title}><div className="big">{icon}</div><strong>{title}</strong><p>{desc}</p></div>)}</div>
+        </div>
+      </section>
+
+      <section className="rv-section">
+        <div className="rv-shell">
+          <div className="rv-center"><div className="rv-kicker">Le changement</div><h2 className="rv-title">Avant, tu gérais des morceaux.<br/><span>Maintenant, tu pilotes un système.</span></h2></div>
+          <div className="rv-compare">
+            <div className="rv-bad"><h3>❌ Le chaos opérationnel</h3><p>WhatsApp, cahiers, Excel, appels, captures d'écran, calculs manuels et informations dispersées.</p><div className="rv-checks">{["Commande introuvable","Doublon non détecté","Livreur difficile à contrôler","Acompte oublié","Relance oubliée","Bénéfice réel inconnu"].map(x=><div key={x}><i style={{color:"#D64933"}}>×</i>{x}</div>)}</div></div>
+            <div className="rv-good"><h3>✓ Le système RecuVente</h3><p>Une donnée saisie une fois devient utile à plusieurs étapes de ton activité.</p><div className="rv-checks">{["Commande traçable","Doublon repérable","Livreur suivi","Paiement rapprochable","Client réactivable","Rentabilité lisible"].map(x=><div key={x}><i style={{color:"#1A7A3C"}}>✓</i>{x}</div>)}</div></div>
           </div>
         </div>
       </section>
 
-      <section id="faq" className="rv2-section rv2-soft">
-        <div className="rv2-shell"><div className="rv2-center"><div className="rv2-kicker">FAQ</div><h2 className="rv2-title">Une question ? <span>Une réponse.</span></h2></div><div className="rv2-faq">{faqs.map(([q,a],i)=><div className="rv2-faqitem" key={q}><button className="rv2-faqbutton" onClick={()=>setFaqOuverte(faqOuverte===i?null:i)}><span>{q}</span><span>{faqOuverte===i?"−":"+"}</span></button>{faqOuverte===i&&<div className="rv2-answer">{a}</div>}</div>)}</div></div>
+      <section id="tarifs" className="rv-section rv-pricing">
+        <div className="rv-shell">
+          <div className="rv-center"><div className="rv-kicker">Commence petit. Devient grand.</div><h2 className="rv-title">Ton business évolue.<br/><span>RecuVente aussi.</span></h2><p className="rv-lead">Choisis le plan affiché par ta plateforme et commence à construire ton système.</p></div>
+          <div className="rv-plans">{plans.map((p,i)=><div className={`rv-plan ${i===1?"hot":""}`} key={p.id}>{i===1&&<div className="rv-badge">LE PLUS CHOISI</div>}<h3>{p.nom}</h3><div className="rv-price">{Number(p.prix).toLocaleString("fr-FR")} <small>{p.devise}/mois</small></div><ul><li>{p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes selon le plan"}</li><li>{p.max_membres ? `${p.max_membres} membres max` : "Membres selon le plan"}</li><li>Commandes & clients</li><li>Produits & activité</li><li>Tableau de bord</li></ul><a href="?auth=1" onClick={lead}>Créer mon espace</a></div>)}</div>
+        </div>
       </section>
 
-      <section className="rv2-final">
-        <div className="rv2-shell"><div className="rv2-kicker">Le prochain niveau</div><h2>Tu n'as pas besoin de plus d'outils.<br/>Tu as besoin d'un <span style={{color:"#82D69E"}}>système.</span></h2><p>Centralise ton activité, donne à chaque membre son espace, retrouve chaque commande et transforme tes données clients en nouvelles opportunités.</p>{cta("Créer mon espace RecuVente →")}<div style={{fontSize:9,color:"#697970",marginTop:12}}>Commandes · Closing · Livraison · Campagnes · Retargeting · Boutique · Immobilier · Restaurant</div></div>
+      <section className="rv-section rv-soft">
+        <div className="rv-shell"><div className="rv-center"><div className="rv-kicker">Questions avant de commencer</div><h2 className="rv-title">Pas de zone grise.<br/><span>On t'explique tout.</span></h2></div><div className="rv-faq">{faq.map((f,i)=><div className="rv-faqitem" key={f[0]}><button className="rv-faqq" onClick={()=>setFaq(faq===i?null:i)}><span>{f[0]}</span><span>{faq===i?"−":"+"}</span></button>{faq===i&&<div className="rv-faqar">{f[1]}</div>}</div>)}</div></div>
       </section>
 
-      <footer className="rv2-footer">RecuVente — Un seul écosystème pour piloter plusieurs activités.<br/><a href="?page=cgu" style={{color:"#89928D",textDecoration:"underline"}}>Conditions</a> · <a href="?page=confidentialite" style={{color:"#89928D",textDecoration:"underline"}}>Confidentialité</a></footer>
-      <div className="rv2-mobile"><a href="?auth=1">🚀 Commencer avec RecuVente</a></div>
+      <section className="rv-final">
+        <div className="rv-shell">
+          <div className="rv-kicker">Bienvenue dans une autre façon de travailler</div>
+          <h2>Ton activité mérite plus que des outils séparés.<br/><span>Elle mérite un système.</span></h2>
+          <p>Crée ton espace RecuVente et commence à connecter tes ventes, tes clients, ton équipe, tes opérations et ton argent.</p>
+          <div style={{marginTop:27}}><a href="?auth=1" onClick={lead} className="rv-btn rv-btn-orange">🚀 Créer mon espace RecuVente →</a></div>
+          <div style={{fontSize:8.5,color:"#697970",marginTop:12}}>Vendre · Convertir · Livrer · Encaisser · Réactiver · Piloter</div>
+        </div>
+      </section>
+
+      <footer className="rv-footer">
+        RecuVente — L'écosystème de gestion qui relie ton activité.
+        <div style={{marginTop:7,display:"flex",gap:15,justifyContent:"center",flexWrap:"wrap"}}>
+          <a href="?page=impact" style={{color:"#89938D",textDecoration:"underline"}}>Rapport d'impact</a>
+          <a href="?page=cgu" style={{color:"#89938D",textDecoration:"underline"}}>Conditions</a>
+          <a href="?page=confidentialite" style={{color:"#89938D",textDecoration:"underline"}}>Confidentialité</a>
+        </div>
+      </footer>
+      <div className="rv-mobile"><a href="?auth=1" onClick={lead}>🚀 Commencer avec RecuVente</a></div>
     </div>
   );
 }

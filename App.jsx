@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
@@ -327,213 +327,84 @@ function LandingPage() {
   }
 
   const modules = [
-    { id:"01", icon:"🛍️", name:"VENDRE", title:"Transforme ton acquisition en commandes traçables.", text:"Boutique, produits, collections, Shopify, pixels et catalogue : tout part d'une même source.", items:["Boutique publique personnalisable","Produits, collections, galerie et avis","Import de catalogue CSV","Connexion Shopify et commandes automatiques","Pixels et suivi publicitaire","Stock et rentabilité produit"] },
-    { id:"02", icon:"🎯", name:"CONVERTIR", title:"Aucune commande ne doit rester sans responsable.", text:"Les closers voient quoi appeler, suivent les statuts et gardent l'historique de chaque interaction.", items:["Interface dédiée aux closers","Historique des appels et statuts","Détection des doublons et numéros suspects","Client confirmé, refusé ou injoignable","WhatsApp directement depuis le client","Récupération des ventes à risque"] },
-    { id:"03", icon:"🚚", name:"LIVRER", title:"Le dernier kilomètre devient pilotable.", text:"Attribue, suis, mesure et reprogramme les livraisons depuis un même environnement.", items:["Interface dédiée aux livreurs","Suivi GPS des livreurs en tournée","Attribution des commandes","Livrée, échouée ou à reprogrammer","Priorités et urgences du jour","Lien/code de suivi pour le client"] },
-    { id:"04", icon:"💵", name:"ENCAISSER", title:"Du paiement au bénéfice réel.", text:"Relie ventes, paiements, acomptes, dépôts, commissions, coûts et rentabilité.", items:["Cash et Mobile Money","Orange Money, Wave, MTN, Moov","Rapprochement des paiements","Factures PDF et reçus","Dépôts et commissions des livreurs","Bénéfice réel après coûts et frais"] },
-    { id:"05", icon:"🔁", name:"RÉACTIVER", title:"Ton historique client devient un actif commercial.", text:"Retrouve les clients, leurs achats et les opportunités de relance au lieu de repartir de zéro.", items:["Nouveaux et anciens clients","Clients 1 fois, 2 fois ou plus","Historique d'achat","Campagnes et retargeting","Relances WhatsApp","Récupération des clients dormants"] },
-    { id:"06", icon:"🧭", name:"PILOTER", title:"Une équipe. Une vision. Une vérité.", text:"Direction, closers, livreurs et comptabilité travaillent autour des mêmes informations.", items:["Closer, livreur, comptable, responsable","Rôles et permissions","Plusieurs activités / espaces","Statistiques globales et détaillées","Traçabilité des opérations","Exports et journal d'audit"] }
-  ];
-
-  const growthFeatures = [
-    { icon:"🛰️", title:"Radar des fuites", text:"Identifie les zones de friction : commandes non traitées, ventes à risque, livraisons à contrôler et opportunités de récupération." },
-    { icon:"🎯", title:"Centre d'actions", text:"Transforme les données en priorités : rappeler, récupérer, contrôler, relancer ou analyser." },
-    { icon:"♻️", title:"Recovery Center", text:"Centralise les commandes échouées, reprogrammables et les opportunités de récupération." },
-    { icon:"🧠", title:"Score Business", text:"Une lecture synthétique de la santé opérationnelle pour savoir où concentrer tes efforts." },
-    { icon:"🚨", title:"Alertes intelligentes", text:"Fais remonter les anomalies et les situations qui méritent une vérification rapide." },
-    { icon:"👑", title:"CEO Dashboard", text:"Une vue de direction pour comprendre l'activité, l'argent, l'équipe et les priorités." }
-  ];
-
-  const metiers = [
-    ["🛍️", "Boutique en ligne", "Produits, commandes, Shopify, catalogue, closing, livraison, paiements et réactivation."],
-    ["🏪", "Commerce / magasin", "Ventes en boutique, stock, produits, clients, paiements, bénéfice et équipe."],
-    ["🍽️", "Restaurant", "Tables, menus, commandes sur place, à emporter ou en livraison, paiements et suivi."],
-    ["🏠", "Location de maisons", "Biens, locataires, périodes, loyers, cautions, paiements, échéances et reçus."],
-    ["🚗", "Location de voitures", "Véhicules, disponibilité, réservations, périodes, tarifs, cautions et paiements."],
-    ["📦", "Vente / COD", "Commandes issues de WhatsApp ou publicité, appels, confirmation, livraison et récupération."]
-  ];
-
-  const faqs = [
-    ["RecuVente est-il uniquement destiné au e-commerce ?", "Non. RecuVente est pensé pour plusieurs métiers : boutique en ligne, vente COD, commerce ou magasin physique, restaurant, location de maisons et location de voitures. Chaque activité utilise les briques adaptées à son fonctionnement."],
-    ["Puis-je créer ma propre boutique ?", "Oui. Tu peux créer un espace boutique avec produits, collections, galerie et avis clients, puis le partager à tes clients."],
-    ["Puis-je connecter Shopify ?", "Oui. RecuVente prévoit l'import de catalogue et la réception automatique des commandes Shopify via webhook."],
-    ["Mes livreurs et mes closers ont-ils leur propre espace ?", "Oui. L'application prévoit des interfaces adaptées aux différents rôles : closer, livreur, comptable et responsable."],
-    ["Puis-je suivre mes livreurs ?", "Oui. Le système prévoit le suivi des livreurs en tournée et l'analyse de leurs performances et de leurs commandes."],
-    ["Puis-je gérer plusieurs activités ?", "Oui. Tu peux créer plusieurs espaces d'activité et passer de l'un à l'autre selon ton organisation."],
-    ["Est-ce que RecuVente gère les paiements ?", "Oui. Le code prévoit notamment le cash, plusieurs Mobile Money, les acomptes, les dépôts livreurs, les factures et l'analyse de rentabilité."],
-    ["Est-ce que je peux relancer mes anciens clients ?", "Oui. L'historique client permet de travailler sur les nouveaux clients, les anciens clients et les clients ayant acheté plusieurs fois."],
-    ["Les nouvelles fonctions d'intelligence sont-elles déjà disponibles ?", "Les fonctions déjà présentes dans ton espace sont présentées comme disponibles. Les fonctions avancées comme le Score Business, certaines alertes intelligentes ou le simulateur peuvent être activées progressivement selon la version du produit."]
+    { id:"01", icon:"🛍️", name:"VENDRE", title:"Ta boutique devient ton point de départ.", text:"Crée rapidement ta boutique en ligne, ajoute tes produits, tes collections et tes avis. Connecte Shopify et ajoute tes pixels pour relier acquisition et ventes.", items:["Boutique publique personnalisable","Produits, collections, galerie et avis","Import de catalogue CSV","Connexion Shopify et commandes automatiques","Pixels et suivi publicitaire","Stock et rentabilité produit"] },
+    { id:"02", icon:"🎯", name:"CONVERTIR", title:"Chaque commande raconte une histoire.", text:"Ton équipe sait qui appeler, quoi faire et pourquoi. Les commandes en double, les numéros invalides et les appels sans réponse ne restent plus invisibles.", items:["Interface dédiée aux closers","Historique des appels et statuts","Doublons et commandes suspectes","Client confirmé, refusé ou injoignable","WhatsApp directement depuis le client","Centre de récupération des ventes à risque"] },
+    { id:"03", icon:"🚚", name:"LIVRER", title:"Le dernier kilomètre, sous contrôle.", text:"Attribue les commandes, suis les tournées, mesure les performances et reprogramme les clients qui souhaitent être livrés plus tard.", items:["Interface dédiée aux livreurs","Suivi GPS des livreurs en tournée","Commande attribuée à chaque livreur","Livrée, échouée, à reprogrammer","Priorités et urgences du jour","Lien/code de suivi pour le client"] },
+    { id:"04", icon:"💵", name:"ENCAISSER", title:"Enfin, tu sais où va ton argent.", text:"Relie les ventes, les paiements, les acomptes, les dépôts livreurs, les commissions, les coûts et le bénéfice réel.", items:["Cash et Mobile Money","Orange Money, Wave, MTN, Moov","Rapprochement des paiements","Factures PDF et reçus","Dépôts et commissions des livreurs","Bénéfice réel après coûts et frais"] },
+    { id:"05", icon:"🔁", name:"RÉACTIVER", title:"Tes anciens clients sont un actif.", text:"Segmente ta base, retrouve les habitudes d'achat et relance les clients qui connaissent déjà ta marque. La prochaine vente peut être dans ton historique.", items:["Nouveaux et anciens clients","Clients 1 fois, 2 fois ou plus","Historique d'achat","Campagnes et retargeting","Relances WhatsApp","Récupération des clients dormants"] },
+    { id:"06", icon:"🧭", name:"PILOTER", title:"Une équipe. Une vision. Une vérité.", text:"Chaque rôle dispose de son interface et la direction conserve une vision globale des opérations, des produits, des équipes et de l'argent.", items:["Closer, livreur, comptable, responsable","Rôles et permissions","Plusieurs activités / espaces","Statistiques globales et détaillées","Traçabilité des opérations","Exports et journal d'audit"] }
   ];
 
   const activeModule = modules.find((m) => m.id === active) || modules[0];
-  const commandes = stats?.nb_commandes_confirmees ? Number(stats.nb_commandes_confirmees).toLocaleString("fr-FR") : "—";
-  const montant = stats?.montant_total_confirme ? Number(stats.montant_total_confirme).toLocaleString("fr-FR") : null;
+
+  const metiers = [
+    ["🛒", "E-commerce COD", "Vente, closing, livraison, récupération et retargeting."],
+    ["🏪", "Commerce physique", "Stock, ventes, acomptes, paiements et bénéfice."],
+    ["🏠", "Immobilier", "Locataires, loyers, paiements et reçus."],
+    ["🍽️", "Restaurant", "Tables, menus, préparation, service et livraison."],
+    ["🚗", "Location", "Véhicules ou matériel, dates, disponibilité et cautions."]
+  ];
+
+  const faqs = [
+    ["RecuVente est-il uniquement destiné au e-commerce ?", "Non. Le système prévoit plusieurs univers : e-commerce COD, commerce physique, immobilier, restaurant et location de véhicules ou matériel."],
+    ["Puis-je créer ma propre boutique ?", "Oui. Tu peux créer un espace boutique avec produits, collections, galerie et avis clients, puis le partager à tes clients."],
+    ["Puis-je connecter Shopify ?", "Oui. RecuVente prévoit l'import de catalogue et la réception automatique des commandes Shopify via webhook."],
+    ["Mes livreurs et mes closers ont-ils leur propre espace ?", "Oui. L'application prévoit des interfaces adaptées aux différents rôles de l'équipe : closer, livreur, comptable et responsable."],
+    ["Puis-je suivre mes livreurs ?", "Oui. Le système prévoit le suivi des livreurs en tournée et l'analyse de leurs performances et de leurs commandes."],
+    ["Puis-je gérer plusieurs activités ?", "Oui. Tu peux créer plusieurs espaces d'activité et passer de l'un à l'autre selon ton organisation."],
+    ["Est-ce que RecuVente gère les paiements ?", "Oui. Le code prévoit notamment le cash, plusieurs Mobile Money, les acomptes, les dépôts livreurs, les factures et l'analyse de rentabilité."],
+    ["Est-ce que je peux relancer mes anciens clients ?", "Oui. L'historique client permet de travailler sur les nouveaux clients, les anciens clients et les clients ayant acheté plusieurs fois."]
+  ];
 
   return (
     <div className="rvx">
       <style>{`
-        .rvx{--g:#1a7a3c;--g2:#2e8b57;--o:#ff7a00;--ink:#07100b;--muted:#68766e;--cream:#f6f8f3;--line:#dfe7e0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}.rvx *{box-sizing:border-box}.rvx a{text-decoration:none}.rvx button{font-family:inherit}.rvx .wrap{width:min(1180px,calc(100% - 34px));margin:auto}.rvx .serif{font-family:Georgia,"Times New Roman",serif;letter-spacing:-.055em}
-        .rvx-nav{height:72px;background:rgba(5,13,9,.96);backdrop-filter:blur(16px);color:#fff;display:flex;align-items:center;position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,.08)}.rvx-navin{display:flex;justify-content:space-between;align-items:center}.rvx-brand{font:800 23px Georgia,serif;color:#fff}.rvx-brand em{color:var(--o);font-style:normal}.rvx-navlinks{display:flex;gap:21px;align-items:center}.rvx-navlinks a{color:#9ba89f;font-size:11px;font-weight:750}.rvx-navlinks a:hover{color:#fff}.rvx-navlinks .cta{background:#fff;color:#07100b;padding:11px 15px;border-radius:9px;box-shadow:0 8px 25px rgba(255,255,255,.08)}
-        .rvx-hero{position:relative;background:radial-gradient(circle at 12% 0,rgba(46,139,87,.55),transparent 29%),radial-gradient(circle at 92% 7%,rgba(255,122,0,.2),transparent 24%),linear-gradient(135deg,#020604,#07120c 47%,#10251a);color:#fff;padding:78px 0 100px;overflow:hidden}.rvx-hero:after{content:"";position:absolute;width:620px;height:620px;right:-260px;bottom:-360px;border-radius:50%;border:1px solid rgba(132,216,159,.1);box-shadow:0 0 0 60px rgba(132,216,159,.025),0 0 0 125px rgba(132,216,159,.015);pointer-events:none}.rvx-hero-grid{position:relative;z-index:2;display:grid;grid-template-columns:1.02fr .98fr;gap:54px;align-items:center}.rvx-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,122,0,.35);background:rgba(255,122,0,.08);border-radius:999px;padding:8px 12px;font-size:9px;font-weight:850;letter-spacing:.11em;color:#ffd3aa}.rvx-dot{width:7px;height:7px;border-radius:50%;background:var(--o);box-shadow:0 0 0 5px rgba(255,122,0,.12)}.rvx-h1{font:900 clamp(47px,6.1vw,78px) Georgia,serif;line-height:.91;margin:21px 0;letter-spacing:-.068em;max-width:720px}.rvx-h1 span{color:#84d89f}.rvx-lead{font-size:16px;line-height:1.72;color:#a9b4ad;max-width:680px}.rvx-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}.rvx-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:15px 20px;font-size:12px;font-weight:850;transition:transform .2s ease,box-shadow .2s ease}.rvx-btn:hover{transform:translateY(-2px)}.rvx-primary{background:var(--o);color:#0c150f;box-shadow:0 18px 50px rgba(255,122,0,.22)}.rvx-secondary{color:#fff;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04)}.rvx-trust{display:flex;gap:17px;flex-wrap:wrap;margin-top:16px;color:#718078;font-size:9px}.rvx-trust b{color:#dfe8e2}
-        .rvx-hero-note{display:flex;gap:12px;align-items:center;margin-top:20px;color:#7f8d85;font-size:9px}.rvx-hero-note strong{color:#dfe8e2}.rvx-hero-note .shield{width:29px;height:29px;border:1px solid rgba(132,216,159,.2);border-radius:9px;display:grid;place-items:center;background:rgba(132,216,159,.05)}
-        .rvx-command{min-height:485px;position:relative}.rvx-command-shell{position:absolute;inset:15px 0 0 18px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.085),rgba(255,255,255,.035));box-shadow:0 35px 100px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);backdrop-filter:blur(15px);overflow:hidden}.rvx-command-top{height:45px;display:flex;align-items:center;justify-content:space-between;padding:0 17px;border-bottom:1px solid rgba(255,255,255,.07);font-size:8px;color:#7f8d85}.rvx-command-dots{display:flex;gap:5px}.rvx-command-dots span{width:6px;height:6px;border-radius:50%;background:#415047}.rvx-command-body{padding:18px}.rvx-command-title{font:800 22px Georgia,serif;letter-spacing:-.035em}.rvx-command-sub{font-size:8px;color:#728078;margin-top:4px}.rvx-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:16px}.rvx-kpi{padding:12px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.035)}.rvx-kpi small{display:block;color:#718078;font-size:7px;text-transform:uppercase;letter-spacing:.08em}.rvx-kpi strong{display:block;margin-top:5px;font:800 15px monospace;color:#eaf3ed}.rvx-kpi.green strong{color:#82d89f}.rvx-kpi.orange strong{color:#ff9b42}.rvx-dashboard-row{display:grid;grid-template-columns:1.15fr .85fr;gap:8px;margin-top:8px}.rvx-mini-card{padding:13px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}.rvx-mini-head{display:flex;justify-content:space-between;color:#9eaaa3;font-size:8px;font-weight:800}.rvx-mini-line{height:6px;border-radius:999px;background:rgba(255,255,255,.06);margin-top:10px;overflow:hidden}.rvx-mini-line i{display:block;height:100%;width:74%;background:#2e8b57;border-radius:999px}.rvx-action{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.055);font-size:8px;color:#c7d0ca}.rvx-action:last-child{border-bottom:0}.rvx-action b{color:#ff9b42;font-size:7px}.rvx-floating{position:absolute;right:-12px;bottom:15px;width:205px;padding:13px;border-radius:14px;background:#f9fbf8;color:#102017;box-shadow:0 22px 60px rgba(0,0,0,.38);border:1px solid #dfe8e1}.rvx-floating small{font-size:7px;text-transform:uppercase;letter-spacing:.1em;color:#6e7c74;font-weight:900}.rvx-floating strong{display:block;font:800 21px monospace;margin-top:4px}.rvx-floating span{display:block;margin-top:4px;font-size:8px;color:#6e7c74}.rvx-proof{margin-top:-34px;position:relative;z-index:5}.rvx-proofbox{background:#fff;border:1px solid #e0e7e0;border-radius:18px;padding:18px 22px;box-shadow:0 24px 65px rgba(15,23,42,.1);display:flex;justify-content:space-between;align-items:center;gap:20px}.rvx-proofstats{display:flex;gap:27px}.rvx-proofstats strong{display:block;color:var(--g);font:800 17px monospace}.rvx-proofstats small{color:#8b958f;font-size:8px}.rvx-proof-copy b{font-size:13px}.rvx-proof-copy div{font-size:9px;color:#8b958f;margin-top:4px}
-        .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:720px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
-        .rvx-problem{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:center;margin-top:48px}.rvx-problem-copy h3{font:900 clamp(31px,4vw,48px) Georgia,serif;line-height:.98;letter-spacing:-.055em;margin:0}.rvx-problem-copy h3 span{color:#d34a37}.rvx-problem-copy p{max-width:530px;color:#6f7b74;font-size:13px;line-height:1.75;margin-top:17px}.rvx-leaks{display:grid;gap:7px}.rvx-leak{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:11px;padding:13px 15px;border:1px solid #eaded9;background:#fff;border-radius:12px;box-shadow:0 9px 28px rgba(25,35,29,.045)}.rvx-leak b{width:29px;height:29px;border-radius:8px;background:#fff0ec;color:#c54b38;display:grid;place-items:center;font-size:11px}.rvx-leak strong{font-size:10px}.rvx-leak span{font-size:8px;color:#9a857e}.rvx-leak em{font-style:normal;font-size:8px;color:#c54b38;font-weight:900}
-        .rvx-reveal{margin-top:54px;padding:28px;border-radius:21px;background:linear-gradient(135deg,#09130e,#10241a);color:#fff;display:grid;grid-template-columns:1fr auto;align-items:center;gap:20px;box-shadow:0 28px 75px rgba(5,16,10,.18)}.rvx-reveal h3{font:900 27px Georgia,serif;letter-spacing:-.04em;margin:0}.rvx-reveal p{font-size:10px;line-height:1.6;color:#8c9a91;margin:7px 0 0}.rvx-reveal .rvx-btn{white-space:nowrap}
-        .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}.rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab i{display:block;font-style:normal;font-size:16px;margin-bottom:5px}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff}.rvx-module{border:1px solid #dfe7df;border-radius:19px;background:#fff;padding:26px;box-shadow:0 20px 55px rgba(17,31,23,.06)}.rvx-module-head{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:end}.rvx-module-head h3{font:900 29px Georgia,serif;line-height:1.02;margin:0;letter-spacing:-.045em}.rvx-module-head p{font-size:11px;line-height:1.7;color:#6e7b73;margin:0}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:22px}.rvx-item{border:1px solid #e2e9e2;background:#f8faf7;border-radius:9px;padding:11px 12px;font-size:9px;font-weight:700;color:#415047}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
-        .rvx-leak-radar{display:grid;grid-template-columns:1fr 1.2fr;gap:18px;margin-top:45px;align-items:stretch}.rvx-radar-card{position:relative;overflow:hidden;border-radius:21px;background:linear-gradient(145deg,#0b1811,#07100b);padding:29px;color:#fff;border:1px solid rgba(132,216,159,.11);box-shadow:0 30px 80px rgba(0,0,0,.25)}.rvx-radar-card:before{content:"";position:absolute;width:330px;height:330px;right:-120px;top:-110px;border-radius:50%;border:1px solid rgba(132,216,159,.11);box-shadow:0 0 0 35px rgba(132,216,159,.025),0 0 0 80px rgba(132,216,159,.018)}.rvx-radar-card h3{position:relative;font:900 30px Georgia,serif;letter-spacing:-.045em;margin:0;z-index:1}.rvx-radar-card p{position:relative;z-index:1;color:#89968e;font-size:10px;line-height:1.7;max-width:420px}.rvx-radar-number{position:relative;z-index:1;margin-top:28px;padding:17px;border-radius:13px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035)}.rvx-radar-number small{display:block;color:#718078;font-size:7px;text-transform:uppercase;letter-spacing:.12em}.rvx-radar-number strong{display:block;font:900 27px monospace;color:#82d89f;margin-top:5px}.rvx-radar-note{font-size:8px;color:#68766e;margin-top:7px}.rvx-radar-grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:12px}.rvx-radar-mini{padding:11px;border-radius:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}.rvx-radar-mini b{display:block;font-size:9px;color:#e3ebe5}.rvx-radar-mini span{display:block;font-size:7px;color:#718078;margin-top:4px}.rvx-action-panel{border:1px solid #dfe7df;border-radius:21px;padding:27px;background:#fff;box-shadow:0 22px 65px rgba(17,31,23,.07)}.rvx-action-panel h3{font:900 28px Georgia,serif;margin:0;letter-spacing:-.04em}.rvx-action-panel>p{font-size:10px;color:#718078;line-height:1.65;max-width:510px}.rvx-action-list{display:grid;gap:7px;margin-top:20px}.rvx-action-item{display:grid;grid-template-columns:31px 1fr auto;gap:10px;align-items:center;padding:12px;border:1px solid #e7ece7;border-radius:10px;background:#fafcf9}.rvx-action-icon{width:27px;height:27px;border-radius:8px;background:#edf7ef;color:var(--g);display:grid;place-items:center;font-size:10px}.rvx-action-item strong{font-size:9px}.rvx-action-item span{display:block;font-size:7.5px;color:#89948e;margin-top:3px}.rvx-action-item em{font-style:normal;font-size:7px;font-weight:900;color:#e27420;text-transform:uppercase}
-        .rvx-recovery{margin-top:46px;display:grid;grid-template-columns:1.1fr .9fr;gap:17px}.rvx-recovery-main{padding:30px;border-radius:21px;background:linear-gradient(135deg,#f5faf6,#edf6ef);border:1px solid #d8e8db}.rvx-recovery-main h3{font:900 34px Georgia,serif;letter-spacing:-.05em;margin:0;line-height:1}.rvx-recovery-main p{font-size:11px;color:#718078;line-height:1.7;max-width:590px}.rvx-recovery-flow{display:flex;flex-wrap:wrap;gap:6px;margin-top:20px}.rvx-recovery-flow span{padding:8px 10px;border-radius:999px;background:#fff;border:1px solid #dfe9e0;font-size:7.5px;font-weight:850;color:#526159}.rvx-recovery-side{border-radius:21px;background:#0b1710;color:#fff;padding:27px}.rvx-recovery-side small{color:#82d89f;font-size:7px;letter-spacing:.12em;font-weight:900}.rvx-recovery-side strong{display:block;font:900 35px monospace;margin-top:8px}.rvx-recovery-side p{font-size:9px;color:#79877e;line-height:1.6}.rvx-recovery-side .rvx-btn{margin-top:8px}
-        .rvx-money{display:grid;grid-template-columns:.85fr 1.15fr;gap:28px;align-items:center;margin-top:47px}.rvx-money-copy h3{font:900 clamp(32px,4vw,48px) Georgia,serif;line-height:.98;letter-spacing:-.055em;margin:0}.rvx-money-copy h3 span{color:var(--o)}.rvx-money-copy p{font-size:12px;line-height:1.7;color:#718078;max-width:490px}.rvx-money-card{padding:25px;border-radius:21px;background:#fff;border:1px solid #dfe7df;box-shadow:0 24px 65px rgba(17,31,23,.07)}.rvx-money-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #edf0ed;font-size:10px}.rvx-money-row span{color:#7c8781}.rvx-money-row strong{font-family:monospace}.rvx-money-total{display:flex;justify-content:space-between;align-items:end;padding-top:17px}.rvx-money-total small{display:block;text-transform:uppercase;font-size:7px;letter-spacing:.1em;color:#718078}.rvx-money-total strong{display:block;color:var(--g);font:900 27px monospace;margin-top:4px}.rvx-money-tag{padding:8px 10px;border-radius:9px;background:#f0f8f2;color:var(--g);font-size:8px;font-weight:900}
-        .rvx-ceo{margin-top:48px;border-radius:23px;background:linear-gradient(145deg,#08120c,#10231a);padding:29px;color:#fff;box-shadow:0 35px 90px rgba(0,0,0,.23)}.rvx-ceo-head{display:flex;justify-content:space-between;gap:20px;align-items:end}.rvx-ceo-head h3{font:900 32px Georgia,serif;margin:0;letter-spacing:-.05em}.rvx-ceo-head p{max-width:430px;color:#7e8c83;font-size:9px;line-height:1.6;margin:0}.rvx-ceo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:22px}.rvx-ceo-kpi{padding:15px;border-radius:11px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.035)}.rvx-ceo-kpi small{font-size:7px;color:#718078;text-transform:uppercase;letter-spacing:.09em}.rvx-ceo-kpi strong{display:block;margin-top:7px;font:800 17px monospace;color:#edf4ef}.rvx-ceo-kpi.green strong{color:#82d89f}.rvx-ceo-kpi.orange strong{color:#ff9b42}.rvx-ceo-bottom{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.rvx-ceo-list{padding:15px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}.rvx-ceo-list h4{font-size:9px;margin:0 0 8px}.rvx-ceo-list div{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:8px;color:#c6d0c9}.rvx-ceo-list div:last-child{border:0}.rvx-ceo-list b{color:#82d89f}
-        .rvx-advanced{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-top:45px}.rvx-advanced-card{padding:27px;border-radius:21px;border:1px solid #dfe7df;background:#fff}.rvx-advanced-card.dark{background:#0b1710;border-color:rgba(255,255,255,.08);color:#fff}.rvx-advanced-card h3{font:900 29px Georgia,serif;letter-spacing:-.045em;margin:0}.rvx-advanced-card p{font-size:10px;color:#718078;line-height:1.65}.rvx-advanced-card.dark p{color:#829087}.rvx-alerts{display:grid;gap:7px;margin-top:17px}.rvx-alert{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:9px;padding:10px;border-radius:9px;background:#f8faf8;border:1px solid #e6ece7}.rvx-alert i{width:25px;height:25px;border-radius:7px;background:#fff2e8;color:#e27420;display:grid;place-items:center;font-style:normal;font-size:9px}.rvx-alert strong{font-size:8.5px}.rvx-alert span{font-size:7px;color:#89948e;display:block;margin-top:3px}.rvx-alert b{font-size:7px;color:#e27420}.rvx-dark .rvx-alert{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.07);color:#e6eee8}.rvx-dark .rvx-alert span{color:#718078}.rvx-dark .rvx-alert i{background:rgba(255,122,0,.1)}.rvx-score{display:flex;align-items:center;gap:25px;margin-top:20px}.rvx-score-circle{width:116px;height:116px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#82d89f 0 82%,rgba(255,255,255,.08) 82% 100%);position:relative}.rvx-score-circle:after{content:"";position:absolute;inset:8px;border-radius:50%;background:#0b1710}.rvx-score-circle strong{position:relative;z-index:1;font:900 27px monospace;color:#fff}.rvx-score-bars{flex:1;display:grid;gap:8px}.rvx-score-line{display:grid;grid-template-columns:85px 1fr 25px;gap:7px;align-items:center;font-size:7px;color:#87958d}.rvx-score-line i{height:6px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}.rvx-score-line i span{display:block;height:100%;background:#82d89f;border-radius:999px}
-        .rvx-timeline{margin-top:48px;display:grid;grid-template-columns:.7fr 1.3fr;gap:24px;align-items:center}.rvx-timeline-copy h3{font:900 37px Georgia,serif;line-height:.98;letter-spacing:-.05em;margin:0}.rvx-timeline-copy h3 span{color:var(--g)}.rvx-timeline-copy p{font-size:11px;line-height:1.7;color:#718078}.rvx-timeline-box{position:relative;padding:25px 25px 25px 34px;border-radius:21px;background:#fff;border:1px solid #dfe7df;box-shadow:0 24px 65px rgba(17,31,23,.06)}.rvx-timeline-box:before{content:"";position:absolute;left:25px;top:25px;bottom:25px;width:1px;background:#dce7df}.rvx-event{position:relative;display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;padding:9px 0}.rvx-event:before{content:"";position:absolute;left:-13px;width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 0 4px #edf6ef}.rvx-event time{font:700 8px monospace;color:#8b958f}.rvx-event strong{font-size:9px}.rvx-event span{font-size:7px;color:#89948e}.rvx-event b{font-size:7px;color:var(--g)}
-        .rvx-team{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-top:46px}.rvx-team-card{padding:28px;border-radius:21px;background:#fff;border:1px solid #dfe7df}.rvx-team-card.dark{background:#0b1710;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-team-card h3{font:900 29px Georgia,serif;letter-spacing:-.045em;margin:0}.rvx-team-card p{font-size:10px;color:#718078;line-height:1.7}.rvx-team-card.dark p{color:#7f8d84}.rvx-team-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:17px}.rvx-person{padding:12px;border-radius:10px;background:#f7faf7;border:1px solid #e5ebe5}.rvx-team-card.dark .rvx-person{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.07)}.rvx-person strong{display:block;font-size:9px}.rvx-person span{display:block;color:#89948e;font-size:7px;margin-top:3px}.rvx-person b{display:block;color:var(--g);font-size:7px;margin-top:8px}.rvx-team-card.dark .rvx-person b{color:#82d89f}
-        .rvx-reactivation{margin-top:47px;padding:32px;border-radius:23px;background:linear-gradient(135deg,#fff7ef,#fffdf8);border:1px solid #f1dfca}.rvx-reactivation h3{font:900 38px Georgia,serif;line-height:.98;letter-spacing:-.055em;margin:0;max-width:740px}.rvx-reactivation h3 span{color:var(--o)}.rvx-reactivation p{font-size:11px;color:#7d776f;line-height:1.7;max-width:670px}.rvx-reactivation-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:20px}.rvx-react-step{padding:13px;border:1px solid #eedfce;background:#fff;border-radius:11px}.rvx-react-step b{font-size:14px}.rvx-react-step strong{display:block;font-size:8px;margin-top:6px}.rvx-react-step span{display:block;font-size:7px;color:#91867a;margin-top:3px}
-        .rvx-industry-wrap{margin-top:42px}.rvx-industries{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.rvx-ind{border:1px solid #dfe6df;background:#fff;border-radius:13px;padding:17px}.rvx-ind .icon{font-size:21px;margin-bottom:12px}.rvx-ind strong{font-size:10px}.rvx-ind p{font-size:8px;color:#718078;line-height:1.55;margin:6px 0 0}
-        .rvx-compare{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-top:43px}.rvx-compare-card{padding:28px;border-radius:21px;border:1px solid #e4e9e4}.rvx-compare-card.before{background:#fff7f5;border-color:#f0ddd7}.rvx-compare-card.after{background:#f1faf4;border-color:#d5e8da}.rvx-compare-card h3{font:900 28px Georgia,serif;margin:0;letter-spacing:-.04em}.rvx-compare-list{display:grid;gap:7px;margin-top:19px}.rvx-compare-list div{padding:10px 11px;background:#fff;border-radius:9px;border:1px solid rgba(0,0,0,.05);font-size:9px}.rvx-compare-list b{margin-right:8px;color:#d34a37}.rvx-compare-card.after .rvx-compare-list b{color:var(--g)}
-        .rvx-future{margin-top:48px;padding:25px 27px;border-radius:18px;background:#0b1710;color:#fff;border:1px solid rgba(255,255,255,.07)}.rvx-future-head{display:flex;justify-content:space-between;align-items:center;gap:15px}.rvx-future-head h3{font:900 26px Georgia,serif;margin:0}.rvx-future-head span{padding:6px 9px;border-radius:999px;background:rgba(255,122,0,.1);border:1px solid rgba(255,122,0,.18);color:#ff9b42;font-size:7px;font-weight:900;text-transform:uppercase;letter-spacing:.1em}.rvx-future-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:18px}.rvx-future-item{padding:14px;border-radius:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}.rvx-future-item b{font-size:16px}.rvx-future-item strong{display:block;font-size:9px;margin-top:7px}.rvx-future-item p{font-size:7.5px;color:#78867d;line-height:1.55;margin:4px 0 0}
-        .rvx-pricing{background:#08110c;color:#fff}.rvx-pricing .rvx-desc{color:#87958c}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:42px}.rvx-plan{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);border-radius:17px;padding:23px}.rvx-plan.featured{border-color:rgba(255,122,0,.55);box-shadow:0 25px 75px rgba(0,0,0,.25);transform:translateY(-7px)}.rvx-plan h3{margin:0;font:800 21px Georgia,serif}.rvx-plan .badge{display:inline-block;background:var(--o);color:#0a120d;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:900;margin-bottom:10px}.rvx-price{font:900 27px monospace;margin:15px 0}.rvx-price small{font:700 8px Inter,sans-serif;color:#7f8d84}.rvx-plan ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}.rvx-plan li{font-size:8.5px;color:#a5b0a9}.rvx-plan li:before{content:"✓";color:#82d89f;margin-right:7px;font-weight:900}.rvx-plan>a{display:block;text-align:center;background:#fff;color:#0b160f;border-radius:9px;padding:11px;margin-top:20px;font-size:9px;font-weight:900}.rvx-plan.featured>a{background:var(--o)}
-        .rvx-faq{max-width:820px;margin:39px auto 0}.rvx-faqrow{border-top:1px solid #dde5de}.rvx-faqrow:last-child{border-bottom:1px solid #dde5de}.rvx-faqrow button{width:100%;border:0;background:transparent;padding:18px 2px;display:flex;justify-content:space-between;gap:20px;text-align:left;cursor:pointer;font-size:11px;font-weight:800;color:#18251f}.rvx-answer{padding:0 25px 18px 2px;color:#718078;font-size:10px;line-height:1.7}.rvx-final{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 0,rgba(46,139,87,.42),transparent 43%),linear-gradient(135deg,#030705,#10251a);color:#fff;text-align:center;padding:105px 0}.rvx-final:before{content:"";position:absolute;width:600px;height:600px;left:50%;top:-430px;transform:translateX(-50%);border:1px solid rgba(132,216,159,.09);border-radius:50%;box-shadow:0 0 0 65px rgba(132,216,159,.02)}.rvx-final .wrap{position:relative;z-index:1}.rvx-final h2{font:900 clamp(40px,6vw,70px) Georgia,serif;line-height:.92;letter-spacing:-.065em;max-width:950px;margin:0 auto 18px}.rvx-final h2 span{color:#82d89f}.rvx-final p{max-width:640px;margin:auto;color:#89968e;font-size:12px;line-height:1.7}.rvx-final .micro{font-size:8px;color:#65736b;margin-top:12px}.rvx-footer{text-align:center;color:#8b958f;font-size:9px;padding:28px 0 85px;background:#050b07}.rvx-mobile{display:none}
-        @media(max-width:1000px){.rvx-industries{grid-template-columns:repeat(2,1fr)}.rvx-hero-grid{grid-template-columns:1fr}.rvx-hero{text-align:center}.rvx-lead{margin:auto}.rvx-actions,.rvx-trust,.rvx-hero-note{justify-content:center}.rvx-command{max-width:650px;width:100%;margin:auto}.rvx-problem,.rvx-money,.rvx-timeline{grid-template-columns:1fr}.rvx-problem-copy{text-align:center}.rvx-problem-copy p{margin-left:auto;margin-right:auto}.rvx-tabs{grid-template-columns:repeat(3,1fr)}.rvx-industries{grid-template-columns:repeat(3,1fr)}.rvx-ceo-grid{grid-template-columns:repeat(2,1fr)}}
-        @media(max-width:700px){.rvx .wrap{width:calc(100% - 24px)}.rvx-nav{height:64px}.rvx-navlinks a:not(.cta){display:none}.rvx-hero{padding:55px 0 78px}.rvx-h1{font-size:45px}.rvx-actions{flex-direction:column}.rvx-btn{width:100%}.rvx-command{min-height:430px}.rvx-command-shell{inset:8px 0 0}.rvx-floating{right:4px;bottom:2px;width:185px}.rvx-proofbox{display:block;text-align:center}.rvx-proofstats{justify-content:center;flex-wrap:wrap;margin-top:14px;gap:20px}.rvx-section{padding:67px 0}.rvx-problem,.rvx-leak-radar,.rvx-recovery,.rvx-advanced,.rvx-team,.rvx-compare{grid-template-columns:1fr}.rvx-reveal{grid-template-columns:1fr;text-align:center}.rvx-reveal .rvx-btn{width:auto}.rvx-tabs{grid-template-columns:repeat(2,1fr)}.rvx-module-head{display:block}.rvx-module-head p{margin-top:12px}.rvx-items{grid-template-columns:1fr}.rvx-ceo-grid{grid-template-columns:1fr 1fr}.rvx-ceo-bottom{grid-template-columns:1fr}.rvx-score{align-items:flex-start}.rvx-score-circle{flex:0 0 105px;width:105px;height:105px}.rvx-reactivation-flow{grid-template-columns:1fr 1fr}.rvx-future-grid{grid-template-columns:1fr}.rvx-plans{grid-template-columns:1fr}.rvx-plan.featured{transform:none}.rvx-industries{grid-template-columns:1fr 1fr}.rvx-profile{flex-direction:column;width:100%;border-radius:14px}.rvx-profile button{width:100%}.rvx-mobile{display:block;position:fixed;bottom:8px;left:8px;right:8px;z-index:40;background:rgba(255,255,255,.96);border:1px solid #dce5dd;padding:7px;border-radius:12px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rvx-mobile a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:8px;padding:13px;font-size:11px;font-weight:900}.rvx-footer{padding-bottom:85px}.rvx-navlinks .cta{padding:9px 11px}.rvx-ceo-head{display:block}.rvx-ceo-head p{margin-top:8px}.rvx-event{grid-template-columns:52px 1fr}.rvx-event span{display:none}}
-        @media(prefers-reduced-motion:reduce){.rvx-btn{transition:none}.rvx-btn:hover{transform:none}}
+        .rvx{--g:#1a7a3c;--g2:#2e8b57;--o:#ff7a00;--ink:#07100b;--muted:#718078;--cream:#f7f8f4;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}.rvx *{box-sizing:border-box}.rvx a{text-decoration:none}.rvx .wrap{width:min(1160px,calc(100% - 32px));margin:auto}.rvx .serif{font-family:Georgia,"Times New Roman",serif;letter-spacing:-.055em}
+        .rvx-nav{height:72px;background:#06100b;color:#fff;display:flex;align-items:center;position:sticky;top:0;z-index:30;border-bottom:1px solid rgba(255,255,255,.08)}.rvx-navin{display:flex;justify-content:space-between;align-items:center}.rvx-brand{font:800 23px Georgia,serif;color:#fff}.rvx-brand em{color:var(--o);font-style:normal}.rvx-navlinks{display:flex;gap:22px;align-items:center}.rvx-navlinks a{color:#9ba89f;font-size:11px;font-weight:700}.rvx-navlinks .cta{background:#fff;color:#07100b;padding:11px 15px;border-radius:9px}
+        .rvx-hero{background:radial-gradient(circle at 12% 0,rgba(46,139,87,.5),transparent 28%),radial-gradient(circle at 95% 5%,rgba(255,122,0,.18),transparent 23%),linear-gradient(135deg,#030705,#08130d 48%,#10251a);color:#fff;padding:82px 0 105px;overflow:hidden}.rvx-hero-grid{display:grid;grid-template-columns:1.04fr .96fr;gap:55px;align-items:center}.rvx-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,122,0,.35);background:rgba(255,122,0,.08);border-radius:999px;padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:.1em;color:#ffd3aa}.rvx-dot{width:7px;height:7px;border-radius:50%;background:var(--o);box-shadow:0 0 0 5px rgba(255,122,0,.12)}.rvx-h1{font:900 clamp(48px,6.5vw,78px) Georgia,serif;line-height:.9;margin:22px 0;letter-spacing:-.065em}.rvx-h1 span{color:#84d89f}.rvx-lead{font-size:16px;line-height:1.72;color:#a9b4ad;max-width:650px}.rvx-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}.rvx-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:15px 20px;font-size:12px;font-weight:800}.rvx-primary{background:var(--o);color:#0c150f;box-shadow:0 18px 50px rgba(255,122,0,.22)}.rvx-secondary{color:#fff;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04)}.rvx-trust{display:flex;gap:17px;flex-wrap:wrap;margin-top:15px;color:#718078;font-size:9px}.rvx-trust b{color:#dfe8e2}
+        .rvx-map{min-height:450px;position:relative}.rvx-map:before{content:"";position:absolute;inset:9%;border:1px solid rgba(132,216,159,.13);border-radius:50%;box-shadow:0 0 0 38px rgba(132,216,159,.025),0 0 0 90px rgba(132,216,159,.018)}.rvx-hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:225px;height:225px;border-radius:50%;background:radial-gradient(circle at 35% 25%,#1d5532,#07130c 65%);border:1px solid rgba(255,255,255,.17);display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 30px 100px rgba(0,0,0,.5)}.rvx-hub strong{font:900 31px Georgia,serif}.rvx-hub strong em{font-style:normal;color:var(--o)}.rvx-hub small{display:block;color:#8d9a92;font-size:8px;letter-spacing:.12em;margin-top:7px}.rvx-node{position:absolute;width:157px;padding:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);backdrop-filter:blur(12px);border-radius:13px;box-shadow:0 16px 40px rgba(0,0,0,.2)}.rvx-node b{font-size:10px}.rvx-node span{display:block;color:#7e8c83;font-size:8px;line-height:1.45;margin-top:4px}.n1{left:0;top:7%}.n2{right:0;top:4%}.n3{left:-3%;bottom:11%}.n4{right:-2%;bottom:10%}.n5{left:50%;top:0;transform:translateX(-50%)}.n6{left:50%;bottom:0;transform:translateX(-50%)}
+        .rvx-proof{margin-top:-35px;position:relative;z-index:4}.rvx-proofbox{background:#fff;border:1px solid #e0e7e0;border-radius:17px;padding:17px 22px;box-shadow:0 24px 65px rgba(15,23,42,.1);display:flex;justify-content:space-between;align-items:center;gap:20px}.rvx-proofstats{display:flex;gap:25px}.rvx-proofstats strong{display:block;color:var(--g);font:800 17px monospace}.rvx-proofstats small{color:#8b958f;font-size:8px}
+        .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:700px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
+        .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
+        .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
+        .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
+        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px}.rvx-list b{color:var(--g);margin-right:7px}
+        .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
+        .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
+        .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
+        .rvx-final{background:radial-gradient(circle at 50% 0,rgba(46,139,87,.38),transparent 43%),linear-gradient(135deg,#030705,#10251a);color:#fff;text-align:center;padding:100px 0}.rvx-final h2{font:900 clamp(40px,6vw,70px) Georgia,serif;line-height:.92;letter-spacing:-.065em;max-width:900px;margin:0 auto 18px}.rvx-final h2 span{color:#82d89f}.rvx-final p{max-width:620px;margin:auto;color:#89968e;font-size:12px;line-height:1.7}.rvx-footer{text-align:center;color:#8b958f;font-size:9px;padding:28px 0 85px}.rvx-mobile{display:none}
+        @media(max-width:900px){.rvx-hero-grid{grid-template-columns:1fr}.rvx-hero{text-align:center}.rvx-lead{margin:auto}.rvx-actions,.rvx-trust{justify-content:center}.rvx-map{max-width:600px;width:100%;margin:auto}.rvx-navlinks a:not(.cta){display:none}.rvx-chain{grid-template-columns:repeat(4,1fr)}.rvx-industries{grid-template-columns:repeat(3,1fr)}.rvx-tabs{grid-template-columns:repeat(3,1fr)}}
+        @media(max-width:650px){.rvx .wrap{width:calc(100% - 24px)}.rvx-hero{padding:52px 0 76px}.rvx-h1{font-size:45px}.rvx-actions{flex-direction:column}.rvx-btn{width:100%}.rvx-map{min-height:400px;transform:scale(.9);margin:-15px auto}.rvx-proofbox{display:block;text-align:center}.rvx-proofstats{justify-content:center;flex-wrap:wrap;margin-top:13px}.rvx-section{padding:65px 0}.rvx-module-head{display:block}.rvx-items,.rvx-grid2,.rvx-plans{grid-template-columns:1fr}.rvx-industries{grid-template-columns:1fr 1fr}.rvx-chain{grid-template-columns:repeat(2,1fr)}.rvx-plan.featured{transform:none}.rvx-profile{flex-direction:column;width:100%;border-radius:14px}.rvx-profile button{width:100%}.rvx-mobile{display:block;position:fixed;bottom:8px;left:8px;right:8px;z-index:40;background:rgba(255,255,255,.96);border:1px solid #dce5dd;padding:7px;border-radius:12px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rvx-mobile a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:8px;padding:13px;font-size:11px;font-weight:900}.rvx-footer{padding-bottom:85px}}
       `}</style>
 
-      <header className="rvx-nav">
-        <div className="wrap rvx-navin">
-          <a href="?" className="rvx-brand">RECU<em>VENTE</em></a>
-          <nav className="rvx-navlinks">
-            <a href="#systeme">Système</a>
-            <a href="#intelligence">Intelligence</a>
-            <a href="#metiers">Métiers</a>
-            <a href="#tarifs">Tarifs</a>
-            <a href="?login=1">Connexion</a>
-            <a href="?auth=1" onClick={trackLead} className="cta">Créer mon espace →</a>
-          </nav>
-        </div>
-      </header>
+      <header className="rvx-nav"><div className="wrap rvx-navin"><a href="?" className="rvx-brand">RECU<em>VENTE</em></a><nav className="rvx-navlinks"><a href="#systeme">Système</a><a href="#metiers">Métiers</a><a href="#tarifs">Tarifs</a><a href="?login=1">Connexion</a><a href="?auth=1" className="cta">Créer mon espace →</a></nav></div></header>
 
-      <section className="rvx-hero">
-        <div className="wrap rvx-hero-grid">
-          <div>
-            <div className="rvx-pill"><span className="rvx-dot"/> LE SYSTÈME QUI FERME LES FUITES</div>
-            <h1 className="rvx-h1">Tu ne perds pas seulement des commandes.<br/><span>Tu perds de l'argent que tu ne vois pas.</span></h1>
-            <p className="rvx-lead">RecuVente relie publicité, boutique, commandes, closing, livraison, encaissement, bénéfice réel et réactivation dans un seul système pour que ton activité cesse d'être une succession d'outils dispersés.</p>
-            <div className="rvx-actions">
-              <a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">🔎 Voir où mon business perd de l'argent</a>
-              <a href="#systeme" className="rvx-btn rvx-secondary">Découvrir RecuVente ↓</a>
-            </div>
-            <div className="rvx-trust"><span>✓ <b>Boutique & Shopify</b></span><span>✓ <b>Closing</b></span><span>✓ <b>GPS livreurs</b></span><span>✓ <b>Paiements</b></span><span>✓ <b>Bénéfice réel</b></span></div>
-            <div className="rvx-hero-note"><span className="shield">✓</span><span><strong>7 jours gratuits</strong> · aucune carte bancaire pour commencer</span></div>
-          </div>
+      <section className="rvx-hero"><div className="wrap rvx-hero-grid"><div><div className="rvx-pill"><span className="rvx-dot"/> L'INFRASTRUCTURE DE TON BUSINESS</div><h1 className="rvx-h1">Ne gère plus<br/>des morceaux.<br/><span>Pilote tout.</span></h1><p className="rvx-lead">RecuVente relie ta boutique, tes commandes, tes closers, tes livreurs, tes clients, tes paiements, ta comptabilité, tes campagnes et ton équipe dans un seul système.</p><div className="rvx-actions"><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">🚀 Créer mon espace RecuVente</a><a href="#systeme" className="rvx-btn rvx-secondary">Découvrir le système ↓</a></div><div className="rvx-trust"><span>✓ <b>Boutique</b></span><span>✓ <b>Closing</b></span><span>✓ <b>GPS livreurs</b></span><span>✓ <b>Comptabilité</b></span><span>✓ <b>Retargeting</b></span></div></div><div className="rvx-map"><div className="rvx-hub"><div><strong>RECU<em>VENTE</em></strong><small>BUSINESS OPERATING SYSTEM</small></div></div><div className="rvx-node n1"><b>🛍️ VENDRE</b><span>Boutique · Shopify · produits · pixels</span></div><div className="rvx-node n2"><b>🎯 CONVERTIR</b><span>Closing · appels · qualification</span></div><div className="rvx-node n3"><b>🚚 LIVRER</b><span>GPS · attribution · reprogrammation</span></div><div className="rvx-node n4"><b>💵 ENCAISSER</b><span>Paiements · dépôts · bénéfice</span></div><div className="rvx-node n5"><b>🔁 RÉACTIVER</b><span>Clients · WhatsApp · campagnes</span></div><div className="rvx-node n6"><b>🧭 PILOTER</b><span>Équipe · statistiques · audit</span></div></div></div></section>
 
-          <div className="rvx-command">
-            <div className="rvx-command-shell">
-              <div className="rvx-command-top"><span>RECUVENTE / CENTRE DE COMMANDEMENT</span><div className="rvx-command-dots"><span/><span/><span/></div></div>
-              <div className="rvx-command-body">
-                <div className="rvx-command-title">Ton business, en un regard.</div>
-                <div className="rvx-command-sub">Ce qui se passe · ce qui fuit · ce qui mérite ton attention</div>
-                <div className="rvx-kpis">
-                  <div className="rvx-kpi green"><small>CA confirmé</small><strong>{montant || "—"}</strong></div>
-                  <div className="rvx-kpi orange"><small>À récupérer</small><strong>À analyser</strong></div>
-                  <div className="rvx-kpi"><small>Commandes</small><strong>{commandes}</strong></div>
-                </div>
-                <div className="rvx-dashboard-row">
-                  <div className="rvx-mini-card"><div className="rvx-mini-head"><span>RADAR DES FUITES</span><span>ACTIF</span></div><div className="rvx-mini-line"><i/></div><div className="rvx-action"><span>Commandes à vérifier</span><b>PRIORITÉ</b></div><div className="rvx-action"><span>Livraisons à contrôler</span><b>À VOIR</b></div><div className="rvx-action"><span>Clients à réactiver</span><b>OPPORTUNITÉ</b></div></div>
-                  <div className="rvx-mini-card"><div className="rvx-mini-head"><span>ACTIONS</span><span>LIVE</span></div><div className="rvx-action"><span>Rappeler</span><b>→</b></div><div className="rvx-action"><span>Récupérer</span><b>→</b></div><div className="rvx-action"><span>Contrôler</span><b>→</b></div><div className="rvx-action"><span>Relancer</span><b>→</b></div></div>
-                </div>
-              </div>
-            </div>
-            <div className="rvx-floating"><small>BENEFICE RÉEL</small><strong>→ À CALCULER</strong><span>Vente − coûts − commissions − frais</span></div>
-          </div>
-        </div>
-      </section>
+      <div className="wrap rvx-proof"><div className="rvx-proofbox"><div><b style={{fontSize:13}}>Une seule vérité opérationnelle.</b><div style={{fontSize:9,color:"#8b958f",marginTop:4}}>Du premier clic jusqu'à l'argent réellement encaissé.</div></div><div className="rvx-proofstats"><div><strong>{stats?.nb_commandes_confirmees ? Number(stats.nb_commandes_confirmees).toLocaleString("fr-FR") : "360°"}</strong><small>vision commandes</small></div><div><strong>1</strong><small>écosystème</small></div><div><strong>24/7</strong><small>accès</small></div></div></div></div>
 
-      <div className="wrap rvx-proof"><div className="rvx-proofbox"><div className="rvx-proof-copy"><b>Une seule vérité opérationnelle.</b><div>Du premier clic jusqu'à l'argent réellement encaissé.</div></div><div className="rvx-proofstats"><div><strong>{commandes}</strong><small>commandes confirmées</small></div><div><strong>6</strong><small>moteurs métier</small></div><div><strong>360°</strong><small>vision business</small></div></div></div></div>
+      <section id="systeme" className="rvx-section"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Le système complet</div><h2 className="rvx-title">Six moteurs.<br/><span>Une seule machine.</span></h2><p className="rvx-desc">RecuVente ne t'oblige plus à assembler plusieurs outils. Chaque étape de ton activité nourrit la suivante.</p><div className="rvx-profile"><button className={profil === "cod" ? "active" : ""} onClick={() => setProfil("cod")}>🏍️ Je vends en ligne / COD</button><button className={profil === "retail" ? "active" : ""} onClick={() => setProfil("retail")}>🏪 J'ai un commerce physique</button></div><div className="rvx-profile-note">Tu peux combiner vente en ligne et vente physique dans ton organisation.</div></div>
+        <div className="rvx-tabs">{modules.map((m) => <button key={m.id} className={`rvx-tab ${active === m.id ? "active" : ""}`} onClick={() => setActive(m.id)}><i>{m.icon}</i>{m.name}</button>)}</div>
+        <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
+      </div></section>
 
-      <section className="rvx-section rvx-cream">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">Le problème invisible</div><h2 className="rvx-title">Le manque de ventes n'est pas<br/><span>toujours le vrai problème.</span></h2><p className="rvx-desc">Quand les informations sont dispersées, une partie de la valeur disparaît entre la commande, le téléphone, le livreur, le paiement et le client suivant.</p></div>
-          <div className="rvx-problem">
-            <div className="rvx-problem-copy"><h3>Chaque petite fuite paraît normale.<br/><span>Ensemble, elles coûtent cher.</span></h3><p>Une commande oubliée. Un client jamais rappelé. Un doublon. Une livraison échouée. Un dépôt à vérifier. Un ancien client jamais relancé. Le problème n'est pas toujours visible depuis ton chiffre d'affaires.</p></div>
-            <div className="rvx-leaks">
-              {[["!","Commande oubliée","Elle existe, mais personne ne la traite."],["☎","Client jamais rappelé","La vente s'arrête avant le closing."],["×","Doublon","Deux personnes peuvent travailler la même opportunité."],["↗","Livraison échouée","La commande peut nécessiter une récupération."],["₣","Dépôt à contrôler","Le montant attendu doit rester traçable."],["↻","Client jamais relancé","Une relation existante reste inactive."]].map((x) => <div className="rvx-leak" key={x[1]}><b>{x[0]}</b><div><strong>{x[1]}</strong><span>{x[2]}</span></div><em>FUITE</em></div>)}
-            </div>
-          </div>
-          <div className="rvx-reveal"><div><h3>RecuVente ferme les points de rupture.</h3><p>Il relie les étapes pour que les informations puissent suivre la commande jusqu'à son résultat.</p></div><a href="#intelligence" className="rvx-btn rvx-primary">Voir comment ↓</a></div>
-        </div>
-      </section>
+      <section className="rvx-section rvx-dark"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Voici la chaîne que RecuVente transforme en données, actions et décisions.</p></div><div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div><div className="rvx-grid2"><div className="rvx-card"><h3>Tu veux retrouver une commande ?</h3><p>Tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</p><div className="rvx-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div><div className="rvx-card dark"><h3>Tu veux comprendre ton argent ?</h3><p>Relie commandes, paiements, coûts, commissions, dépôts et bénéfices au même endroit.</p><div className="rvx-list">{["Montant encaissé","À récupérer","Dépôt attendu","Coût produit","Bénéfice réel"].map((x) => <div key={x}><b style={{color:"#ff7a00"}}>→</b>{x}</div>)}</div></div></div></div></section>
 
-      <section id="systeme" className="rvx-section">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">Le système complet</div><h2 className="rvx-title">Six moteurs.<br/><span>Une seule machine.</span></h2><p className="rvx-desc">RecuVente ne t'oblige plus à assembler plusieurs outils. Chaque étape de ton activité nourrit la suivante.</p><div className="rvx-profile"><button className={profil === "cod" ? "active" : ""} onClick={() => setProfil("cod")}>🏍️ Je vends en ligne / COD</button><button className={profil === "retail" ? "active" : ""} onClick={() => setProfil("retail")}>🏪 J'ai un commerce physique</button></div><div className="rvx-profile-note">Tu peux combiner vente en ligne et vente physique dans ton organisation.</div></div>
-          <div className="rvx-tabs">{modules.map((m) => <button key={m.id} className={`rvx-tab ${active === m.id ? "active" : ""}`} onClick={() => setActive(m.id)}><i>{m.icon}</i>{m.name}</button>)}</div>
-          <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
-        </div>
-      </section>
+      <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></section>
 
-      <section className="rvx-section rvx-dark">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Une commande ne devrait pas changer de système à chaque étape.</p></div>
-          <div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div>
-          <div className="rvx-timeline"><div className="rvx-timeline-copy"><h3>Une commande.<br/><span>Une histoire complète.</span></h3><p>Quand les événements sont enregistrés, tu peux comprendre ce qui s'est passé au lieu de reconstruire l'histoire depuis plusieurs conversations.</p></div><div className="rvx-timeline-box">{[["09:42","Commande reçue","Entrée dans le système","NOUVEAU"],["09:47","Closer attribué","Responsable identifié","SUIVI"],["09:51","Client appelé","Interaction enregistrée","TRACE"],["09:54","Client confirmé","Commande validée","CONFIRMÉ"],["10:02","Livreur attribué","Dernier kilomètre lancé","ATTRIBUÉ"],["14:08","Livraison","Résultat enregistré","RÉSULTAT"],["14:10","Paiement","Montant rapproché","FINANCE"]].map((x) => <div className="rvx-event" key={x[0]+x[1]}><time>{x[0]}</time><div><strong>{x[1]}</strong><span>{x[2]}</span></div><b>{x[3]}</b></div>)}</div></div>
-        </div>
-      </section>
+      <section className="rvx-section"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Le vrai changement</div><h2 className="rvx-title">Avant : des outils.<br/><span>Après : un système.</span></h2></div><div className="rvx-grid2"><div className="rvx-card" style={{background:"#fff7f5",borderColor:"#f0ddd7"}}><h3>❌ Le chaos coûte cher.</h3><p>WhatsApp, cahiers, Excel, captures, appels et calculs dispersés.</p><div className="rvx-list">{["Commandes perdues","Doublons non détectés","Livreurs difficiles à contrôler","Paiements oubliés","Clients jamais relancés","Bénéfice réel inconnu"].map((x) => <div key={x}><b style={{color:"#d34a37"}}>×</b>{x}</div>)}</div></div><div className="rvx-card" style={{background:"#f1faf4",borderColor:"#d5e8da"}}><h3>✓ RecuVente relie les points.</h3><p>Une information saisie devient exploitable par les autres étapes de ton activité.</p><div className="rvx-list">{["Commandes traçables","Doublons repérables","Livreurs suivis","Paiements rapprochables","Clients réactivables","Rentabilité lisible"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div></div></div></section>
 
-      <section id="intelligence" className="rvx-section">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">Nouvelle génération</div><h2 className="rvx-title">Ne regarde plus seulement<br/><span>ce qui s'est passé.</span></h2><p className="rvx-desc">Construis autour de RecuVente une couche d'intelligence qui transforme tes données en priorités, opportunités et décisions.</p></div>
-          <div className="rvx-leak-radar">
-            <div className="rvx-radar-card"><h3>Radar des fuites</h3><p>Une vue conçue pour faire remonter les zones où ton activité mérite une action.</p><div className="rvx-radar-number"><small>Valeur à analyser</small><strong>À CALCULER</strong><div className="rvx-radar-note">Le montant doit être calculé à partir des données réelles du compte.</div></div><div className="rvx-radar-grid"><div className="rvx-radar-mini"><b>Commandes</b><span>non traitées / à risque</span></div><div className="rvx-radar-mini"><b>Livraisons</b><span>à contrôler / reprogrammer</span></div><div className="rvx-radar-mini"><b>Clients</b><span>à réactiver</span></div><div className="rvx-radar-mini"><b>Finance</b><span>dépôts / rapprochement</span></div></div></div>
-            <div className="rvx-action-panel"><h3>Centre d'actions</h3><p>Le tableau de bord ne doit pas seulement afficher des chiffres. Il doit t'aider à voir les prochaines actions prioritaires.</p><div className="rvx-action-list">{[["☎","Rappeler","Clients sans réponse","PRIORITÉ"],["↻","Récupérer","Commandes échouées / reprogrammables","OPPORTUNITÉ"],["✓","Contrôler","Livraison ou dépôt à vérifier","CONTRÔLE"],["↗","Relancer","Clients existants à réactiver","CROISSANCE"],["⌁","Analyser","Produit ou performance à surveiller","ANALYSE"]].map((x) => <div className="rvx-action-item" key={x[1]}><div className="rvx-action-icon">{x[0]}</div><div><strong>{x[1]}</strong><span>{x[2]}</span></div><em>{x[3]}</em></div>)}</div></div>
-          </div>
-          <div className="rvx-recovery"><div className="rvx-recovery-main"><div className="rvx-kicker">Recovery Center</div><h3>Tes ventes perdues ne sont pas toujours perdues.</h3><p>Centralise les commandes échouées, les reprogrammations, les clients non joints et les opportunités de récupération pour donner une seconde chance aux ventes déjà acquises.</p><div className="rvx-recovery-flow"><span>Commande échouée</span><span>→</span><span>Analyse</span><span>→</span><span>Relance</span><span>→</span><span>Reprogrammation</span><span>→</span><span>Résultat</span></div></div><div className="rvx-recovery-side"><small>RÉCUPÉRATION</small><strong>À MESURER</strong><p>Le système doit calculer la valeur réellement récupérée à partir des opérations du compte.</p><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">Tester sur mon activité →</a></div></div>
-        </div>
-      </section>
+      <section id="tarifs" className="rvx-section rvx-pricing"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Choisis ton niveau</div><h2 className="rvx-title">Commence maintenant.<br/><span>Structure pour grandir.</span></h2><p className="rvx-desc">Les plans disponibles sur ton compte apparaissent automatiquement ci-dessous.</p></div><div className="rvx-plans">{plans.map((p,i) => <div className={`rvx-plan ${i === 1 ? "featured" : ""}`} key={p.id}><h3>{p.nom}</h3><div className="rvx-price">{Number(p.prix).toLocaleString("fr-FR")} <small>{p.devise}/mois</small></div><ul><li>{p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes selon le plan"}</li><li>{p.max_membres ? `${p.max_membres} membres max` : "Membres selon le plan"}</li><li>Commandes & clients</li><li>Produits & activités</li><li>Tableau de bord</li></ul><a href="?auth=1" onClick={trackLead}>Commencer maintenant →</a></div>)}</div></div></section>
 
-      <section className="rvx-section rvx-cream">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">Rentabilité</div><h2 className="rvx-title">Ton chiffre d'affaires<br/><span>n'est pas ton bénéfice.</span></h2><p className="rvx-desc">RecuVente relie les coûts, frais, commissions et ventes pour te rapprocher du chiffre qui compte vraiment.</p></div>
-          <div className="rvx-money"><div className="rvx-money-copy"><h3>Arrête de regarder seulement ce que tu vends.<br/><span>Regarde ce qu'il te reste.</span></h3><p>Le bénéfice réel doit intégrer les éléments réellement renseignés dans ton activité. La bonne décision commence par une bonne lecture de la marge.</p><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">Voir ma rentabilité →</a></div><div className="rvx-money-card"><div className="rvx-money-row"><span>Vente</span><strong>25 000 FCFA</strong></div><div className="rvx-money-row"><span>− Coût produit</span><strong>à renseigner</strong></div><div className="rvx-money-row"><span>− Livraison</span><strong>à renseigner</strong></div><div className="rvx-money-row"><span>− Commissions</span><strong>à renseigner</strong></div><div className="rvx-money-row"><span>− Autres coûts</span><strong>à renseigner</strong></div><div className="rvx-money-total"><div><small>Bénéfice réel</small><strong>À CALCULER</strong></div><div className="rvx-money-tag">DONNÉES RÉELLES</div></div></div></div>
-        </div>
-      </section>
+      <section className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Questions fréquentes</div><h2 className="rvx-title">Tu hésites encore ?<br/><span>Regarde ce que le système fait.</span></h2></div><div className="rvx-faq">{faqs.map((f,i) => <div className="rvx-faqrow" key={f[0]}><button onClick={() => setOpenFaq(openFaq === i ? null : i)}><span>{f[0]}</span><span>{openFaq === i ? "−" : "+"}</span></button>{openFaq === i && <div className="rvx-answer">{f[1]}</div>}</div>)}</div></div></section>
 
-      <section className="rvx-section">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">Direction</div><h2 className="rvx-title">Si tu es le patron,<br/><span>tu dois comprendre ton business en secondes.</span></h2><p className="rvx-desc">Le CEO Dashboard rassemble les indicateurs qui permettent de décider : activité, argent, risques, équipe et opportunités.</p></div>
-          <div className="rvx-ceo"><div className="rvx-ceo-head"><h3>CEO Dashboard</h3><p>Une seule vue. Une seule vérité opérationnelle. Une décision plus rapide.</p></div><div className="rvx-ceo-grid"><div className="rvx-ceo-kpi green"><small>CA confirmé</small><strong>{montant || "—"}</strong></div><div className="rvx-ceo-kpi orange"><small>À récupérer</small><strong>À analyser</strong></div><div className="rvx-ceo-kpi"><small>Commandes</small><strong>{commandes}</strong></div><div className="rvx-ceo-kpi"><small>Clients</small><strong>ACTIFS</strong></div></div><div className="rvx-ceo-bottom"><div className="rvx-ceo-list"><h4>⚠️ Ce qui mérite ton attention</h4><div><span>Commandes à risque</span><b>→ VOIR</b></div><div><span>Livraisons à contrôler</span><b>→ VOIR</b></div><div><span>Dépôts à rapprocher</span><b>→ VOIR</b></div><div><span>Clients à réactiver</span><b>→ VOIR</b></div></div><div className="rvx-ceo-list"><h4>📈 Ce qui peut faire progresser l'activité</h4><div><span>Rentabilité produit</span><b>ANALYSER</b></div><div><span>Performance closing</span><b>ANALYSER</b></div><div><span>Performance livraison</span><b>ANALYSER</b></div><div><span>Réactivation client</span><b>ANALYSER</b></div></div></div></div>
-
-          <div className="rvx-advanced">
-            <div className="rvx-advanced-card dark"><div className="rvx-kicker">Score RecuVente</div><h3>Un score pour savoir où agir.</h3><p>Une lecture synthétique de la santé du système. Les critères et le calcul doivent rester transparents et basés sur les données réelles.</p><div className="rvx-score"><div className="rvx-score-circle"><strong>82</strong></div><div className="rvx-score-bars">{[["Commandes",91],["Closing",76],["Livraison",83],["Encaissement",94],["Rentabilité",68],["Réactivation",71]].map((x) => <div className="rvx-score-line" key={x[0]}><span>{x[0]}</span><i><span style={{width:`${x[1]}%`}}/></i><b>{x[1]}</b></div>)}</div></div></div>
-            <div className="rvx-advanced-card"><div className="rvx-kicker">Alertes intelligentes</div><h3>Quand quelque chose déraille, tu dois le savoir.</h3><p>Des alertes conçues pour faire ressortir les anomalies ou contrôles qui méritent une action.</p><div className="rvx-alerts">{[["⚠","Taux de confirmation","Variation à analyser","SURVEILLER"],["!","Dépôt à contrôler","Écart éventuel à vérifier","CONTRÔLER"],["↘","Produit moins rentable","Marge à analyser","ANALYSER"],["↻","Opportunité de réactivation","Clients existants à relancer","AGIR"]].map((x) => <div className="rvx-alert" key={x[1]}><i>{x[0]}</i><div><strong>{x[1]}</strong><span>{x[2]}</span></div><b>{x[3]}</b></div>)}</div></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rvx-section rvx-dark">
-        <div className="wrap">
-          <div className="rvx-center"><div className="rvx-kicker">Équipe & terrain</div><h2 className="rvx-title">Ton équipe travaille.<br/><span>Toi, tu pilotes.</span></h2><p className="rvx-desc">Chaque rôle dispose de son environnement, tandis que la direction conserve la vue globale.</p></div>
-          <div className="rvx-team"><div className="rvx-team-card"><h3>🎯 Closers</h3><p>Chaque commande doit avoir un responsable et chaque interaction importante doit laisser une trace.</p><div className="rvx-team-grid"><div className="rvx-person"><strong>Attribution</strong><span>Qui appelle quoi ?</span><b>RESPONSABLE</b></div><div className="rvx-person"><strong>Historique</strong><span>Appels & statuts</span><b>TRACE</b></div><div className="rvx-person"><strong>Doublons</strong><span>Commandes suspectes</span><b>CONTRÔLE</b></div><div className="rvx-person"><strong>Performance</strong><span>Confirmation & résultats</span><b>MESURE</b></div></div></div><div className="rvx-team-card dark"><h3>🚚 Livreurs</h3><p>Du GPS à la livraison, puis au dépôt : le dernier kilomètre devient lisible.</p><div className="rvx-team-grid"><div className="rvx-person"><strong>GPS</strong><span>Tournée en cours</span><b>SUIVI</b></div><div className="rvx-person"><strong>Attribution</strong><span>Commandes affectées</span><b>ORGANISÉ</b></div><div className="rvx-person"><strong>Résultat</strong><span>Livrée / échouée</span><b>STATUT</b></div><div className="rvx-person"><strong>Dépôt</strong><span>Montant attendu</span><b>FINANCE</b></div></div></div></div>
-          <div className="rvx-reactivation"><div className="rvx-kicker">Réactivation</div><h3>Pourquoi repayer pour acquérir un client que tu as déjà acquis ? <span>Réactive ton historique.</span></h3><p>Ton historique client peut devenir un moteur de croissance : nouveaux clients, anciens clients, achats répétés, campagnes et relances WhatsApp.</p><div className="rvx-reactivation-flow"><div className="rvx-react-step"><b>👤</b><strong>Client existant</strong><span>Historique disponible</span></div><div className="rvx-react-step"><b>🔎</b><strong>Segmentation</strong><span>Habitudes d'achat</span></div><div className="rvx-react-step"><b>💬</b><strong>Relance</strong><span>WhatsApp / campagne</span></div><div className="rvx-react-step"><b>↻</b><strong>Nouvelle vente</strong><span>Retour dans le système</span></div></div></div>
-        </div>
-      </section>
-
-      <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Pas seulement pour l'e-commerce</div><h2 className="rvx-title">Un système pensé pour <span>plusieurs métiers.</span></h2><p className="rvx-desc">Boutique en ligne, commerce ou magasin physique, restaurant, location de maisons ou location de voitures : RecuVente s'adapte à la façon dont ton activité vend, encaisse et se pilote.</p></div><div className="rvx-industry-wrap"><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p><span style={{display:"inline-block",marginTop:10,fontSize:8,fontWeight:850,color:"#1a7a3c",letterSpacing:".05em"}}>VOIR COMMENT ÇA S'ADAPTE →</span></div>)}</div></div><div style={{marginTop:18,textAlign:"center",fontSize:10,color:"#718078"}}>Une même logique : <strong style={{color:"#07100b"}}>vendre · réserver · livrer · encaisser · réactiver · piloter.</strong></div></div></section>
-
-      <section className="rvx-section"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Le vrai changement</div><h2 className="rvx-title">Avant : des outils.<br/><span>Après : un système.</span></h2><p className="rvx-desc">Le changement n'est pas d'ajouter un outil. C'est de reconnecter les opérations.</p></div><div className="rvx-compare"><div className="rvx-compare-card before"><h3>❌ Avant</h3><div className="rvx-compare-list">{["WhatsApp, Excel et notes dispersées","Commandes difficiles à retrouver","Doublons difficiles à contrôler","Livreurs suivis séparément","Paiements à rapprocher manuellement","Clients anciens oubliés","Bénéfice réel difficile à lire"].map((x) => <div key={x}><b>×</b>{x}</div>)}</div></div><div className="rvx-compare-card after"><h3>✓ Avec RecuVente</h3><div className="rvx-compare-list">{["Une plateforme centralisée","Commandes traçables","Attribution & historique","GPS et performance livraison","Paiements, dépôts et commissions","Clients réactivables","Rentabilité lisible"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div></div><div className="rvx-future"><div className="rvx-future-head"><h3>Les prochaines armes de RecuVente</h3><span>Vision produit</span></div><div className="rvx-future-grid">{growthFeatures.slice(0,3).map((f) => <div className="rvx-future-item" key={f.title}><b>{f.icon}</b><strong>{f.title}</strong><p>{f.text}</p></div>)}</div></div></div></section>
-
-      <section id="tarifs" className="rvx-section rvx-pricing"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Choisis ton niveau</div><h2 className="rvx-title">Commence maintenant.<br/><span>Structure pour grandir.</span></h2><p className="rvx-desc">Les plans disponibles sur ton compte apparaissent automatiquement ci-dessous.</p></div><div className="rvx-plans">{plans.map((p,i) => <div className={`rvx-plan ${i === 1 ? "featured" : ""}`} key={p.id}>{i === 1 && <span className="badge">LE PLUS CHOISI</span>}<h3>{p.nom}</h3><div className="rvx-price">{Number(p.prix).toLocaleString("fr-FR")} <small>{p.devise}/mois</small></div><ul><li>{p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes selon le plan"}</li><li>{p.max_membres ? `${p.max_membres} membres max` : "Membres selon le plan"}</li><li>Commandes & clients</li><li>Produits & activités</li><li>Tableau de bord</li></ul><a href="?auth=1" onClick={trackLead}>Commencer maintenant →</a></div>)}</div></div></section>
-
-      <section className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Questions fréquentes</div><h2 className="rvx-title">Tu hésites encore ?<br/><span>Éliminons les dernières objections.</span></h2></div><div className="rvx-faq">{faqs.map((f,i) => <div className="rvx-faqrow" key={f[0]}><button onClick={() => setOpenFaq(openFaq === i ? null : i)}><span>{f[0]}</span><span>{openFaq === i ? "−" : "+"}</span></button>{openFaq === i && <div className="rvx-answer">{f[1]}</div>}</div>)}</div></div></section>
-
-      <section className="rvx-final"><div className="wrap"><div className="rvx-kicker">Le prochain niveau commence ici</div><h2>Arrête de deviner ce qui se passe dans ton business.<br/><span>Commence à le piloter.</span></h2><p>Crée ton espace RecuVente, connecte progressivement tes ventes, tes clients, ton équipe, tes livraisons, tes paiements et ta croissance.</p><div style={{marginTop:28}}><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">🚀 Créer mon espace RecuVente →</a></div><div className="micro">7 jours gratuits · aucune carte bancaire · accès à ton espace</div></div></section>
+      <section className="rvx-final"><div className="wrap"><div className="rvx-kicker">Le prochain niveau commence ici</div><h2>Arrête de courir derrière ton activité.<br/><span>Fais-la travailler comme un système.</span></h2><p>Crée ton espace RecuVente et connecte progressivement tes ventes, tes clients, ton équipe, tes livraisons, tes paiements et ta croissance.</p><div style={{marginTop:28}}><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">🚀 Créer mon espace RecuVente →</a></div></div></section>
 
       <footer className="rvx-footer">RecuVente — Un système pour vendre, convertir, livrer, encaisser, réactiver et piloter.<div style={{marginTop:8,display:"flex",gap:15,justifyContent:"center",flexWrap:"wrap"}}><a href="?page=impact" style={{color:"#8b958f",textDecoration:"underline"}}>Rapport d'impact</a><a href="?page=cgu" style={{color:"#8b958f",textDecoration:"underline"}}>Conditions</a><a href="?page=confidentialite" style={{color:"#8b958f",textDecoration:"underline"}}>Confidentialité</a></div></footer>
       <div className="rvx-mobile"><a href="?auth=1" onClick={trackLead}>🚀 Commencer avec RecuVente</a></div>
     </div>
   );
 }
-
 function PageImpact() {
   const [stats, setStats] = useState(undefined);
 
@@ -908,146 +779,6 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
   );
 }
 
-function LivreurCarteEcartCaisse({ l, workspaceId, currency }) {
-  const [dernierDepot, setDernierDepot] = useState(null);
-
-  useEffect(() => {
-    supabase
-      .from("depots_livreur")
-      .select("*")
-      .eq("workspace_id", workspaceId)
-      .eq("livreur_nom", l.nom)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => setDernierDepot(data && data[0] ? data[0] : null));
-  }, [l.nom, workspaceId]);
-
-  const ecart = dernierDepot ? Number(dernierDepot.montant_declare) - l.aDeposer : null;
-  const ecartSignificatif = ecart !== null && Math.abs(ecart) >= 500;
-
-  return (
-    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
-      <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
-      <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {currency} encaissé</div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
-          Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
-        </div>
-        <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
-          Attendu : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
-        </div>
-      </div>
-
-      {dernierDepot && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0EEE6" }}>
-          <div style={{ fontSize: 11, color: "#8A9089" }}>
-            Dernier dépôt déclaré : <strong style={{ color: "#16231F" }}>{Number(dernierDepot.montant_declare).toLocaleString("fr-FR")} {currency}</strong> — {new Date(dernierDepot.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </div>
-          {ecartSignificatif ? (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 7, padding: "6px 9px", marginTop: 6, fontSize: 11.5, color: "#D64933", fontWeight: 700 }}>
-              🔴 Écart de caisse : {ecart > 0 ? "+" : ""}{ecart.toLocaleString("fr-FR")} {currency}
-            </div>
-          ) : (
-            <div style={{ fontSize: 11, color: "#1F9D6E", marginTop: 4, fontWeight: 600 }}>✅ Caisse correcte</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
-  const nonTraitees = todoAujourdhui.total;
-  const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
-  const aRisque = todoAujourdhui.sansNouvelles.length;
-  const echouees = todoAujourdhui.jamaisContactees.filter((c) => c.statut === "echouee").length
-    + todoAujourdhui.sansNouvelles.filter((c) => c.statut === "echouee").length
-    + todoAujourdhui.aRelivrer.filter((c) => c.statut === "echouee").length;
-  const recuperables = Math.max(0, nonTraitees - jamaisRappeles);
-
-  const potentielTotal = todoAujourdhui.argentARisque + todoAujourdhui.argentRecuperable;
-
-  const livreurAControler = [...depotsParLivreur].sort((a, b) => b.aDeposer - a.aDeposer)[0];
-
-  const etapes = [
-    { label: `${nonTraitees} commande${nonTraitees > 1 ? "s" : ""} non traitée${nonTraitees > 1 ? "s" : ""}`, valeur: nonTraitees },
-    { label: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s" : ""} jamais rappelé${jamaisRappeles > 1 ? "s" : ""}`, valeur: jamaisRappeles },
-    { label: `${aRisque} commande${aRisque > 1 ? "s" : ""} à risque`, valeur: aRisque },
-    { label: `${echouees} livraison${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""}`, valeur: echouees },
-    { label: `${recuperables} client${recuperables > 1 ? "s" : ""} récupérable${recuperables > 1 ? "s" : ""}`, valeur: recuperables },
-  ].filter((e) => e.valeur > 0);
-
-  const actions = [];
-  if (jamaisRappeles > 0) {
-    actions.push({ num: "01", titre: "RAPPELER", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
-  }
-  if (echouees > 0) {
-    actions.push({ num: "02", titre: "RÉCUPÉRER", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
-  }
-  if (livreurAControler && livreurAControler.aDeposer > 0) {
-    actions.push({ num: "03", titre: "CONTRÔLER", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
-  }
-  if (clientsARelancer.length > 0) {
-    actions.push({ num: "04", titre: "RELANCER", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
-  }
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      {etapes.length > 0 && (
-        <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 16, padding: "18px 20px", marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#f0a0a0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 12 }}>
-            🔴 Argent en train de se perdre — aujourd'hui
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {etapes.map((e, i) => (
-              <div key={i}>
-                <div style={{ color: "white", fontSize: 13, fontWeight: 600, padding: "4px 0" }}>{e.label}</div>
-                {i < etapes.length - 1 && <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, paddingLeft: 4 }}>↓</div>}
-              </div>
-            ))}
-          </div>
-
-          {potentielTotal > 0 && (
-            <>
-              <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "14px 0 12px" }} />
-              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>💰 Potentiel à récupérer</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: "#e8920a", marginTop: 3, marginBottom: 12 }}>
-                {potentielTotal.toLocaleString("fr-FR")} {currency}
-              </div>
-              <button onClick={onVoirRecovery} style={{ width: "100%", background: "#e8920a", color: "#16231F", border: "none", borderRadius: 9, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                RÉCUPÉRER CES VENTES →
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {actions.length > 0 && (
-        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: "18px 20px" }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>🎯 Ton business aujourd'hui</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>
-            {actions.length} action{actions.length > 1 ? "s" : ""} prioritaire{actions.length > 1 ? "s" : ""} à traiter
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {actions.map((a) => (
-              <div key={a.num} style={{ borderLeft: `3px solid ${a.couleur}`, paddingLeft: 12 }}>
-                <div style={{ fontSize: 10.5, color: a.couleur, fontWeight: 700, letterSpacing: "0.03em" }}>{a.num} — {a.titre}</div>
-                <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 2 }}>{a.desc}</div>
-                {a.potentiel > 0 && (
-                  <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>Potentiel : {a.potentiel.toLocaleString("fr-FR")} {currency}</div>
-                )}
-                <button onClick={a.action} style={{ marginTop: 6, background: a.couleur, color: "white", border: "none", borderRadius: 7, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
-                  {a.bouton}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCritique, meilleurLivreur, beneficeReel, currency, onVoirAujourdhui }) {
   const lignes = [];
 
@@ -1121,7 +852,7 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
 
 function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
   const [ouvert, setOuvert] = useState(false);
-  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
+  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", restaurant: "🍽️", location_vehicule: "🚗" };
 
   return (
     <div style={{ position: "relative", marginBottom: 18, display: "flex", gap: 6 }}>
@@ -1161,6 +892,120 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+
+/* ============================================================
+   RECUVENTE OS — EXTENSION MODULAIRE NON DESTRUCTIVE
+   Cette couche n'écrase aucun module existant. Elle fournit
+   une navigation unifiée pour les nouvelles capacités.
+   ============================================================ */
+
+const RV_ACTIVITY_CONFIG = {
+  cod_ecommerce: { icon: "📦", label: "E-commerce COD", modules: ["store", "orders", "customers", "closers", "couriers", "recovery", "profit"] },
+  retail: { icon: "🏪", label: "Commerce / magasin", modules: ["sales", "products", "inventory", "customers", "finance", "profit"] },
+  restaurant: { icon: "🍽️", label: "Restaurant", modules: ["menu", "tables", "kitchen", "orders", "delivery", "customers", "finance"] },
+  location_immobiliere: { icon: "🏠", label: "Location immobilière", modules: ["properties", "calendar", "reservations", "customers", "payments", "contracts", "profit"] },
+  location_vehicule: { icon: "🚗", label: "Location de véhicules", modules: ["vehicles", "calendar", "reservations", "customers", "payments", "maintenance", "profit"] },
+};
+
+function RVActivityConfig({ activityType }) {
+  return RV_ACTIVITY_CONFIG[activityType] || RV_ACTIVITY_CONFIG.cod_ecommerce;
+}
+
+function RecuVenteOSPanel({ workspace, commandes = [], produits = [], clients = [], livreurs = [], closers = [] }) {
+  const [tab, setTab] = useState("overview");
+  const [sectionOrder, setSectionOrder] = useState(["hero", "products", "testimonials", "faq", "contact"]);
+  const [previewDevice, setPreviewDevice] = useState("desktop");
+  const cfg = RV_ACTIVITY_CONFIG[workspace?.activity_type] || RV_ACTIVITY_CONFIG.cod_ecommerce;
+
+  const confirmed = commandes.filter(c => c.statut === "confirmee");
+  const failed = commandes.filter(c => c.statut === "echouee");
+  const revenue = confirmed.reduce((n, c) => n + Number(c.montant || 0), 0);
+  const risk = failed.reduce((n, c) => n + Number(c.montant || 0), 0);
+  const successRate = commandes.length ? Math.round((confirmed.length / commandes.length) * 100) : 0;
+
+  function moveSection(index, direction) {
+    const next = [...sectionOrder];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setSectionOrder(next);
+  }
+
+  const tabs = [
+    ["overview", "⚡ Pilotage"],
+    ["store", "🛍️ Ma boutique"],
+    ["actions", "🎯 Actions"],
+    ["analytics", "📊 Business Score"],
+  ];
+
+  return (
+    <div style={{ padding: "0 20px 40px" }}>
+      <div style={{ background: "linear-gradient(135deg,#07140d,#123d26 55%,#1a7a3c)", borderRadius: 20, padding: 22, color: "white", marginBottom: 16, boxShadow: "0 18px 45px rgba(9,55,31,.18)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 15, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 11, opacity: .65, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 800 }}>RecuVente OS</div>
+            <div style={{ fontFamily: "Georgia,serif", fontSize: 28, fontWeight: 800, letterSpacing: "-.04em", marginTop: 4 }}>{cfg.icon} {cfg.label}</div>
+            <div style={{ color: "rgba(255,255,255,.68)", fontSize: 13, marginTop: 6 }}>Une couche de pilotage au-dessus de ton système actuel.</div>
+          </div>
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+            {tabs.map(([key,label]) => <button key={key} onClick={() => setTab(key)} style={{ border: tab===key ? "1px solid rgba(255,255,255,.35)" : "1px solid transparent", background: tab===key ? "rgba(255,255,255,.16)" : "rgba(255,255,255,.07)", color: "white", borderRadius: 10, padding: "9px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{label}</button>)}
+          </div>
+        </div>
+      </div>
+
+      {tab === "overview" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 14 }}>
+            {[
+              ["Commandes", commandes.length, "📦"],
+              ["CA confirmé", revenue.toLocaleString("fr-FR") + " " + (workspace.currency || "XOF"), "💰"],
+              ["À risque", risk.toLocaleString("fr-FR") + " " + (workspace.currency || "XOF"), "⚠️"],
+              ["Taux confirmé", successRate + "%", "🎯"],
+            ].map(([label,value,icon]) => <div key={label} style={{ background:"white", border:"1px solid #e8ece7", borderRadius:14, padding:15 }}><div style={{fontSize:18}}>{icon}</div><div style={{fontSize:11,color:"#7a847d",marginTop:7}}>{label}</div><div style={{fontSize:19,fontWeight:800,color:"#122019",marginTop:3}}>{value}</div></div>)}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:14 }}>
+            <div style={{background:"white",border:"1px solid #e8ece7",borderRadius:16,padding:18}}>
+              <div style={{fontWeight:800,fontSize:15}}>🎯 Centre d'actions</div>
+              <p style={{fontSize:12.5,color:"#68736c",lineHeight:1.55}}>Transforme les données existantes en prochaines actions prioritaires.</p>
+              {failed.slice(0,4).map(c => <div key={c.id} style={{padding:"9px 0",borderTop:"1px solid #eef1ed",fontSize:12.5}}>⚠️ <b>{c.client || "Client"}</b> — {Number(c.montant||0).toLocaleString("fr-FR")} {workspace.currency}</div>)}
+              {failed.length===0 && <div style={{padding:12,background:"#f4f8f1",borderRadius:10,fontSize:12,color:"#47704e"}}>✅ Aucune commande échouée détectée.</div>}
+            </div>
+            <div style={{background:"white",border:"1px solid #e8ece7",borderRadius:16,padding:18}}>
+              <div style={{fontWeight:800,fontSize:15}}>🧠 Modules actifs</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:12}}>{cfg.modules.map(m=><span key={m} style={{background:"#f4f7f3",border:"1px solid #e3e9e2",padding:"7px 9px",borderRadius:999,fontSize:11,fontWeight:700,color:"#33533e"}}>{m}</span>)}</div>
+              <div style={{fontSize:12,color:"#748078",marginTop:14}}>Les modules métier restent indépendants du cœur existant.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "store" && (
+        <div style={{display:"grid",gridTemplateColumns:"210px minmax(0,1fr) 250px",gap:12,alignItems:"start"}}>
+          <div style={{background:"white",border:"1px solid #e8ece7",borderRadius:16,padding:12}}>
+            <div style={{fontWeight:800,fontSize:13,marginBottom:9}}>Sections</div>
+            {sectionOrder.map((s,i)=><div key={s} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 5px",borderBottom:"1px solid #f0f2ef"}}><span style={{flex:1,fontSize:11.5,fontWeight:650}}>{({hero:"Hero",products:"Produits",testimonials:"Avis",faq:"FAQ",contact:"Contact"})[s]}</span><button onClick={()=>moveSection(i,-1)} style={{border:0,background:"none",cursor:"pointer"}}>↑</button><button onClick={()=>moveSection(i,1)} style={{border:0,background:"none",cursor:"pointer"}}>↓</button></div>)}
+          </div>
+          <div style={{background:"#eef2ed",borderRadius:16,padding:16,minHeight:500,display:"flex",justifyContent:"center"}}>
+            <div style={{width:previewDevice==="mobile"?375:previewDevice==="tablet"?680:"100%",maxWidth:"100%",background:"white",borderRadius:14,overflow:"hidden",boxShadow:"0 12px 35px rgba(0,0,0,.08)",transition:"width .2s"}}>
+              <div style={{background:"#07140d",color:"white",padding:"13px 16px",fontWeight:800}}>RECU<span style={{color:"#ff7a00"}}>VENTE</span></div>
+              {sectionOrder.map(s=><div key={s} style={{padding:"26px 18px",borderBottom:"1px solid #edf0ec",textAlign:"center"}}><div style={{fontWeight:800,fontSize:s==="hero"?24:16}}>{({hero:"Votre boutique. Votre marque. Vos ventes.",products:"Nos produits",testimonials:"Ils nous font confiance",faq:"Questions fréquentes",contact:"Prêt à commander ?"})[s]}</div><div style={{fontSize:11.5,color:"#718078",marginTop:7}}>{s==="products"?`${produits.length} produit(s) connecté(s)`:"Section personnalisable dans le Store Builder"}</div></div>)}
+            </div>
+          </div>
+          <div style={{background:"white",border:"1px solid #e8ece7",borderRadius:16,padding:14}}>
+            <div style={{fontWeight:800,fontSize:13}}>Aperçu</div>
+            <div style={{display:"flex",gap:6,marginTop:10}}>{[["desktop","Desktop"],["tablet","Tablette"],["mobile","Mobile"]].map(([k,l])=><button key={k} onClick={()=>setPreviewDevice(k)} style={{flex:1,border:"1px solid #dfe5df",background:previewDevice===k?"#1a7a3c":"white",color:previewDevice===k?"white":"#26352c",borderRadius:8,padding:"7px 4px",fontSize:10,cursor:"pointer"}}>{l}</button>)}</div>
+            <div style={{marginTop:18,fontSize:12,color:"#66726a",lineHeight:1.55}}>Le builder est isolé de la boutique actuelle. La persistance peut être branchée sur les réglages/collections existants sans modifier les commandes.</div>
+          </div>
+        </div>
+      )}
+
+      {tab === "actions" && <div style={{background:"white",border:"1px solid #e8ece7",borderRadius:16,padding:20}}><div style={{fontWeight:800,fontSize:17}}>🎯 Recovery & Action Center</div><p style={{fontSize:12.5,color:"#69756d"}}>Priorités calculées à partir des commandes, clients et équipes déjà chargés.</p><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginTop:15}}>{[["Récupérer les échecs",failed.length,"Relances à traiter"],["Closers",closers.length,"Membres actifs"],["Livreurs",livreurs.length,"Membres actifs"],["Clients",clients.length,"Clients disponibles"]].map(([a,n,b])=><div key={a} style={{background:"#f7f9f6",borderRadius:12,padding:15}}><div style={{fontSize:11,color:"#758079"}}>{a}</div><div style={{fontSize:24,fontWeight:800,marginTop:3}}>{n}</div><div style={{fontSize:11,color:"#758079",marginTop:3}}>{b}</div></div>)}</div></div>}
+
+      {tab === "analytics" && <div style={{background:"white",border:"1px solid #e8ece7",borderRadius:16,padding:20}}><div style={{fontWeight:800,fontSize:17}}>📊 Business Score</div><div style={{fontSize:12.5,color:"#69756d",marginTop:5}}>Indice opérationnel transparent, calculé sans créer de nouvelle base de données.</div><div style={{fontSize:54,fontWeight:900,color:"#1a7a3c",marginTop:22}}>{Math.round((successRate * .6) + (commandes.length ? Math.min(40, commandes.length) : 0))}<span style={{fontSize:18,color:"#89938d"}}>/100</span></div><div style={{fontSize:12,color:"#69756d"}}>Base actuelle : conversion confirmée + volume d'activité.</div></div>}
     </div>
   );
 }
@@ -2399,32 +2244,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setVue(t.key)}
-            style={{
-              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
-              background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
-              color: vue === t.key ? "white" : "rgba(255,255,255,0.6)",
-              fontSize: 14, fontWeight: vue === t.key ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-
-        {(workspace.role === "owner" || workspace.role === "admin") && (
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
-            Pilotage financier
-          </div>
-        )}
-        {[
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
-          ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "os_pilotage", label: "⚡ Pilotage OS" }, { key: "os_boutique", label: "🛍️ Store Builder" }] : []),
         ].map((t) => (
           <button
             key={t.key}
@@ -2520,15 +2343,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
               {workspace.role === "owner" && (
                 <>
                   <button onClick={() => setShowTeam(true)} className="rv-saas-tabs-mobile" aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     👥
+                  </button>
+                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    📦
                   </button>
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
@@ -2536,30 +2362,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowIntegrations(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🛍️
                   </button>
-                </>
-              )}
-              {(workspace.role === "owner" || workspace.role === "admin") && (
-                <>
-                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📦
-                  </button>
-                  <button onClick={() => setVue("rapprochement")} className="rv-saas-tabs-mobile" aria-label="Rapprochement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🔗
-                  </button>
-                  <button onClick={() => setVue("score_business")} className="rv-saas-tabs-mobile" aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🧭
-                  </button>
-                  <button onClick={() => setVue("simulateur")} className="rv-saas-tabs-mobile" aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📊
-                  </button>
-                  <button onClick={() => setVue("validations")} className="rv-saas-tabs-mobile" aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    ✅
-                  </button>
-                  {workspace.activity_type === "restaurant" && (
-                    <button onClick={() => setVue("menu_restaurant")} className="rv-saas-tabs-mobile" aria-label="Menu" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                      📋
-                    </button>
-                  )}
                 </>
               )}
               <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
@@ -2666,6 +2468,17 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       <SubscriptionBanner subscription={subscription} />
 
+      {(vue === "os_pilotage" || vue === "os_boutique") && (
+        <RecuVenteOSPanel
+          workspace={workspace}
+          commandes={commandes}
+          produits={produits}
+          clients={clients}
+          livreurs={livreurs}
+          closers={closers}
+        />
+      )}
+
       {notifPermission === "default" && (
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12.5, color: "#8A6412" }}>🔔 Active les notifications pour ne rater aucune commande, même l'app fermée.</span>
@@ -2730,18 +2543,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 ))}
               </div>
             </div>
-          )}
-
-          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0)) && (
-            <RadarDesFuitesEtActions
-              todoAujourdhui={todoAujourdhui}
-              clientsARelancer={clientsARelancer}
-              depotsParLivreur={depotsParLivreur}
-              currency={workspace.currency}
-              onVoirRecovery={() => setVue("recovery")}
-              onVoirCompta={() => setVue("compta")}
-              onVoirClients={() => setVue("clients")}
-            />
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -3130,20 +2931,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "score_business" && (
-        <ScoreBusinessView
-          toutesCommandes={commandes}
-          beneficeReel={beneficeReel}
-          caConfirme={caConfirme}
-          currency={workspace.currency}
-          depotsParLivreur={depotsParLivreur}
-        />
-      )}
-
-      {vue === "simulateur" && (
-        <SimulateurCampagneView currency={workspace.currency} />
-      )}
-
       {vue === "rapprochement" && (
         <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
       )}
@@ -3238,7 +3025,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {depotsParLivreur.map((l) => (
-              <LivreurCarteEcartCaisse key={l.nom} l={l} workspaceId={workspace.id} currency={workspace.currency} />
+              <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+                <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+                    Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+                  </div>
+                  <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+                    À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -3289,10 +3087,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {[
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
-          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }, { key: "menu_restaurant", label: "Menu", icon: Boxes }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
+          { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
+          ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;
@@ -5407,17 +5208,6 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     if (collectionOuverte === id) setCollectionOuverte(null);
   }
 
-  async function deplacerCollection(index, direction) {
-    const liste = [...collections];
-    const autreIndex = index + direction;
-    if (autreIndex < 0 || autreIndex >= liste.length) return;
-    const a = liste[index];
-    const b = liste[autreIndex];
-    await supabase.from("collections").update({ ordre: b.ordre }).eq("id", a.id);
-    await supabase.from("collections").update({ ordre: a.ordre }).eq("id", b.id);
-    await charger();
-  }
-
   async function ouvrirGestionProduits(collectionId) {
     setCollectionOuverte(collectionId);
     const { data } = await supabase.from("collection_produits").select("produit_id").eq("collection_id", collectionId);
@@ -5474,12 +5264,8 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {(collections || []).map((c, i) => (
-                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button onClick={() => deplacerCollection(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#DDD8CC" : "#6B7168", cursor: i === 0 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
-                    <button onClick={() => deplacerCollection(i, 1)} disabled={i === collections.length - 1} style={{ background: "none", border: "none", color: i === collections.length - 1 ? "#DDD8CC" : "#6B7168", cursor: i === collections.length - 1 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
-                  </div>
+              {(collections || []).map((c) => (
+                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>
                     {c.nom}
                   </button>
@@ -5487,7 +5273,6 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8 }}>Utilise les flèches ▲▼ pour changer l'ordre d'affichage sur ta boutique.</div>
           </>
         )}
 
@@ -5981,7 +5766,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [confirmees]);
   const [showBilan, setShowBilan] = useState(false);
-  const [showDeclarationDepot, setShowDeclarationDepot] = useState(false);
 
   async function changerStatut(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom, mode_paiement: modePaiement || null } : {};
@@ -6068,13 +5852,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
             </button>
           )}
         </div>
-
-        <button
-          onClick={() => setShowDeclarationDepot(true)}
-          style={{ width: "100%", marginTop: 10, background: "white", color: "#16231F", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
-        >
-          🏦 Déclarer mon dépôt
-        </button>
 
         {showBilan && bilanParJour.length > 0 && (
           <div style={{ marginTop: 10, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 14px" }}>
@@ -6223,80 +6000,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
           </div>
         </div>
       )}
-
-      {showDeclarationDepot && (
-        <DeclarationDepotModal
-          livreur={livreur}
-          montantEncaisse={confirmees.reduce((s, c) => s + Number(c.montant), 0)}
-          commission={confirmees.length * 1500}
-          currency={currency}
-          onClose={() => setShowDeclarationDepot(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function DeclarationDepotModal({ livreur, montantEncaisse, commission, currency, onClose }) {
-  const montantAttendu = montantEncaisse - commission;
-  const [montant, setMontant] = useState(String(montantAttendu));
-  const [enCours, setEnCours] = useState(false);
-  const [fait, setFait] = useState(false);
-
-  async function declarer() {
-    if (!montant || Number(montant) < 0) return;
-    setEnCours(true);
-    await supabase.from("depots_livreur").insert([{
-      workspace_id: livreur.workspace_id,
-      livreur_nom: livreur.nom,
-      montant_declare: Number(montant),
-    }]);
-    setEnCours(false);
-    setFait(true);
-  }
-
-  if (fait) {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 70 }}>
-        <div style={{ background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 340, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Dépôt déclaré</div>
-          <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>{Number(montant).toLocaleString("fr-FR")} {currency} enregistré.</div>
-          <button onClick={onClose} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
-            Fermer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 70 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏦 Déclarer mon dépôt</div>
-        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
-          Montant attendu (encaissé moins ta commission) : <strong>{montantAttendu.toLocaleString("fr-FR")} {currency}</strong>
-        </div>
-
-        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Montant que tu déposes réellement</div>
-        <input
-          type="number"
-          value={montant}
-          onChange={(e) => setMontant(e.target.value)}
-          style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 15, fontWeight: 700, boxSizing: "border-box", marginBottom: 14 }}
-        />
-
-        <button
-          onClick={declarer}
-          disabled={enCours || !montant}
-          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}
-        >
-          {enCours ? "Enregistrement..." : "Confirmer la déclaration"}
-        </button>
-        <button onClick={onClose} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
-          Annuler
-        </button>
-      </div>
     </div>
   );
 }
@@ -7503,287 +7206,6 @@ function RapprochementView({ workspace, commandes, onValide }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function SimulateurCampagneView({ currency }) {
-  const [form, setForm] = useState({
-    prixVente: "",
-    coutProduit: "",
-    coutLivraison: "1500",
-    commissionCloser: "",
-    budgetPub: "",
-    tauxConfirmation: "60",
-    tauxLivraison: "80",
-    coutParCommande: "",
-  });
-
-  function champ(cle, val) {
-    setForm({ ...form, [cle]: val });
-  }
-
-  const resultats = useMemo(() => {
-    const prixVente = Number(form.prixVente) || 0;
-    const coutProduit = Number(form.coutProduit) || 0;
-    const coutLivraison = Number(form.coutLivraison) || 0;
-    const commission = Number(form.commissionCloser) || 0;
-    const budgetPub = Number(form.budgetPub) || 0;
-    const coutParCommande = Number(form.coutParCommande) || 0;
-    const tauxConfirmation = Number(form.tauxConfirmation) || 0;
-    const tauxLivraisonPct = Number(form.tauxLivraison) || 0;
-
-    if (!prixVente || !budgetPub || !coutParCommande) return null;
-
-    const commandesEstimees = Math.round(budgetPub / coutParCommande);
-    const commandesConfirmees = Math.round(commandesEstimees * (tauxConfirmation / 100));
-    const livraisons = Math.round(commandesConfirmees * (tauxLivraisonPct / 100));
-
-    const chiffreAffaires = livraisons * prixVente;
-    const coutsProduits = livraisons * coutProduit;
-    const coutsLivraisons = livraisons * coutLivraison;
-    const coutsCommissions = livraisons * commission;
-    const coutsTotaux = coutsProduits + coutsLivraisons + coutsCommissions + budgetPub;
-    const beneficeEstime = chiffreAffaires - coutsTotaux;
-
-    const margeParLivraison = prixVente - coutProduit - coutLivraison - commission;
-    const seuilRentabilite = margeParLivraison > 0 ? Math.ceil(budgetPub / margeParLivraison) : null;
-
-    return { commandesEstimees, commandesConfirmees, livraisons, chiffreAffaires, coutsTotaux, beneficeEstime, seuilRentabilite, margeParLivraison };
-  }, [form]);
-
-  const champStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 10 };
-  const labelStyle = { fontSize: 11, color: "#8A9089", marginBottom: 3, display: "block" };
-
-  return (
-    <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>📊 Simulateur de campagne</div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-        Avant de dépenser en publicité, sais combien de commandes livrées il te faut pour être rentable.
-      </div>
-
-      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18, marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 14 }}>Ton produit</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Prix de vente ({currency})</label>
-            <input type="number" value={form.prixVente} onChange={(e) => champ("prixVente", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Coût produit ({currency})</label>
-            <input type="number" value={form.coutProduit} onChange={(e) => champ("coutProduit", e.target.value)} style={champStyle} />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Coût livraison ({currency})</label>
-            <input type="number" value={form.coutLivraison} onChange={(e) => champ("coutLivraison", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Commission closer ({currency})</label>
-            <input type="number" value={form.commissionCloser} onChange={(e) => champ("commissionCloser", e.target.value)} style={champStyle} />
-          </div>
-        </div>
-
-        <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 10, marginBottom: 14 }}>Ta publicité</div>
-        <label style={labelStyle}>Budget publicitaire total ({currency})</label>
-        <input type="number" value={form.budgetPub} onChange={(e) => champ("budgetPub", e.target.value)} style={champStyle} />
-        <label style={labelStyle}>Coût estimé par commande générée ({currency}) — ce que ta pub coûte pour obtenir une commande</label>
-        <input type="number" value={form.coutParCommande} onChange={(e) => champ("coutParCommande", e.target.value)} style={champStyle} />
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Taux de confirmation estimé (%)</label>
-            <input type="number" value={form.tauxConfirmation} onChange={(e) => champ("tauxConfirmation", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Taux de livraison estimé (%)</label>
-            <input type="number" value={form.tauxLivraison} onChange={(e) => champ("tauxLivraison", e.target.value)} style={{ ...champStyle, marginBottom: 0 }} />
-          </div>
-        </div>
-      </div>
-
-      {resultats && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Commandes estimées</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesEstimees}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Confirmées</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesConfirmees}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Livraisons</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.livraisons}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Chiffre d'affaires</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, marginTop: 3 }}>{resultats.chiffreAffaires.toLocaleString("fr-FR")}</div>
-            </div>
-          </div>
-
-          <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice estimé</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: resultats.beneficeEstime >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
-              {resultats.beneficeEstime.toLocaleString("fr-FR")} {currency}
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-              Coûts totaux (produits + livraisons + commissions + pub) : {resultats.coutsTotaux.toLocaleString("fr-FR")} {currency}
-            </div>
-          </div>
-
-          {resultats.margeParLivraison <= 0 ? (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#D64933", fontWeight: 600 }}>
-              🔴 Ta marge par livraison ({resultats.margeParLivraison.toLocaleString("fr-FR")} {currency}) est négative ou nulle — cette campagne ne peut pas devenir rentable avec ces chiffres, quel que soit le volume.
-            </div>
-          ) : (
-            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#3B6D11", fontWeight: 600 }}>
-              🟢 À partir de <strong>{resultats.seuilRentabilite} commande{resultats.seuilRentabilite > 1 ? "s" : ""} livrée{resultats.seuilRentabilite > 1 ? "s" : ""}</strong>, cette campagne devient rentable.
-            </div>
-          )}
-        </>
-      )}
-
-      {!resultats && (
-        <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "20px 0" }}>
-          Remplis au moins le prix de vente, le budget publicitaire et le coût par commande pour voir la simulation.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur }) {
-  const composantes = useMemo(() => {
-    const now = new Date();
-    const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
-    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-    const commandesMoisActuel = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisActuel);
-    const commandesMoisPrecedent = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisPrecedent && new Date(c.created_at) < debutMoisActuel);
-
-    // 1. Taux de livraison réussie
-    const traitees = toutesCommandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
-    const tauxLivraison = traitees.length > 0 ? Math.round((toutesCommandes.filter((c) => c.statut === "confirmee").length / traitees.length) * 100) : 100;
-
-    // 2. Taux de récupération (commandes traitées qui finissent confirmées)
-    const echoueesTotal = toutesCommandes.filter((c) => c.statut === "echouee").length;
-    const confirmeesTotal = toutesCommandes.filter((c) => c.statut === "confirmee").length;
-    const totalTraitees2 = echoueesTotal + confirmeesTotal;
-    const tauxRecuperation = totalTraitees2 > 0 ? Math.round((confirmeesTotal / totalTraitees2) * 100) : 100;
-
-    // 3. Santé financière (bénéfice positif par rapport au CA)
-    const margeSante = caConfirme > 0 ? Math.max(0, Math.min(100, Math.round((beneficeReel / caConfirme) * 100 + 50))) : 50;
-
-    // 4. Croissance mois sur mois
-    const croissance = commandesMoisPrecedent.length > 0
-      ? Math.max(0, Math.min(100, Math.round(50 + ((commandesMoisActuel.length - commandesMoisPrecedent.length) / commandesMoisPrecedent.length) * 100)))
-      : (commandesMoisActuel.length > 0 ? 70 : 50);
-
-    // 5. Fiabilité de l'équipe livreurs (moyenne des dépôts positifs = équipe saine financièrement)
-    const fiabiliteEquipe = depotsParLivreur.length > 0
-      ? Math.round((depotsParLivreur.filter((l) => l.aDeposer >= 0).length / depotsParLivreur.length) * 100)
-      : 100;
-
-    // 6. Discipline de suivi (peu de commandes bloquées longtemps en_cours)
-    const enCoursAnciennes = toutesCommandes.filter((c) => c.statut === "en_cours" && (Date.now() - new Date(c.created_at).getTime()) / 86400000 > 3).length;
-    const enCoursTotal = toutesCommandes.filter((c) => c.statut === "en_cours").length;
-    const disciplineSuivi = enCoursTotal > 0 ? Math.round(100 - (enCoursAnciennes / enCoursTotal) * 100) : 100;
-
-    return [
-      { label: "Taux de livraison", valeur: tauxLivraison, icone: "🚚" },
-      { label: "Taux de récupération", valeur: tauxRecuperation, icone: "🎯" },
-      { label: "Santé financière", valeur: margeSante, icone: "💰" },
-      { label: "Croissance", valeur: croissance, icone: "📈" },
-      { label: "Fiabilité équipe", valeur: fiabiliteEquipe, icone: "🤝" },
-      { label: "Discipline de suivi", valeur: disciplineSuivi, icone: "📋" },
-    ];
-  }, [toutesCommandes, beneficeReel, caConfirme, depotsParLivreur]);
-
-  const scoreGlobal = Math.round(composantes.reduce((s, c) => s + c.valeur, 0) / composantes.length);
-
-  function niveauScore(score) {
-    if (score >= 75) return { label: "Excellent", couleur: "#1F9D6E" };
-    if (score >= 55) return { label: "Correct", couleur: "#8A6412" };
-    return { label: "À surveiller", couleur: "#D64933" };
-  }
-
-  const niveauGlobal = niveauScore(scoreGlobal);
-
-  const recommandations = useMemo(() => {
-    const conseils = {
-      "Taux de livraison": "Regarde tes anomalies produit/zone dans Commandes — un même produit qui échoue souvent dans une zone précise cache souvent un souci d'adresse ou de livreur.",
-      "Taux de récupération": "Va dans Récupération — chaque commande à risque a un bouton direct pour relancer le client sur WhatsApp.",
-      "Santé financière": "Vérifie que tous tes produits ont un coût d'achat ET des frais de transport renseignés dans le catalogue — sinon ton bénéfice réel est sous-estimé, ou tu vends à perte sans le savoir.",
-      "Croissance": "Regarde tes clients à relancer dans l'écran Clients — relancer un ancien client coûte moins cher que d'en trouver un nouveau.",
-      "Fiabilité équipe": "Va dans Compta, section \"Détail par livreur\" — identifie qui a un solde à déposer négatif ou en retard.",
-      "Discipline de suivi": "Des commandes restent \"en cours\" depuis plus de 3 jours — reprogramme-les ou marque-les échouées pour garder ta liste à jour.",
-    };
-    return [...composantes]
-      .sort((a, b) => a.valeur - b.valeur)
-      .slice(0, 3)
-      .filter((c) => c.valeur < 90)
-      .map((c) => ({ ...c, conseil: conseils[c.label] }));
-  }, [composantes]);
-
-  return (
-    <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🧭 Score Business</div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-        Le résumé exécutif de ton activité — 6 indicateurs combinés en un seul chiffre.
-      </div>
-
-      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 18, padding: "28px 24px", marginBottom: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Score global</div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 56, color: niveauGlobal.couleur, lineHeight: 1 }}>
-          {scoreGlobal}
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: niveauGlobal.couleur, marginTop: 6 }}>{niveauGlobal.label}</div>
-      </div>
-
-      {recommandations.length > 0 && (
-        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: "#8A6412", marginBottom: 10 }}>
-            💡 Les {recommandations.length} choses qui te feraient le plus progresser
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {recommandations.map((r, i) => (
-              <div key={r.label} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#8A6412", color: "white", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                  {i + 1}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412" }}>{r.icone} {r.label} ({r.valeur}/100)</div>
-                  <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2, lineHeight: 1.45 }}>{r.conseil}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {composantes.map((c) => {
-          const niveau = niveauScore(c.valeur);
-          return (
-            <div key={c.label} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{c.icone} {c.label}</span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: niveau.couleur }}>{c.valeur}</span>
-              </div>
-              <div style={{ background: "#ECE8DC", borderRadius: 999, height: 6, overflow: "hidden" }}>
-                <div style={{ width: `${c.valeur}%`, background: niveau.couleur, height: "100%", borderRadius: 999 }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.6 }}>
-        Calculé à partir de tes 30 derniers jours de commandes, ton bénéfice réel, et la fiabilité de ton équipe. Un score qui remonte reflète une activité qui se solidifie.
       </div>
     </div>
   );

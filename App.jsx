@@ -243,6 +243,9 @@ export default function App() {
     setShowAjouterEspace(false);
   }
 
+  const catalogueId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("catalogue") : null;
+  if (catalogueId) return <BoutiquePublique workspaceId={catalogueId} />;
+
   if (session === undefined) return <Centered>Chargement…</Centered>;
 
   const resetPwParam = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("resetpw") === "1";
@@ -291,6 +294,254 @@ function Centered({ children }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
       {children}
+    </div>
+  );
+}
+
+function BoutiquePublique({ workspaceId }) {
+  const [workspace, setWorkspace] = useState(undefined);
+  const [produitsBruts, setProduitsBruts] = useState([]);
+  const [collectionsBrutes, setCollectionsBrutes] = useState([]);
+  const [collectionProduits, setCollectionProduits] = useState({});
+  const [panier, setPanier] = useState(null);
+  const [formCommande, setFormCommande] = useState({ nom: "", tel: "", ville: "", adresse: "" });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [commandeEnvoyee, setCommandeEnvoyee] = useState(false);
+  const [erreurCommande, setErreurCommande] = useState("");
+
+  useEffect(() => {
+    let vivant = true;
+    (async () => {
+      const { data: ws } = await supabase.from("workspaces").select("*").eq("id", workspaceId).maybeSingle();
+      if (!vivant) return;
+      setWorkspace(ws || null);
+      if (!ws) return;
+      const { data: prods } = await supabase.from("produits").select("*").eq("workspace_id", workspaceId);
+      if (vivant) setProduitsBruts(prods || []);
+      const { data: cols } = await supabase.from("collections").select("*").eq("workspace_id", workspaceId).order("ordre", { ascending: true });
+      if (!vivant) return;
+      setCollectionsBrutes(cols || []);
+      if (cols && cols.length) {
+        const { data: liens } = await supabase.from("collection_produits").select("collection_id, produit_id").in("collection_id", cols.map((c) => c.id));
+        const map = {};
+        (liens || []).forEach((l) => { if (!map[l.collection_id]) map[l.collection_id] = new Set(); map[l.collection_id].add(l.produit_id); });
+        if (vivant) setCollectionProduits(map);
+      }
+    })();
+    return () => { vivant = false; };
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (workspace?.name) { try { document.title = workspace.name; } catch (_) {} }
+  }, [workspace?.name]);
+
+  if (workspace === undefined) return <Centered>Chargement de la boutique…</Centered>;
+  if (!workspace) return <Centered><div style={{ textAlign: "center" }}><div style={{ fontSize: 34, marginBottom: 8 }}>🔍</div><div style={{ fontWeight: 900, fontSize: 15 }}>Boutique introuvable</div></div></Centered>;
+
+  const config = workspace.store_config_published;
+  if (!config) {
+    return <Centered>
+      <div style={{ textAlign: "center", maxWidth: 360, padding: 20 }}>
+        <div style={{ fontSize: 38, marginBottom: 10 }}>🛍️</div>
+        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6, color: "#16231F" }}>Cette boutique n'est pas encore publiée</div>
+        <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>Le propriétaire n'a pas encore cliqué sur « 🚀 Publier » dans son Store Builder. Reviens un peu plus tard.</div>
+      </div>
+    </Centered>;
+  }
+
+  const couleur = config.couleur || "#1a7a3c";
+  const devise = workspace.currency || "XOF";
+  const sections = (config.sections || []).filter((s) => s && s.visible !== false);
+
+  const products = produitsBruts.map((p, i) => ({
+    id: p.id || `p-${i}`,
+    name: p.nom || p.name || `Produit ${i + 1}`,
+    price: Number(p.prix_vente ?? p.prix ?? 0),
+    image: p.image_url || p.photo_url || p.image || "",
+    category: p.collection || p.categorie || "Collection",
+    description: p.description || "",
+    createdAt: p.created_at || p.inserted_at || null,
+  }));
+  const derivedCollections = collectionsBrutes.length
+    ? collectionsBrutes.map((c) => ({ ...c, count: collectionProduits[c.id]?.size || 0 }))
+    : [...new Map(products.map((p) => [p.category, { id: `derived-${p.category}`, nom: p.category, count: products.filter((x) => x.category === p.category).length }])).values()];
+  function produitsDeCollection(c) {
+    if (collectionsBrutes.some((x) => x.id === c.id)) { const ids = collectionProduits[c.id]; return ids ? products.filter((p) => ids.has(p.id)) : []; }
+    return products.filter((p) => p.category === c.nom);
+  }
+  const selectedProducts = products.filter((p) => config.selectedProductIds?.includes(p.id));
+  const fallbackProducts = selectedProducts.length ? selectedProducts : products.slice(0, 8);
+  const bestsellers = fallbackProducts.slice(0, 4);
+  const selectedNouveautes = products.filter((p) => config.selectedNouveautesIds?.includes(p.id));
+  const newestProducts = selectedNouveautes.length ? selectedNouveautes : (() => {
+    const withDates = products.filter((p) => p.createdAt);
+    const sorted = withDates.length ? [...withDates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [...products].reverse();
+    return sorted.slice(0, 8);
+  })();
+
+  function ouvrirCommande(produit, bundle) {
+    if (!sections.some((s) => s.type === "cod_form")) {
+      const numero = workspace.whatsapp_number;
+      if (numero) {
+        const texte = `${config.whatsapp || "Bonjour, je souhaite commander :"} ${produit?.name || ""}`;
+        window.open(`https://wa.me/${cleanPhoneForWhatsApp(numero)}?text=${encodeURIComponent(texte)}`, "_blank");
+        return;
+      }
+    }
+    setPanier({ produit, bundle: bundle || null });
+    setErreurCommande(""); setCommandeEnvoyee(false);
+    setTimeout(() => { document.getElementById("rv-commande-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
+  }
+
+  async function envoyerCommande(e) {
+    e.preventDefault();
+    if (!formCommande.nom.trim() || !formCommande.tel.trim()) { setErreurCommande("Merci de renseigner ton nom et ton téléphone."); return; }
+    if (!panier?.produit) { setErreurCommande("Choisis d'abord un produit ci-dessus."); return; }
+    setEnvoiEnCours(true);
+    const overrideLivraison = config.livraisonParProduit?.[panier.produit.id];
+    const fraisLiv = overrideLivraison?.actif ? Number(overrideLivraison.frais || 0) : Number(config.fraisLivraison || 0);
+    const qty = panier.bundle?.qty || 1;
+    const remise = panier.bundle ? (Number(panier.bundle.discount) || 0) / 100 : 0;
+    const montant = panier.produit.price * qty * (1 - remise) + fraisLiv;
+    const nomProduit = panier.produit.name + (panier.bundle ? ` (${panier.bundle.label})` : "");
+    const { error } = await supabase.from("commandes").insert([{
+      workspace_id: workspace.id,
+      client: formCommande.nom.trim(),
+      tel: formCommande.tel.trim(),
+      produit: nomProduit,
+      montant,
+      zone: [formCommande.ville, formCommande.adresse].filter(Boolean).join(" - "),
+      mode_vente: "livraison",
+      statut: "en_cours",
+    }]);
+    setEnvoiEnCours(false);
+    if (error) { setErreurCommande("Erreur lors de l'envoi : " + error.message); return; }
+    setCommandeEnvoyee(true); setPanier(null);
+    setFormCommande({ nom: "", tel: "", ville: "", adresse: "" });
+  }
+
+  const cardBase = { padding: "30px 18px", borderBottom: "1px solid #edf1ee" };
+  function ProductCard({ p }) {
+    return (
+      <div style={{ border: "1px solid #e7ece8", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+        {p.image ? <img src={p.image} alt={p.name} style={{ width: "100%", height: 150, objectFit: "cover" }} /> : <div style={{ height: 150, background: "#eef3ee", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>🛍️</div>}
+        <div style={{ padding: 10, textAlign: "left" }}>
+          <div style={{ fontWeight: 850, fontSize: 12.5, color: "#17241d" }}>{p.name}</div>
+          <div style={{ fontWeight: 900, fontSize: 13.5, color: couleur, marginTop: 4 }}>{p.price ? p.price.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
+          <button onClick={() => ouvrirCommande(p)} style={{ marginTop: 8, width: "100%", border: 0, borderRadius: 8, padding: "9px 6px", background: couleur, color: "#fff", fontSize: 11.5, fontWeight: 900, cursor: "pointer" }}>{workspace.activity_type === "restaurant" ? "Commander" : workspace.activity_type?.includes("location") ? "Réserver" : "Commander"}</button>
+        </div>
+      </div>
+    );
+  }
+
+  function Section({ s }) {
+    const type = s.type;
+    if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleur, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
+    if (type === "hero") return (
+      <div style={{ textAlign: "center" }}>
+        {config.banniere ? <img src={config.banniere} alt="" style={{ width: "100%", maxHeight: 340, objectFit: "cover", display: "block" }} /> : <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleur},#0b2416)`, color: "#fff" }}><div style={{ fontSize: 30, fontWeight: 950 }}>{config.heroTitle}</div></div>}
+        <div style={{ padding: "26px 20px 34px" }}>
+          <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
+          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
+          <button onClick={() => document.getElementById("rv-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config.buttonText}</button>
+        </div>
+      </div>
+    );
+    if (type === "collections") return (
+      <div style={cardBase}><h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+          {derivedCollections.filter((c) => !config.selectedCollectionIds?.length || config.selectedCollectionIds.includes(c.id)).slice(0, 8).map((c) => {
+            const cp = produitsDeCollection(c); const cover = cp.find((p) => p.image)?.image;
+            return <div key={c.id} style={{ borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden" }}>
+              {cover ? <img src={cover} alt="" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
+              <div style={{ padding: "10px 8px" }}><div style={{ fontWeight: 850, fontSize: 12 }}>{c.nom || c.name}</div><div style={{ fontSize: 10, color: "#7c877f", marginTop: 3 }}>{c.count || 0} article(s)</div></div>
+            </div>;
+          })}
+        </div>
+      </div>
+    );
+    if (type === "bestsellers" || type === "products" || type === "nouveautes") {
+      const liste = type === "bestsellers" ? bestsellers : type === "nouveautes" ? newestProducts : fallbackProducts;
+      return <div id={type === "products" ? "rv-produits" : undefined} style={cardBase}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : type === "nouveautes" ? "🆕 Nouveautés" : "Nos produits"}</h3>
+        {liste.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(155px,1fr))", gap: 12 }}>{liste.slice(0, 12).map((p) => <ProductCard key={p.id} p={p} />)}</div> : <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>}
+      </div>;
+    }
+    if (type === "bundles") {
+      const base = bestsellers[0]?.price || products[0]?.price || 0;
+      return <div style={{ ...cardBase, background: "#fffdf7" }}>
+        <div style={{ textAlign: "center", marginBottom: 16 }}><div style={{ fontSize: 10, fontWeight: 950, color: "#b16b00", letterSpacing: ".08em" }}>🔥 OFFRES QUANTITÉ</div><h3 style={{ margin: "5px 0", fontSize: 22, color: "#14221b" }}>Plus tu prends, plus tu économises</h3></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
+          {(config.bundles || []).map((b, i) => {
+            const produitLie = b.produitId ? products.find((p) => p.id === b.produitId) : null;
+            const prixBase = produitLie ? produitLie.price : base;
+            const total = prixBase * b.qty * (1 - (Number(b.discount) || 0) / 100);
+            return <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleur : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
+              {produitLie && <div style={{ fontSize: 9.5, fontWeight: 900, color: "#1a7a3c", marginBottom: 4 }}>🔗 {produitLie.name}</div>}
+              <div style={{ fontSize: 13, fontWeight: 950, color: "#16231c" }}>{b.label}</div>
+              <div style={{ fontSize: 11, color: "#7b857e", marginTop: 4 }}>{b.qty} produit(s) · {b.discount || 0}% de remise</div>
+              <div style={{ fontSize: 21, fontWeight: 950, color: couleur, marginTop: 10 }}>{prixBase ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
+              <button onClick={() => ouvrirCommande(produitLie || bestsellers[0] || products[0], b)} disabled={!produitLie && !bestsellers[0] && !products[0]} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleur, color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>Choisir ce pack</button>
+            </div>;
+          })}
+        </div>
+      </div>;
+    }
+    if (type === "benefits") return <div style={cardBase}><h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Pourquoi acheter chez nous ?</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>{[["🛡️", "Paiement à la livraison"], ["🚚", "Livraison suivie"], ["💬", "Support rapide"]].map((x) => <div key={x[1]} style={{ padding: 15, borderRadius: 11, background: "#f6f9f6" }}><div style={{ fontSize: 21 }}>{x[0]}</div><div style={{ fontWeight: 850, fontSize: 12, marginTop: 7 }}>{x[1]}</div></div>)}</div></div>;
+    if (type === "promo") return <div style={{ ...cardBase, background: "#f7f2e7", textAlign: "center" }}><div style={{ fontSize: 10, fontWeight: 900, color: "#b16b00" }}>OFFRE LIMITÉE</div><h3 style={{ fontSize: 25, margin: "8px 0", color: "#162119" }}>{config.promoTitle}</h3><p style={{ fontSize: 12.5, color: "#6f776f" }}>{config.promoText}</p><button onClick={() => document.getElementById("rv-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: "#e8920a", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button></div>;
+    if (type === "testimonials") return <div style={cardBase}><h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>⭐ Ils nous font confiance</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 11 }}>{["Une expérience simple et rapide.", "La commande a été parfaitement suivie.", "Je recommande sans hésiter."].map((t, i) => <div key={i} style={{ padding: 16, border: "1px solid #e6ece7", borderRadius: 12 }}><div style={{ color: "#e8920a" }}>★★★★★</div><div style={{ fontSize: 12, lineHeight: 1.55, color: "#435047", marginTop: 8 }}>"{t}"</div><div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 9 }}>Client</div></div>)}</div></div>;
+    if (type === "gallery") return <div style={cardBase}><h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>{config.gallery?.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 9 }}>{config.gallery.map((u, i) => <img key={i} src={u} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}</div> : null}</div>;
+    if (type === "faq") return <div style={cardBase}><h3 style={{ margin: "0 0 13px", fontSize: 20, color: "#14221b" }}>Questions fréquentes</h3>{["Comment commander ?", "Quels sont les délais ?", "Comment suivre ma commande ?"].map((q) => <div key={q} style={{ padding: "13px 2px", borderBottom: "1px solid #e7ece8", fontSize: 12.5, fontWeight: 800 }}>{q}</div>)}</div>;
+    if (type === "cod_form") {
+      const overrideLivraison = panier?.produit ? config.livraisonParProduit?.[panier.produit.id] : null;
+      const fraisLivAffiche = overrideLivraison?.actif ? Number(overrideLivraison.frais || 0) : Number(config.fraisLivraison || 0);
+      return <div id="rv-commande-panel" style={{ ...cardBase, background: "#f7faf7" }}>
+        <div style={{ maxWidth: 520, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 16 }}><div style={{ fontSize: 10, fontWeight: 950, color: couleur }}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{ margin: "5px 0", fontSize: 21, color: "#14221b" }}>📝 Finalise ta commande</h3></div>
+          {commandeEnvoyee ? <div style={{ background: "#eaf3de", border: "1px solid #c7dda3", borderRadius: 12, padding: 16, textAlign: "center", fontWeight: 800, color: "#3B6D11" }}>✅ Commande envoyée ! Tu seras contacté(e) très vite pour confirmer.</div> : (
+            <form onSubmit={envoyerCommande} style={{ background: "#fff", border: "1px solid #e1e8e2", borderRadius: 14, padding: 15 }}>
+              {panier?.produit ? <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "#f4faf5", borderRadius: 9, marginBottom: 11 }}>{panier.produit.image && <img src={panier.produit.image} alt="" style={{ width: 38, height: 38, objectFit: "cover", borderRadius: 7 }} />}<div style={{ fontSize: 12, fontWeight: 800 }}>{panier.produit.name}{panier.bundle ? " — " + panier.bundle.label : ""}</div></div> : <div style={{ fontSize: 11.5, color: "#8a948d", marginBottom: 11 }}>Choisis un produit ci-dessus pour commander.</div>}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <input value={formCommande.nom} onChange={(e) => setFormCommande((f) => ({ ...f, nom: e.target.value }))} placeholder="Nom complet" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
+                <input value={formCommande.tel} onChange={(e) => setFormCommande((f) => ({ ...f, tel: e.target.value }))} placeholder="Téléphone WhatsApp" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
+                <input value={formCommande.ville} onChange={(e) => setFormCommande((f) => ({ ...f, ville: e.target.value }))} placeholder="Ville / commune" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
+                <input value={formCommande.adresse} onChange={(e) => setFormCommande((f) => ({ ...f, adresse: e.target.value }))} placeholder="Adresse de livraison" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
+              </div>
+              <div style={{ marginTop: 10, padding: 11, borderRadius: 10, background: "#f5f8f5", fontSize: 12, color: "#435047" }}>🚚 Livraison : <b>{fraisLivAffiche.toLocaleString("fr-FR")} {devise}</b></div>
+              {erreurCommande && <div style={{ marginTop: 8, fontSize: 11.5, color: "#bd4b38", fontWeight: 700 }}>{erreurCommande}</div>}
+              <button type="submit" disabled={envoiEnCours} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 10, padding: 13, background: couleur, color: "#fff", fontWeight: 950, fontSize: 12.5, cursor: "pointer", opacity: envoiEnCours ? 0.7 : 1 }}>{envoiEnCours ? "Envoi en cours…" : "Confirmer ma commande — paiement à la livraison"}</button>
+            </form>
+          )}
+        </div>
+      </div>;
+    }
+    if (type === "delivery") {
+      const overrides = Object.entries(config.livraisonParProduit || {}).filter(([, v]) => v?.actif).map(([id, v]) => ({ ...v, produit: products.find((p) => p.id === id) })).filter((x) => x.produit);
+      return <div style={cardBase}><h3 style={{ margin: "0 0 10px", fontSize: 20, color: "#14221b" }}>🚚 Livraison</h3><p style={{ fontSize: 12.5, color: "#68756d", lineHeight: 1.6 }}>{config.livraison}</p>{overrides.length > 0 && <div style={{ marginTop: 13, display: "grid", gap: 6 }}>{overrides.map((o) => <div key={o.produit.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, padding: "8px 11px", background: "#f6f9f6", borderRadius: 8 }}><span style={{ fontWeight: 800 }}>{o.produit.name}</span><span style={{ color: couleur, fontWeight: 800 }}>{Number(o.frais || 0).toLocaleString("fr-FR")} {devise}{o.delai ? " · " + o.delai : ""}</span></div>)}</div>}</div>;
+    }
+    if (type === "whatsapp") return <div style={{ ...cardBase, textAlign: "center", background: "#f4faf5" }}><div style={{ fontSize: 27 }}>💬</div><h3 style={{ margin: "8px 0", fontSize: 20, color: "#14221b" }}>Besoin d'aide ?</h3><p style={{ fontSize: 12, color: "#68756d" }}>Écris-nous directement sur WhatsApp.</p><button onClick={() => { const numero = workspace.whatsapp_number; if (numero) window.open(`https://wa.me/${cleanPhoneForWhatsApp(numero)}?text=${encodeURIComponent(config.whatsapp || "")}`, "_blank"); }} style={{ border: 0, borderRadius: 10, padding: "11px 19px", background: "#168a45", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Ouvrir WhatsApp</button></div>;
+    if (type === "contact") return <div style={{ ...cardBase, textAlign: "center", background: "#0d2417", color: "#fff" }}><h3 style={{ margin: "0 0 9px", fontSize: 25 }}>Prêt à passer à l'action ?</h3><p style={{ fontSize: 12, color: "rgba(255,255,255,.68)" }}>Commandez, réservez ou contactez-nous maintenant.</p><button onClick={() => document.getElementById("rv-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: couleur, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button></div>;
+    if (type === "footer") return <div style={{ background: config.footerBgColor, color: config.footerTextColor }}>
+      {config.footerBackToTop && <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ textAlign: "center", padding: "10px 0", background: "rgba(255,255,255,.06)", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>⬆ Retour en haut</div>}
+      <div style={{ padding: "24px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 18 }}>{(config.footerColonnes || []).map((col) => <div key={col.id}><div style={{ fontWeight: 900, fontSize: 12, marginBottom: 9 }}>{col.titre}</div>{(col.liens || []).map((l, i) => <div key={i} style={{ fontSize: 11, opacity: 0.75, marginBottom: 6 }}>{l.label}</div>)}</div>)}</div>
+      {(config.footerPaiements || []).length > 0 && <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", padding: "0 20px 18px" }}>{config.footerPaiements.map((p, i) => <span key={i} style={{ background: "rgba(255,255,255,.08)", borderRadius: 7, padding: "5px 9px", fontSize: 10, fontWeight: 700 }}>{p}</span>)}</div>}
+      <div style={{ padding: "17px 20px", borderTop: "1px solid rgba(255,255,255,.12)", textAlign: "center", fontSize: 10.5 }}><div style={{ fontWeight: 900, fontSize: 13.5, marginBottom: 4 }}>{config.nom}</div><div style={{ opacity: 0.6, marginBottom: 6 }}>{config.description}</div><div style={{ opacity: 0.45 }}>© {new Date().getFullYear()} {config.nom}</div></div>
+    </div>;
+    return null;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <div>
+        <div style={{ background: config.headerBgColor, color: config.headerTextColor, padding: "6px 14px", fontSize: 10.5, textAlign: "center", opacity: 0.85 }}>{config.headerBarreTop}</div>
+        <div style={{ background: config.headerBgColor, color: config.headerTextColor, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 15 }}>{config.logo ? <img src={config.logo} alt="" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 8 }} /> : <span style={{ width: 32, height: 32, borderRadius: 8, background: couleur, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{(config.nom || "R")[0]}</span>}{config.nom}</div>
+          {config.headerShowSearch && <div style={{ flex: 1, minWidth: 130, display: "flex", background: "#fff", borderRadius: 8, overflow: "hidden" }}><input placeholder="Rechercher un produit..." disabled style={{ flex: 1, border: 0, padding: "9px 10px", fontSize: 11, outline: "none" }} /><span style={{ background: couleur, color: "#fff", padding: "9px 13px", fontSize: 13 }}>🔎</span></div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 11, marginLeft: "auto" }}>{config.headerShowCompte && <span>👤 Compte</span>}{config.headerShowPanier && <span>🛒 Panier</span>}</div>
+        </div>
+        {(config.headerLinks || []).length > 0 && <div style={{ background: "rgba(255,255,255,.06)", padding: "9px 18px", display: "flex", gap: 16, fontSize: 11, color: config.headerTextColor, flexWrap: "wrap" }}>{config.headerLinks.map((l) => <span key={l.id}>{l.label}</span>)}</div>}
+      </div>
+      {sections.map((s) => <Section key={s.id} s={s} />)}
     </div>
   );
 }

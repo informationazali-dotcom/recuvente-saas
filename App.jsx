@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
@@ -345,16 +345,15 @@ function LandingPage() {
   ];
 
   const metiers = [
-    ["🛍️", "Boutique en ligne", "Produits, commandes, Shopify, catalogue, closing, livraison, paiements et réactivation."],
-    ["🏪", "Commerce / magasin", "Ventes en boutique, stock, produits, clients, paiements, bénéfice et équipe."],
-    ["🍽️", "Restaurant", "Tables, menus, commandes sur place, à emporter ou en livraison, paiements et suivi."],
-    ["🏠", "Location de maisons", "Biens, locataires, périodes, loyers, cautions, paiements, échéances et reçus."],
-    ["🚗", "Location de voitures", "Véhicules, disponibilité, réservations, périodes, tarifs, cautions et paiements."],
-    ["📦", "Vente / COD", "Commandes issues de WhatsApp ou publicité, appels, confirmation, livraison et récupération."]
+    ["🛒", "E-commerce COD", "Vente, closing, livraison, récupération et retargeting."],
+    ["🏪", "Commerce physique", "Stock, ventes, acomptes, paiements et bénéfice."],
+    ["🏠", "Immobilier", "Locataires, loyers, paiements et reçus."],
+    ["🍽️", "Restaurant", "Tables, menus, préparation, service et livraison."],
+    ["🚗", "Location", "Véhicules ou matériel, dates, disponibilité et cautions."]
   ];
 
   const faqs = [
-    ["RecuVente est-il uniquement destiné au e-commerce ?", "Non. RecuVente est pensé pour plusieurs métiers : boutique en ligne, vente COD, commerce ou magasin physique, restaurant, location de maisons et location de voitures. Chaque activité utilise les briques adaptées à son fonctionnement."],
+    ["RecuVente est-il uniquement destiné au e-commerce ?", "Non. Le système prévoit plusieurs univers : e-commerce COD, commerce physique, immobilier, restaurant et location de véhicules ou matériel."],
     ["Puis-je créer ma propre boutique ?", "Oui. Tu peux créer un espace boutique avec produits, collections, galerie et avis clients, puis le partager à tes clients."],
     ["Puis-je connecter Shopify ?", "Oui. RecuVente prévoit l'import de catalogue et la réception automatique des commandes Shopify via webhook."],
     ["Mes livreurs et mes closers ont-ils leur propre espace ?", "Oui. L'application prévoit des interfaces adaptées aux différents rôles : closer, livreur, comptable et responsable."],
@@ -389,12 +388,12 @@ function LandingPage() {
         .rvx-timeline{margin-top:48px;display:grid;grid-template-columns:.7fr 1.3fr;gap:24px;align-items:center}.rvx-timeline-copy h3{font:900 37px Georgia,serif;line-height:.98;letter-spacing:-.05em;margin:0}.rvx-timeline-copy h3 span{color:var(--g)}.rvx-timeline-copy p{font-size:11px;line-height:1.7;color:#718078}.rvx-timeline-box{position:relative;padding:25px 25px 25px 34px;border-radius:21px;background:#fff;border:1px solid #dfe7df;box-shadow:0 24px 65px rgba(17,31,23,.06)}.rvx-timeline-box:before{content:"";position:absolute;left:25px;top:25px;bottom:25px;width:1px;background:#dce7df}.rvx-event{position:relative;display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;padding:9px 0}.rvx-event:before{content:"";position:absolute;left:-13px;width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 0 4px #edf6ef}.rvx-event time{font:700 8px monospace;color:#8b958f}.rvx-event strong{font-size:9px}.rvx-event span{font-size:7px;color:#89948e}.rvx-event b{font-size:7px;color:var(--g)}
         .rvx-team{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-top:46px}.rvx-team-card{padding:28px;border-radius:21px;background:#fff;border:1px solid #dfe7df}.rvx-team-card.dark{background:#0b1710;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-team-card h3{font:900 29px Georgia,serif;letter-spacing:-.045em;margin:0}.rvx-team-card p{font-size:10px;color:#718078;line-height:1.7}.rvx-team-card.dark p{color:#7f8d84}.rvx-team-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:17px}.rvx-person{padding:12px;border-radius:10px;background:#f7faf7;border:1px solid #e5ebe5}.rvx-team-card.dark .rvx-person{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.07)}.rvx-person strong{display:block;font-size:9px}.rvx-person span{display:block;color:#89948e;font-size:7px;margin-top:3px}.rvx-person b{display:block;color:var(--g);font-size:7px;margin-top:8px}.rvx-team-card.dark .rvx-person b{color:#82d89f}
         .rvx-reactivation{margin-top:47px;padding:32px;border-radius:23px;background:linear-gradient(135deg,#fff7ef,#fffdf8);border:1px solid #f1dfca}.rvx-reactivation h3{font:900 38px Georgia,serif;line-height:.98;letter-spacing:-.055em;margin:0;max-width:740px}.rvx-reactivation h3 span{color:var(--o)}.rvx-reactivation p{font-size:11px;color:#7d776f;line-height:1.7;max-width:670px}.rvx-reactivation-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:20px}.rvx-react-step{padding:13px;border:1px solid #eedfce;background:#fff;border-radius:11px}.rvx-react-step b{font-size:14px}.rvx-react-step strong{display:block;font-size:8px;margin-top:6px}.rvx-react-step span{display:block;font-size:7px;color:#91867a;margin-top:3px}
-        .rvx-industry-wrap{margin-top:42px}.rvx-industries{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.rvx-ind{border:1px solid #dfe6df;background:#fff;border-radius:13px;padding:17px}.rvx-ind .icon{font-size:21px;margin-bottom:12px}.rvx-ind strong{font-size:10px}.rvx-ind p{font-size:8px;color:#718078;line-height:1.55;margin:6px 0 0}
+        .rvx-industry-wrap{margin-top:42px}.rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.rvx-ind{border:1px solid #dfe6df;background:#fff;border-radius:13px;padding:17px}.rvx-ind .icon{font-size:21px;margin-bottom:12px}.rvx-ind strong{font-size:10px}.rvx-ind p{font-size:8px;color:#718078;line-height:1.55;margin:6px 0 0}
         .rvx-compare{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-top:43px}.rvx-compare-card{padding:28px;border-radius:21px;border:1px solid #e4e9e4}.rvx-compare-card.before{background:#fff7f5;border-color:#f0ddd7}.rvx-compare-card.after{background:#f1faf4;border-color:#d5e8da}.rvx-compare-card h3{font:900 28px Georgia,serif;margin:0;letter-spacing:-.04em}.rvx-compare-list{display:grid;gap:7px;margin-top:19px}.rvx-compare-list div{padding:10px 11px;background:#fff;border-radius:9px;border:1px solid rgba(0,0,0,.05);font-size:9px}.rvx-compare-list b{margin-right:8px;color:#d34a37}.rvx-compare-card.after .rvx-compare-list b{color:var(--g)}
         .rvx-future{margin-top:48px;padding:25px 27px;border-radius:18px;background:#0b1710;color:#fff;border:1px solid rgba(255,255,255,.07)}.rvx-future-head{display:flex;justify-content:space-between;align-items:center;gap:15px}.rvx-future-head h3{font:900 26px Georgia,serif;margin:0}.rvx-future-head span{padding:6px 9px;border-radius:999px;background:rgba(255,122,0,.1);border:1px solid rgba(255,122,0,.18);color:#ff9b42;font-size:7px;font-weight:900;text-transform:uppercase;letter-spacing:.1em}.rvx-future-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:18px}.rvx-future-item{padding:14px;border-radius:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}.rvx-future-item b{font-size:16px}.rvx-future-item strong{display:block;font-size:9px;margin-top:7px}.rvx-future-item p{font-size:7.5px;color:#78867d;line-height:1.55;margin:4px 0 0}
         .rvx-pricing{background:#08110c;color:#fff}.rvx-pricing .rvx-desc{color:#87958c}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:42px}.rvx-plan{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);border-radius:17px;padding:23px}.rvx-plan.featured{border-color:rgba(255,122,0,.55);box-shadow:0 25px 75px rgba(0,0,0,.25);transform:translateY(-7px)}.rvx-plan h3{margin:0;font:800 21px Georgia,serif}.rvx-plan .badge{display:inline-block;background:var(--o);color:#0a120d;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:900;margin-bottom:10px}.rvx-price{font:900 27px monospace;margin:15px 0}.rvx-price small{font:700 8px Inter,sans-serif;color:#7f8d84}.rvx-plan ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}.rvx-plan li{font-size:8.5px;color:#a5b0a9}.rvx-plan li:before{content:"✓";color:#82d89f;margin-right:7px;font-weight:900}.rvx-plan>a{display:block;text-align:center;background:#fff;color:#0b160f;border-radius:9px;padding:11px;margin-top:20px;font-size:9px;font-weight:900}.rvx-plan.featured>a{background:var(--o)}
         .rvx-faq{max-width:820px;margin:39px auto 0}.rvx-faqrow{border-top:1px solid #dde5de}.rvx-faqrow:last-child{border-bottom:1px solid #dde5de}.rvx-faqrow button{width:100%;border:0;background:transparent;padding:18px 2px;display:flex;justify-content:space-between;gap:20px;text-align:left;cursor:pointer;font-size:11px;font-weight:800;color:#18251f}.rvx-answer{padding:0 25px 18px 2px;color:#718078;font-size:10px;line-height:1.7}.rvx-final{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 0,rgba(46,139,87,.42),transparent 43%),linear-gradient(135deg,#030705,#10251a);color:#fff;text-align:center;padding:105px 0}.rvx-final:before{content:"";position:absolute;width:600px;height:600px;left:50%;top:-430px;transform:translateX(-50%);border:1px solid rgba(132,216,159,.09);border-radius:50%;box-shadow:0 0 0 65px rgba(132,216,159,.02)}.rvx-final .wrap{position:relative;z-index:1}.rvx-final h2{font:900 clamp(40px,6vw,70px) Georgia,serif;line-height:.92;letter-spacing:-.065em;max-width:950px;margin:0 auto 18px}.rvx-final h2 span{color:#82d89f}.rvx-final p{max-width:640px;margin:auto;color:#89968e;font-size:12px;line-height:1.7}.rvx-final .micro{font-size:8px;color:#65736b;margin-top:12px}.rvx-footer{text-align:center;color:#8b958f;font-size:9px;padding:28px 0 85px;background:#050b07}.rvx-mobile{display:none}
-        @media(max-width:1000px){.rvx-industries{grid-template-columns:repeat(2,1fr)}.rvx-hero-grid{grid-template-columns:1fr}.rvx-hero{text-align:center}.rvx-lead{margin:auto}.rvx-actions,.rvx-trust,.rvx-hero-note{justify-content:center}.rvx-command{max-width:650px;width:100%;margin:auto}.rvx-problem,.rvx-money,.rvx-timeline{grid-template-columns:1fr}.rvx-problem-copy{text-align:center}.rvx-problem-copy p{margin-left:auto;margin-right:auto}.rvx-tabs{grid-template-columns:repeat(3,1fr)}.rvx-industries{grid-template-columns:repeat(3,1fr)}.rvx-ceo-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:1000px){.rvx-hero-grid{grid-template-columns:1fr}.rvx-hero{text-align:center}.rvx-lead{margin:auto}.rvx-actions,.rvx-trust,.rvx-hero-note{justify-content:center}.rvx-command{max-width:650px;width:100%;margin:auto}.rvx-problem,.rvx-money,.rvx-timeline{grid-template-columns:1fr}.rvx-problem-copy{text-align:center}.rvx-problem-copy p{margin-left:auto;margin-right:auto}.rvx-tabs{grid-template-columns:repeat(3,1fr)}.rvx-industries{grid-template-columns:repeat(3,1fr)}.rvx-ceo-grid{grid-template-columns:repeat(2,1fr)}}
         @media(max-width:700px){.rvx .wrap{width:calc(100% - 24px)}.rvx-nav{height:64px}.rvx-navlinks a:not(.cta){display:none}.rvx-hero{padding:55px 0 78px}.rvx-h1{font-size:45px}.rvx-actions{flex-direction:column}.rvx-btn{width:100%}.rvx-command{min-height:430px}.rvx-command-shell{inset:8px 0 0}.rvx-floating{right:4px;bottom:2px;width:185px}.rvx-proofbox{display:block;text-align:center}.rvx-proofstats{justify-content:center;flex-wrap:wrap;margin-top:14px;gap:20px}.rvx-section{padding:67px 0}.rvx-problem,.rvx-leak-radar,.rvx-recovery,.rvx-advanced,.rvx-team,.rvx-compare{grid-template-columns:1fr}.rvx-reveal{grid-template-columns:1fr;text-align:center}.rvx-reveal .rvx-btn{width:auto}.rvx-tabs{grid-template-columns:repeat(2,1fr)}.rvx-module-head{display:block}.rvx-module-head p{margin-top:12px}.rvx-items{grid-template-columns:1fr}.rvx-ceo-grid{grid-template-columns:1fr 1fr}.rvx-ceo-bottom{grid-template-columns:1fr}.rvx-score{align-items:flex-start}.rvx-score-circle{flex:0 0 105px;width:105px;height:105px}.rvx-reactivation-flow{grid-template-columns:1fr 1fr}.rvx-future-grid{grid-template-columns:1fr}.rvx-plans{grid-template-columns:1fr}.rvx-plan.featured{transform:none}.rvx-industries{grid-template-columns:1fr 1fr}.rvx-profile{flex-direction:column;width:100%;border-radius:14px}.rvx-profile button{width:100%}.rvx-mobile{display:block;position:fixed;bottom:8px;left:8px;right:8px;z-index:40;background:rgba(255,255,255,.96);border:1px solid #dce5dd;padding:7px;border-radius:12px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rvx-mobile a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:8px;padding:13px;font-size:11px;font-weight:900}.rvx-footer{padding-bottom:85px}.rvx-navlinks .cta{padding:9px 11px}.rvx-ceo-head{display:block}.rvx-ceo-head p{margin-top:8px}.rvx-event{grid-template-columns:52px 1fr}.rvx-event span{display:none}}
         @media(prefers-reduced-motion:reduce){.rvx-btn{transition:none}.rvx-btn:hover{transform:none}}
       `}</style>
@@ -518,7 +517,7 @@ function LandingPage() {
         </div>
       </section>
 
-      <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Pas seulement pour l'e-commerce</div><h2 className="rvx-title">Un système pensé pour <span>plusieurs métiers.</span></h2><p className="rvx-desc">Boutique en ligne, commerce ou magasin physique, restaurant, location de maisons ou location de voitures : RecuVente s'adapte à la façon dont ton activité vend, encaisse et se pilote.</p></div><div className="rvx-industry-wrap"><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p><span style={{display:"inline-block",marginTop:10,fontSize:8,fontWeight:850,color:"#1a7a3c",letterSpacing:".05em"}}>VOIR COMMENT ÇA S'ADAPTE →</span></div>)}</div></div><div style={{marginTop:18,textAlign:"center",fontSize:10,color:"#718078"}}>Une même logique : <strong style={{color:"#07100b"}}>vendre · réserver · livrer · encaisser · réactiver · piloter.</strong></div></div></section>
+      <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industry-wrap"><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></div></section>
 
       <section className="rvx-section"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Le vrai changement</div><h2 className="rvx-title">Avant : des outils.<br/><span>Après : un système.</span></h2><p className="rvx-desc">Le changement n'est pas d'ajouter un outil. C'est de reconnecter les opérations.</p></div><div className="rvx-compare"><div className="rvx-compare-card before"><h3>❌ Avant</h3><div className="rvx-compare-list">{["WhatsApp, Excel et notes dispersées","Commandes difficiles à retrouver","Doublons difficiles à contrôler","Livreurs suivis séparément","Paiements à rapprocher manuellement","Clients anciens oubliés","Bénéfice réel difficile à lire"].map((x) => <div key={x}><b>×</b>{x}</div>)}</div></div><div className="rvx-compare-card after"><h3>✓ Avec RecuVente</h3><div className="rvx-compare-list">{["Une plateforme centralisée","Commandes traçables","Attribution & historique","GPS et performance livraison","Paiements, dépôts et commissions","Clients réactivables","Rentabilité lisible"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div></div><div className="rvx-future"><div className="rvx-future-head"><h3>Les prochaines armes de RecuVente</h3><span>Vision produit</span></div><div className="rvx-future-grid">{growthFeatures.slice(0,3).map((f) => <div className="rvx-future-item" key={f.title}><b>{f.icon}</b><strong>{f.title}</strong><p>{f.text}</p></div>)}</div></div></div></section>
 
@@ -905,146 +904,6 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
         </button>
       </div>
     </Centered>
-  );
-}
-
-function LivreurCarteEcartCaisse({ l, workspaceId, currency }) {
-  const [dernierDepot, setDernierDepot] = useState(null);
-
-  useEffect(() => {
-    supabase
-      .from("depots_livreur")
-      .select("*")
-      .eq("workspace_id", workspaceId)
-      .eq("livreur_nom", l.nom)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => setDernierDepot(data && data[0] ? data[0] : null));
-  }, [l.nom, workspaceId]);
-
-  const ecart = dernierDepot ? Number(dernierDepot.montant_declare) - l.aDeposer : null;
-  const ecartSignificatif = ecart !== null && Math.abs(ecart) >= 500;
-
-  return (
-    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
-      <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
-      <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {currency} encaissé</div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
-          Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
-        </div>
-        <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
-          Attendu : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
-        </div>
-      </div>
-
-      {dernierDepot && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0EEE6" }}>
-          <div style={{ fontSize: 11, color: "#8A9089" }}>
-            Dernier dépôt déclaré : <strong style={{ color: "#16231F" }}>{Number(dernierDepot.montant_declare).toLocaleString("fr-FR")} {currency}</strong> — {new Date(dernierDepot.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </div>
-          {ecartSignificatif ? (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 7, padding: "6px 9px", marginTop: 6, fontSize: 11.5, color: "#D64933", fontWeight: 700 }}>
-              🔴 Écart de caisse : {ecart > 0 ? "+" : ""}{ecart.toLocaleString("fr-FR")} {currency}
-            </div>
-          ) : (
-            <div style={{ fontSize: 11, color: "#1F9D6E", marginTop: 4, fontWeight: 600 }}>✅ Caisse correcte</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
-  const nonTraitees = todoAujourdhui.total;
-  const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
-  const aRisque = todoAujourdhui.sansNouvelles.length;
-  const echouees = todoAujourdhui.jamaisContactees.filter((c) => c.statut === "echouee").length
-    + todoAujourdhui.sansNouvelles.filter((c) => c.statut === "echouee").length
-    + todoAujourdhui.aRelivrer.filter((c) => c.statut === "echouee").length;
-  const recuperables = Math.max(0, nonTraitees - jamaisRappeles);
-
-  const potentielTotal = todoAujourdhui.argentARisque + todoAujourdhui.argentRecuperable;
-
-  const livreurAControler = [...depotsParLivreur].sort((a, b) => b.aDeposer - a.aDeposer)[0];
-
-  const etapes = [
-    { label: `${nonTraitees} commande${nonTraitees > 1 ? "s" : ""} non traitée${nonTraitees > 1 ? "s" : ""}`, valeur: nonTraitees },
-    { label: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s" : ""} jamais rappelé${jamaisRappeles > 1 ? "s" : ""}`, valeur: jamaisRappeles },
-    { label: `${aRisque} commande${aRisque > 1 ? "s" : ""} à risque`, valeur: aRisque },
-    { label: `${echouees} livraison${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""}`, valeur: echouees },
-    { label: `${recuperables} client${recuperables > 1 ? "s" : ""} récupérable${recuperables > 1 ? "s" : ""}`, valeur: recuperables },
-  ].filter((e) => e.valeur > 0);
-
-  const actions = [];
-  if (jamaisRappeles > 0) {
-    actions.push({ num: "01", titre: "RAPPELER", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
-  }
-  if (echouees > 0) {
-    actions.push({ num: "02", titre: "RÉCUPÉRER", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
-  }
-  if (livreurAControler && livreurAControler.aDeposer > 0) {
-    actions.push({ num: "03", titre: "CONTRÔLER", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
-  }
-  if (clientsARelancer.length > 0) {
-    actions.push({ num: "04", titre: "RELANCER", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
-  }
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      {etapes.length > 0 && (
-        <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 16, padding: "18px 20px", marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#f0a0a0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 12 }}>
-            🔴 Argent en train de se perdre — aujourd'hui
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {etapes.map((e, i) => (
-              <div key={i}>
-                <div style={{ color: "white", fontSize: 13, fontWeight: 600, padding: "4px 0" }}>{e.label}</div>
-                {i < etapes.length - 1 && <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, paddingLeft: 4 }}>↓</div>}
-              </div>
-            ))}
-          </div>
-
-          {potentielTotal > 0 && (
-            <>
-              <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "14px 0 12px" }} />
-              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>💰 Potentiel à récupérer</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: "#e8920a", marginTop: 3, marginBottom: 12 }}>
-                {potentielTotal.toLocaleString("fr-FR")} {currency}
-              </div>
-              <button onClick={onVoirRecovery} style={{ width: "100%", background: "#e8920a", color: "#16231F", border: "none", borderRadius: 9, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                RÉCUPÉRER CES VENTES →
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {actions.length > 0 && (
-        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: "18px 20px" }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>🎯 Ton business aujourd'hui</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>
-            {actions.length} action{actions.length > 1 ? "s" : ""} prioritaire{actions.length > 1 ? "s" : ""} à traiter
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {actions.map((a) => (
-              <div key={a.num} style={{ borderLeft: `3px solid ${a.couleur}`, paddingLeft: 12 }}>
-                <div style={{ fontSize: 10.5, color: a.couleur, fontWeight: 700, letterSpacing: "0.03em" }}>{a.num} — {a.titre}</div>
-                <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 2 }}>{a.desc}</div>
-                {a.potentiel > 0 && (
-                  <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>Potentiel : {a.potentiel.toLocaleString("fr-FR")} {currency}</div>
-                )}
-                <button onClick={a.action} style={{ marginTop: 6, background: a.couleur, color: "white", border: "none", borderRadius: 7, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
-                  {a.bouton}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -2399,30 +2258,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setVue(t.key)}
-            style={{
-              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
-              background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
-              color: vue === t.key ? "white" : "rgba(255,255,255,0.6)",
-              fontSize: 14, fontWeight: vue === t.key ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-
-        {(workspace.role === "owner" || workspace.role === "admin") && (
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
-            Pilotage financier
-          </div>
-        )}
-        {[
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
-          ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -2520,15 +2356,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
               {workspace.role === "owner" && (
                 <>
                   <button onClick={() => setShowTeam(true)} className="rv-saas-tabs-mobile" aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     👥
+                  </button>
+                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                    📦
                   </button>
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
@@ -2536,30 +2375,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowIntegrations(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🛍️
                   </button>
-                </>
-              )}
-              {(workspace.role === "owner" || workspace.role === "admin") && (
-                <>
-                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📦
-                  </button>
-                  <button onClick={() => setVue("rapprochement")} className="rv-saas-tabs-mobile" aria-label="Rapprochement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🔗
-                  </button>
-                  <button onClick={() => setVue("score_business")} className="rv-saas-tabs-mobile" aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🧭
-                  </button>
-                  <button onClick={() => setVue("simulateur")} className="rv-saas-tabs-mobile" aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📊
-                  </button>
-                  <button onClick={() => setVue("validations")} className="rv-saas-tabs-mobile" aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    ✅
-                  </button>
-                  {workspace.activity_type === "restaurant" && (
-                    <button onClick={() => setVue("menu_restaurant")} className="rv-saas-tabs-mobile" aria-label="Menu" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                      📋
-                    </button>
-                  )}
                 </>
               )}
               <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
@@ -2730,18 +2545,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 ))}
               </div>
             </div>
-          )}
-
-          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0)) && (
-            <RadarDesFuitesEtActions
-              todoAujourdhui={todoAujourdhui}
-              clientsARelancer={clientsARelancer}
-              depotsParLivreur={depotsParLivreur}
-              currency={workspace.currency}
-              onVoirRecovery={() => setVue("recovery")}
-              onVoirCompta={() => setVue("compta")}
-              onVoirClients={() => setVue("clients")}
-            />
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -3130,20 +2933,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "score_business" && (
-        <ScoreBusinessView
-          toutesCommandes={commandes}
-          beneficeReel={beneficeReel}
-          caConfirme={caConfirme}
-          currency={workspace.currency}
-          depotsParLivreur={depotsParLivreur}
-        />
-      )}
-
-      {vue === "simulateur" && (
-        <SimulateurCampagneView currency={workspace.currency} />
-      )}
-
       {vue === "rapprochement" && (
         <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
       )}
@@ -3238,7 +3027,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {depotsParLivreur.map((l) => (
-              <LivreurCarteEcartCaisse key={l.nom} l={l} workspaceId={workspace.id} currency={workspace.currency} />
+              <div key={l.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{l.nom}</div>
+                <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>{l.livrees} livraison{l.livrees > 1 ? "s" : ""} · {l.montantRecupere.toLocaleString("fr-FR")} {workspace.currency} encaissé</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#8A6412" }}>
+                    Commission : <strong>{l.commission.toLocaleString("fr-FR")}</strong>
+                  </div>
+                  <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 7, padding: "6px 9px", fontSize: 11, color: "#3B6D11" }}>
+                    À déposer : <strong>{l.aDeposer.toLocaleString("fr-FR")}</strong>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -3289,10 +3089,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {[
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
-          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }, { key: "menu_restaurant", label: "Menu", icon: Boxes }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
+          { key: "validations", label: "Validations", icon: CheckCheck },
           { key: "clients", label: "Clients", icon: Users },
+          ...(workspace.activity_type !== "restaurant" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "produits_vue", label: "Produits", icon: Boxes }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "Rapproch.", icon: CheckCheck }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;
@@ -5407,17 +5210,6 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     if (collectionOuverte === id) setCollectionOuverte(null);
   }
 
-  async function deplacerCollection(index, direction) {
-    const liste = [...collections];
-    const autreIndex = index + direction;
-    if (autreIndex < 0 || autreIndex >= liste.length) return;
-    const a = liste[index];
-    const b = liste[autreIndex];
-    await supabase.from("collections").update({ ordre: b.ordre }).eq("id", a.id);
-    await supabase.from("collections").update({ ordre: a.ordre }).eq("id", b.id);
-    await charger();
-  }
-
   async function ouvrirGestionProduits(collectionId) {
     setCollectionOuverte(collectionId);
     const { data } = await supabase.from("collection_produits").select("produit_id").eq("collection_id", collectionId);
@@ -5474,12 +5266,8 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {(collections || []).map((c, i) => (
-                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button onClick={() => deplacerCollection(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#DDD8CC" : "#6B7168", cursor: i === 0 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
-                    <button onClick={() => deplacerCollection(i, 1)} disabled={i === collections.length - 1} style={{ background: "none", border: "none", color: i === collections.length - 1 ? "#DDD8CC" : "#6B7168", cursor: i === collections.length - 1 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
-                  </div>
+              {(collections || []).map((c) => (
+                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>
                     {c.nom}
                   </button>
@@ -5487,7 +5275,6 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8 }}>Utilise les flèches ▲▼ pour changer l'ordre d'affichage sur ta boutique.</div>
           </>
         )}
 
@@ -5981,7 +5768,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [confirmees]);
   const [showBilan, setShowBilan] = useState(false);
-  const [showDeclarationDepot, setShowDeclarationDepot] = useState(false);
 
   async function changerStatut(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom, mode_paiement: modePaiement || null } : {};
@@ -6068,13 +5854,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
             </button>
           )}
         </div>
-
-        <button
-          onClick={() => setShowDeclarationDepot(true)}
-          style={{ width: "100%", marginTop: 10, background: "white", color: "#16231F", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
-        >
-          🏦 Déclarer mon dépôt
-        </button>
 
         {showBilan && bilanParJour.length > 0 && (
           <div style={{ marginTop: 10, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 14px" }}>
@@ -6223,80 +6002,6 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
           </div>
         </div>
       )}
-
-      {showDeclarationDepot && (
-        <DeclarationDepotModal
-          livreur={livreur}
-          montantEncaisse={confirmees.reduce((s, c) => s + Number(c.montant), 0)}
-          commission={confirmees.length * 1500}
-          currency={currency}
-          onClose={() => setShowDeclarationDepot(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function DeclarationDepotModal({ livreur, montantEncaisse, commission, currency, onClose }) {
-  const montantAttendu = montantEncaisse - commission;
-  const [montant, setMontant] = useState(String(montantAttendu));
-  const [enCours, setEnCours] = useState(false);
-  const [fait, setFait] = useState(false);
-
-  async function declarer() {
-    if (!montant || Number(montant) < 0) return;
-    setEnCours(true);
-    await supabase.from("depots_livreur").insert([{
-      workspace_id: livreur.workspace_id,
-      livreur_nom: livreur.nom,
-      montant_declare: Number(montant),
-    }]);
-    setEnCours(false);
-    setFait(true);
-  }
-
-  if (fait) {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 70 }}>
-        <div style={{ background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 340, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Dépôt déclaré</div>
-          <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>{Number(montant).toLocaleString("fr-FR")} {currency} enregistré.</div>
-          <button onClick={onClose} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
-            Fermer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 70 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🏦 Déclarer mon dépôt</div>
-        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
-          Montant attendu (encaissé moins ta commission) : <strong>{montantAttendu.toLocaleString("fr-FR")} {currency}</strong>
-        </div>
-
-        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Montant que tu déposes réellement</div>
-        <input
-          type="number"
-          value={montant}
-          onChange={(e) => setMontant(e.target.value)}
-          style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 15, fontWeight: 700, boxSizing: "border-box", marginBottom: 14 }}
-        />
-
-        <button
-          onClick={declarer}
-          disabled={enCours || !montant}
-          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}
-        >
-          {enCours ? "Enregistrement..." : "Confirmer la déclaration"}
-        </button>
-        <button onClick={onClose} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}>
-          Annuler
-        </button>
-      </div>
     </div>
   );
 }
@@ -7503,287 +7208,6 @@ function RapprochementView({ workspace, commandes, onValide }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function SimulateurCampagneView({ currency }) {
-  const [form, setForm] = useState({
-    prixVente: "",
-    coutProduit: "",
-    coutLivraison: "1500",
-    commissionCloser: "",
-    budgetPub: "",
-    tauxConfirmation: "60",
-    tauxLivraison: "80",
-    coutParCommande: "",
-  });
-
-  function champ(cle, val) {
-    setForm({ ...form, [cle]: val });
-  }
-
-  const resultats = useMemo(() => {
-    const prixVente = Number(form.prixVente) || 0;
-    const coutProduit = Number(form.coutProduit) || 0;
-    const coutLivraison = Number(form.coutLivraison) || 0;
-    const commission = Number(form.commissionCloser) || 0;
-    const budgetPub = Number(form.budgetPub) || 0;
-    const coutParCommande = Number(form.coutParCommande) || 0;
-    const tauxConfirmation = Number(form.tauxConfirmation) || 0;
-    const tauxLivraisonPct = Number(form.tauxLivraison) || 0;
-
-    if (!prixVente || !budgetPub || !coutParCommande) return null;
-
-    const commandesEstimees = Math.round(budgetPub / coutParCommande);
-    const commandesConfirmees = Math.round(commandesEstimees * (tauxConfirmation / 100));
-    const livraisons = Math.round(commandesConfirmees * (tauxLivraisonPct / 100));
-
-    const chiffreAffaires = livraisons * prixVente;
-    const coutsProduits = livraisons * coutProduit;
-    const coutsLivraisons = livraisons * coutLivraison;
-    const coutsCommissions = livraisons * commission;
-    const coutsTotaux = coutsProduits + coutsLivraisons + coutsCommissions + budgetPub;
-    const beneficeEstime = chiffreAffaires - coutsTotaux;
-
-    const margeParLivraison = prixVente - coutProduit - coutLivraison - commission;
-    const seuilRentabilite = margeParLivraison > 0 ? Math.ceil(budgetPub / margeParLivraison) : null;
-
-    return { commandesEstimees, commandesConfirmees, livraisons, chiffreAffaires, coutsTotaux, beneficeEstime, seuilRentabilite, margeParLivraison };
-  }, [form]);
-
-  const champStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 10 };
-  const labelStyle = { fontSize: 11, color: "#8A9089", marginBottom: 3, display: "block" };
-
-  return (
-    <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>📊 Simulateur de campagne</div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-        Avant de dépenser en publicité, sais combien de commandes livrées il te faut pour être rentable.
-      </div>
-
-      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18, marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 14 }}>Ton produit</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Prix de vente ({currency})</label>
-            <input type="number" value={form.prixVente} onChange={(e) => champ("prixVente", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Coût produit ({currency})</label>
-            <input type="number" value={form.coutProduit} onChange={(e) => champ("coutProduit", e.target.value)} style={champStyle} />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Coût livraison ({currency})</label>
-            <input type="number" value={form.coutLivraison} onChange={(e) => champ("coutLivraison", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Commission closer ({currency})</label>
-            <input type="number" value={form.commissionCloser} onChange={(e) => champ("commissionCloser", e.target.value)} style={champStyle} />
-          </div>
-        </div>
-
-        <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 10, marginBottom: 14 }}>Ta publicité</div>
-        <label style={labelStyle}>Budget publicitaire total ({currency})</label>
-        <input type="number" value={form.budgetPub} onChange={(e) => champ("budgetPub", e.target.value)} style={champStyle} />
-        <label style={labelStyle}>Coût estimé par commande générée ({currency}) — ce que ta pub coûte pour obtenir une commande</label>
-        <input type="number" value={form.coutParCommande} onChange={(e) => champ("coutParCommande", e.target.value)} style={champStyle} />
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Taux de confirmation estimé (%)</label>
-            <input type="number" value={form.tauxConfirmation} onChange={(e) => champ("tauxConfirmation", e.target.value)} style={champStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Taux de livraison estimé (%)</label>
-            <input type="number" value={form.tauxLivraison} onChange={(e) => champ("tauxLivraison", e.target.value)} style={{ ...champStyle, marginBottom: 0 }} />
-          </div>
-        </div>
-      </div>
-
-      {resultats && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Commandes estimées</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesEstimees}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Confirmées</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.commandesConfirmees}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Livraisons</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, marginTop: 3 }}>{resultats.livraisons}</div>
-            </div>
-            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A9089", textTransform: "uppercase" }}>Chiffre d'affaires</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, marginTop: 3 }}>{resultats.chiffreAffaires.toLocaleString("fr-FR")}</div>
-            </div>
-          </div>
-
-          <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice estimé</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 26, color: resultats.beneficeEstime >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
-              {resultats.beneficeEstime.toLocaleString("fr-FR")} {currency}
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-              Coûts totaux (produits + livraisons + commissions + pub) : {resultats.coutsTotaux.toLocaleString("fr-FR")} {currency}
-            </div>
-          </div>
-
-          {resultats.margeParLivraison <= 0 ? (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#D64933", fontWeight: 600 }}>
-              🔴 Ta marge par livraison ({resultats.margeParLivraison.toLocaleString("fr-FR")} {currency}) est négative ou nulle — cette campagne ne peut pas devenir rentable avec ces chiffres, quel que soit le volume.
-            </div>
-          ) : (
-            <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#3B6D11", fontWeight: 600 }}>
-              🟢 À partir de <strong>{resultats.seuilRentabilite} commande{resultats.seuilRentabilite > 1 ? "s" : ""} livrée{resultats.seuilRentabilite > 1 ? "s" : ""}</strong>, cette campagne devient rentable.
-            </div>
-          )}
-        </>
-      )}
-
-      {!resultats && (
-        <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "20px 0" }}>
-          Remplis au moins le prix de vente, le budget publicitaire et le coût par commande pour voir la simulation.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur }) {
-  const composantes = useMemo(() => {
-    const now = new Date();
-    const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
-    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-    const commandesMoisActuel = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisActuel);
-    const commandesMoisPrecedent = toutesCommandes.filter((c) => new Date(c.created_at) >= debutMoisPrecedent && new Date(c.created_at) < debutMoisActuel);
-
-    // 1. Taux de livraison réussie
-    const traitees = toutesCommandes.filter((c) => c.statut === "confirmee" || c.statut === "echouee");
-    const tauxLivraison = traitees.length > 0 ? Math.round((toutesCommandes.filter((c) => c.statut === "confirmee").length / traitees.length) * 100) : 100;
-
-    // 2. Taux de récupération (commandes traitées qui finissent confirmées)
-    const echoueesTotal = toutesCommandes.filter((c) => c.statut === "echouee").length;
-    const confirmeesTotal = toutesCommandes.filter((c) => c.statut === "confirmee").length;
-    const totalTraitees2 = echoueesTotal + confirmeesTotal;
-    const tauxRecuperation = totalTraitees2 > 0 ? Math.round((confirmeesTotal / totalTraitees2) * 100) : 100;
-
-    // 3. Santé financière (bénéfice positif par rapport au CA)
-    const margeSante = caConfirme > 0 ? Math.max(0, Math.min(100, Math.round((beneficeReel / caConfirme) * 100 + 50))) : 50;
-
-    // 4. Croissance mois sur mois
-    const croissance = commandesMoisPrecedent.length > 0
-      ? Math.max(0, Math.min(100, Math.round(50 + ((commandesMoisActuel.length - commandesMoisPrecedent.length) / commandesMoisPrecedent.length) * 100)))
-      : (commandesMoisActuel.length > 0 ? 70 : 50);
-
-    // 5. Fiabilité de l'équipe livreurs (moyenne des dépôts positifs = équipe saine financièrement)
-    const fiabiliteEquipe = depotsParLivreur.length > 0
-      ? Math.round((depotsParLivreur.filter((l) => l.aDeposer >= 0).length / depotsParLivreur.length) * 100)
-      : 100;
-
-    // 6. Discipline de suivi (peu de commandes bloquées longtemps en_cours)
-    const enCoursAnciennes = toutesCommandes.filter((c) => c.statut === "en_cours" && (Date.now() - new Date(c.created_at).getTime()) / 86400000 > 3).length;
-    const enCoursTotal = toutesCommandes.filter((c) => c.statut === "en_cours").length;
-    const disciplineSuivi = enCoursTotal > 0 ? Math.round(100 - (enCoursAnciennes / enCoursTotal) * 100) : 100;
-
-    return [
-      { label: "Taux de livraison", valeur: tauxLivraison, icone: "🚚" },
-      { label: "Taux de récupération", valeur: tauxRecuperation, icone: "🎯" },
-      { label: "Santé financière", valeur: margeSante, icone: "💰" },
-      { label: "Croissance", valeur: croissance, icone: "📈" },
-      { label: "Fiabilité équipe", valeur: fiabiliteEquipe, icone: "🤝" },
-      { label: "Discipline de suivi", valeur: disciplineSuivi, icone: "📋" },
-    ];
-  }, [toutesCommandes, beneficeReel, caConfirme, depotsParLivreur]);
-
-  const scoreGlobal = Math.round(composantes.reduce((s, c) => s + c.valeur, 0) / composantes.length);
-
-  function niveauScore(score) {
-    if (score >= 75) return { label: "Excellent", couleur: "#1F9D6E" };
-    if (score >= 55) return { label: "Correct", couleur: "#8A6412" };
-    return { label: "À surveiller", couleur: "#D64933" };
-  }
-
-  const niveauGlobal = niveauScore(scoreGlobal);
-
-  const recommandations = useMemo(() => {
-    const conseils = {
-      "Taux de livraison": "Regarde tes anomalies produit/zone dans Commandes — un même produit qui échoue souvent dans une zone précise cache souvent un souci d'adresse ou de livreur.",
-      "Taux de récupération": "Va dans Récupération — chaque commande à risque a un bouton direct pour relancer le client sur WhatsApp.",
-      "Santé financière": "Vérifie que tous tes produits ont un coût d'achat ET des frais de transport renseignés dans le catalogue — sinon ton bénéfice réel est sous-estimé, ou tu vends à perte sans le savoir.",
-      "Croissance": "Regarde tes clients à relancer dans l'écran Clients — relancer un ancien client coûte moins cher que d'en trouver un nouveau.",
-      "Fiabilité équipe": "Va dans Compta, section \"Détail par livreur\" — identifie qui a un solde à déposer négatif ou en retard.",
-      "Discipline de suivi": "Des commandes restent \"en cours\" depuis plus de 3 jours — reprogramme-les ou marque-les échouées pour garder ta liste à jour.",
-    };
-    return [...composantes]
-      .sort((a, b) => a.valeur - b.valeur)
-      .slice(0, 3)
-      .filter((c) => c.valeur < 90)
-      .map((c) => ({ ...c, conseil: conseils[c.label] }));
-  }, [composantes]);
-
-  return (
-    <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🧭 Score Business</div>
-      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
-        Le résumé exécutif de ton activité — 6 indicateurs combinés en un seul chiffre.
-      </div>
-
-      <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 18, padding: "28px 24px", marginBottom: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Score global</div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 56, color: niveauGlobal.couleur, lineHeight: 1 }}>
-          {scoreGlobal}
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: niveauGlobal.couleur, marginTop: 6 }}>{niveauGlobal.label}</div>
-      </div>
-
-      {recommandations.length > 0 && (
-        <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 14, padding: "16px 18px", marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: "#8A6412", marginBottom: 10 }}>
-            💡 Les {recommandations.length} choses qui te feraient le plus progresser
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {recommandations.map((r, i) => (
-              <div key={r.label} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#8A6412", color: "white", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                  {i + 1}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6412" }}>{r.icone} {r.label} ({r.valeur}/100)</div>
-                  <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2, lineHeight: 1.45 }}>{r.conseil}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {composantes.map((c) => {
-          const niveau = niveauScore(c.valeur);
-          return (
-            <div key={c.label} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{c.icone} {c.label}</span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: niveau.couleur }}>{c.valeur}</span>
-              </div>
-              <div style={{ background: "#ECE8DC", borderRadius: 999, height: 6, overflow: "hidden" }}>
-                <div style={{ width: `${c.valeur}%`, background: niveau.couleur, height: "100%", borderRadius: 999 }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.6 }}>
-        Calculé à partir de tes 30 derniers jours de commandes, ton bénéfice réel, et la fiabilité de ton équipe. Un score qui remonte reflète une activité qui se solidifie.
       </div>
     </div>
   );

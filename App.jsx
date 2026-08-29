@@ -8667,6 +8667,8 @@ function IntegrationsModal({ workspace, onClose }) {
     tiktok_url: workspace.tiktok_url || "",
     frais_livraison: workspace.frais_livraison ?? 0,
     frais_expedition: workspace.frais_expedition ?? 0,
+    label_livraison_locale: workspace.label_livraison_locale || "Livraison locale",
+    label_livraison_expedition: workspace.label_livraison_expedition || "Autre ville",
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
@@ -9058,7 +9060,14 @@ function IntegrationsModal({ workspace, onClose }) {
             Deux frais distincts, affichés sur chaque page produit et ajoutés automatiquement selon le choix du client. Laisse à 0 si gratuit.
           </div>
 
-          <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>🏍️ Livraison locale (ex: Abidjan)</div>
+          <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>🏍️ Nom de cette zone (ex: Livraison locale, Abidjan...)</div>
+          <input
+            value={personnalisation.label_livraison_locale}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, label_livraison_locale: e.target.value })}
+            placeholder="Livraison locale"
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 6 }}
+          />
+          <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Frais pour cette zone</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
             <input
               type="number"
@@ -9070,7 +9079,14 @@ function IntegrationsModal({ workspace, onClose }) {
             <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
           </div>
 
-          <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>🚛 Expédition (autre ville)</div>
+          <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>🚛 Nom de cette zone (ex: Autre ville, Expédition, Hors Abidjan...)</div>
+          <input
+            value={personnalisation.label_livraison_expedition}
+            onChange={(e) => setPersonnalisation({ ...personnalisation, label_livraison_expedition: e.target.value })}
+            placeholder="Autre ville"
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 6 }}
+          />
+          <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Frais pour cette zone</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
             <input
               type="number"
@@ -9087,6 +9103,8 @@ function IntegrationsModal({ workspace, onClose }) {
               await supabase.from("workspaces").update({
                 frais_livraison: Number(personnalisation.frais_livraison) || 0,
                 frais_expedition: Number(personnalisation.frais_expedition) || 0,
+                label_livraison_locale: personnalisation.label_livraison_locale.trim() || "Livraison locale",
+                label_livraison_expedition: personnalisation.label_livraison_expedition.trim() || "Autre ville",
               }).eq("id", workspace.id);
             }}
             style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}

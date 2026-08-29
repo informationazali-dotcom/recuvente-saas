@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
@@ -243,9 +243,6 @@ export default function App() {
     setShowAjouterEspace(false);
   }
 
-  const catalogueId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("catalogue") : null;
-  if (catalogueId) return <BoutiquePublique workspaceId={catalogueId} />;
-
   if (session === undefined) return <Centered>Chargement…</Centered>;
 
   const resetPwParam = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("resetpw") === "1";
@@ -294,254 +291,6 @@ function Centered({ children }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
       {children}
-    </div>
-  );
-}
-
-function BoutiquePublique({ workspaceId }) {
-  const [workspace, setWorkspace] = useState(undefined);
-  const [produitsBruts, setProduitsBruts] = useState([]);
-  const [collectionsBrutes, setCollectionsBrutes] = useState([]);
-  const [collectionProduits, setCollectionProduits] = useState({});
-  const [panier, setPanier] = useState(null);
-  const [formCommande, setFormCommande] = useState({ nom: "", tel: "", ville: "", adresse: "" });
-  const [envoiEnCours, setEnvoiEnCours] = useState(false);
-  const [commandeEnvoyee, setCommandeEnvoyee] = useState(false);
-  const [erreurCommande, setErreurCommande] = useState("");
-
-  useEffect(() => {
-    let vivant = true;
-    (async () => {
-      const { data: ws } = await supabase.from("workspaces").select("*").eq("id", workspaceId).maybeSingle();
-      if (!vivant) return;
-      setWorkspace(ws || null);
-      if (!ws) return;
-      const { data: prods } = await supabase.from("produits").select("*").eq("workspace_id", workspaceId);
-      if (vivant) setProduitsBruts(prods || []);
-      const { data: cols } = await supabase.from("collections").select("*").eq("workspace_id", workspaceId).order("ordre", { ascending: true });
-      if (!vivant) return;
-      setCollectionsBrutes(cols || []);
-      if (cols && cols.length) {
-        const { data: liens } = await supabase.from("collection_produits").select("collection_id, produit_id").in("collection_id", cols.map((c) => c.id));
-        const map = {};
-        (liens || []).forEach((l) => { if (!map[l.collection_id]) map[l.collection_id] = new Set(); map[l.collection_id].add(l.produit_id); });
-        if (vivant) setCollectionProduits(map);
-      }
-    })();
-    return () => { vivant = false; };
-  }, [workspaceId]);
-
-  useEffect(() => {
-    if (workspace?.name) { try { document.title = workspace.name; } catch (_) {} }
-  }, [workspace?.name]);
-
-  if (workspace === undefined) return <Centered>Chargement de la boutique…</Centered>;
-  if (!workspace) return <Centered><div style={{ textAlign: "center" }}><div style={{ fontSize: 34, marginBottom: 8 }}>🔍</div><div style={{ fontWeight: 900, fontSize: 15 }}>Boutique introuvable</div></div></Centered>;
-
-  const config = workspace.store_config_published;
-  if (!config) {
-    return <Centered>
-      <div style={{ textAlign: "center", maxWidth: 360, padding: 20 }}>
-        <div style={{ fontSize: 38, marginBottom: 10 }}>🛍️</div>
-        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6, color: "#16231F" }}>Cette boutique n'est pas encore publiée</div>
-        <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.5 }}>Le propriétaire n'a pas encore cliqué sur « 🚀 Publier » dans son Store Builder. Reviens un peu plus tard.</div>
-      </div>
-    </Centered>;
-  }
-
-  const couleur = config.couleur || "#1a7a3c";
-  const devise = workspace.currency || "XOF";
-  const sections = (config.sections || []).filter((s) => s && s.visible !== false);
-
-  const products = produitsBruts.map((p, i) => ({
-    id: p.id || `p-${i}`,
-    name: p.nom || p.name || `Produit ${i + 1}`,
-    price: Number(p.prix_vente ?? p.prix ?? 0),
-    image: p.image_url || p.photo_url || p.image || "",
-    category: p.collection || p.categorie || "Collection",
-    description: p.description || "",
-    createdAt: p.created_at || p.inserted_at || null,
-  }));
-  const derivedCollections = collectionsBrutes.length
-    ? collectionsBrutes.map((c) => ({ ...c, count: collectionProduits[c.id]?.size || 0 }))
-    : [...new Map(products.map((p) => [p.category, { id: `derived-${p.category}`, nom: p.category, count: products.filter((x) => x.category === p.category).length }])).values()];
-  function produitsDeCollection(c) {
-    if (collectionsBrutes.some((x) => x.id === c.id)) { const ids = collectionProduits[c.id]; return ids ? products.filter((p) => ids.has(p.id)) : []; }
-    return products.filter((p) => p.category === c.nom);
-  }
-  const selectedProducts = products.filter((p) => config.selectedProductIds?.includes(p.id));
-  const fallbackProducts = selectedProducts.length ? selectedProducts : products.slice(0, 8);
-  const bestsellers = fallbackProducts.slice(0, 4);
-  const selectedNouveautes = products.filter((p) => config.selectedNouveautesIds?.includes(p.id));
-  const newestProducts = selectedNouveautes.length ? selectedNouveautes : (() => {
-    const withDates = products.filter((p) => p.createdAt);
-    const sorted = withDates.length ? [...withDates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [...products].reverse();
-    return sorted.slice(0, 8);
-  })();
-
-  function ouvrirCommande(produit, bundle) {
-    if (!sections.some((s) => s.type === "cod_form")) {
-      const numero = workspace.whatsapp_number;
-      if (numero) {
-        const texte = `${config.whatsapp || "Bonjour, je souhaite commander :"} ${produit?.name || ""}`;
-        window.open(`https://wa.me/${cleanPhoneForWhatsApp(numero)}?text=${encodeURIComponent(texte)}`, "_blank");
-        return;
-      }
-    }
-    setPanier({ produit, bundle: bundle || null });
-    setErreurCommande(""); setCommandeEnvoyee(false);
-    setTimeout(() => { document.getElementById("rv-commande-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
-  }
-
-  async function envoyerCommande(e) {
-    e.preventDefault();
-    if (!formCommande.nom.trim() || !formCommande.tel.trim()) { setErreurCommande("Merci de renseigner ton nom et ton téléphone."); return; }
-    if (!panier?.produit) { setErreurCommande("Choisis d'abord un produit ci-dessus."); return; }
-    setEnvoiEnCours(true);
-    const overrideLivraison = config.livraisonParProduit?.[panier.produit.id];
-    const fraisLiv = overrideLivraison?.actif ? Number(overrideLivraison.frais || 0) : Number(config.fraisLivraison || 0);
-    const qty = panier.bundle?.qty || 1;
-    const remise = panier.bundle ? (Number(panier.bundle.discount) || 0) / 100 : 0;
-    const montant = panier.produit.price * qty * (1 - remise) + fraisLiv;
-    const nomProduit = panier.produit.name + (panier.bundle ? ` (${panier.bundle.label})` : "");
-    const { error } = await supabase.from("commandes").insert([{
-      workspace_id: workspace.id,
-      client: formCommande.nom.trim(),
-      tel: formCommande.tel.trim(),
-      produit: nomProduit,
-      montant,
-      zone: [formCommande.ville, formCommande.adresse].filter(Boolean).join(" - "),
-      mode_vente: "livraison",
-      statut: "en_cours",
-    }]);
-    setEnvoiEnCours(false);
-    if (error) { setErreurCommande("Erreur lors de l'envoi : " + error.message); return; }
-    setCommandeEnvoyee(true); setPanier(null);
-    setFormCommande({ nom: "", tel: "", ville: "", adresse: "" });
-  }
-
-  const cardBase = { padding: "30px 18px", borderBottom: "1px solid #edf1ee" };
-  function ProductCard({ p }) {
-    return (
-      <div style={{ border: "1px solid #e7ece8", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
-        {p.image ? <img src={p.image} alt={p.name} style={{ width: "100%", height: 150, objectFit: "cover" }} /> : <div style={{ height: 150, background: "#eef3ee", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>🛍️</div>}
-        <div style={{ padding: 10, textAlign: "left" }}>
-          <div style={{ fontWeight: 850, fontSize: 12.5, color: "#17241d" }}>{p.name}</div>
-          <div style={{ fontWeight: 900, fontSize: 13.5, color: couleur, marginTop: 4 }}>{p.price ? p.price.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
-          <button onClick={() => ouvrirCommande(p)} style={{ marginTop: 8, width: "100%", border: 0, borderRadius: 8, padding: "9px 6px", background: couleur, color: "#fff", fontSize: 11.5, fontWeight: 900, cursor: "pointer" }}>{workspace.activity_type === "restaurant" ? "Commander" : workspace.activity_type?.includes("location") ? "Réserver" : "Commander"}</button>
-        </div>
-      </div>
-    );
-  }
-
-  function Section({ s }) {
-    const type = s.type;
-    if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleur, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
-    if (type === "hero") return (
-      <div style={{ textAlign: "center" }}>
-        {config.banniere ? <img src={config.banniere} alt="" style={{ width: "100%", maxHeight: 340, objectFit: "cover", display: "block" }} /> : <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleur},#0b2416)`, color: "#fff" }}><div style={{ fontSize: 30, fontWeight: 950 }}>{config.heroTitle}</div></div>}
-        <div style={{ padding: "26px 20px 34px" }}>
-          <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
-          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
-          <button onClick={() => document.getElementById("rv-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config.buttonText}</button>
-        </div>
-      </div>
-    );
-    if (type === "collections") return (
-      <div style={cardBase}><h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
-          {derivedCollections.filter((c) => !config.selectedCollectionIds?.length || config.selectedCollectionIds.includes(c.id)).slice(0, 8).map((c) => {
-            const cp = produitsDeCollection(c); const cover = cp.find((p) => p.image)?.image;
-            return <div key={c.id} style={{ borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden" }}>
-              {cover ? <img src={cover} alt="" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
-              <div style={{ padding: "10px 8px" }}><div style={{ fontWeight: 850, fontSize: 12 }}>{c.nom || c.name}</div><div style={{ fontSize: 10, color: "#7c877f", marginTop: 3 }}>{c.count || 0} article(s)</div></div>
-            </div>;
-          })}
-        </div>
-      </div>
-    );
-    if (type === "bestsellers" || type === "products" || type === "nouveautes") {
-      const liste = type === "bestsellers" ? bestsellers : type === "nouveautes" ? newestProducts : fallbackProducts;
-      return <div id={type === "products" ? "rv-produits" : undefined} style={cardBase}>
-        <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : type === "nouveautes" ? "🆕 Nouveautés" : "Nos produits"}</h3>
-        {liste.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(155px,1fr))", gap: 12 }}>{liste.slice(0, 12).map((p) => <ProductCard key={p.id} p={p} />)}</div> : <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>}
-      </div>;
-    }
-    if (type === "bundles") {
-      const base = bestsellers[0]?.price || products[0]?.price || 0;
-      return <div style={{ ...cardBase, background: "#fffdf7" }}>
-        <div style={{ textAlign: "center", marginBottom: 16 }}><div style={{ fontSize: 10, fontWeight: 950, color: "#b16b00", letterSpacing: ".08em" }}>🔥 OFFRES QUANTITÉ</div><h3 style={{ margin: "5px 0", fontSize: 22, color: "#14221b" }}>Plus tu prends, plus tu économises</h3></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
-          {(config.bundles || []).map((b, i) => {
-            const produitLie = b.produitId ? products.find((p) => p.id === b.produitId) : null;
-            const prixBase = produitLie ? produitLie.price : base;
-            const total = prixBase * b.qty * (1 - (Number(b.discount) || 0) / 100);
-            return <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleur : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
-              {produitLie && <div style={{ fontSize: 9.5, fontWeight: 900, color: "#1a7a3c", marginBottom: 4 }}>🔗 {produitLie.name}</div>}
-              <div style={{ fontSize: 13, fontWeight: 950, color: "#16231c" }}>{b.label}</div>
-              <div style={{ fontSize: 11, color: "#7b857e", marginTop: 4 }}>{b.qty} produit(s) · {b.discount || 0}% de remise</div>
-              <div style={{ fontSize: 21, fontWeight: 950, color: couleur, marginTop: 10 }}>{prixBase ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
-              <button onClick={() => ouvrirCommande(produitLie || bestsellers[0] || products[0], b)} disabled={!produitLie && !bestsellers[0] && !products[0]} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleur, color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>Choisir ce pack</button>
-            </div>;
-          })}
-        </div>
-      </div>;
-    }
-    if (type === "benefits") return <div style={cardBase}><h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Pourquoi acheter chez nous ?</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>{[["🛡️", "Paiement à la livraison"], ["🚚", "Livraison suivie"], ["💬", "Support rapide"]].map((x) => <div key={x[1]} style={{ padding: 15, borderRadius: 11, background: "#f6f9f6" }}><div style={{ fontSize: 21 }}>{x[0]}</div><div style={{ fontWeight: 850, fontSize: 12, marginTop: 7 }}>{x[1]}</div></div>)}</div></div>;
-    if (type === "promo") return <div style={{ ...cardBase, background: "#f7f2e7", textAlign: "center" }}><div style={{ fontSize: 10, fontWeight: 900, color: "#b16b00" }}>OFFRE LIMITÉE</div><h3 style={{ fontSize: 25, margin: "8px 0", color: "#162119" }}>{config.promoTitle}</h3><p style={{ fontSize: 12.5, color: "#6f776f" }}>{config.promoText}</p><button onClick={() => document.getElementById("rv-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: "#e8920a", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button></div>;
-    if (type === "testimonials") return <div style={cardBase}><h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>⭐ Ils nous font confiance</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 11 }}>{["Une expérience simple et rapide.", "La commande a été parfaitement suivie.", "Je recommande sans hésiter."].map((t, i) => <div key={i} style={{ padding: 16, border: "1px solid #e6ece7", borderRadius: 12 }}><div style={{ color: "#e8920a" }}>★★★★★</div><div style={{ fontSize: 12, lineHeight: 1.55, color: "#435047", marginTop: 8 }}>"{t}"</div><div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 9 }}>Client</div></div>)}</div></div>;
-    if (type === "gallery") return <div style={cardBase}><h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>{config.gallery?.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 9 }}>{config.gallery.map((u, i) => <img key={i} src={u} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}</div> : null}</div>;
-    if (type === "faq") return <div style={cardBase}><h3 style={{ margin: "0 0 13px", fontSize: 20, color: "#14221b" }}>Questions fréquentes</h3>{["Comment commander ?", "Quels sont les délais ?", "Comment suivre ma commande ?"].map((q) => <div key={q} style={{ padding: "13px 2px", borderBottom: "1px solid #e7ece8", fontSize: 12.5, fontWeight: 800 }}>{q}</div>)}</div>;
-    if (type === "cod_form") {
-      const overrideLivraison = panier?.produit ? config.livraisonParProduit?.[panier.produit.id] : null;
-      const fraisLivAffiche = overrideLivraison?.actif ? Number(overrideLivraison.frais || 0) : Number(config.fraisLivraison || 0);
-      return <div id="rv-commande-panel" style={{ ...cardBase, background: "#f7faf7" }}>
-        <div style={{ maxWidth: 520, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 16 }}><div style={{ fontSize: 10, fontWeight: 950, color: couleur }}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{ margin: "5px 0", fontSize: 21, color: "#14221b" }}>📝 Finalise ta commande</h3></div>
-          {commandeEnvoyee ? <div style={{ background: "#eaf3de", border: "1px solid #c7dda3", borderRadius: 12, padding: 16, textAlign: "center", fontWeight: 800, color: "#3B6D11" }}>✅ Commande envoyée ! Tu seras contacté(e) très vite pour confirmer.</div> : (
-            <form onSubmit={envoyerCommande} style={{ background: "#fff", border: "1px solid #e1e8e2", borderRadius: 14, padding: 15 }}>
-              {panier?.produit ? <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "#f4faf5", borderRadius: 9, marginBottom: 11 }}>{panier.produit.image && <img src={panier.produit.image} alt="" style={{ width: 38, height: 38, objectFit: "cover", borderRadius: 7 }} />}<div style={{ fontSize: 12, fontWeight: 800 }}>{panier.produit.name}{panier.bundle ? " — " + panier.bundle.label : ""}</div></div> : <div style={{ fontSize: 11.5, color: "#8a948d", marginBottom: 11 }}>Choisis un produit ci-dessus pour commander.</div>}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <input value={formCommande.nom} onChange={(e) => setFormCommande((f) => ({ ...f, nom: e.target.value }))} placeholder="Nom complet" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
-                <input value={formCommande.tel} onChange={(e) => setFormCommande((f) => ({ ...f, tel: e.target.value }))} placeholder="Téléphone WhatsApp" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
-                <input value={formCommande.ville} onChange={(e) => setFormCommande((f) => ({ ...f, ville: e.target.value }))} placeholder="Ville / commune" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
-                <input value={formCommande.adresse} onChange={(e) => setFormCommande((f) => ({ ...f, adresse: e.target.value }))} placeholder="Adresse de livraison" style={{ border: "1px solid #e0e6e1", borderRadius: 9, padding: 11, fontSize: 12 }} />
-              </div>
-              <div style={{ marginTop: 10, padding: 11, borderRadius: 10, background: "#f5f8f5", fontSize: 12, color: "#435047" }}>🚚 Livraison : <b>{fraisLivAffiche.toLocaleString("fr-FR")} {devise}</b></div>
-              {erreurCommande && <div style={{ marginTop: 8, fontSize: 11.5, color: "#bd4b38", fontWeight: 700 }}>{erreurCommande}</div>}
-              <button type="submit" disabled={envoiEnCours} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 10, padding: 13, background: couleur, color: "#fff", fontWeight: 950, fontSize: 12.5, cursor: "pointer", opacity: envoiEnCours ? 0.7 : 1 }}>{envoiEnCours ? "Envoi en cours…" : "Confirmer ma commande — paiement à la livraison"}</button>
-            </form>
-          )}
-        </div>
-      </div>;
-    }
-    if (type === "delivery") {
-      const overrides = Object.entries(config.livraisonParProduit || {}).filter(([, v]) => v?.actif).map(([id, v]) => ({ ...v, produit: products.find((p) => p.id === id) })).filter((x) => x.produit);
-      return <div style={cardBase}><h3 style={{ margin: "0 0 10px", fontSize: 20, color: "#14221b" }}>🚚 Livraison</h3><p style={{ fontSize: 12.5, color: "#68756d", lineHeight: 1.6 }}>{config.livraison}</p>{overrides.length > 0 && <div style={{ marginTop: 13, display: "grid", gap: 6 }}>{overrides.map((o) => <div key={o.produit.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, padding: "8px 11px", background: "#f6f9f6", borderRadius: 8 }}><span style={{ fontWeight: 800 }}>{o.produit.name}</span><span style={{ color: couleur, fontWeight: 800 }}>{Number(o.frais || 0).toLocaleString("fr-FR")} {devise}{o.delai ? " · " + o.delai : ""}</span></div>)}</div>}</div>;
-    }
-    if (type === "whatsapp") return <div style={{ ...cardBase, textAlign: "center", background: "#f4faf5" }}><div style={{ fontSize: 27 }}>💬</div><h3 style={{ margin: "8px 0", fontSize: 20, color: "#14221b" }}>Besoin d'aide ?</h3><p style={{ fontSize: 12, color: "#68756d" }}>Écris-nous directement sur WhatsApp.</p><button onClick={() => { const numero = workspace.whatsapp_number; if (numero) window.open(`https://wa.me/${cleanPhoneForWhatsApp(numero)}?text=${encodeURIComponent(config.whatsapp || "")}`, "_blank"); }} style={{ border: 0, borderRadius: 10, padding: "11px 19px", background: "#168a45", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Ouvrir WhatsApp</button></div>;
-    if (type === "contact") return <div style={{ ...cardBase, textAlign: "center", background: "#0d2417", color: "#fff" }}><h3 style={{ margin: "0 0 9px", fontSize: 25 }}>Prêt à passer à l'action ?</h3><p style={{ fontSize: 12, color: "rgba(255,255,255,.68)" }}>Commandez, réservez ou contactez-nous maintenant.</p><button onClick={() => document.getElementById("rv-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: couleur, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button></div>;
-    if (type === "footer") return <div style={{ background: config.footerBgColor, color: config.footerTextColor }}>
-      {config.footerBackToTop && <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ textAlign: "center", padding: "10px 0", background: "rgba(255,255,255,.06)", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>⬆ Retour en haut</div>}
-      <div style={{ padding: "24px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 18 }}>{(config.footerColonnes || []).map((col) => <div key={col.id}><div style={{ fontWeight: 900, fontSize: 12, marginBottom: 9 }}>{col.titre}</div>{(col.liens || []).map((l, i) => <div key={i} style={{ fontSize: 11, opacity: 0.75, marginBottom: 6 }}>{l.label}</div>)}</div>)}</div>
-      {(config.footerPaiements || []).length > 0 && <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", padding: "0 20px 18px" }}>{config.footerPaiements.map((p, i) => <span key={i} style={{ background: "rgba(255,255,255,.08)", borderRadius: 7, padding: "5px 9px", fontSize: 10, fontWeight: 700 }}>{p}</span>)}</div>}
-      <div style={{ padding: "17px 20px", borderTop: "1px solid rgba(255,255,255,.12)", textAlign: "center", fontSize: 10.5 }}><div style={{ fontWeight: 900, fontSize: 13.5, marginBottom: 4 }}>{config.nom}</div><div style={{ opacity: 0.6, marginBottom: 6 }}>{config.description}</div><div style={{ opacity: 0.45 }}>© {new Date().getFullYear()} {config.nom}</div></div>
-    </div>;
-    return null;
-  }
-
-  return (
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-      <div>
-        <div style={{ background: config.headerBgColor, color: config.headerTextColor, padding: "6px 14px", fontSize: 10.5, textAlign: "center", opacity: 0.85 }}>{config.headerBarreTop}</div>
-        <div style={{ background: config.headerBgColor, color: config.headerTextColor, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 15 }}>{config.logo ? <img src={config.logo} alt="" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 8 }} /> : <span style={{ width: 32, height: 32, borderRadius: 8, background: couleur, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{(config.nom || "R")[0]}</span>}{config.nom}</div>
-          {config.headerShowSearch && <div style={{ flex: 1, minWidth: 130, display: "flex", background: "#fff", borderRadius: 8, overflow: "hidden" }}><input placeholder="Rechercher un produit..." disabled style={{ flex: 1, border: 0, padding: "9px 10px", fontSize: 11, outline: "none" }} /><span style={{ background: couleur, color: "#fff", padding: "9px 13px", fontSize: 13 }}>🔎</span></div>}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 11, marginLeft: "auto" }}>{config.headerShowCompte && <span>👤 Compte</span>}{config.headerShowPanier && <span>🛒 Panier</span>}</div>
-        </div>
-        {(config.headerLinks || []).length > 0 && <div style={{ background: "rgba(255,255,255,.06)", padding: "9px 18px", display: "flex", gap: 16, fontSize: 11, color: config.headerTextColor, flexWrap: "wrap" }}>{config.headerLinks.map((l) => <span key={l.id}>{l.label}</span>)}</div>}
-      </div>
-      {sections.map((s) => <Section key={s.id} s={s} />)}
     </div>
   );
 }
@@ -618,350 +367,8 @@ function LandingPage() {
         .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:700px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
         .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
         .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
-        /* =========================================================
-           RECUVENTE — SECTION "DU CLIC AU DERNIER FRANC"
-           DESIGN PREMIUM / CONVERSION
-           ========================================================= */
-
-        .rvx-dark{
-          position:relative;
-          overflow:hidden;
-          background:
-            radial-gradient(circle at 15% 15%,rgba(46,139,87,.16),transparent 32%),
-            radial-gradient(circle at 90% 80%,rgba(255,122,0,.09),transparent 28%),
-            linear-gradient(135deg,#050b08 0%,#07130d 50%,#09180f 100%);
-          color:#fff;
-        }
-
-        .rvx-dark:before{
-          content:"";
-          position:absolute;
-          width:700px;
-          height:700px;
-          left:50%;
-          top:180px;
-          transform:translateX(-50%);
-          background:radial-gradient(circle,rgba(46,139,87,.08),transparent 65%);
-          pointer-events:none;
-        }
-
-        .rvx-dark > .wrap{
-          position:relative;
-          z-index:2;
-        }
-
-        .rvx-dark .rvx-kicker{
-          display:inline-flex;
-          align-items:center;
-          gap:8px;
-          padding:7px 11px;
-          border:1px solid rgba(130,216,159,.18);
-          background:rgba(130,216,159,.055);
-          border-radius:999px;
-          color:#82d89f;
-          font-size:8px;
-          letter-spacing:.16em;
-        }
-
-        .rvx-dark .rvx-title{
-          max-width:850px;
-          margin-left:auto;
-          margin-right:auto;
-          text-shadow:0 10px 40px rgba(0,0,0,.25);
-        }
-
-        .rvx-dark .rvx-title span{color:#82d89f}
-
-        .rvx-dark .rvx-desc{
-          max-width:620px;
-          color:#84938a;
-        }
-
-        .rvx-chain{
-          position:relative;
-          display:grid;
-          grid-template-columns:repeat(7,1fr);
-          gap:7px;
-          margin-top:48px;
-        }
-
-        .rvx-chain:before{
-          content:"";
-          position:absolute;
-          top:50%;
-          left:4%;
-          right:4%;
-          height:1px;
-          background:linear-gradient(
-            90deg,
-            transparent,
-            rgba(130,216,159,.22),
-            rgba(255,122,0,.35),
-            rgba(130,216,159,.22),
-            transparent
-          );
-          z-index:0;
-        }
-
-        .rvx-step{
-          position:relative;
-          z-index:1;
-          min-height:112px;
-          padding:17px 8px 14px;
-          border:1px solid rgba(255,255,255,.075);
-          background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.025));
-          border-radius:14px;
-          text-align:center;
-          backdrop-filter:blur(12px);
-          box-shadow:0 15px 45px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04);
-          transition:transform .22s ease,border-color .22s ease,background .22s ease;
-        }
-
-        .rvx-step:hover{
-          transform:translateY(-5px);
-          border-color:rgba(130,216,159,.25);
-          background:linear-gradient(145deg,rgba(46,139,87,.13),rgba(255,255,255,.035));
-        }
-
-        .rvx-step b{
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          width:32px;
-          height:32px;
-          border-radius:9px;
-          background:rgba(255,122,0,.1);
-          border:1px solid rgba(255,122,0,.2);
-          font:800 12px monospace;
-          color:#ff8b20;
-        }
-
-        .rvx-step strong{
-          display:block;
-          margin-top:10px;
-          font-size:8.5px;
-          font-weight:900;
-          letter-spacing:.04em;
-          color:#f5f8f5;
-        }
-
-        .rvx-step span{
-          display:block;
-          margin-top:5px;
-          color:#718078;
-          font-size:7.5px;
-          line-height:1.45;
-        }
-
-        .rvx-grid2{
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:16px;
-          margin-top:46px;
-        }
-
-        .rvx-dark .rvx-card{
-          position:relative;
-          min-height:350px;
-          overflow:hidden;
-          border-radius:22px;
-          padding:32px;
-          color:#fff;
-          border:1px solid rgba(255,255,255,.09);
-          background:linear-gradient(145deg,#102219 0%,#0c1a13 55%,#09150f 100%);
-          box-shadow:0 30px 80px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035);
-        }
-
-        .rvx-dark .rvx-card:before{
-          content:"";
-          position:absolute;
-          width:260px;
-          height:260px;
-          right:-100px;
-          top:-100px;
-          border-radius:50%;
-          background:radial-gradient(circle,rgba(46,139,87,.18),transparent 68%);
-          pointer-events:none;
-        }
-
-        .rvx-dark .rvx-card:after{
-          content:"";
-          position:absolute;
-          left:32px;
-          right:32px;
-          top:0;
-          height:2px;
-          background:linear-gradient(90deg,#2e8b57,rgba(46,139,87,0));
-        }
-
-        .rvx-dark .rvx-card h3{
-          position:relative;
-          z-index:1;
-          margin:0;
-          font:900 clamp(24px,2.4vw,31px) Georgia,serif;
-          line-height:1.05;
-          letter-spacing:-.045em;
-          color:#fff;
-        }
-
-        .rvx-dark .rvx-card p{
-          position:relative;
-          z-index:1;
-          max-width:520px;
-          margin:13px 0 0;
-          color:#84938a;
-          font-size:11px;
-          line-height:1.7;
-        }
-
-        .rvx-card-label{
-          position:relative;
-          z-index:2;
-          display:inline-flex;
-          align-items:center;
-          gap:7px;
-          margin-bottom:15px;
-          padding:6px 9px;
-          border-radius:7px;
-          background:rgba(255,255,255,.045);
-          border:1px solid rgba(255,255,255,.08);
-          color:#8d9b93;
-          font-size:7px;
-          font-weight:900;
-          letter-spacing:.14em;
-          text-transform:uppercase;
-        }
-
-        .rvx-card-label-dot{
-          width:6px;
-          height:6px;
-          border-radius:50%;
-          background:#82d89f;
-          box-shadow:0 0 0 4px rgba(130,216,159,.08);
-        }
-
-        .rvx-card.money .rvx-card-label-dot{
-          background:#ff7a00;
-          box-shadow:0 0 0 4px rgba(255,122,0,.08);
-        }
-
-        .rvx-dark .rvx-list{
-          position:relative;
-          z-index:2;
-          display:grid;
-          gap:8px;
-          margin-top:25px;
-        }
-
-        .rvx-dark .rvx-list div{
-          display:flex;
-          align-items:center;
-          min-height:37px;
-          padding:9px 11px;
-          border:1px solid rgba(255,255,255,.055);
-          border-radius:9px;
-          background:rgba(255,255,255,.025);
-          color:#dce5df;
-          font-size:9.5px;
-          font-weight:650;
-          transition:.2s ease;
-        }
-
-        .rvx-dark .rvx-list div:hover{
-          background:rgba(255,255,255,.055);
-          transform:translateX(3px);
-        }
-
-        .rvx-dark .rvx-list b{
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          flex:0 0 20px;
-          width:20px;
-          height:20px;
-          margin-right:9px;
-          border-radius:6px;
-          background:rgba(46,139,87,.13);
-          color:#82d89f;
-          font-size:10px;
-        }
-
-        .rvx-dark .rvx-card.money .rvx-list b{
-          background:rgba(255,122,0,.1);
-          color:#ff8b20;
-        }
-
-        .rvx-dark .rvx-card.money{
-          background:
-            radial-gradient(circle at 90% 10%,rgba(255,122,0,.11),transparent 34%),
-            linear-gradient(145deg,#13231a 0%,#0d1b13 55%,#09150f 100%);
-        }
-
-        .rvx-dark .rvx-card.money:after{
-          background:linear-gradient(90deg,#ff7a00,rgba(255,122,0,0));
-        }
-
-        .rvx-card-highlight{
-          position:relative;
-          z-index:2;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:15px;
-          margin-top:24px;
-          padding:13px 15px;
-          border-radius:11px;
-          background:rgba(255,255,255,.035);
-          border:1px solid rgba(255,255,255,.065);
-        }
-
-        .rvx-card-highlight span{
-          color:#718078;
-          font-size:8px;
-          font-weight:700;
-        }
-
-        .rvx-card-highlight strong{
-          color:#82d89f;
-          font:800 12px monospace;
-        }
-
-        .rvx-card.money .rvx-card-highlight strong{
-          color:#ff8b20;
-        }
-
-        @media(max-width:900px){
-          .rvx-chain{grid-template-columns:repeat(4,1fr)}
-          .rvx-chain:before{display:none}
-          .rvx-grid2{grid-template-columns:1fr}
-        }
-
-        @media(max-width:650px){
-          .rvx-chain{
-            grid-template-columns:repeat(2,1fr);
-            gap:8px;
-            margin-top:35px;
-          }
-
-          .rvx-step{min-height:100px}
-
-          .rvx-dark .rvx-card{
-            min-height:auto;
-            padding:25px 20px;
-            border-radius:18px;
-          }
-
-          .rvx-dark .rvx-card:after{
-            left:20px;
-            right:20px;
-          }
-
-          .rvx-dark .rvx-card h3{font-size:25px}
-          .rvx-dark .rvx-card p{font-size:10.5px}
-
-          .rvx-card-highlight{margin-top:19px}
-        }
-
+        .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
+        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff;color:var(--ink)}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px;color:inherit}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px;color:inherit}.rvx-list b{color:var(--g);margin-right:7px}
         .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
         .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
         .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
@@ -981,123 +388,7 @@ function LandingPage() {
         <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
       </div></section>
 
-      <section className="rvx-section rvx-dark">
-        <div className="wrap">
-
-          <div className="rvx-center">
-            <div className="rvx-kicker">
-              <span>●</span>
-              De bout en bout
-            </div>
-
-            <h2 className="rvx-title">
-              Du <span>clic publicitaire</span><br/>
-              au dernier franc.
-            </h2>
-
-            <p className="rvx-desc">
-              Voici la chaîne que RecuVente transforme en données,
-              actions et décisions.
-            </p>
-          </div>
-
-          <div className="rvx-chain">
-            {[
-              ["01","PUBLICITÉ","Pixel · campagne"],
-              ["02","BOUTIQUE","Produit · commande"],
-              ["03","CLOSING","Appel · confirmation"],
-              ["04","ATTRIBUTION","Closer · livreur"],
-              ["05","LIVRAISON","GPS · résultat"],
-              ["06","ENCAISSEMENT","Paiement · dépôt"],
-              ["07","RÉACTIVATION","Client · relance"]
-            ].map((x) => (
-              <div className="rvx-step" key={x[0]}>
-                <b>{x[0]}</b>
-                <strong>{x[1]}</strong>
-                <span>{x[2]}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="rvx-grid2">
-
-            <div className="rvx-card">
-              <div className="rvx-card-label">
-                <span className="rvx-card-label-dot"></span>
-                TRAÇABILITÉ TOTALE
-              </div>
-
-              <h3>
-                Tu veux retrouver<br/>
-                une commande ?
-              </h3>
-
-              <p>
-                Tu peux descendre jusqu'au détail d'une commande,
-                d'un client, d'un produit ou d'un membre de ton équipe.
-              </p>
-
-              <div className="rvx-card-highlight">
-                <span>Chaque étape laisse une trace.</span>
-                <strong>360°</strong>
-              </div>
-
-              <div className="rvx-list">
-                {[
-                  "Quel client a été appelé ?",
-                  "Quel closer a confirmé ?",
-                  "Quel produit a été remis ?",
-                  "Quel livreur l'a reçu ?",
-                  "Livré, échoué ou reprogrammé ?"
-                ].map((x) => (
-                  <div key={x}>
-                    <b>✓</b>
-                    {x}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rvx-card money">
-              <div className="rvx-card-label">
-                <span className="rvx-card-label-dot"></span>
-                PILOTAGE FINANCIER
-              </div>
-
-              <h3>
-                Tu veux comprendre<br/>
-                ton argent ?
-              </h3>
-
-              <p>
-                Relie commandes, paiements, coûts, commissions,
-                dépôts et bénéfices au même endroit.
-              </p>
-
-              <div className="rvx-card-highlight">
-                <span>Du chiffre d'affaires au bénéfice réel.</span>
-                <strong>€ → 💰</strong>
-              </div>
-
-              <div className="rvx-list">
-                {[
-                  "Montant encaissé",
-                  "À récupérer",
-                  "Dépôt attendu",
-                  "Coût produit",
-                  "Bénéfice réel"
-                ].map((x) => (
-                  <div key={x}>
-                    <b>→</b>
-                    {x}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
+      <section className="rvx-section rvx-dark"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Voici la chaîne que RecuVente transforme en données, actions et décisions.</p></div><div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div><div className="rvx-grid2"><div className="rvx-card"><h3>Tu veux retrouver une commande ?</h3><p>Tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</p><div className="rvx-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div><div className="rvx-card dark"><h3>Tu veux comprendre ton argent ?</h3><p>Relie commandes, paiements, coûts, commissions, dépôts et bénéfices au même endroit.</p><div className="rvx-list">{["Montant encaissé","À récupérer","Dépôt attendu","Coût produit","Bénéfice réel"].map((x) => <div key={x}><b style={{color:"#ff7a00"}}>→</b>{x}</div>)}</div></div></div></div></section>
 
       <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></section>
 
@@ -1749,13 +1040,11 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   const activityType = workspace?.activity_type || 'cod_ecommerce';
   const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
   const sectionCatalog = {
-    header:{icon:'🧭',label:'En-tête (fixe)',description:'Logo, recherche, compte, panier et menu — toujours affiché en haut de la boutique, comme sur Amazon.'},
     announcement:{icon:'📣',label:'Barre d’annonce',description:'Message promotionnel ou information importante.'},
     hero:{icon:'✨',label:'Hero / couverture',description:'Grande image, titre, sous-titre et bouton.'},
     collections:{icon:'🗂️',label:'Collections',description:'Sélectionne exactement les collections à afficher.'},
     bestsellers:{icon:'🔥',label:'Meilleures ventes',description:'Sélectionne les produits à mettre en avant.'},
-    nouveautes:{icon:'🆕',label:'Nouveautés',description:'Met en avant tes derniers produits ajoutés (ou une sélection manuelle).'},
-    bundles:{icon:'📦',label:'Bundles / Packs',description:'Offres quantité, globales ou liées à un produit précis.'},
+    bundles:{icon:'📦',label:'Bundles / Packs',description:'Offres quantité pour augmenter le panier moyen.'},
     products:{icon:'🛍️',label:'Catalogue produits',description:'Sélectionne les produits visibles dans cette section.'},
     benefits:{icon:'🛡️',label:'Réassurance',description:'Paiement COD, livraison, garantie et support.'},
     testimonials:{icon:'⭐',label:'Avis clients',description:'Preuves sociales.'},
@@ -1768,12 +1057,6 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     contact:{icon:'🎯',label:'CTA final',description:'Dernier appel à l’action.'},
     footer:{icon:'▦',label:'Footer',description:'Coordonnées et liens.'}
   };
-  function genSectionId(){return 'sec_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);}
-  function mkSections(types){return types.map(t=>({id:genSectionId(),type:t,visible:true}));}
-  function normaliserSections(arr){
-    if(!Array.isArray(arr))return [];
-    return arr.map(s=>typeof s==='string'?{id:genSectionId(),type:s,visible:true}:{id:s.id||genSectionId(),type:s.type,visible:s.visible!==false});
-  }
   const defaults = {
     theme:'premium', couleur:workspace?.couleur_marque || '#1a7a3c', nom:workspace?.name || 'Ma boutique',
     description:workspace?.description_boutique || 'Une boutique professionnelle, pensée pour convertir.',
@@ -1784,127 +1067,24 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     heroTitle:activityType==='restaurant'?'Découvrez notre menu':activityType==='location_immobiliere'?'Trouvez votre prochain séjour':activityType==='location_vehicule'?'Louez le véhicule qui vous correspond':'Votre boutique. Votre marque. Votre business.',
     heroSubtitle:'Une expérience moderne, rapide et pensée pour transformer les visiteurs en clients.', promoTitle:'Une offre à ne pas manquer', promoText:'Profitez de nos offres du moment.', whatsapp:'Bonjour, je souhaite avoir plus d’informations.',
     selectedProductIds:[], selectedCollectionIds:[], gallery:[],
-    headerBgColor:'#131921', headerTextColor:'#ffffff', headerBarreTop:'Livraison rapide • Paiement à la livraison',
-    headerShowSearch:true, headerShowCompte:true, headerShowPanier:true,
-    headerLinks:[{id:'hl1',label:'Accueil',href:'#'},{id:'hl2',label:'Catalogue',href:'#produits'},{id:'hl3',label:'Promotions',href:'#promo'},{id:'hl4',label:'Contact',href:'#contact'}],
-    footerBgColor:'#131921', footerTextColor:'#ffffff', footerBackToTop:true,
-    footerNewsletterActif:true, footerNewsletterTexte:'Reçois nos offres et nouveautés en avant-première.',
-    footerPaiements:['💵 Paiement à la livraison','📱 Mobile Money','💳 Carte bancaire'],
-    footerColonnes:[
-      {id:'fc1',titre:'À propos',liens:[{label:'Qui sommes-nous',href:'#'},{label:'Nos engagements',href:'#'}]},
-      {id:'fc2',titre:'Service client',liens:[{label:'Nous contacter',href:'#contact'},{label:'FAQ',href:'#faq'},{label:'Suivi de commande',href:'#'}]},
-      {id:'fc3',titre:'Paiement & Livraison',liens:[{label:'Paiement à la livraison',href:'#'},{label:'Zones de livraison',href:'#'}]}
-    ],
-    sections:mkSections(activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','nouveautes','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','nouveautes','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer']),
-    bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal',produitId:''},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%',produitId:''},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre',produitId:''}],
-    selectedNouveautesIds:[],
-    livraisonParProduit:{}
+    sections:activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer'],
+    bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}]
   };
-  const [config,setConfig]=useState(()=>{
-    let base=defaults;
-    try{
-      const distant=workspace?.store_config;
-      const local=JSON.parse(localStorage.getItem(storageKey)||'null');
-      const source=distant&&Object.keys(distant).length?distant:local;
-      if(source)base={...defaults,...source};
-    }catch(_){}
-    return {...base,sections:normaliserSections(base.sections&&base.sections.length?base.sections:defaults.sections),bundles:(base.bundles||defaults.bundles).map(b=>({produitId:'',...b})),livraisonParProduit:base.livraisonParProduit||{}};
-  });
+  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}});
+  const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
   const [publishedSnapshot,setPublishedSnapshot]=useState(()=>workspace?.store_config_published||null);
-  const [selected,setSelected]=useState(()=>config.sections[0]?.id||'header'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
-  const selectedSection=selected==='header'?null:config.sections.find(s=>s.id===selected);
-  const selType=selected==='header'?'header':(selectedSection?.type||'header');
-  const modifsNonPubliees=useMemo(()=>{try{return JSON.stringify(config)!==JSON.stringify(publishedSnapshot||{})}catch(_){return true}},[config,publishedSnapshot]);
   const [collections,setCollections]=useState([]);
-  const [collectionProducts,setCollectionProducts]=useState({});
-  const [nouvelleCollectionNom,setNouvelleCollectionNom]=useState('');
-  const [collectionEnEdition,setCollectionEnEdition]=useState(null);
-  const chargerCollectionsBuilder=useCallback(async()=>{
-    if(!workspace?.id)return;
-    const {data}=await supabase.from('collections').select('*').eq('workspace_id',workspace.id).order('ordre',{ascending:true});
-    const cols=data||[]; setCollections(cols);
-    if(cols.length){
-      const {data:liens}=await supabase.from('collection_produits').select('collection_id,produit_id').in('collection_id',cols.map(c=>c.id));
-      const map={}; (liens||[]).forEach(l=>{if(!map[l.collection_id])map[l.collection_id]=new Set();map[l.collection_id].add(l.produit_id);});
-      setCollectionProducts(map);
-    } else { setCollectionProducts({}); }
-  },[workspace?.id]);
-  useEffect(()=>{let alive=true;chargerCollectionsBuilder();return()=>{alive=false}},[chargerCollectionsBuilder]);
-  async function ajouterCollectionBuilder(){
-    if(!nouvelleCollectionNom.trim()||!workspace?.id)return;
-    await supabase.from('collections').insert([{workspace_id:workspace.id,nom:nouvelleCollectionNom.trim(),ordre:collections.length}]);
-    setNouvelleCollectionNom(''); await chargerCollectionsBuilder();
-  }
-  async function supprimerCollectionBuilder(id){
-    if(!window.confirm('Supprimer cette collection ? Les produits ne seront pas supprimés.'))return;
-    await supabase.from('collection_produits').delete().eq('collection_id',id);
-    await supabase.from('collections').delete().eq('id',id);
-    if(collectionEnEdition===id)setCollectionEnEdition(null);
-    setConfig(c=>({...c,selectedCollectionIds:(c.selectedCollectionIds||[]).filter(x=>x!==id)}));
-    await chargerCollectionsBuilder();
-  }
-  async function toggleProduitDansCollectionBuilder(collectionId,produitId){
-    const set=collectionProducts[collectionId]||new Set(); const dedans=set.has(produitId);
-    if(dedans) await supabase.from('collection_produits').delete().eq('collection_id',collectionId).eq('produit_id',produitId);
-    else await supabase.from('collection_produits').insert([{collection_id:collectionId,produit_id:produitId}]);
-    setCollectionProducts(m=>{const next={...m};const s=new Set(next[collectionId]||[]);dedans?s.delete(produitId):s.add(produitId);next[collectionId]=s;return next;});
-  }
-  const products=useMemo(()=>produits.map((p,i)=>({id:p.id||`p-${i}`,name:p.nom||p.name||p.titre||p.title||`Produit ${i+1}`,price:Number(p.prix_vente??p.prix??p.price??p.montant??0),image:p.image_url||p.image||p.photo||p.photo_url||'',category:p.collection||p.categorie||p.category||'Collection',description:p.description||p.desc||'Découvrez ce produit.',createdAt:p.created_at||p.inserted_at||null})),[produits]);
-  const selectedNouveautesProducts=useMemo(()=>products.filter(p=>config.selectedNouveautesIds?.includes(p.id)),[products,config.selectedNouveautesIds]);
-  const newestProducts=useMemo(()=>{
-    if(selectedNouveautesProducts.length)return selectedNouveautesProducts;
-    const withDates=products.filter(p=>p.createdAt);
-    const sorted=withDates.length?[...withDates].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)):[...products].reverse();
-    return sorted.slice(0,8);
-  },[products,selectedNouveautesProducts]);
-  const derivedCollections=useMemo(()=>collections.length?collections.map(c=>({...c,count:collectionProducts[c.id]?.size||0})):[...new Map(products.map(p=>[p.category,{id:`derived-${p.category}`,nom:p.category,count:products.filter(x=>x.category===p.category).length}])).values()],[collections,collectionProducts,products]);
-  function produitsDeCollection(c){if(collections.some(x=>x.id===c.id)){const ids=collectionProducts[c.id];return ids?products.filter(p=>ids.has(p.id)):[];}return products.filter(p=>p.category===c.nom);}
+  useEffect(()=>{let alive=true;(async()=>{if(!workspace?.id)return;const {data}=await supabase.from('collections').select('*').eq('workspace_id',workspace.id).order('ordre',{ascending:true});if(alive)setCollections(data||[]);})();return()=>{alive=false}},[workspace?.id]);
+  const products=useMemo(()=>produits.map((p,i)=>({id:p.id||`p-${i}`,name:p.nom||p.name||p.titre||p.title||`Produit ${i+1}`,price:Number(p.prix_vente??p.prix??p.price??p.montant??0),image:p.image_url||p.image||p.photo||p.photo_url||'',category:p.collection||p.categorie||p.category||'Collection',description:p.description||p.desc||'Découvrez ce produit.'})),[produits]);
+  const derivedCollections=useMemo(()=>collections.length?collections:[...new Map(products.map(p=>[p.category,{id:`derived-${p.category}`,nom:p.category,count:products.filter(x=>x.category===p.category).length}])).values()],[collections,products]);
   const selectedProducts=useMemo(()=>products.filter(p=>config.selectedProductIds?.includes(p.id)),[products,config.selectedProductIds]);
   const fallbackProducts=selectedProducts.length?selectedProducts:products.slice(0,8);
   const bestsellers=fallbackProducts.slice(0,4);
   function update(k,v){setConfig(c=>({...c,[k]:v}));}
   function toggleArray(key,id){setConfig(c=>{const a=new Set(c[key]||[]);a.has(id)?a.delete(id):a.add(id);return {...c,[key]:[...a]}})}
   function move(i,d){setConfig(c=>{const a=[...c.sections],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,sections:a}})}
-  function duplicateSection(i){setConfig(c=>{const a=[...c.sections];const clone={...a[i],id:genSectionId()};a.splice(i+1,0,clone);return {...c,sections:a}});}
-  function toggleVisibleSection(i){setConfig(c=>{const a=[...c.sections];a[i]={...a[i],visible:a[i].visible===false?true:false};return {...c,sections:a}});}
-  function ajouterLienHeader(){setConfig(c=>({...c,headerLinks:[...(c.headerLinks||[]),{id:'hl'+Date.now(),label:'Nouveau lien',href:'#'}]}))}
-  function modifierLienHeader(id,champ,val){setConfig(c=>({...c,headerLinks:(c.headerLinks||[]).map(l=>l.id===id?{...l,[champ]:val}:l)}))}
-  function supprimerLienHeader(id){setConfig(c=>({...c,headerLinks:(c.headerLinks||[]).filter(l=>l.id!==id)}))}
-  function deplacerLienHeader(i,d){setConfig(c=>{const a=[...(c.headerLinks||[])],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,headerLinks:a}})}
-  function ajouterColonneFooter(){setConfig(c=>({...c,footerColonnes:[...(c.footerColonnes||[]),{id:'fc'+Date.now(),titre:'Nouvelle colonne',liens:[]}]}))}
-  function supprimerColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).filter(col=>col.id!==id)}))}
-  function renommerColonneFooter(id,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,titre:val}:col)}))}
-  function ajouterLienColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:[...(col.liens||[]),{label:'Nouveau lien',href:'#'}]}:col)}))}
-  function modifierLienColonneFooter(id,idx,champ,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.map((l,j)=>j===idx?{...l,[champ]:val}:l)}:col)}))}
-  function supprimerLienColonneFooter(id,idx){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.filter((_,j)=>j!==idx)}:col)}))}
-  function ajouterPaiementFooter(){setConfig(c=>({...c,footerPaiements:[...(c.footerPaiements||[]),'Nouveau moyen']}))}
-  function modifierPaiementFooter(i,val){setConfig(c=>({...c,footerPaiements:(c.footerPaiements||[]).map((p,j)=>j===i?val:p)}))}
-  function supprimerPaiementFooter(i){setConfig(c=>({...c,footerPaiements:(c.footerPaiements||[]).filter((_,j)=>j!==i)}))}
-  function remove(i){setConfig(c=>{const removed=c.sections[i];const a=c.sections.filter((_,j)=>j!==i);if(selected===removed?.id)setSelected(a[Math.max(0,i-1)]?.id||'header');return {...c,sections:a}})}
-  function addSection(type){const id=genSectionId();setConfig(c=>({...c,sections:[...c.sections,{id,type,visible:true}]}));setSelected(id);setShowAdd(false)}
-  const rowRefs=useRef([]); const dragInfo=useRef({active:false,from:null,current:null}); const [dragIndex,setDragIndex]=useState(null);
-  const handlePointerMoveDrag=useCallback((e)=>{
-    if(!dragInfo.current.active)return;
-    const y=e.clientY;
-    let idx=-1;
-    rowRefs.current.forEach((node,i)=>{if(!node)return;const r=node.getBoundingClientRect();if(y>=r.top&&y<=r.bottom)idx=i;});
-    if(idx!==-1&&idx!==dragInfo.current.current){
-      const from=dragInfo.current.current;
-      setConfig(c=>{const a=[...c.sections];const [moved]=a.splice(from,1);a.splice(idx,0,moved);return {...c,sections:a}});
-      dragInfo.current.current=idx; setDragIndex(idx);
-    }
-  },[]);
-  const handlePointerUpDrag=useCallback(()=>{
-    dragInfo.current={active:false,from:null,current:null}; setDragIndex(null);
-    document.removeEventListener('pointermove',handlePointerMoveDrag);
-    document.removeEventListener('pointerup',handlePointerUpDrag);
-  },[handlePointerMoveDrag]);
-  function handlePointerDownDrag(e,i){
-    e.preventDefault();
-    dragInfo.current={active:true,from:i,current:i}; setDragIndex(i);
-    document.addEventListener('pointermove',handlePointerMoveDrag);
-    document.addEventListener('pointerup',handlePointerUpDrag);
-  }
+  function remove(i){setConfig(c=>({...c,sections:c.sections.filter((_,j)=>j!==i)}))}
+  function addSection(type){setConfig(c=>({...c,sections:[...c.sections,type]}));setSelected(type);setShowAdd(false)}
   async function uploadImage(kind,file){
     if(!file)return; if(file.size>8*1024*1024){alert('Image trop lourde (maximum 8 Mo).');return;} setUploading(kind);
     const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path=`${workspace.id}/builder-${kind}-${Date.now()}.${ext}`;
@@ -1929,8 +1109,9 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     const ok=await save();
     if(!ok)return;
     if(workspace?.id){
-      const {error}=await supabase.from('workspaces').update({store_config_published:config,store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id);
+      const {data,error}=await supabase.from('workspaces').update({store_config_published:config,store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id).select();
       if(error){alert('Publication impossible : '+error.message);return;}
+      if(!data||data.length===0){alert('⚠️ La publication semble avoir échoué silencieusement (aucune ligne modifiée). Vérifie les droits sur la table "workspaces" dans Supabase.');return;}
     }
     setPublishedSnapshot(config);
     setPublished(true);setTimeout(()=>setPublished(false),2500);
@@ -1942,9 +1123,9 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     const common={padding:'28px 22px',borderBottom:'1px solid #edf1ee'};
     if(type==='announcement')return <div style={{...common,padding:'9px 14px',background:config.couleur,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
     if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${config.couleur},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div><div style={{padding:'22px 20px 28px'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div><button style={{border:0,borderRadius:10,padding:'12px 19px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div></div>;
-    if(type==='collections')return <div style={common}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:3},1fr)`,gap:10}}>{derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id)).slice(0,6).map(c=>{const cp=produitsDeCollection(c);const cover=cp.find(p=>p.image)?.image;return <div key={c.id} style={{borderRadius:12,background:'#f5f8f5',textAlign:'center',overflow:'hidden'}}>{cover?<img src={cover} alt="" style={{width:'100%',height:70,objectFit:'cover',display:'block'}}/>:<div style={{height:70,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,background:'#eef3ee'}}>🗂️</div>}<div style={{padding:'10px 8px'}}><div style={{fontWeight:850,fontSize:11.5}}>{c.nom||c.name}</div><div style={{fontSize:10,color:'#7c877f',marginTop:3}}>{c.count||0} article(s)</div></div></div>})}</div></div>;
-    if(type==='bestsellers'||type==='products'||type==='nouveautes')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':type==='nouveautes'?'🆕 Nouveautés':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:type==='nouveautes'?newestProducts:fallbackProducts).slice(0,8).map((p,i)=><div key={p.id||i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:config.couleur,marginTop:4}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:config.couleur,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
-    if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const produitLie=b.produitId?products.find(p=>p.id===b.produitId):null;const prixBase=produitLie?produitLie.price:base;const total=prixBase*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+config.couleur:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}>{produitLie&&<div style={{fontSize:9,fontWeight:900,color:'#1a7a3c',marginBottom:4}}>🔗 {produitLie.name}</div>}<div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:config.couleur,marginTop:10}}>{prixBase?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:config.couleur,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
+    if(type==='collections')return <div style={common}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:3},1fr)`,gap:10}}>{derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id)).slice(0,6).map(c=><div key={c.id} style={{padding:'18px 10px',borderRadius:12,background:'#f5f8f5',textAlign:'center'}}><div style={{fontSize:20}}>🗂️</div><div style={{fontWeight:850,fontSize:11.5,marginTop:6}}>{c.nom||c.name}</div><div style={{fontSize:10,color:'#7c877f',marginTop:3}}>{c.count||0} article(s)</div></div>)}</div></div>;
+    if(type==='bestsellers'||type==='products')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:fallbackProducts).slice(0,8).map((p,i)=><div key={p.id||i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:config.couleur,marginTop:4}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:config.couleur,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
+    if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const total=base*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+config.couleur:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}><div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:config.couleur,marginTop:10}}>{base?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:config.couleur,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
     if(type==='gallery')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Notre univers</h3>{config.gallery?.length?<div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8}}>{config.gallery.map((u,i)=><img key={i} src={u} alt="" style={{width:'100%',height:device==='mobile'?100:130,objectFit:'cover',borderRadius:10}}/>)}</div>:<div style={{padding:30,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#7a857e',fontSize:11}}>Ajoute tes images depuis le panneau de droite.</div>}</div>;
     if(type==='cod_form')return <div style={{...common,background:'#f7faf7'}}><div style={{maxWidth:520,margin:'0 auto'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:config.couleur}}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>📝 Bon de commande — Paiement à la livraison</h3></div><div style={{background:'#fff',border:'1px solid #e1e8e2',borderRadius:14,padding:14}}><div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':'1fr 1fr',gap:8}}>{['Nom complet','Téléphone WhatsApp','Ville / commune','Adresse de livraison'].map(x=><div key={x} style={{border:'1px solid #e0e6e1',borderRadius:9,padding:11,fontSize:10.5,color:'#8a948d'}}>{x}</div>)}</div><div style={{marginTop:10,padding:11,borderRadius:10,background:'#f5f8f5',fontSize:11.5,color:'#435047'}}>🚚 Livraison : <b>{Number(config.fraisLivraison||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b> · 🚛 Expédition : <b>{Number(config.fraisExpedition||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b></div><button style={{marginTop:10,width:'100%',border:0,borderRadius:10,padding:12,background:config.couleur,color:'#fff',fontWeight:950}}>Confirmer ma commande — paiement à la livraison</button></div></div></div>;
     if(type==='benefits')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Pourquoi acheter chez nous ?</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{[['🛡️','Paiement à la livraison'],['🚚','Livraison suivie'],['💬','Support rapide']].map(x=><div key={x[1]} style={{padding:14,borderRadius:11,background:'#f6f9f6'}}><div style={{fontSize:20}}>{x[0]}</div><div style={{fontWeight:850,fontSize:11.5,marginTop:7}}>{x[1]}</div></div>)}</div></div>;
@@ -1952,113 +1133,31 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(type==='testimonials')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>⭐ Ils nous font confiance</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:10}}>{['Une expérience simple et rapide.','La commande a été parfaitement suivie.','Je recommande sans hésiter.'].map((t,i)=><div key={i} style={{padding:15,border:'1px solid #e6ece7',borderRadius:12}}><div style={{color:'#e8920a'}}>★★★★★</div><div style={{fontSize:11.5,lineHeight:1.55,color:'#435047',marginTop:7}}>“{t}”</div><div style={{fontSize:10,fontWeight:800,marginTop:9}}>Client</div></div>)}</div></div>;
     if(type==='faq')return <div style={common}><h3 style={{margin:'0 0 12px',fontSize:19,color:'#14221b'}}>Questions fréquentes</h3>{['Comment commander ?','Quels sont les délais ?','Comment suivre ma commande ?'].map(q=><div key={q} style={{padding:'12px 2px',borderBottom:'1px solid #e7ece8',fontSize:11.5,fontWeight:800,display:'flex',justifyContent:'space-between'}}>{q}<span>＋</span></div>)}</div>;
     if(type==='whatsapp')return <div style={{...common,textAlign:'center',background:'#f4faf5'}}><div style={{fontSize:26}}>💬</div><h3 style={{margin:'7px 0',fontSize:19,color:'#14221b'}}>Besoin d'aide ?</h3><p style={{fontSize:11.5,color:'#68756d'}}>Écris-nous directement sur WhatsApp.</p><button style={{border:0,borderRadius:10,padding:'10px 18px',background:'#168a45',color:'#fff',fontWeight:900}}>Ouvrir WhatsApp</button></div>;
-    if(type==='delivery'){const overrides=Object.entries(config.livraisonParProduit||{}).filter(([,v])=>v?.actif).map(([id,v])=>({...v,produit:products.find(p=>p.id===id)})).filter(x=>x.produit);return <div style={common}><h3 style={{margin:'0 0 9px',fontSize:19,color:'#14221b'}}>🚚 Livraison</h3><p style={{fontSize:11.5,color:'#68756d',lineHeight:1.6}}>{config.livraison}</p>{overrides.length>0&&<div style={{marginTop:12,display:'grid',gap:6}}>{overrides.map(o=><div key={o.produit.id} style={{display:'flex',justifyContent:'space-between',fontSize:10.5,padding:'7px 10px',background:'#f6f9f6',borderRadius:8}}><span style={{fontWeight:800}}>{o.produit.name}</span><span style={{color:'#1a7a3c',fontWeight:800}}>{Number(o.frais||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}{o.delai?' · '+o.delai:''}</span></div>)}</div>}</div>;}
+    if(type==='delivery')return <div style={common}><h3 style={{margin:'0 0 9px',fontSize:19,color:'#14221b'}}>🚚 Livraison</h3><p style={{fontSize:11.5,color:'#68756d',lineHeight:1.6}}>{config.livraison}</p></div>;
     if(type==='contact')return <div style={{...common,textAlign:'center',background:'#0d2417',color:'#fff'}}><h3 style={{margin:'0 0 8px',fontSize:24}}>Prêt à passer à l'action ?</h3><p style={{fontSize:11.5,color:'rgba(255,255,255,.68)'}}>Commandez, réservez ou contactez-nous maintenant.</p><button style={{border:0,borderRadius:10,padding:'11px 20px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div>;
-    if(type==='footer')return <div style={{background:config.footerBgColor,color:config.footerTextColor}}>
-      {config.footerBackToTop&&<div style={{textAlign:'center',padding:'10px 0',background:'rgba(255,255,255,.06)',fontSize:10.5,fontWeight:800,cursor:'pointer'}}>⬆ Retour en haut</div>}
-      {config.footerNewsletterActif&&<div style={{textAlign:'center',padding:'20px 16px',borderBottom:'1px solid rgba(255,255,255,.12)'}}><div style={{fontWeight:900,fontSize:13}}>📩 Reste informé(e)</div><div style={{fontSize:10.5,opacity:.75,margin:'6px 0 10px'}}>{config.footerNewsletterTexte}</div><div style={{display:'flex',justifyContent:'center',gap:6,maxWidth:320,margin:'0 auto'}}><input placeholder="Ton email" disabled style={{flex:1,border:0,borderRadius:8,padding:'8px 10px',fontSize:10.5}}/><span style={{background:config.couleur,color:'#fff',borderRadius:8,padding:'8px 12px',fontSize:10.5,fontWeight:800}}>S'inscrire</span></div></div>}
-      <div style={{padding:'22px 20px',display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:Math.min((config.footerColonnes||[]).length||1,4)},1fr)`,gap:18}}>{(config.footerColonnes||[]).map(col=><div key={col.id}><div style={{fontWeight:900,fontSize:11.5,marginBottom:9}}>{col.titre}</div>{(col.liens||[]).map((l,i)=><div key={i} style={{fontSize:10.5,opacity:.75,marginBottom:6}}>{l.label}</div>)}</div>)}</div>
-      {(config.footerPaiements||[]).length>0&&<div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap',padding:'0 20px 18px'}}>{config.footerPaiements.map((p,i)=><span key={i} style={{background:'rgba(255,255,255,.08)',borderRadius:7,padding:'5px 9px',fontSize:9.5,fontWeight:700}}>{p}</span>)}</div>}
-      <div style={{padding:'16px 20px',borderTop:'1px solid rgba(255,255,255,.12)',textAlign:'center',fontSize:10}}><div style={{fontWeight:900,fontSize:13,marginBottom:4}}>{config.nom}</div><div style={{opacity:.6,marginBottom:6}}>{config.description}</div><div style={{opacity:.45}}>© {new Date().getFullYear()} {config.nom} • Tous droits réservés</div></div>
-    </div>;
+    if(type==='footer')return <div style={{padding:'24px 20px',background:'#101b15',color:'#fff',fontSize:10.5}}><div style={{fontWeight:900,fontSize:14}}>{config.nom}</div><div style={{opacity:.65,marginTop:6}}>{config.description}</div><div style={{opacity:.45,marginTop:14}}>© {new Date().getFullYear()} • Tous droits réservés</div></div>;
     return <div style={common}/>;
   }
   function Editor(){
-    const type=selType;
-    if(type==='header')return <>
-      <label style={labelStyle}>Texte de la barre du haut<input style={fieldStyle} value={config.headerBarreTop} onChange={e=>update('headerBarreTop',e.target.value)}/></label>
-      <label style={labelStyle}>Couleur de fond<div style={{display:'flex',gap:7}}><input type="color" value={config.headerBgColor} onChange={e=>update('headerBgColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.headerBgColor} onChange={e=>update('headerBgColor',e.target.value)}/></div></label>
-      <label style={labelStyle}>Couleur du texte<div style={{display:'flex',gap:7}}><input type="color" value={config.headerTextColor} onChange={e=>update('headerTextColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.headerTextColor} onChange={e=>update('headerTextColor',e.target.value)}/></div></label>
-      <div style={{display:'flex',gap:10,margin:'4px 0 12px',flexWrap:'wrap'}}>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer'}}><input type="checkbox" checked={!!config.headerShowSearch} onChange={e=>update('headerShowSearch',e.target.checked)}/> Barre de recherche</label>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer'}}><input type="checkbox" checked={!!config.headerShowCompte} onChange={e=>update('headerShowCompte',e.target.checked)}/> Icône compte</label>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer'}}><input type="checkbox" checked={!!config.headerShowPanier} onChange={e=>update('headerShowPanier',e.target.checked)}/> Icône panier</label>
-      </div>
-      <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Liens du menu</div>
-      <div style={{display:'grid',gap:6,marginBottom:8}}>{(config.headerLinks||[]).map((l,i)=><div key={l.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:8,display:'grid',gap:6}}><div style={{display:'flex',gap:6}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienHeader(l.id,'label',e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>deplacerLienHeader(i,-1)} disabled={i===0} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={()=>deplacerLienHeader(i,1)} disabled={i===(config.headerLinks||[]).length-1} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={()=>supprimerLienHeader(l.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div><input placeholder="Lien (ex: #produits)" value={l.href} onChange={e=>modifierLienHeader(l.id,'href',e.target.value)} style={fieldStyle}/></div>)}</div>
-      <button onClick={ajouterLienHeader} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un lien</button>
-      {config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginTop:12}}/>}<div style={{marginTop:8}}><FileButton kind="logo" label="Télécharger / changer le logo"/></div>
-    </>;
+    const type=selected;
     if(type==='hero')return <><label style={labelStyle}>Titre principal<input style={fieldStyle} value={config.heroTitle} onChange={e=>update('heroTitle',e.target.value)}/></label><label style={labelStyle}>Sous-titre<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.heroSubtitle} onChange={e=>update('heroSubtitle',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label>{config.banniere&&<img src={config.banniere} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:10,marginBottom:8}}/>}<FileButton kind="hero" label="Télécharger / changer la couverture"/><label style={{...labelStyle,marginTop:8}}>Ou URL de couverture<input style={fieldStyle} placeholder="https://..." value={config.banniere} onChange={e=>update('banniere',e.target.value)}/></label></>;
     if(type==='announcement')return <label style={labelStyle}>Message<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.announcement} onChange={e=>update('announcement',e.target.value)}/></label>;
-    if(type==='collections')return <div>
-      <div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Crée des collections, choisis les produits qui en font partie, puis sélectionne celles à afficher. Si aucune n'est sélectionnée, toutes les collections seront affichées.</div>
-      <div style={{display:'flex',gap:6,marginBottom:12}}>
-        <input placeholder="Nouvelle collection (ex: Promo)" value={nouvelleCollectionNom} onChange={e=>setNouvelleCollectionNom(e.target.value)} onKeyDown={e=>e.key==='Enter'&&ajouterCollectionBuilder()} style={{...fieldStyle,flex:1}}/>
-        <button onClick={ajouterCollectionBuilder} style={{border:0,borderRadius:9,padding:'0 14px',background:'#1a7a3c',color:'#fff',fontWeight:900,cursor:'pointer'}}>＋</button>
-      </div>
-      {derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{
-        const id=c.id; const on=config.selectedCollectionIds?.includes(id); const estReelle=collections.some(x=>x.id===id); const ouverte=collectionEnEdition===id;
-        return <div key={id} style={{border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,borderRadius:9,background:on?'#eef8f0':'#fff'}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,padding:'9px 10px'}}>
-            <button onClick={()=>toggleArray('selectedCollectionIds',id)} style={{border:0,background:'transparent',cursor:'pointer',fontSize:11,fontWeight:800,color:'#233128',flex:1,textAlign:'left'}}>{on?'☑':'□'} {c.nom||c.name} <span style={{color:'#87928a'}}>({c.count||0})</span></button>
-            {estReelle&&<button onClick={()=>setCollectionEnEdition(ouverte?null:id)} style={{border:'1px solid #dbe4dc',background:'#fff',borderRadius:7,padding:'5px 8px',fontSize:10,fontWeight:800,cursor:'pointer',color:'#345943'}}>{ouverte?'Fermer':'🛠️ Produits'}</button>}
-            {estReelle&&<button onClick={()=>supprimerCollectionBuilder(id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button>}
-          </div>
-          {ouverte&&<div style={{padding:'0 10px 10px',display:'grid',gap:5,maxHeight:220,overflow:'auto'}}>
-            {products.length?products.map(p=>{const dedans=collectionProducts[id]?.has(p.id);return <label key={p.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:10.5,padding:'5px 6px',borderRadius:6,background:dedans?'#f2f8f3':'transparent',cursor:'pointer'}}><input type="checkbox" checked={!!dedans} onChange={()=>toggleProduitDansCollectionBuilder(id,p.id)}/>{p.image?<img src={p.image} alt="" style={{width:22,height:22,objectFit:'cover',borderRadius:5}}/>:<span style={{width:22,height:22,borderRadius:5,background:'#eef3ee',display:'inline-block'}}/>}<span style={{flex:1}}>{p.name}</span></label>}):<div style={{fontSize:10.5,color:'#8A9089'}}>Aucun produit dans ton catalogue.</div>}
-          </div>}
-        </div>
-      })}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Crée ta première collection ci-dessus.</div>}
-    </div>;
-    if(type==='products'||type==='bestsellers'||type==='nouveautes'){const key=type==='nouveautes'?'selectedNouveautesIds':'selectedProductIds';return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>{type==='nouveautes'?'Sélectionne manuellement les nouveautés à afficher. Si aucune n’est sélectionnée, les produits les plus récemment ajoutés sont utilisés automatiquement.':'Sélectionne les produits. Si aucun n’est sélectionné, RecuVente utilise automatiquement ton catalogue.'}</div>{products.length?<div style={{display:'grid',gap:6,maxHeight:300,overflow:'auto'}}>{products.map(p=>{const on=config[key]?.includes(p.id);return <button key={p.id} onClick={()=>toggleArray(key,p.id)} style={{display:'flex',alignItems:'center',gap:8,textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:7,cursor:'pointer'}}>{p.image?<img src={p.image} alt="" style={{width:38,height:38,objectFit:'cover',borderRadius:7}}/>:<span style={{width:38,height:38,borderRadius:7,background:'#eef3ee',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>🛍️</span>}<span style={{flex:1,fontSize:10.8,fontWeight:850,color:'#233128'}}>{on?'☑ ':'□ '}{p.name}</span><span style={{fontSize:10,fontWeight:900,color:'#1a7a3c'}}>{p.price.toLocaleString('fr-FR')}</span></button>})}</div>:<div style={{padding:12,background:'#fff6e8',borderRadius:9,fontSize:11}}>Aucun produit dans ton espace. Va dans « Produits » puis importe ton CSV Shopify.</div>}</div>;}
+    if(type==='collections')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Clique sur les collections à afficher. Si aucune n’est sélectionnée, toutes les collections seront affichées.</div>{derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{const id=c.id;const on=config.selectedCollectionIds?.includes(id);return <button key={id} onClick={()=>toggleArray('selectedCollectionIds',id)} style={{textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:'9px 10px',cursor:'pointer',fontSize:11,fontWeight:800,color:'#233128'}}>{on?'☑':'□'} {c.nom||c.name} <span style={{float:'right',color:'#87928a'}}>{c.count||0}</span></button>})}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucune collection. Crée d’abord une collection dans « Produits → Collections ».</div>}</div>;
+    if(type==='products'||type==='bestsellers')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Sélectionne les produits. Si aucun n’est sélectionné, RecuVente utilise automatiquement ton catalogue.</div>{products.length?<div style={{display:'grid',gap:6,maxHeight:300,overflow:'auto'}}>{products.map(p=>{const on=config.selectedProductIds?.includes(p.id);return <button key={p.id} onClick={()=>toggleArray('selectedProductIds',p.id)} style={{display:'flex',alignItems:'center',gap:8,textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:7,cursor:'pointer'}}>{p.image?<img src={p.image} alt="" style={{width:38,height:38,objectFit:'cover',borderRadius:7}}/>:<span style={{width:38,height:38,borderRadius:7,background:'#eef3ee',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>🛍️</span>}<span style={{flex:1,fontSize:10.8,fontWeight:850,color:'#233128'}}>{on?'☑ ':'□ '}{p.name}</span><span style={{fontSize:10,fontWeight:900,color:'#1a7a3c'}}>{p.price.toLocaleString('fr-FR')}</span></button>})}</div>:<div style={{padding:12,background:'#fff6e8',borderRadius:9,fontSize:11}}>Aucun produit dans ton espace. Va dans « Produits » puis importe ton CSV Shopify.</div>}</div>;
     if(type==='gallery')return <div><FileButton kind="gallery" label="Ajouter une image à la galerie"/>{config.gallery?.length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:7,marginTop:10}}>{config.gallery.map((u,i)=><div key={i} style={{position:'relative'}}><img src={u} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:8}}/><button onClick={()=>setConfig(c=>({...c,gallery:c.gallery.filter((_,j)=>j!==i)}))} style={{position:'absolute',right:4,top:4,border:0,borderRadius:999,background:'#fff',color:'#b63d2c',cursor:'pointer'}}>×</button></div>)}</div>}</div>;
-    if(type==='bundles')return <div><div style={{fontSize:10.5,color:'#68756d',marginBottom:10}}>Configure tes offres par quantité — globales, ou liées à un produit précis de ton catalogue.</div>{(config.bundles||[]).map((b,i)=><div key={b.id||i} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:10,marginBottom:8}}><div style={{display:'grid',gridTemplateColumns:'1fr 70px',gap:7}}><label style={labelStyle}>Nom<input style={fieldStyle} value={b.label} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,label:e.target.value}:x)}))}/></label><label style={labelStyle}>Qté<input type="number" min="1" style={fieldStyle} value={b.qty} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,qty:Math.max(1,Number(e.target.value)||1)}:x)}))}/></label></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><label style={labelStyle}>Remise %<input type="number" min="0" max="90" style={fieldStyle} value={b.discount} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,discount:Math.min(90,Math.max(0,Number(e.target.value)||0))}:x)}))}/></label><label style={labelStyle}>Badge<input style={fieldStyle} value={b.badge||''} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,badge:e.target.value}:x)}))}/></label></div><label style={labelStyle}>Produit concerné<select style={fieldStyle} value={b.produitId||''} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,produitId:e.target.value}:x)}))}><option value="">🌍 Tous les produits (bundle général)</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><button onClick={()=>setConfig(c=>({...c,bundles:c.bundles.filter((_,j)=>j!==i)}))} style={{marginTop:4,border:0,background:'transparent',color:'#bd4b38',fontSize:10.5,fontWeight:800,cursor:'pointer',padding:0}}>× Supprimer ce bundle</button></div>)}<button onClick={()=>setConfig(c=>({...c,bundles:[...(c.bundles||[]),{id:'b'+Date.now(),qty:(c.bundles?.length||0)+1,label:'Pack x'+((c.bundles?.length||0)+1),discount:10,badge:'Offre',produitId:''}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un bundle</button></div>;
+    if(type==='bundles')return <div><div style={{fontSize:10.5,color:'#68756d',marginBottom:10}}>Configure tes offres par quantité.</div>{(config.bundles||[]).map((b,i)=><div key={b.id||i} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:10,marginBottom:8}}><div style={{display:'grid',gridTemplateColumns:'1fr 70px',gap:7}}><label style={labelStyle}>Nom<input style={fieldStyle} value={b.label} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,label:e.target.value}:x)}))}/></label><label style={labelStyle}>Qté<input type="number" min="1" style={fieldStyle} value={b.qty} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,qty:Math.max(1,Number(e.target.value)||1)}:x)}))}/></label></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><label style={labelStyle}>Remise %<input type="number" min="0" max="90" style={fieldStyle} value={b.discount} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,discount:Math.min(90,Math.max(0,Number(e.target.value)||0))}:x)}))}/></label><label style={labelStyle}>Badge<input style={fieldStyle} value={b.badge||''} onChange={e=>setConfig(c=>({...c,bundles:c.bundles.map((x,j)=>j===i?{...x,badge:e.target.value}:x)}))}/></label></div></div>)}<button onClick={()=>setConfig(c=>({...c,bundles:[...(c.bundles||[]),{id:'b'+Date.now(),qty:(c.bundles?.length||0)+1,label:'Pack x'+((c.bundles?.length||0)+1),discount:10,badge:'Offre'}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un bundle</button></div>;
     if(type==='cod_form')return <div><div style={{padding:11,borderRadius:10,background:'#f4faf5',border:'1px solid #d9eadc',marginBottom:10}}><div style={{fontSize:11,fontWeight:950,color:'#1a7a3c'}}>💵 Paiement COD activé</div><div style={{fontSize:10.5,color:'#607068',marginTop:4}}>Prévu pour le marché africain. Le paiement en ligne pourra être connecté plus tard.</div></div><label style={labelStyle}>Frais de livraison locale<input type="number" min="0" style={fieldStyle} value={config.fraisLivraison} onChange={e=>update('fraisLivraison',e.target.value)}/></label><label style={labelStyle}>Frais d'expédition<input type="number" min="0" style={fieldStyle} value={config.fraisExpedition} onChange={e=>update('fraisExpedition',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label></div>;
-    if(type==='delivery')return <div>
-      <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>🚚 Livraison générale</div>
-      <label style={labelStyle}>Politique de livraison<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.livraison} onChange={e=>update('livraison',e.target.value)}/></label>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><label style={labelStyle}>Frais de livraison locale<input type="number" min="0" style={fieldStyle} value={config.fraisLivraison} onChange={e=>update('fraisLivraison',e.target.value)}/></label><label style={labelStyle}>Frais d'expédition<input type="number" min="0" style={fieldStyle} value={config.fraisExpedition} onChange={e=>update('fraisExpedition',e.target.value)}/></label></div>
-      <div style={{borderTop:'1px solid #edf1ee',margin:'12px 0',paddingTop:12}}>
-        <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:4}}>🚚 Livraison spécifique par produit</div>
-        <div style={{fontSize:10.5,color:'#7b867f',marginBottom:9,lineHeight:1.5}}>Remplace les frais généraux pour un produit précis (ex : produit lourd ou volumineux).</div>
-        {products.length?<div style={{display:'grid',gap:7}}>{products.map(p=>{const ov=config.livraisonParProduit?.[p.id]||{}; const actif=ov.actif; return <div key={p.id} style={{border:`1px solid ${actif?'#1a7a3c':'#e5ebe6'}`,borderRadius:9,padding:8,background:actif?'#f4faf5':'#fff'}}>
-          <label style={{display:'flex',alignItems:'center',gap:7,fontSize:10.8,fontWeight:800,cursor:'pointer',marginBottom:actif?7:0}}>
-            <input type="checkbox" checked={!!actif} onChange={e=>setConfig(c=>({...c,livraisonParProduit:{...c.livraisonParProduit,[p.id]:{...ov,actif:e.target.checked}}}))}/>{p.name}
-          </label>
-          {actif&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-            <label style={{...labelStyle,marginBottom:0}}>Frais spécifiques<input type="number" min="0" style={fieldStyle} value={ov.frais||0} onChange={e=>setConfig(c=>({...c,livraisonParProduit:{...c.livraisonParProduit,[p.id]:{...ov,frais:Number(e.target.value)||0}}}))}/></label>
-            <label style={{...labelStyle,marginBottom:0}}>Délai<input style={fieldStyle} placeholder="ex: 3-5 jours" value={ov.delai||''} onChange={e=>setConfig(c=>({...c,livraisonParProduit:{...c.livraisonParProduit,[p.id]:{...ov,delai:e.target.value}}}))}/></label>
-          </div>}
-        </div>})}</div>:<div style={{padding:11,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucun produit dans ton catalogue.</div>}
-      </div>
-    </div>;
-    if(type==='footer')return <>
-      <label style={labelStyle}>Couleur de fond<div style={{display:'flex',gap:7}}><input type="color" value={config.footerBgColor} onChange={e=>update('footerBgColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.footerBgColor} onChange={e=>update('footerBgColor',e.target.value)}/></div></label>
-      <label style={labelStyle}>Couleur du texte<div style={{display:'flex',gap:7}}><input type="color" value={config.footerTextColor} onChange={e=>update('footerTextColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.footerTextColor} onChange={e=>update('footerTextColor',e.target.value)}/></div></label>
-      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',margin:'2px 0 14px'}}><input type="checkbox" checked={!!config.footerBackToTop} onChange={e=>update('footerBackToTop',e.target.checked)}/> Bouton "Retour en haut"</label>
-
-      <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Colonnes de liens</div>
-      <div style={{display:'grid',gap:8,marginBottom:8}}>{(config.footerColonnes||[]).map(col=><div key={col.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:9}}>
-        <div style={{display:'flex',gap:6,marginBottom:7}}><input value={col.titre} onChange={e=>renommerColonneFooter(col.id,e.target.value)} style={{...fieldStyle,flex:1,fontWeight:800}}/><button onClick={()=>supprimerColonneFooter(col.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>× colonne</button></div>
-        <div style={{display:'grid',gap:5}}>{(col.liens||[]).map((l,idx)=><div key={idx} style={{display:'flex',gap:5}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienColonneFooter(col.id,idx,'label',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><input placeholder="Lien" value={l.href} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><button onClick={()=>supprimerLienColonneFooter(col.id,idx)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}</div>
-        <button onClick={()=>ajouterLienColonneFooter(col.id)} style={{marginTop:6,width:'100%',border:'1px dashed #cdd8d0',background:'#fafcfa',borderRadius:7,padding:6,fontSize:10,fontWeight:800,color:'#1a7a3c',cursor:'pointer'}}>＋ Lien</button>
-      </div>)}</div>
-      <button onClick={ajouterColonneFooter} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:14}}>＋ Ajouter une colonne</button>
-
-      <div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginBottom:14}}>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',marginBottom:8}}><input type="checkbox" checked={!!config.footerNewsletterActif} onChange={e=>update('footerNewsletterActif',e.target.checked)}/> Bloc newsletter</label>
-        {config.footerNewsletterActif&&<label style={labelStyle}>Texte de la newsletter<textarea style={{...fieldStyle,resize:'vertical'}} rows={2} value={config.footerNewsletterTexte} onChange={e=>update('footerNewsletterTexte',e.target.value)}/></label>}
-      </div>
-
-      <div style={{borderTop:'1px solid #edf1ee',paddingTop:12}}>
-        <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Moyens de paiement affichés</div>
-        <div style={{display:'grid',gap:5,marginBottom:8}}>{(config.footerPaiements||[]).map((p,i)=><div key={i} style={{display:'flex',gap:5}}><input value={p} onChange={e=>modifierPaiementFooter(i,e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>supprimerPaiementFooter(i)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}</div>
-        <button onClick={ajouterPaiementFooter} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un moyen de paiement</button>
-      </div>
-    </>;
+    if(type==='delivery')return <label style={labelStyle}>Politique de livraison<textarea style={{...fieldStyle,resize:'vertical'}} rows={5} value={config.livraison} onChange={e=>update('livraison',e.target.value)}/></label>;
     if(type==='promo')return <><label style={labelStyle}>Titre de l'offre<input style={fieldStyle} value={config.promoTitle} onChange={e=>update('promoTitle',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.promoText} onChange={e=>update('promoText',e.target.value)}/></label></>;
     if(type==='whatsapp')return <label style={labelStyle}>Message WhatsApp<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.whatsapp} onChange={e=>update('whatsapp',e.target.value)}/></label>;
     return <div style={{padding:12,background:'#f5f8f5',borderRadius:11,fontSize:11.5,color:'#657169',lineHeight:1.55}}>Cette section est maintenant sélectionnable et configurable. Les produits et collections sont ceux de ton espace RecuVente.</div>;
   }
   return <div style={{...cardStyle,padding:14,overflow:'hidden'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span> {publishedSnapshot?(modifsNonPubliees?<span style={{fontSize:9.5,background:'#fff3dc',color:'#9a6a00',padding:'4px 8px',borderRadius:999,fontWeight:850,marginLeft:6}}>● Modifications non publiées</span>:<span style={{fontSize:9.5,background:'#eaf5eb',color:'#1a7a3c',padding:'4px 8px',borderRadius:999,fontWeight:850,marginLeft:6}}>✓ En ligne</span>):<span style={{fontSize:9.5,background:'#f5f0e8',color:'#8a6a2a',padding:'4px 8px',borderRadius:999,fontWeight:850,marginLeft:6}}>Jamais publiée</span>}</div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7}}>{onOuvrirParametresAvances && <button onClick={onOuvrirParametresAvances} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>⚙️ Paramètres avancés</button>}<button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{published?'✓ Publiée':'🚀 Publier'}</button></div></div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7}}>{onOuvrirParametresAvances && <button onClick={onOuvrirParametresAvances} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>⚙️ Paramètres avancés</button>}<button onClick={save} disabled={saving} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré':'Enregistrer'}</button><button onClick={publish} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{published?'✓ Publiée':'🚀 Publier'}</button></div></div>
     <div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':device==='tablet'?'190px minmax(0,1fr)':'220px minmax(0,1fr) 290px',gap:12,alignItems:'start'}}>
-      <div style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>
-      <div onClick={()=>setSelected('header')} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 5px',marginBottom:6,background:selected==='header'?'#f0f7f1':'#fafbfa',border:'1px dashed #cdd8d0',borderRadius:8,cursor:'pointer'}}><span>🧭</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>En-tête</span><span style={{fontSize:9,color:'#93a097'}}>🔒 fixe</span></div>
-      {config.sections.map((s,i)=>{const masquee=s.visible===false;return <div key={s.id} ref={el=>{rowRefs.current[i]=el}} onClick={()=>setSelected(s.id)} style={{display:'flex',alignItems:'center',gap:3,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:dragIndex===i?'#eaf3ec':selected===s.id?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer',boxShadow:dragIndex===i?'0 6px 16px rgba(17,38,26,.18)':'none',opacity:dragIndex===i?0.85:masquee?0.5:1,transition:dragIndex===i?'none':'background .12s'}}><span onPointerDown={e=>handlePointerDownDrag(e,i)} title="Glisser pour réordonner" style={{cursor:dragIndex===i?'grabbing':'grab',touchAction:'none',padding:'2px 3px',color:'#9aa79f',fontSize:12,userSelect:'none'}}>⠿</span><span>{sectionCatalog[s.type]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.5,fontWeight:800,color:'#24332a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{sectionCatalog[s.type]?.label||s.type}{masquee?' (masquée)':''}</span><button onClick={e=>{e.stopPropagation();toggleVisibleSection(i)}} title={masquee?'Afficher':'Masquer'} style={{border:0,background:'transparent',cursor:'pointer'}}>{masquee?'🙈':'👁️'}</button><button onClick={e=>{e.stopPropagation();duplicateSection(i)}} title="Dupliquer" style={{border:0,background:'transparent',cursor:'pointer'}}>📋</button><button onClick={e=>{e.stopPropagation();move(i,-1)}} title="Monter" style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} title="Descendre" style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();if(window.confirm('Supprimer cette section ?'))remove(i)}} title="Supprimer" style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>})}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).filter(([k])=>k!=='header').map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
-      <div style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div onClick={()=>setSelected('header')} style={{cursor:'pointer',outline:selected==='header'?'2px solid '+config.couleur:'none',outlineOffset:'-2px'}}><div style={{background:config.headerBgColor,color:config.headerTextColor,padding:'5px 14px',fontSize:9.5,textAlign:'center',opacity:.85}}>{config.headerBarreTop}</div><div style={{background:config.headerBgColor,color:config.headerTextColor,padding:'12px 16px',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>R</span>}{config.nom}</div>{config.headerShowSearch&&<div style={{flex:1,minWidth:110,display:'flex',background:'#fff',borderRadius:8,overflow:'hidden'}}><input placeholder="Rechercher un produit..." disabled style={{flex:1,border:0,padding:'8px 10px',fontSize:10.5,outline:'none'}}/><span style={{background:config.couleur,color:'#fff',padding:'8px 12px',fontSize:12}}>🔎</span></div>}<div style={{display:'flex',alignItems:'center',gap:12,fontSize:10,marginLeft:'auto'}}>{config.headerShowCompte&&<span>👤 Compte</span>}{config.headerShowPanier&&<span>🛒 Panier</span>}</div></div><div style={{background:'rgba(255,255,255,.06)',padding:'8px 16px',display:'flex',gap:14,fontSize:10,color:config.headerTextColor,flexWrap:'wrap'}}>{(config.headerLinks||[]).map(l=><span key={l.id}>{l.label}</span>)}</div></div>{config.sections.map((s,i)=><div key={s.id} onClick={()=>setSelected(s.id)} style={{outline:selected===s.id?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer',position:'relative',opacity:s.visible===false?0.4:1}}>{s.visible===false&&<div style={{position:'absolute',top:6,right:6,zIndex:2,background:'#1c2b22',color:'#fff',fontSize:9,fontWeight:900,padding:'3px 7px',borderRadius:999}}>🙈 Masquée</div>}<PreviewSection type={s.type}/></div>)}</div></div>
-      <div style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selType]?.icon} {sectionCatalog[selType]?.label||selType}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selType]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
+      <div style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer'}}><span>{sectionCatalog[s]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
+      <div style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,borderBottom:'1px solid #edf1ee'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950,color:'#14221b'}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>R</span>}{config.nom}</div><div style={{display:'flex',gap:12,fontSize:10,color:'#68756d'}}><span>Accueil</span><span>Catalogue</span><span>Contact</span><span>🛒</span></div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
+      <div style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
     </div>
   </div>;
 }

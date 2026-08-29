@@ -1415,6 +1415,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadProduits();
   }
 
+  async function updateProduitLivraisonBundles(id, patch) {
+    await supabase.from("produits").update(patch).eq("id", id);
+    await loadProduits();
+  }
+
   async function updateProduitDescription(id, description) {
     await supabase.from("produits").update({ description: description || null }).eq("id", id);
     await loadProduits();
@@ -3402,7 +3407,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
@@ -5618,7 +5623,7 @@ function AvisModal({ workspaceId, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
   const [editId, setEditId] = useState(null);
@@ -5632,6 +5637,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [editPhotoId, setEditPhotoId] = useState(null);
   const [editPhotoValue, setEditPhotoValue] = useState("");
   const [editDescId, setEditDescId] = useState(null);
+  const [editLivraisonId, setEditLivraisonId] = useState(null);
+  const [editLivraisonValeurs, setEditLivraisonValeurs] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [] });
   const [editDescValue, setEditDescValue] = useState("");
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
@@ -5874,9 +5881,53 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                         {p.description ? "📝 " + p.description.replace(/<[^>]*>/g, " ").trim().slice(0, 40) + "..." : "📝 Ajouter une description (pour la boutique)"}
                       </button>
                     )}
+                    <button onClick={() => { setEditLivraisonId(editLivraisonId === p.id ? null : p.id); setEditLivraisonValeurs({ livraison_gratuite: !!p.livraison_gratuite, frais_livraison_produit: p.frais_livraison_produit ?? "", frais_expedition_produit: p.frais_expedition_produit ?? "", bundles: Array.isArray(p.bundles) ? p.bundles : [] }); }} style={{ display: "block", background: "none", border: "none", padding: 0, marginTop: 6, fontSize: 12, color: (p.livraison_gratuite || p.frais_livraison_produit != null || (p.bundles || []).length > 0) ? "#1a7a3c" : "#6B7168", textDecoration: "underline", cursor: "pointer", textAlign: "left" }}>
+                      🚚 Livraison & 🎁 Bundles{p.livraison_gratuite ? " — Gratuite" : ""}{(p.bundles || []).length > 0 ? ` — ${p.bundles.length} bundle(s)` : ""}
+                    </button>
                   </div>
                   <button onClick={() => onDelete(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>
                 </div>
+
+                {editLivraisonId === p.id && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #ECE8DC" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+                      <input type="checkbox" checked={editLivraisonValeurs.livraison_gratuite} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, livraison_gratuite: e.target.checked }))} />
+                      🎁 Livraison gratuite pour ce produit
+                    </label>
+                    {!editLivraisonValeurs.livraison_gratuite && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+                        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Frais livraison locale ({currency})
+                          <input type="number" placeholder="Frais boutique par défaut" value={editLivraisonValeurs.frais_livraison_produit} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, frais_livraison_produit: e.target.value }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, marginTop: 3, boxSizing: "border-box" }} />
+                        </label>
+                        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Frais expédition ({currency})
+                          <input type="number" placeholder="Frais boutique par défaut" value={editLivraisonValeurs.frais_expedition_produit} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, frais_expedition_produit: e.target.value }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, marginTop: 3, boxSizing: "border-box" }} />
+                        </label>
+                      </div>
+                    )}
+                    <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 8 }}>Laisse vide pour utiliser les frais généraux de la boutique.</div>
+
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>🎁 Bundles de ce produit</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                      {editLivraisonValeurs.bundles.map((b, i) => (
+                        <div key={b.id || i} style={{ border: "1px solid #ECE8DC", borderRadius: 8, padding: 8 }}>
+                          <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>
+                            <input placeholder="Nom (ex: Pack x2)" value={b.label} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                            <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer" }}>×</button>
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input type="number" min="1" placeholder="Qté" value={b.qty} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x) }))} style={{ width: 60, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                            <input type="number" min="0" max="90" placeholder="Remise %" value={b.discount} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: [...v.bundles, { id: "b" + Date.now(), qty: (v.bundles.length || 0) + 2, label: "Pack x" + ((v.bundles.length || 0) + 2), discount: 10 }] }))} style={{ width: "100%", border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: 7, fontSize: 11, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 8 }}>＋ Ajouter un bundle</button>
+
+                    <button onClick={() => { onUpdateLivraisonBundles(p.id, { livraison_gratuite: editLivraisonValeurs.livraison_gratuite, frais_livraison_produit: editLivraisonValeurs.frais_livraison_produit === "" ? null : Number(editLivraisonValeurs.frais_livraison_produit), frais_expedition_produit: editLivraisonValeurs.frais_expedition_produit === "" ? null : Number(editLivraisonValeurs.frais_expedition_produit), bundles: editLivraisonValeurs.bundles }); setEditLivraisonId(null); }} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      Enregistrer
+                    </button>
+                  </div>
+                )}
 
                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #ECE8DC" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>

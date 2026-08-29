@@ -1299,6 +1299,28 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadBiensLocation();
   }
 
+  const [logements, setLogements] = useState([]);
+
+  async function loadLogements() {
+    const { data } = await supabase.from("logements").select("*").eq("workspace_id", workspace.id).order("nom");
+    setLogements(data || []);
+  }
+
+  async function addLogement(form) {
+    await supabase.from("logements").insert([{ ...form, workspace_id: workspace.id, loyer_mensuel: Number(form.loyer_mensuel) || 0 }]);
+    await loadLogements();
+  }
+
+  async function toggleDisponibiliteLogement(id, valeurActuelle) {
+    await supabase.from("logements").update({ disponible: !valeurActuelle }).eq("id", id);
+    await loadLogements();
+  }
+
+  async function deleteLogement(id) {
+    await supabase.from("logements").delete().eq("id", id);
+    await loadLogements();
+  }
+
   async function rendreCaution(commandeId) {
     await supabase.from("commandes").update({ caution_rendue: true }).eq("id", commandeId);
     await loadCommandes();
@@ -1509,6 +1531,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     }
     if (workspace.activity_type === "location_vehicule") {
       loadBiensLocation();
+    }
+    if (workspace.activity_type === "location_immobiliere") {
+      loadLogements();
     }
   }, []);
 
@@ -2401,6 +2426,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "restaurant" ? "Commandes" : "Commandes" },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "🚗 Véhicules/Matériel" }] : []),
+          ...(workspace.activity_type === "location_immobiliere" ? [{ key: "logements", label: "🏠 Logements" }] : []),
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
@@ -3038,6 +3064,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
+      {vue === "logements" && (
+        <LogementsView
+          logements={logements}
+          currency={workspace.currency}
+          onAdd={addLogement}
+          onToggleDisponibilite={toggleDisponibiliteLogement}
+          onDelete={deleteLogement}
+        />
+      )}
+
       {vue === "menu_restaurant" && (
         <MenuRestaurantView
           plats={plats}
@@ -3304,6 +3340,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "commandes", label: "Commandes", icon: Package },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
+          ...(workspace.activity_type === "location_immobiliere" ? [{ key: "logements", label: "Logements", icon: Boxes }] : []),
           { key: "clients", label: "Clients", icon: Users },
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
@@ -3383,7 +3420,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
       {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
@@ -3423,7 +3460,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   );
 }
 
-function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [] }) {
+function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [], logements = [] }) {
   const estRetail = activityType === "retail";
   const estLocation = activityType === "location_immobiliere";
   const estRestaurant = activityType === "restaurant";
@@ -3625,6 +3662,12 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
   const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "" });
   const [modeRapide, setModeRapide] = useState(false);
+  const [logementId, setLogementId] = useState("");
+  function selectionnerLogement(id) {
+    setLogementId(id);
+    const l = logements.find((x) => x.id === id);
+    if (l) setForm((f) => ({ ...f, produit: l.nom, zone: l.adresse || "", montant: String(l.loyer_mensuel) }));
+  }
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
   const montantPayeValide = form.montant_paye === "" || Number(form.montant_paye) <= Number(form.montant || 0);
@@ -3652,6 +3695,18 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             ⚡ Rapide
           </button>
         </div>
+
+        {estLocation && logements.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 6 }}>Choisir un logement (remplit adresse et loyer automatiquement)</div>
+            <select value={logementId} onChange={(e) => selectionnerLogement(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", background: "white" }}>
+              <option value="">Saisir manuellement...</option>
+              {logements.map((l) => (
+                <option key={l.id} value={l.id}>{l.nom} — {Number(l.loyer_mensuel).toLocaleString("fr-FR")} {currency}/mois</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {modeRapide ? (
           <>
@@ -7242,6 +7297,59 @@ function BiensLocationView({ biensLocation, currency, onAdd, onToggleDisponibili
           </div>
         ))}
         {biensLocation.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun bien pour l'instant.</div>}
+      </div>
+    </div>
+  );
+}
+
+function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDelete }) {
+  const [form, setForm] = useState({ nom: "", adresse: "", loyer_mensuel: "", description: "" });
+
+  const nbDisponibles = logements.filter((l) => l.disponible).length;
+  const nbLoues = logements.length - nbDisponibles;
+
+  return (
+    <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>Mes Logements</div>
+      <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 16 }}>
+        {nbDisponibles} disponible{nbDisponibles > 1 ? "s" : ""} · {nbLoues} actuellement loué{nbLoues > 1 ? "s" : ""}
+      </div>
+
+      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>+ Ajouter un logement</div>
+        <input placeholder="Nom (ex: Appartement 2, Villa Cocody)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <input placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <input placeholder={`Loyer mensuel (${currency})`} type="number" value={form.loyer_mensuel} onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }} />
+        <button
+          onClick={() => { if (!form.nom.trim() || !form.loyer_mensuel) return; onAdd(form); setForm({ nom: "", adresse: "", loyer_mensuel: "", description: "" }); }}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+        >
+          Ajouter à mes logements
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {logements.map((l) => (
+          <div key={l.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{l.nom}</div>
+                {l.adresse && <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>{l.adresse}</div>}
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: "#1a7a3c", marginTop: 6 }}>
+                  {Number(l.loyer_mensuel).toLocaleString("fr-FR")} {currency} / mois
+                </div>
+              </div>
+              <button onClick={() => onDelete(l.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+            </div>
+            <button
+              onClick={() => onToggleDisponibilite(l.id, l.disponible)}
+              style={{ width: "100%", marginTop: 10, background: l.disponible ? "#EAF3DE" : "#FBEAE6", color: l.disponible ? "#3B6D11" : "#D64933", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {l.disponible ? "✅ Disponible" : "🚫 Actuellement loué"}
+            </button>
+          </div>
+        ))}
+        {logements.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun logement pour l'instant.</div>}
       </div>
     </div>
   );

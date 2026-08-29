@@ -245,6 +245,7 @@ export default function CataloguePublic({ workspaceId }) {
     const bundlesProduit = Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : [];
     const bundleActif = bundlesProduit.find((b) => b.id === bundleChoisiId) || null;
     const prixUnitaireEffectif = prixUnitairePourBundle(produitOuvert.prix_vente, bundleActif);
+    const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
@@ -746,9 +747,21 @@ export default function CataloguePublic({ workspaceId }) {
 
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
-                <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
-                <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} {entreprise.devise}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
+                  <span>{(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                </div>
+                {fraisLivraisonActuel > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
+                    <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? "Expédition" : "Livraison"}</span>
+                    <span>+ {fraisLivraisonActuel.toLocaleString("fr-FR")} {entreprise.devise}</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
+                  <span style={{ fontWeight: 700 }}>Total</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                </div>
               </div>
 
               <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
@@ -760,7 +773,7 @@ export default function CataloguePublic({ workspaceId }) {
                 disabled={envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim() || (aChoixLivraison && !typeLivraisonChoisi)}
                 style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim() || (aChoixLivraison && !typeLivraisonChoisi)) ? 0.5 : 1, marginTop: 4 }}
               >
-                {envoi ? "Envoi..." : "Confirmer la commande"}
+                {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>
             </div>
           </div>

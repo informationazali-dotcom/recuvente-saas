@@ -1379,12 +1379,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
+          <div className="rv-collections-row">
             {derivedCollections.slice(0, 8).map((c) => {
               const cp = produitsDeCollection(c);
               const cover = cp.find((p) => p.photo_url)?.photo_url;
               return (
-                <button key={c.id} onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: 0, borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden", cursor: "pointer" }}>
+                <button key={c.id} className="rv-collections-item" onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: 0, borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden", cursor: "pointer" }}>
                   {cover ? <img src={cover} alt="" loading="lazy" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
                   <div style={{ padding: "10px 8px" }}><div style={{ fontWeight: 850, fontSize: 12 }}>{c.nom}</div><div style={{ fontSize: 10, color: "#7c877f", marginTop: 3 }}>{cp.length} article(s)</div></div>
                 </button>
@@ -1527,6 +1527,16 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "sans-serif" }}>
+      <style>{`
+        .rv-collections-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+        .rv-collections-row::-webkit-scrollbar { height: 5px; }
+        .rv-collections-row::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
+        .rv-collections-item { flex: 0 0 140px; width: 140px; }
+        @media (min-width: 640px) {
+          .rv-collections-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); overflow: visible; }
+          .rv-collections-item { flex: none; width: auto; }
+        }
+      `}</style>
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
       {sectionsNormalisees.filter((s) => s.visible !== false).map((s) => <Section key={s.id} s={s} />)}
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} />

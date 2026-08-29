@@ -90,6 +90,8 @@ export default function CataloguePublic({ workspaceId }) {
         instagramUrl: data[0].instagram_url,
         tiktokUrl: data[0].tiktok_url,
         storeConfig: data[0].store_config_published || null,
+        labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
+        labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       const listeProduits = data.filter((p) => p.produit_nom);
@@ -177,6 +179,13 @@ export default function CataloguePublic({ workspaceId }) {
   async function envoyerCommande() {
     if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
+      return;
+    }
+    const livraisonGratuiteV = !!produitOuvert.livraison_gratuite;
+    const fraisExpeditionV = livraisonGratuiteV ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
+    const aChoixLivraisonV = !livraisonGratuiteV && fraisExpeditionV > 0;
+    if (aChoixLivraisonV && !typeLivraisonChoisi) {
+      setErreurEnvoi("⚠️ Merci de choisir un mode de livraison ci-dessus avant de confirmer.");
       return;
     }
     setEnvoi(true);
@@ -345,7 +354,7 @@ export default function CataloguePublic({ workspaceId }) {
               </div>
             ) : aChoixLivraison ? (
               <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
-                🚚 Frais de livraison à choisir à la commande ({fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise} en local, {fraisExpeditionEffectif.toLocaleString("fr-FR")} {entreprise.devise} hors ville)
+                🚚 Frais de livraison à choisir à la commande ({entreprise.labelLivraisonLocale} : {fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise} — {entreprise.labelLivraisonExpedition} : {fraisExpeditionEffectif.toLocaleString("fr-FR")} {entreprise.devise})
               </div>
             ) : (
               fraisLivraisonEffectif > 0 && (
@@ -363,30 +372,8 @@ export default function CataloguePublic({ workspaceId }) {
             {!(produitOuvert.stock_initial > 0 && produitOuvert.stock_initial <= 5) && <div style={{ marginBottom: 10 }} />}
 
             {bundlesProduit.length > 0 && (
-              <div style={{ marginBottom: 22 }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>🔥 OFFRES QUANTITÉ</div>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
-                  {bundlesProduit.map((b) => {
-                    const actif = bundleChoisiId === b.id;
-                    const totalBundle = prixUnitairePourBundle(produitOuvert.prix_vente, b) * b.qty;
-                    const estPrixFixe = (b.mode || "pourcentage") === "prix_fixe";
-                    return (
-                      <button
-                        key={b.id}
-                        onClick={() => {
-                          if (actif) { setBundleChoisiId(null); setQuantite(1); }
-                          else { setBundleChoisiId(b.id); setQuantite(b.qty); }
-                        }}
-                        style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", borderRadius: 10, padding: "9px 10px", cursor: "pointer" }}
-                      >
-                        <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
-                        {!estPrixFixe && b.discount > 0 && <div style={{ fontSize: 10, color: "#8A6412" }}>-{b.discount}%</div>}
-                        {estPrixFixe && <div style={{ fontSize: 10, color: "#8A6412" }}>Prix fixe</div>}
-                        <div style={{ fontSize: 12.5, fontWeight: 800, color: couleur, marginTop: 3 }}>{totalBundle.toLocaleString("fr-FR")} {entreprise.devise}</div>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div style={{ background: "#fffdf7", border: "1px solid #F0DDA8", borderRadius: 10, padding: "9px 12px", marginBottom: 22, fontSize: 12, color: "#8A6412", fontWeight: 700 }}>
+                🔥 Offres quantité disponibles — choisis ton pack dans le formulaire de commande
               </div>
             )}
 
@@ -540,7 +527,7 @@ export default function CataloguePublic({ workspaceId }) {
                       <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{(prixUnitaireEffectif * quantite + (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif || 0)).toLocaleString("fr-FR")} {entreprise.devise}</div>
                       {(fraisLivraisonEffectif > 0 || fraisExpeditionEffectif > 0) && (
                         <div style={{ fontSize: 11, color: "#8A9089" }}>
-                          dont {(aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif).toLocaleString("fr-FR")} {entreprise.devise} de {typeLivraisonChoisi === "expedition" ? "expédition" : "livraison"}
+                          dont {(aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif).toLocaleString("fr-FR")} {entreprise.devise} de {typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}
                         </div>
                       )}
                     </div>
@@ -716,6 +703,34 @@ export default function CataloguePublic({ workspaceId }) {
                 </div>
               </div>
 
+              {bundlesProduit.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>🔥 OFFRES QUANTITÉ</div>
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
+                    {bundlesProduit.map((b) => {
+                      const actif = bundleChoisiId === b.id;
+                      const totalBundle = prixUnitairePourBundle(produitOuvert.prix_vente, b) * b.qty;
+                      const estPrixFixe = (b.mode || "pourcentage") === "prix_fixe";
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => {
+                            if (actif) { setBundleChoisiId(null); setQuantite(1); }
+                            else { setBundleChoisiId(b.id); setQuantite(b.qty); }
+                          }}
+                          style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", borderRadius: 10, padding: "8px 9px", cursor: "pointer" }}
+                        >
+                          <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
+                          {!estPrixFixe && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
+                          {estPrixFixe && <div style={{ fontSize: 9.5, color: "#8A6412" }}>Prix fixe</div>}
+                          <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{totalBundle.toLocaleString("fr-FR")} {entreprise.devise}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {livraisonGratuite && (
                 <div style={{ background: "#EAF7F1", border: "1px solid #C7E8D6", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
                   🎁 Livraison gratuite pour ce produit
@@ -730,14 +745,14 @@ export default function CataloguePublic({ workspaceId }) {
                       onClick={() => setTypeLivraisonChoisi("livraison")}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ Livraison locale</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ {entreprise.labelLivraisonLocale}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise}</div>
                     </button>
                     <button
                       onClick={() => setTypeLivraisonChoisi("expedition")}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 Autre ville</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 {entreprise.labelLivraisonExpedition}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisExpeditionEffectif.toLocaleString("fr-FR")} {entreprise.devise}</div>
                     </button>
                   </div>
@@ -754,7 +769,7 @@ export default function CataloguePublic({ workspaceId }) {
                 </div>
                 {fraisLivraisonActuel > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
-                    <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? "Expédition" : "Livraison"}</span>
+                    <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}</span>
                     <span>+ {fraisLivraisonActuel.toLocaleString("fr-FR")} {entreprise.devise}</span>
                   </div>
                 )}
@@ -770,8 +785,8 @@ export default function CataloguePublic({ workspaceId }) {
 
               <button
                 onClick={envoyerCommande}
-                disabled={envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim() || (aChoixLivraison && !typeLivraisonChoisi)}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim() || (aChoixLivraison && !typeLivraisonChoisi)) ? 0.5 : 1, marginTop: 4 }}
+                disabled={envoi}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1, marginTop: 4 }}
               >
                 {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>

@@ -1164,6 +1164,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
 }
 
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
+  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail";
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
@@ -2424,9 +2425,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
         )}
         {[
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
+          ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
           ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
+          ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "🧮 Compta" }] : []),
         ].map((t) => (
@@ -2443,7 +2444,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             {t.label}
           </button>
         ))}
-        {(workspace.role === "owner" || workspace.role === "admin") && (
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
             onClick={() => setShowProduits(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -2451,7 +2452,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             📦 Catalogue
           </button>
         )}
-        {(workspace.role === "owner" || workspace.role === "admin") && (
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
             onClick={() => setShowAvis(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -2459,7 +2460,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             ⭐ Avis clients
           </button>
         )}
-        {(workspace.role === "owner" || workspace.role === "admin") && (
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
             onClick={() => setShowCollections(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -2476,12 +2477,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             >
               👥 Gérer l'équipe
             </button>
-            <button
-              onClick={() => setShowStoreBuilder(true)}
-              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-            >
-              🛍️ Ma Boutique
-            </button>
+            {estEcommerce && (
+              <button
+                onClick={() => setShowStoreBuilder(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🛍️ Ma Boutique
+              </button>
+            )}
             <button
               onClick={() => setShowAbonnement(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -2537,25 +2540,31 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
                   </button>
-                  <button onClick={() => setShowStoreBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    🛍️
-                  </button>
+                  {estEcommerce && (
+                    <button onClick={() => setShowStoreBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                      🛍️
+                    </button>
+                  )}
                 </>
               )}
               {(workspace.role === "owner" || workspace.role === "admin") && (
                 <>
-                  <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📦
-                  </button>
+                  {estEcommerce && (
+                    <button onClick={() => setShowProduits(true)} className="rv-saas-tabs-mobile" aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                      📦
+                    </button>
+                  )}
                   <button onClick={() => setVue("rapprochement")} className="rv-saas-tabs-mobile" aria-label="Rapprochement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🔗
                   </button>
                   <button onClick={() => setVue("score_business")} className="rv-saas-tabs-mobile" aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     🧭
                   </button>
-                  <button onClick={() => setVue("simulateur")} className="rv-saas-tabs-mobile" aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                    📊
-                  </button>
+                  {estEcommerce && (
+                    <button onClick={() => setVue("simulateur")} className="rv-saas-tabs-mobile" aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                      📊
+                    </button>
+                  )}
                   <button onClick={() => setVue("validations")} className="rv-saas-tabs-mobile" aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     ✅
                   </button>
@@ -3296,7 +3305,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
           { key: "clients", label: "Clients", icon: Users },
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
+          ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
         ].map((t) => {
           const Icon = t.icon;

@@ -3,6 +3,24 @@ import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Box
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
+const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
+
+function rvLireFileAttente() {
+  try { return JSON.parse(localStorage.getItem(RV_CLE_FILE_ATTENTE) || "[]"); } catch (_) { return []; }
+}
+function rvEcrireFileAttente(liste) {
+  try { localStorage.setItem(RV_CLE_FILE_ATTENTE, JSON.stringify(liste)); } catch (_) {}
+}
+function rvAjouterActionEnAttente(action) {
+  const liste = rvLireFileAttente();
+  liste.push({ ...action, idFile: Date.now() + "-" + Math.random().toString(36).slice(2), horodatage: new Date().toISOString() });
+  rvEcrireFileAttente(liste);
+  return liste.length;
+}
+function rvRetirerActionEnAttente(idFile) {
+  rvEcrireFileAttente(rvLireFileAttente().filter((a) => a.idFile !== idFile));
+}
+
 function compresserImage(file, maxWidth = 1280, quality = 0.82) {
   return new Promise((resolve) => {
     if (!file || !file.type || !file.type.startsWith("image/")) { resolve(file); return; }
@@ -6102,6 +6120,46 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [commandeAConfirmer, setCommandeAConfirmer] = useState(null);
   const [gpsErreur, setGpsErreur] = useState(null);
   const watchIdRef = React.useRef(null);
+  const [enLigne, setEnLigne] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [nbEnAttente, setNbEnAttente] = useState(() => rvLireFileAttente().filter((a) => a.livreurId === livreur.id).length);
+  const [synchroEnCours, setSynchroEnCours] = useState(false);
+
+  async function synchroniserFileAttente() {
+    if (synchroEnCours) return;
+    const file = rvLireFileAttente().filter((a) => a.livreurId === livreur.id);
+    if (file.length === 0) return;
+    setSynchroEnCours(true);
+    for (const action of file) {
+      try {
+        if (action.type === "changerStatutLivraison") {
+          await supabase.from("commandes").update({ statut: action.nouveauStatut, ...action.infosValidation }).eq("id", action.commandeId);
+          if (action.nouveauStatut === "confirmee") {
+            supabase.auth.getSession().then(({ data: sessionData }) => {
+              fetch("/api/facebook-capi", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` }, body: JSON.stringify({ commandeId: action.commandeId }) }).catch(() => {});
+            });
+          }
+        }
+        rvRetirerActionEnAttente(action.idFile);
+      } catch (_) {
+        break;
+      }
+    }
+    setNbEnAttente(rvLireFileAttente().filter((a) => a.livreurId === livreur.id).length);
+    setSynchroEnCours(false);
+    await onStatusChanged();
+  }
+
+  useEffect(() => {
+    function passerEnLigne() { setEnLigne(true); synchroniserFileAttente(); }
+    function passerHorsLigne() { setEnLigne(false); }
+    window.addEventListener("online", passerEnLigne);
+    window.addEventListener("offline", passerHorsLigne);
+    if (navigator.onLine) synchroniserFileAttente();
+    return () => {
+      window.removeEventListener("online", passerEnLigne);
+      window.removeEventListener("offline", passerHorsLigne);
+    };
+  }, []);
 
   async function majPosition(lat, lng) {
     await supabase.from("livreurs").update({ position_lat: lat, position_lng: lng, position_maj: new Date().toISOString() }).eq("id", livreur.id);
@@ -6146,7 +6204,8 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     };
   }, []);
 
-  const actives = commandes.filter((c) => c.statut === "en_cours" || c.statut === "echouee");
+  const idsEnAttenteLocale = new Set(rvLireFileAttente().filter((a) => a.livreurId === livreur.id).map((a) => a.commandeId));
+  const actives = commandes.filter((c) => (c.statut === "en_cours" || c.statut === "echouee") && !idsEnAttenteLocale.has(c.id));
   const actives_livraison = actives.filter((c) => c.mode_vente !== "expedition");
   const actives_expedition = actives.filter((c) => c.mode_vente === "expedition");
   const confirmees = commandes.filter((c) => c.statut === "confirmee");
@@ -6171,7 +6230,19 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
 
   async function changerStatut(commandeId, nouveauStatut, modePaiement) {
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: livreur.nom, mode_paiement: modePaiement || null } : {};
-    await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
+    if (!navigator.onLine) {
+      rvAjouterActionEnAttente({ type: "changerStatutLivraison", livreurId: livreur.id, commandeId, nouveauStatut, infosValidation });
+      setNbEnAttente(rvLireFileAttente().filter((a) => a.livreurId === livreur.id).length);
+      return;
+    }
+    try {
+      const { error } = await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
+      if (error) throw error;
+    } catch (_) {
+      rvAjouterActionEnAttente({ type: "changerStatutLivraison", livreurId: livreur.id, commandeId, nouveauStatut, infosValidation });
+      setNbEnAttente(rvLireFileAttente().filter((a) => a.livreurId === livreur.id).length);
+      return;
+    }
     if (nouveauStatut === "confirmee") {
       supabase.auth.getSession().then(({ data: sessionData }) => {
         fetch("/api/facebook-capi", {
@@ -6219,6 +6290,13 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>RecuVente</div>
         <div style={{ fontSize: 13, opacity: 0.8 }}>Bonjour</div>
         <div style={{ fontWeight: 700, fontSize: 22 }}>{livreur.nom}</div>
+
+        {(!enLigne || nbEnAttente > 0) && (
+          <div style={{ marginTop: 10, background: !enLigne ? "rgba(214,73,51,0.25)" : "rgba(232,146,10,0.22)", border: `1px solid ${!enLigne ? "rgba(214,73,51,0.4)" : "rgba(232,146,10,0.4)"}`, borderRadius: 10, padding: "9px 12px", fontSize: 12, fontWeight: 700 }}>
+            {!enLigne ? "🔴 Hors ligne — " : "🟠 "}
+            {nbEnAttente > 0 ? `${nbEnAttente} action${nbEnAttente > 1 ? "s" : ""} en attente de synchronisation` : "Connexion rétablie, synchronisation..."}
+          </div>
+        )}
 
         <button
           onClick={enTournee ? terminerTournee : demarrerTournee}
@@ -6761,6 +6839,44 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
   const [datePreset, setDatePreset] = useState("toutes");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [enLigne, setEnLigne] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [nbEnAttente, setNbEnAttente] = useState(() => rvLireFileAttente().filter((a) => a.closerId === closer.id).length);
+  const [synchroEnCours, setSynchroEnCours] = useState(false);
+
+  async function synchroniserFileAttenteCloser() {
+    if (synchroEnCours) return;
+    const file = rvLireFileAttente().filter((a) => a.closerId === closer.id);
+    if (file.length === 0) return;
+    setSynchroEnCours(true);
+    for (const action of file) {
+      try {
+        if (action.type === "changerStatutCloser") {
+          await supabase.from("commandes").update({ statut: action.nouveauStatut, ...action.infosValidation }).eq("id", action.commandeId);
+          await supabase.from("relances").insert([{ commande_id: action.commandeId, note: action.note }]);
+        } else if (action.type === "logAppelCloser") {
+          await supabase.from("relances").insert([{ commande_id: action.commandeId, note: action.note }]);
+        }
+        rvRetirerActionEnAttente(action.idFile);
+      } catch (_) {
+        break;
+      }
+    }
+    setNbEnAttente(rvLireFileAttente().filter((a) => a.closerId === closer.id).length);
+    setSynchroEnCours(false);
+    await onStatusChanged();
+  }
+
+  useEffect(() => {
+    function passerEnLigne() { setEnLigne(true); synchroniserFileAttenteCloser(); }
+    function passerHorsLigne() { setEnLigne(false); }
+    window.addEventListener("online", passerEnLigne);
+    window.addEventListener("offline", passerHorsLigne);
+    if (navigator.onLine) synchroniserFileAttenteCloser();
+    return () => {
+      window.removeEventListener("online", passerEnLigne);
+      window.removeEventListener("offline", passerHorsLigne);
+    };
+  }, []);
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -6790,9 +6906,11 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
     return { start, end };
   }, [datePreset, customStart, customEnd]);
 
+  const idsEnAttenteLocaleCloser = new Set(rvLireFileAttente().filter((a) => a.closerId === closer.id && a.type === "changerStatutCloser").map((a) => a.commandeId));
   const mesCommandesToutes = commandes.filter((c) => c.closer === closer.nom);
   const actives = mesCommandesToutes.filter((c) => {
     if (c.statut !== "en_cours" && c.statut !== "echouee") return false;
+    if (idsEnAttenteLocaleCloser.has(c.id)) return false;
     const d = new Date(c.created_at);
     return d >= dateRange.start && d < dateRange.end;
   });
@@ -6803,10 +6921,23 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
   async function changerStatut(commandeId, nouveauStatut) {
     const ancien = commandes.find((c) => c.id === commandeId)?.statut;
     const infosValidation = nouveauStatut === "confirmee" ? { confirmed_at: new Date().toISOString(), confirmed_by: closer.nom } : {};
-    await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
-    await supabase.from("relances").insert([
-      { commande_id: commandeId, note: `📋 Statut : ${ancien} → ${nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${closer.nom}` : ""}` },
-    ]);
+    const note = `📋 Statut : ${ancien} → ${nouveauStatut}${nouveauStatut === "confirmee" ? ` par ${closer.nom}` : ""}`;
+    if (!navigator.onLine) {
+      rvAjouterActionEnAttente({ type: "changerStatutCloser", closerId: closer.id, commandeId, nouveauStatut, infosValidation, note });
+      setNbEnAttente(rvLireFileAttente().filter((a) => a.closerId === closer.id).length);
+      setSelected(null);
+      return;
+    }
+    try {
+      const { error } = await supabase.from("commandes").update({ statut: nouveauStatut, ...infosValidation }).eq("id", commandeId);
+      if (error) throw error;
+      await supabase.from("relances").insert([{ commande_id: commandeId, note }]);
+    } catch (_) {
+      rvAjouterActionEnAttente({ type: "changerStatutCloser", closerId: closer.id, commandeId, nouveauStatut, infosValidation, note });
+      setNbEnAttente(rvLireFileAttente().filter((a) => a.closerId === closer.id).length);
+      setSelected(null);
+      return;
+    }
     if (nouveauStatut === "confirmee") {
       supabase.auth.getSession().then(({ data: sessionData }) => {
         fetch("/api/facebook-capi", {
@@ -6852,6 +6983,13 @@ function CloserPortalSaas({ closer, commandes, currency, workspace, onStatusChan
         </div>
         <div style={{ fontSize: 13, opacity: 0.8, marginTop: 8 }}>Bonjour</div>
         <div style={{ fontWeight: 700, fontSize: 22 }}>{closer.nom}</div>
+
+        {(!enLigne || nbEnAttente > 0) && (
+          <div style={{ marginTop: 10, background: !enLigne ? "rgba(214,73,51,0.25)" : "rgba(232,146,10,0.22)", border: `1px solid ${!enLigne ? "rgba(214,73,51,0.4)" : "rgba(232,146,10,0.4)"}`, borderRadius: 10, padding: "9px 12px", fontSize: 12, fontWeight: 700 }}>
+            {!enLigne ? "🔴 Hors ligne — " : "🟠 "}
+            {nbEnAttente > 0 ? `${nbEnAttente} action${nbEnAttente > 1 ? "s" : ""} en attente de synchronisation` : "Connexion rétablie, synchronisation..."}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px" }}>

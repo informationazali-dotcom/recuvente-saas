@@ -15,7 +15,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [quantite, setQuantite] = useState(1);
-  const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState("livraison");
+  const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
   const [photoActive, setPhotoActive] = useState(0);
   const [avisListe, setAvisListe] = useState([]);
   const [afficherFormAvis, setAfficherFormAvis] = useState(false);
@@ -114,6 +114,7 @@ export default function CataloguePublic({ workspaceId }) {
     setAfficherFormulaire(false);
     setForm({ client: "", tel: "", zone: "" });
     setQuantite(1);
+    setTypeLivraisonChoisi(entreprise?.fraisExpedition > 0 ? null : "livraison");
     setPhotoActive(0);
     setEnvoye(false);
     setErreurEnvoi("");
@@ -227,7 +228,7 @@ export default function CataloguePublic({ workspaceId }) {
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
           @media (min-width: 900px) {
-            .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 24px; }
+            .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; margin-top: 24px; }
             .rv-shop-produit-photo-col { position: sticky; top: 24px; width: 100%; min-width: 0; }
             .rv-shop-produit-photo { border-radius: 16px; }
             .rv-shop-produit-back { display: none !important; }
@@ -237,7 +238,7 @@ export default function CataloguePublic({ workspaceId }) {
         `}</style>
 
         <div className="rv-shop-produit-wrap">
-          <div className="rv-shop-produit-photo-col" style={{ position: "relative" }}>
+          <div className="rv-shop-produit-photo-col" style={{ position: "relative", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
             {(() => {
               const toutesLesPhotos = [produitOuvert.photo_url, ...(produitOuvert.photos_galerie || [])].filter(Boolean);
               const photoAffichee = toutesLesPhotos[photoActive] || toutesLesPhotos[0];
@@ -314,24 +315,8 @@ export default function CataloguePublic({ workspaceId }) {
             </div>
 
             {entreprise.fraisExpedition > 0 ? (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 6 }}>Mode de livraison</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => setTypeLivraisonChoisi("livraison")}
-                    style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
-                  >
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ Livraison locale</div>
-                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {entreprise.fraisLivraison.toLocaleString("fr-FR")} {entreprise.devise}</div>
-                  </button>
-                  <button
-                    onClick={() => setTypeLivraisonChoisi("expedition")}
-                    style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
-                  >
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 Autre ville</div>
-                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {entreprise.fraisExpedition.toLocaleString("fr-FR")} {entreprise.devise}</div>
-                  </button>
-                </div>
+              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
+                🚚 Frais de livraison à choisir à la commande ({entreprise.fraisLivraison.toLocaleString("fr-FR")} {entreprise.devise} en local, {entreprise.fraisExpedition.toLocaleString("fr-FR")} {entreprise.devise} hors ville)
               </div>
             ) : (
               entreprise.fraisLivraison > 0 && (
@@ -674,6 +659,29 @@ export default function CataloguePublic({ workspaceId }) {
                 </div>
               </div>
 
+              {entreprise.fraisExpedition > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>Mode de livraison <span style={{ color: "#D64933" }}>*</span></div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => setTypeLivraisonChoisi("livraison")}
+                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
+                    >
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ Livraison locale</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {entreprise.fraisLivraison.toLocaleString("fr-FR")} {entreprise.devise}</div>
+                    </button>
+                    <button
+                      onClick={() => setTypeLivraisonChoisi("expedition")}
+                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
+                    >
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 Autre ville</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {entreprise.fraisExpedition.toLocaleString("fr-FR")} {entreprise.devise}</div>
+                    </button>
+                  </div>
+                  {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>Choisis un mode de livraison pour continuer.</div>}
+                </div>
+              )}
+
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
@@ -687,8 +695,8 @@ export default function CataloguePublic({ workspaceId }) {
 
               <button
                 onClick={envoyerCommande}
-                disabled={envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim()}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim()) ? 0.5 : 1, marginTop: 4 }}
+                disabled={envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim() || (entreprise.fraisExpedition > 0 && !typeLivraisonChoisi)}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !form.client.trim() || !form.tel.trim() || !form.zone.trim() || (entreprise.fraisExpedition > 0 && !typeLivraisonChoisi)) ? 0.5 : 1, marginTop: 4 }}
               >
                 {envoi ? "Envoi..." : "Confirmer la commande"}
               </button>

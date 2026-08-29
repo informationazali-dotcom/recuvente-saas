@@ -1223,6 +1223,9 @@ const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, bord
 
 function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL }) {
   const devise = entreprise.devise;
+  const sectionsNormalisees = (config.sections || []).map((s, i) =>
+    typeof s === "string" ? { id: `s${i}`, type: s, visible: true } : { id: s.id || `s${i}`, type: s.type, visible: s.visible !== false }
+  );
   const selectedProductIds = config.selectedProductIds || [];
   const selectedCollectionIds = config.selectedCollectionIds || [];
   const selectionnes = selectedProductIds.length ? produits.filter((p) => selectedProductIds.includes(p.produit_id)) : [];
@@ -1426,7 +1429,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "sans-serif" }}>
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
-      {config.sections.filter((s) => s.visible !== false).map((s, i) => <Section key={s.id || i} s={s} />)}
+      {sectionsNormalisees.filter((s) => s.visible !== false).map((s) => <Section key={s.id} s={s} />)}
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>

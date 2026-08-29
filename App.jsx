@@ -5914,14 +5914,24 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                             <input placeholder="Nom (ex: Pack x2)" value={b.label} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
                             <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer" }}>×</button>
                           </div>
-                          <div style={{ display: "flex", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>
                             <input type="number" min="1" placeholder="Qté" value={b.qty} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x) }))} style={{ width: 60, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
-                            <input type="number" min="0" max="90" placeholder="Remise %" value={b.discount} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                            <select value={b.mode || "pourcentage"} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, mode: e.target.value } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5, background: "white" }}>
+                              <option value="pourcentage">Remise %</option>
+                              <option value="prix_fixe">Prix fixe</option>
+                            </select>
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {(b.mode || "pourcentage") === "prix_fixe" ? (
+                              <input type="number" min="0" placeholder={`Prix total pour ${b.qty} pièce(s) (${currency})`} value={b.prix_fixe ?? ""} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, prix_fixe: e.target.value === "" ? "" : Math.max(0, Number(e.target.value) || 0) } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                            ) : (
+                              <input type="number" min="0" max="90" placeholder="Remise %" value={b.discount ?? ""} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
-                    <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: [...v.bundles, { id: "b" + Date.now(), qty: (v.bundles.length || 0) + 2, label: "Pack x" + ((v.bundles.length || 0) + 2), discount: 10 }] }))} style={{ width: "100%", border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: 7, fontSize: 11, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 8 }}>＋ Ajouter un bundle</button>
+                    <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: [...v.bundles, { id: "b" + Date.now(), qty: (v.bundles.length || 0) + 2, label: "Pack x" + ((v.bundles.length || 0) + 2), mode: "pourcentage", discount: 10 }] }))} style={{ width: "100%", border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: 7, fontSize: 11, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 8 }}>＋ Ajouter un bundle</button>
 
                     <button onClick={() => { onUpdateLivraisonBundles(p.id, { livraison_gratuite: editLivraisonValeurs.livraison_gratuite, frais_livraison_produit: editLivraisonValeurs.frais_livraison_produit === "" ? null : Number(editLivraisonValeurs.frais_livraison_produit), frais_expedition_produit: editLivraisonValeurs.frais_expedition_produit === "" ? null : Number(editLivraisonValeurs.frais_expedition_produit), bundles: editLivraisonValeurs.bundles }); setEditLivraisonId(null); }} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                       Enregistrer

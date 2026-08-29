@@ -3,6 +3,41 @@ import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Box
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 
+function compresserImage(file, maxWidth = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith("image/")) { resolve(file); return; }
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size >= file.size) { resolve(file); return; }
+            const nomCompresse = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+            resolve(new File([blob], nomCompresse, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 function cleanPhoneForWhatsApp(tel) {
   let digits = String(tel).replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
@@ -1087,8 +1122,9 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   function addSection(type){setConfig(c=>({...c,sections:[...c.sections,type]}));setSelected(type);setShowAdd(false)}
   async function uploadImage(kind,file){
     if(!file)return; if(file.size>8*1024*1024){alert('Image trop lourde (maximum 8 Mo).');return;} setUploading(kind);
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path=`${workspace.id}/builder-${kind}-${Date.now()}.${ext}`;
-    const {error}=await supabase.storage.from('boutique').upload(path,file,{upsert:true,contentType:file.type||undefined});
+    const fichierCompresse=await compresserImage(file);
+    const ext=(fichierCompresse.name.split('.').pop()||'jpg').toLowerCase(); const path=`${workspace.id}/builder-${kind}-${Date.now()}.${ext}`;
+    const {error}=await supabase.storage.from('boutique').upload(path,fichierCompresse,{upsert:true,contentType:fichierCompresse.type||undefined});
     if(error){alert('Impossible d’envoyer l’image : '+error.message);setUploading(null);return;}
     const {data}=supabase.storage.from('boutique').getPublicUrl(path); const url=data.publicUrl;
     if(kind==='hero') update('banniere',url); else if(kind==='logo') update('logo',url); else if(kind==='gallery') setConfig(c=>({...c,gallery:[...(c.gallery||[]),url]}));
@@ -5378,9 +5414,10 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
       return;
     }
     setEnvoiImage(true);
-    const extension = fichier.name.split(".").pop();
+    const fichierCompresse = await compresserImage(fichier);
+    const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${workspaceId}-desc-${Date.now()}.${extension}`;
-    const { error } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true });
+    const { error } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
     if (error) {
       alert("Erreur lors de l'envoi de l'image : " + error.message);
       setEnvoiImage(false);
@@ -5727,9 +5764,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       return;
     }
     setPhotoEnvoiId(produitId);
-    const extension = fichier.name.split(".").pop();
+    const fichierCompresse = await compresserImage(fichier);
+    const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${produitId}-${Date.now()}.${extension}`;
-    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true });
+    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
     if (erreurUpload) {
       alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
       setPhotoEnvoiId(null);
@@ -5747,9 +5785,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       return;
     }
     setGalerieEnvoiId(produit.id);
-    const extension = fichier.name.split(".").pop();
+    const fichierCompresse = await compresserImage(fichier);
+    const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${produit.id}-galerie-${Date.now()}.${extension}`;
-    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true });
+    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
     if (erreurUpload) {
       alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
       setGalerieEnvoiId(null);
@@ -8718,9 +8757,10 @@ function IntegrationsModal({ workspace, onClose }) {
       return;
     }
     setEnvoiEnCoursType(type);
-    const extension = fichier.name.split(".").pop();
+    const fichierCompresse = await compresserImage(fichier);
+    const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${workspace.id}-${type}-${Date.now()}.${extension}`;
-    const { error: erreurUpload } = await supabase.storage.from("boutique").upload(chemin, fichier, { upsert: true });
+    const { error: erreurUpload } = await supabase.storage.from("boutique").upload(chemin, fichierCompresse, { upsert: true });
     if (erreurUpload) {
       alert("Erreur lors de l'envoi : " + erreurUpload.message);
       setEnvoiEnCoursType(null);

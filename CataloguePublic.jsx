@@ -79,6 +79,7 @@ export default function CataloguePublic({ workspaceId }) {
         facebookUrl: data[0].facebook_url,
         instagramUrl: data[0].instagram_url,
         tiktokUrl: data[0].tiktok_url,
+        storeConfig: data[0].store_config_published || null,
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       const listeProduits = data.filter((p) => p.produit_nom);
@@ -761,6 +762,31 @@ export default function CataloguePublic({ workspaceId }) {
     ? produits.filter((p) => p.produit_nom.toLowerCase().includes(recherche.trim().toLowerCase()))
     : produits;
 
+  if (entreprise.storeConfig && Array.isArray(entreprise.storeConfig.sections) && entreprise.storeConfig.sections.length > 0) {
+    return (
+      <PageAccueilPersonnalisee
+        config={entreprise.storeConfig}
+        entreprise={entreprise}
+        couleur={couleur}
+        produits={produits}
+        meilleuresVentes={meilleuresVentes}
+        meilleuresVentesToutes={meilleuresVentesToutes}
+        nouveautes={nouveautes}
+        nouveautesToutes={nouveautesToutes}
+        collectionsManuelles={collectionsManuelles}
+        recherche={recherche}
+        setRecherche={setRecherche}
+        produitsFiltres={produitsFiltres}
+        ouvrirProduit={ouvrirProduit}
+        naviguerVersCollection={naviguerVersCollection}
+        setCollectionOuverte={setCollectionOuverte}
+        setPolitiqueOuverte={setPolitiqueOuverte}
+        politiqueOuverte={politiqueOuverte}
+        NOMBRE_MAX_ACCUEIL={NOMBRE_MAX_ACCUEIL}
+      />
+    );
+  }
+
   return (
     <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <style>{`
@@ -1194,3 +1220,229 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 }
 
 const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };
+
+function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL }) {
+  const devise = entreprise.devise;
+  const selectedProductIds = config.selectedProductIds || [];
+  const selectedCollectionIds = config.selectedCollectionIds || [];
+  const selectionnes = selectedProductIds.length ? produits.filter((p) => selectedProductIds.includes(p.produit_id)) : [];
+  const fallbackProduits = selectionnes.length ? selectionnes : produits.slice(0, 8);
+  const bestsellersAffiches = meilleuresVentes.length ? meilleuresVentes : fallbackProduits.slice(0, 4);
+
+  const derivedCollections = collectionsManuelles.length
+    ? collectionsManuelles.filter((c) => !selectedCollectionIds.length || selectedCollectionIds.includes(c.id))
+    : [];
+
+  function produitsDeCollection(col) {
+    return produits.filter((p) => col.produitIds.includes(p.produit_id));
+  }
+
+  const commonPad = { padding: "34px 18px", borderBottom: "1px solid #edf1ee" };
+  const aDesLiensNav = meilleuresVentesToutes.length > 0 || nouveautesToutes.length > 0 || collectionsManuelles.length > 0;
+
+  function GrilleProduits({ liste, max }) {
+    if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12 }}>
+        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} />)}
+      </div>
+    );
+  }
+
+  function Section({ s }) {
+    const type = s.type;
+    if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleur, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
+
+    if (type === "hero") return (
+      <div style={{ textAlign: "center" }}>
+        {entreprise.banniere ? (
+          <img src={entreprise.banniere} alt="" style={{ width: "100%", maxHeight: 340, objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
+        ) : (
+          <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleur},#0b2416)`, color: "#fff" }}>
+            <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
+          </div>
+        )}
+        <div style={{ padding: "26px 20px 34px" }}>
+          <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
+          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
+          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+            {config.buttonText}
+          </button>
+        </div>
+      </div>
+    );
+
+    if (type === "collections") {
+      if (!derivedCollections.length) return null;
+      return (
+        <div style={commonPad}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+            {derivedCollections.slice(0, 8).map((c) => {
+              const cp = produitsDeCollection(c);
+              const cover = cp.find((p) => p.photo_url)?.photo_url;
+              return (
+                <button key={c.id} onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: 0, borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden", cursor: "pointer" }}>
+                  {cover ? <img src={cover} alt="" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
+                  <div style={{ padding: "10px 8px" }}><div style={{ fontWeight: 850, fontSize: 12 }}>{c.nom}</div><div style={{ fontSize: 10, color: "#7c877f", marginTop: 3 }}>{cp.length} article(s)</div></div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "bestsellers" || type === "products") {
+      const liste = type === "bestsellers" ? bestsellersAffiches : produitsFiltres;
+      return (
+        <div id={type === "products" ? "rv-shop-produits" : undefined} style={commonPad}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : "Nos produits"}</h3>
+          <GrilleProduits liste={liste} max={type === "products" ? NOMBRE_MAX_ACCUEIL : 8} />
+        </div>
+      );
+    }
+
+    if (type === "bundles") {
+      const base = bestsellersAffiches[0]?.prix_vente || produits[0]?.prix_vente || 0;
+      return (
+        <div style={{ ...commonPad, background: "#fffdf7" }}>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 950, color: "#b16b00", letterSpacing: ".08em" }}>🔥 OFFRES QUANTITÉ</div>
+            <h3 style={{ margin: "5px 0", fontSize: 22, color: "#14221b" }}>Plus tu prends, plus tu économises</h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
+            {(config.bundles || []).map((b, i) => {
+              const total = Number(base) * b.qty * (1 - (Number(b.discount) || 0) / 100);
+              return (
+                <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleur : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
+                  <div style={{ fontSize: 13, fontWeight: 950, color: "#16231c" }}>{b.label}</div>
+                  <div style={{ fontSize: 11, color: "#7b857e", marginTop: 4 }}>{b.qty} produit(s) · {b.discount || 0}% de remise</div>
+                  <div style={{ fontSize: 21, fontWeight: 950, color: couleur, marginTop: 10 }}>{base ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
+                  <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleur, color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>
+                    Choisir un produit →
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "benefits") return (
+      <div style={commonPad}>
+        <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Pourquoi acheter chez nous ?</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+          {[["🛡️", "Paiement à la livraison"], ["🚚", "Livraison suivie"], ["💬", "Support rapide"]].map((x) => (
+            <div key={x[1]} style={{ padding: 15, borderRadius: 11, background: "#f6f9f6" }}><div style={{ fontSize: 21 }}>{x[0]}</div><div style={{ fontWeight: 850, fontSize: 12, marginTop: 7 }}>{x[1]}</div></div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (type === "promo") return (
+      <div style={{ ...commonPad, background: "#f7f2e7", textAlign: "center" }}>
+        <div style={{ fontSize: 10, fontWeight: 900, color: "#b16b00" }}>OFFRE LIMITÉE</div>
+        <h3 style={{ fontSize: 25, margin: "8px 0", color: "#162119" }}>{config.promoTitle}</h3>
+        <p style={{ fontSize: 12.5, color: "#6f776f" }}>{config.promoText}</p>
+        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: "#e8920a", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button>
+      </div>
+    );
+
+    if (type === "testimonials") return (
+      <div style={commonPad}>
+        <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>⭐ Ils nous font confiance</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 11 }}>
+          {["Une expérience simple et rapide.", "La commande a été parfaitement suivie.", "Je recommande sans hésiter."].map((t, i) => (
+            <div key={i} style={{ padding: 16, border: "1px solid #e6ece7", borderRadius: 12 }}><div style={{ color: "#e8920a" }}>★★★★★</div><div style={{ fontSize: 12, lineHeight: 1.55, color: "#435047", marginTop: 8 }}>"{t}"</div><div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 9 }}>Client</div></div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (type === "gallery") {
+      if (!config.gallery?.length) return null;
+      return (
+        <div style={commonPad}>
+          <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 9 }}>
+            {config.gallery.map((u, i) => <img key={i} src={u} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "faq") return (
+      <div style={commonPad}>
+        <h3 style={{ margin: "0 0 13px", fontSize: 20, color: "#14221b" }}>Questions fréquentes</h3>
+        {["Comment commander ?", "Quels sont les délais ?", "Comment suivre ma commande ?"].map((q) => (
+          <div key={q} style={{ padding: "13px 2px", borderBottom: "1px solid #e7ece8", fontSize: 12.5, fontWeight: 800 }}>{q}</div>
+        ))}
+      </div>
+    );
+
+    if (type === "delivery") return (
+      <div style={commonPad}>
+        <h3 style={{ margin: "0 0 9px", fontSize: 20, color: "#14221b" }}>🚚 Livraison</h3>
+        <p style={{ fontSize: 12.5, color: "#68756d", lineHeight: 1.6 }}>{config.livraison}</p>
+      </div>
+    );
+
+    if (type === "cod_form") return (
+      <div style={{ ...commonPad, background: "#f7faf7", textAlign: "center" }}>
+        <div style={{ fontSize: 10, fontWeight: 950, color: couleur }}>COMMANDE SIMPLE & RAPIDE</div>
+        <h3 style={{ margin: "5px 0 10px", fontSize: 21, color: "#14221b" }}>📝 Choisis un produit pour commander</h3>
+        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+          Voir les produits
+        </button>
+      </div>
+    );
+
+    if (type === "whatsapp") return (
+      <div style={{ ...commonPad, textAlign: "center", background: "#f4faf5" }}>
+        <div style={{ fontSize: 27 }}>💬</div>
+        <h3 style={{ margin: "8px 0", fontSize: 20, color: "#14221b" }}>Besoin d'aide ?</h3>
+        <p style={{ fontSize: 12, color: "#68756d" }}>Écris-nous directement sur WhatsApp.</p>
+        {entreprise.whatsapp && (
+          <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(config.whatsapp || "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", border: 0, borderRadius: 10, padding: "11px 19px", background: "#168a45", color: "#fff", fontWeight: 900, textDecoration: "none" }}>
+            Ouvrir WhatsApp
+          </a>
+        )}
+      </div>
+    );
+
+    if (type === "contact") return (
+      <div style={{ ...commonPad, textAlign: "center", background: "#0d2417", color: "#fff" }}>
+        <h3 style={{ margin: "0 0 9px", fontSize: 25 }}>Prêt à passer à l'action ?</h3>
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,.68)" }}>Commandez, ou contactez-nous maintenant.</p>
+        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: couleur, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button>
+      </div>
+    );
+
+    return null;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "sans-serif" }}>
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
+      {config.sections.filter((s) => s.visible !== false).map((s, i) => <Section key={s.id || i} s={s} />)}
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} />
+      {politiqueOuverte && (
+        <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>
+                {politiqueOuverte === "livraison" ? "Politique de livraison" : politiqueOuverte === "retours" ? "Politique de retours" : "Politique de confidentialité"}
+              </div>
+              <button onClick={() => setPolitiqueOuverte(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+            </div>
+            <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+              {politiqueOuverte === "livraison" ? entreprise.politiqueLivraison : politiqueOuverte === "retours" ? entreprise.politiqueRetours : entreprise.politiqueConfidentialite}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

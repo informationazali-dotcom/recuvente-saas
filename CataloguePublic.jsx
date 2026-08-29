@@ -298,7 +298,7 @@ export default function CataloguePublic({ workspaceId }) {
                           onClick={() => setPhotoActive(i)}
                           style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 8, overflow: "hidden", padding: 0, border: i === photoActive ? `2px solid ${couleur}` : "1px solid #ECE8DC", cursor: "pointer", background: "none" }}
                         >
-                          <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          <img src={url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         </button>
                       ))}
                     </div>
@@ -589,7 +589,7 @@ export default function CataloguePublic({ workspaceId }) {
                       >
                         <div style={{ width: "100%", paddingTop: "100%", position: "relative", background: "#EEF0EA" }}>
                           {p.photo_url ? (
-                            <img src={p.photo_url} alt={p.produit_nom} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+                            <img src={p.photo_url} alt={p.produit_nom} loading="lazy" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
                           ) : (
                             <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📦</div>
                           )}
@@ -1163,6 +1163,7 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
           <img
             src={p.photo_url}
             alt={p.produit_nom}
+            loading="lazy"
             style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             onError={(e) => { e.target.style.display = "none"; }}
           />
@@ -1384,7 +1385,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
               const cover = cp.find((p) => p.photo_url)?.photo_url;
               return (
                 <button key={c.id} onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: 0, borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden", cursor: "pointer" }}>
-                  {cover ? <img src={cover} alt="" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
+                  {cover ? <img src={cover} alt="" loading="lazy" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
                   <div style={{ padding: "10px 8px" }}><div style={{ fontWeight: 850, fontSize: 12 }}>{c.nom}</div><div style={{ fontSize: 10, color: "#7c877f", marginTop: 3 }}>{cp.length} article(s)</div></div>
                 </button>
               );
@@ -1468,7 +1469,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 9 }}>
-            {config.gallery.map((u, i) => <img key={i} src={u} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}
+            {config.gallery.map((u, i) => <img key={i} src={u} alt="" loading="lazy" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}
           </div>
         </div>
       );

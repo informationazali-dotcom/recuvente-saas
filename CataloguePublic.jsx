@@ -6,6 +6,15 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+function prixUnitairePourBundle(prixVente, bundle) {
+  if (!bundle) return Number(prixVente);
+  if ((bundle.mode || "pourcentage") === "prix_fixe") {
+    const total = Number(bundle.prix_fixe);
+    return total > 0 && bundle.qty > 0 ? total / bundle.qty : Number(prixVente);
+  }
+  return Number(prixVente) * (1 - (Number(bundle.discount) || 0) / 100);
+}
+
 export default function CataloguePublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
@@ -173,7 +182,7 @@ export default function CataloguePublic({ workspaceId }) {
     setEnvoi(true);
     setErreurEnvoi("");
     const bundleActifEnvoi = (Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : []).find((b) => b.id === bundleChoisiId) || null;
-    const prixUnitaireEnvoi = bundleActifEnvoi ? Number(produitOuvert.prix_vente) * (1 - (Number(bundleActifEnvoi.discount) || 0) / 100) : Number(produitOuvert.prix_vente);
+    const prixUnitaireEnvoi = prixUnitairePourBundle(produitOuvert.prix_vente, bundleActifEnvoi);
     const items = [{
       produit_id: produitOuvert.produit_id,
       produit_nom: produitOuvert.produit_nom,
@@ -235,7 +244,7 @@ export default function CataloguePublic({ workspaceId }) {
     const aChoixLivraison = !livraisonGratuite && fraisExpeditionEffectif > 0;
     const bundlesProduit = Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : [];
     const bundleActif = bundlesProduit.find((b) => b.id === bundleChoisiId) || null;
-    const prixUnitaireEffectif = bundleActif ? Number(produitOuvert.prix_vente) * (1 - (Number(bundleActif.discount) || 0) / 100) : Number(produitOuvert.prix_vente);
+    const prixUnitaireEffectif = prixUnitairePourBundle(produitOuvert.prix_vente, bundleActif);
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
@@ -358,7 +367,8 @@ export default function CataloguePublic({ workspaceId }) {
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
                   {bundlesProduit.map((b) => {
                     const actif = bundleChoisiId === b.id;
-                    const totalBundle = Number(produitOuvert.prix_vente) * b.qty * (1 - (Number(b.discount) || 0) / 100);
+                    const totalBundle = prixUnitairePourBundle(produitOuvert.prix_vente, b) * b.qty;
+                    const estPrixFixe = (b.mode || "pourcentage") === "prix_fixe";
                     return (
                       <button
                         key={b.id}
@@ -369,7 +379,8 @@ export default function CataloguePublic({ workspaceId }) {
                         style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", borderRadius: 10, padding: "9px 10px", cursor: "pointer" }}
                       >
                         <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
-                        {b.discount > 0 && <div style={{ fontSize: 10, color: "#8A6412" }}>-{b.discount}%</div>}
+                        {!estPrixFixe && b.discount > 0 && <div style={{ fontSize: 10, color: "#8A6412" }}>-{b.discount}%</div>}
+                        {estPrixFixe && <div style={{ fontSize: 10, color: "#8A6412" }}>Prix fixe</div>}
                         <div style={{ fontSize: 12.5, fontWeight: 800, color: couleur, marginTop: 3 }}>{totalBundle.toLocaleString("fr-FR")} {entreprise.devise}</div>
                       </button>
                     );

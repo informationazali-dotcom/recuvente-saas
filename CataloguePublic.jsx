@@ -228,7 +228,7 @@ export default function CataloguePublic({ workspaceId }) {
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
           @media (min-width: 900px) {
             .rv-shop-produit-wrap { max-width: 1000px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-top: 24px; }
-            .rv-shop-produit-photo-col { position: sticky; top: 24px; }
+            .rv-shop-produit-photo-col { position: sticky; top: 24px; width: 100%; min-width: 0; }
             .rv-shop-produit-photo { border-radius: 16px; }
             .rv-shop-produit-back { display: none !important; }
             .rv-shop-produit-info { padding: 0 0 100px !important; }
@@ -1246,7 +1246,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   function GrilleProduits({ liste, max }) {
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12 }}>
         {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} />)}
       </div>
     );
@@ -1280,7 +1280,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
             {derivedCollections.slice(0, 8).map((c) => {
               const cp = produitsDeCollection(c);
               const cover = cp.find((p) => p.photo_url)?.photo_url;
@@ -1369,7 +1369,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 9 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 9 }}>
             {config.gallery.map((u, i) => <img key={i} src={u} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}
           </div>
         </div>

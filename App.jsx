@@ -5795,6 +5795,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
 function AvisModal({ workspaceId, onClose }) {
   const [avis, setAvis] = useState(null);
   const [produitsMap, setProduitsMap] = useState({});
+  const [filtreProduitId, setFiltreProduitId] = useState("");
 
   async function charger() {
     const { data: produitsData } = await supabase.from("produits").select("id, nom").eq("workspace_id", workspaceId);
@@ -5824,8 +5825,40 @@ function AvisModal({ workspaceId, onClose }) {
     await charger();
   }
 
-  const enAttente = (avis || []).filter((a) => !a.approuve);
-  const approuves = (avis || []).filter((a) => a.approuve);
+  function echapperCSV(valeur) {
+    const texte = String(valeur ?? "");
+    return /[",\n]/.test(texte) ? `"${texte.replace(/"/g, '""')}"` : texte;
+  }
+
+  function exporterCSV() {
+    const liste = filtreProduitId ? (avis || []).filter((a) => a.produit_id === filtreProduitId) : (avis || []);
+    if (liste.length === 0) { alert("Aucun avis à exporter."); return; }
+    const entetes = ["Produit", "Client", "Note", "Commentaire", "Statut", "Date"];
+    const lignes = liste.map((a) => [
+      produitsMap[a.produit_id] || "",
+      a.client_nom || "",
+      a.note,
+      a.commentaire || "",
+      a.approuve ? "Publié" : "En attente",
+      new Date(a.created_at).toLocaleString("fr-FR"),
+    ].map(echapperCSV).join(","));
+    const csv = "\uFEFF" + [entetes.join(","), ...lignes].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const nomFichier = filtreProduitId ? (produitsMap[filtreProduitId] || "produit").replace(/[^a-z0-9]+/gi, "-") : "tous-les-produits";
+    a.download = `avis-${nomFichier}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  const produitsAvecAvis = Object.entries(produitsMap).filter(([id]) => (avis || []).some((a) => a.produit_id === id));
+
+  const enAttente = ((filtreProduitId ? (avis || []).filter((a) => a.produit_id === filtreProduitId) : avis) || []).filter((a) => !a.approuve);
+  const approuves = ((filtreProduitId ? (avis || []).filter((a) => a.produit_id === filtreProduitId) : avis) || []).filter((a) => a.approuve);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
@@ -5834,6 +5867,16 @@ function AvisModal({ workspaceId, onClose }) {
           <div style={{ fontWeight: 700, fontSize: 18 }}>⭐ Avis clients</div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
+
+        {avis !== null && avis.length > 0 && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            <select value={filtreProduitId} onChange={(e) => setFiltreProduitId(e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white" }}>
+              <option value="">Tous les produits</option>
+              {produitsAvecAvis.map(([id, nom]) => <option key={id} value={id}>{nom}</option>)}
+            </select>
+            <button onClick={exporterCSV} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 12px", fontWeight: 700, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>⬇️ Export CSV</button>
+          </div>
+        )}
 
         {avis === null && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
 
@@ -5896,7 +5939,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
-  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [] });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false });
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
 
   const produitsFiltres = recherche.trim()
@@ -5918,6 +5961,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         frais_livraison_produit: selected.frais_livraison_produit ?? "",
         frais_expedition_produit: selected.frais_expedition_produit ?? "",
         bundles: Array.isArray(selected.bundles) ? selected.bundles : [],
+        masquer_produits_similaires: !!selected.masquer_produits_similaires,
       });
     }
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -6294,6 +6338,13 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   </div>
                   <button onClick={() => setLivraison((v) => ({ ...v, bundles: [...v.bundles, { id: "b" + Date.now(), qty: (v.bundles.length || 0) + 2, label: "Pack x" + ((v.bundles.length || 0) + 2), mode: "pourcentage", discount: 10 }] }))} style={{ border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 12 }}>＋ Ajouter un bundle</button>
 
+                  <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 12, marginBottom: 12 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                      <input type="checkbox" checked={!livraison.masquer_produits_similaires} onChange={(e) => setLivraison((v) => ({ ...v, masquer_produits_similaires: !e.target.checked }))} />
+                      Afficher "Tu pourrais aussi aimer" sous ce produit, en boutique
+                    </label>
+                  </div>
+
                   <div>
                     <button
                       onClick={() => {
@@ -6302,6 +6353,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           frais_livraison_produit: livraison.frais_livraison_produit === "" ? null : Number(livraison.frais_livraison_produit),
                           frais_expedition_produit: livraison.frais_expedition_produit === "" ? null : Number(livraison.frais_expedition_produit),
                           bundles: livraison.bundles,
+                          masquer_produits_similaires: livraison.masquer_produits_similaires,
                         });
                         flash("livraison");
                       }}

@@ -5779,24 +5779,95 @@ function AvisModal({ workspaceId, onClose }) {
 function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [nom, setNom] = useState("");
   const [cout, setCout] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [editValue, setEditValue] = useState("");
-  const [editFraisImportId, setEditFraisImportId] = useState(null);
-  const [editFraisImportValue, setEditFraisImportValue] = useState("");
-  const [editStockId, setEditStockId] = useState(null);
-  const [editStockValue, setEditStockValue] = useState("");
-  const [editPrixId, setEditPrixId] = useState(null);
-  const [editPrixValue, setEditPrixValue] = useState("");
-  const [editPhotoId, setEditPhotoId] = useState(null);
-  const [editPhotoValue, setEditPhotoValue] = useState("");
-  const [editDescId, setEditDescId] = useState(null);
-  const [editLivraisonId, setEditLivraisonId] = useState(null);
-  const [editLivraisonValeurs, setEditLivraisonValeurs] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [] });
-  const [editDescValue, setEditDescValue] = useState("");
+  const [recherche, setRecherche] = useState("");
+  const [produitSelectionneId, setProduitSelectionneId] = useState(produits[0]?.id || null);
+  const [brouillons, setBrouillons] = useState({});
+  const [enregistrements, setEnregistrements] = useState({});
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
+  const [bundleEnCours, setBundleEnCours] = useState(false);
+
+  useEffect(() => {
+    if (!produits.length) {
+      setProduitSelectionneId(null);
+      return;
+    }
+    if (!produits.some((p) => p.id === produitSelectionneId)) setProduitSelectionneId(produits[0].id);
+  }, [produits, produitSelectionneId]);
+
+  const produitSelectionne = produits.find((p) => p.id === produitSelectionneId) || null;
+
+  function valeursProduit(p) {
+    if (!p) return {};
+    return brouillons[p.id] || {
+      nom: p.nom || "",
+      cout_achat: p.cout_achat ?? 0,
+      frais_import_unitaire: p.frais_import_unitaire ?? 0,
+      prix_vente: p.prix_vente ?? 0,
+      stock_initial: p.stock_initial ?? 0,
+      description: p.description || "",
+      frais_livraison_produit: p.frais_livraison_produit ?? "",
+      frais_expedition_produit: p.frais_expedition_produit ?? "",
+      livraison_gratuite: !!p.livraison_gratuite,
+      bundles: Array.isArray(p.bundles) ? p.bundles : [],
+    };
+  }
+
+  function setChamp(p, champ, valeur) {
+    if (!p) return;
+    setBrouillons((prev) => ({ ...prev, [p.id]: { ...valeursProduit(p), [champ]: valeur } }));
+    setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "modified" }));
+  }
+
+  async function sauvegarderChamp(p, champ) {
+    if (!p) return;
+    const v = valeursProduit(p);
+    setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "saving" }));
+    try {
+      if (champ === "cout_achat") await onUpdateCout(p.id, v.cout_achat);
+      else if (champ === "frais_import_unitaire") await onUpdateFraisImport(p.id, v.frais_import_unitaire);
+      else if (champ === "prix_vente") await onUpdatePrixVente(p.id, v.prix_vente);
+      else if (champ === "stock_initial") await onUpdateStock(p.id, v.stock_initial);
+      else if (champ === "description") await onUpdateDescription(p.id, v.description);
+      else if (champ === "livraison") await onUpdateLivraisonBundles(p.id, {
+        livraison_gratuite: !!v.livraison_gratuite,
+        frais_livraison_produit: v.frais_livraison_produit === "" ? null : Number(v.frais_livraison_produit) || 0,
+        frais_expedition_produit: v.frais_expedition_produit === "" ? null : Number(v.frais_expedition_produit) || 0,
+        bundles: v.bundles || [],
+      });
+      setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "saved" }));
+      window.setTimeout(() => setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "" })), 1800);
+    } catch (e) {
+      console.error(e);
+      setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "error" }));
+    }
+  }
+
+  function champNumerique(p, champ, label, suffix = currency, min = 0) {
+    const v = valeursProduit(p)[champ] ?? "";
+    const statut = enregistrements[`${p.id}:${champ}`];
+    return (
+      <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#27342D", marginBottom: 6 }}>{label}</label>
+        <div style={{ position: "relative" }}>
+          <input
+            type="number"
+            min={min}
+            value={v}
+            onChange={(e) => setChamp(p, champ, e.target.value)}
+            onBlur={() => sauvegarderChamp(p, champ)}
+            style={{ width: "100%", boxSizing: "border-box", padding: "11px 90px 11px 12px", border: "1px solid #D9E0DB", borderRadius: 9, fontSize: 14, outline: "none", background: "#fff" }}
+          />
+          {suffix && <span style={{ position: "absolute", right: 12, top: 11, color: "#7A857E", fontSize: 12, pointerEvents: "none" }}>{suffix}</span>}
+        </div>
+        {statut === "saved" && <div style={{ color: "#1a7a3c", fontSize: 11, fontWeight: 700, marginTop: 4 }}>✓ Enregistré</div>}
+        {statut === "saving" && <div style={{ color: "#7A857E", fontSize: 11, marginTop: 4 }}>Enregistrement…</div>}
+        {statut === "error" && <div style={{ color: "#D64933", fontSize: 11, fontWeight: 700, marginTop: 4 }}>Erreur d'enregistrement</div>}
+      </div>
+    );
+  }
 
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
@@ -5808,9 +5879,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     const fichierCompresse = await compresserImage(fichier);
     const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${produitId}-${Date.now()}.${extension}`;
-    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
-    if (erreurUpload) {
-      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
+    const { error } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+    if (error) {
+      alert("Erreur lors de l'envoi de la photo : " + error.message);
       setPhotoEnvoiId(null);
       return;
     }
@@ -5825,25 +5896,24 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       alert("L'image est trop lourde (max 5 Mo). Choisis une photo plus légère.");
       return;
     }
+    if ((produit.photos_galerie || []).length >= 6) return;
     setGalerieEnvoiId(produit.id);
     const fichierCompresse = await compresserImage(fichier);
     const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${produit.id}-galerie-${Date.now()}.${extension}`;
-    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
-    if (erreurUpload) {
-      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
+    const { error } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+    if (error) {
+      alert("Erreur lors de l'envoi de la photo : " + error.message);
       setGalerieEnvoiId(null);
       return;
     }
     const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
-    const nouvelleGalerie = [...(produit.photos_galerie || []), data.publicUrl];
-    await onUpdateGalerie(produit.id, nouvelleGalerie);
+    await onUpdateGalerie(produit.id, [...(produit.photos_galerie || []), data.publicUrl]);
     setGalerieEnvoiId(null);
   }
 
-  async function retirerPhotoGalerie(produit, urlARetirer) {
-    const nouvelleGalerie = (produit.photos_galerie || []).filter((u) => u !== urlARetirer);
-    await onUpdateGalerie(produit.id, nouvelleGalerie);
+  async function retirerPhotoGalerie(produit, url) {
+    await onUpdateGalerie(produit.id, (produit.photos_galerie || []).filter((u) => u !== url));
   }
 
   async function ajouter() {
@@ -5853,290 +5923,208 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     setCout("");
   }
 
+  async function supprimerProduit(p) {
+    if (!window.confirm(`Supprimer « ${p.nom} » ? Cette action est irréversible.`)) return;
+    await onDelete(p.id);
+    if (produitSelectionneId === p.id) setProduitSelectionneId(null);
+  }
+
+  async function sauvegarderLivraison(p) {
+    setBundleEnCours(true);
+    await sauvegarderChamp(p, "livraison");
+    setBundleEnCours(false);
+  }
+
+  const produitsFiltres = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    if (!q) return produits;
+    return produits.filter((p) => String(p.nom || "").toLowerCase().includes(q));
+  }, [produits, recherche]);
+
   const totalStock = produits.reduce((s, p) => s + Number(p.stock_initial || 0), 0);
-  const totalVendu = produits.reduce((s, p) => s + (quantitesParProduit[p.nom]?.commandees || 0), 0);
-  const totalLivre = produits.reduce((s, p) => s + (quantitesParProduit[p.nom]?.livrees || 0), 0);
+  const totalEngage = produits.reduce((s, p) => s + Number(quantitesParProduit[p.nom]?.commandees || 0), 0);
+  const totalLivre = produits.reduce((s, p) => s + Number(quantitesParProduit[p.nom]?.livrees || 0), 0);
+  const totalRestant = Math.max(0, totalStock - totalEngage);
+  const q = produitSelectionne ? (quantitesParProduit[produitSelectionne.nom] || {}) : {};
+  const draft = produitSelectionne ? valeursProduit(produitSelectionne) : {};
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 860, maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>Catalogue & Stock</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
-        </div>
-        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 14 }}>
-          Le nom doit correspondre exactement à celui utilisé dans tes commandes. Renseigne le stock acheté pour suivre ce qu'il reste.
-        </div>
-
-        {produits.length > 0 && (
-          <div style={{ background: "#16231F", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-            <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>En stock</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "white" }}>{totalStock}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>Engagé</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#e8920a" }}>{totalVendu}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>Livré</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "#7fd6a3" }}>{totalLivre}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>Restant</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, color: "white" }}>{totalStock - totalVendu}</div>
-            </div>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.58)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div className="rv-produits-modal-inner" onClick={(e) => e.stopPropagation()} style={{ background: "#F7F8F6", borderRadius: 16, width: "100%", maxWidth: 1180, height: "min(92vh, 900px)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 25px 70px rgba(0,0,0,.25)" }}>
+        <div style={{ padding: "18px 22px", background: "#fff", borderBottom: "1px solid #E1E6E2", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 850, color: "#16231F" }}>Catalogue produits</div>
+            <div style={{ fontSize: 12, color: "#748078", marginTop: 3 }}>Gère chaque produit comme dans Shopify : médias, prix, stock, livraison et bundles.</div>
           </div>
-        )}
-
-        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer", marginBottom: 8, boxSizing: "border-box" }}>
-          {importEnCours ? "Import en cours..." : "📥 Importer un catalogue (CSV Shopify ou autre)"}
-          <input
-            type="file"
-            accept=".csv"
-            style={{ display: "none" }}
-            onChange={async (e) => {
-              const fichier = e.target.files?.[0];
-              if (!fichier) return;
-              setImportEnCours(true);
-              setResultatImport(null);
-              try {
-                const texte = await fichier.text();
-                const brut = parserCSV(texte);
-                const mappe = mapperColonnesShopify(brut);
-                if (mappe.length === 0) {
-                  setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier. Vérifie qu'il contient bien une colonne \"Title\" (Shopify) ou \"nom\"." });
-                } else {
-                  const resultat = await onImportCSV(mappe);
-                  if (resultat.succes) {
-                    setResultatImport({ succes: true, message: `${resultat.importes} produit${resultat.importes > 1 ? "s" : ""} importé${resultat.importes > 1 ? "s" : ""}.${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré${resultat.ignores > 1 ? "s" : ""} (déjà présents dans ton catalogue).` : ""}` });
-                  } else {
-                    setResultatImport({ succes: false, message: resultat.message || "Erreur lors de l'import, réessaie." });
-                  }
-                }
-              } catch (err) {
-                setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + err.message });
-              }
-              setImportEnCours(false);
-              e.target.value = "";
-            }}
-          />
-        </label>
-        {resultatImport && (
-          <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAE6", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#F0B8AC"}`, borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: resultatImport.succes ? "#3B6D11" : "#D64933" }}>
-            {resultatImport.succes ? "✅ " : "⚠️ "}{resultatImport.message}
-          </div>
-        )}
-        <div style={{ fontSize: 11, color: "#8A9089", marginTop: -4, marginBottom: 14 }}>
-          Le coût d'achat sera à 0 par défaut après import — pense à le renseigner ensuite pour chaque produit.
+          <button onClick={onClose} style={{ width: 34, height: 34, border: "1px solid #DDE3DE", background: "#fff", borderRadius: 9, fontSize: 20, cursor: "pointer", color: "#47534C" }}>×</button>
         </div>
 
-        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-          <input placeholder="Nom du produit" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />
-          <input placeholder="Coût" type="number" value={cout} onChange={(e) => setCout(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-          <button onClick={ajouter} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 18, cursor: "pointer" }}>+</button>
+        <div className="rv-produits-stats" style={{ padding: "12px 22px", background: "#fff", borderBottom: "1px solid #E1E6E2", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          {[['Produits', produits.length], ['Stock', totalStock], ['Engagé', totalEngage], ['Restant', totalRestant]].map(([label, value]) => (
+            <div key={label} style={{ background: "#F7F9F7", border: "1px solid #E2E8E3", borderRadius: 10, padding: "9px 12px" }}>
+              <div style={{ fontSize: 10, color: "#7C867F", textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
+              <div style={{ fontSize: 17, fontWeight: 850, color: "#16231F", marginTop: 2 }}>{value.toLocaleString("fr-FR")}</div>
+            </div>
+          ))}
         </div>
 
-        {produits.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucun produit dans le catalogue.</div>}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {produits.map((p) => {
-            const q = quantitesParProduit[p.nom] || { commandees: 0, livrees: 0 };
-            const stock = Number(p.stock_initial || 0);
-            const restant = stock - q.commandees;
-            return (
-              <div key={p.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}</div>
-                    {editId === p.id ? (
-                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-                        <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} autoFocus style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
-                        <button onClick={() => { onUpdateCout(p.id, editValue); setEditId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditId(p.id); setEditValue(String(p.cout_achat)); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
-                        Coût : {Number(p.cout_achat).toLocaleString("fr-FR")} {currency}
-                      </button>
-                    )}
-
-                    {editFraisImportId === p.id ? (
-                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-                        <input type="number" value={editFraisImportValue} onChange={(e) => setEditFraisImportValue(e.target.value)} autoFocus style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
-                        <button onClick={() => { onUpdateFraisImport(p.id, editFraisImportValue); setEditFraisImportId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditFraisImportId(p.id); setEditFraisImportValue(String(p.frais_import_unitaire || 0)); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: "#8A6412", textDecoration: "underline", cursor: "pointer" }}>
-                        🚢 Transport + douane : {Number(p.frais_import_unitaire || 0).toLocaleString("fr-FR")} {currency} / pièce
-                      </button>
-                    )}
-                    {editPrixId === p.id ? (
-                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-                        <input type="number" value={editPrixValue} onChange={(e) => setEditPrixValue(e.target.value)} autoFocus placeholder="Prix de vente" style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
-                        <button onClick={() => { onUpdatePrixVente(p.id, editPrixValue); setEditPrixId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditPrixId(p.id); setEditPrixValue(String(p.prix_vente || "")); }} style={{ background: "none", border: "none", padding: 0, marginTop: 2, fontSize: 12, color: p.prix_vente ? "#1a7a3c" : "#D64933", textDecoration: "underline", cursor: "pointer" }}>
-                        {p.prix_vente ? `Prix de vente : ${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : "⚠️ Ajouter un prix de vente (pour le catalogue)"}
-                      </button>
-                    )}
-                    {photoEnvoiId === p.id ? (
-                      <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 4 }}>Envoi de la photo...</div>
-                    ) : (
-                      <label style={{ display: "inline-block", marginTop: 2, fontSize: 12, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
-                        {p.photo_url ? "📷 Changer la photo principale" : "📷 Ajouter une photo principale (optionnel)"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: "none" }}
-                          onChange={(e) => envoyerPhoto(p.id, e.target.files?.[0])}
-                        />
-                      </label>
-                    )}
-
-                    <div style={{ marginTop: 8 }}>
-                      {(p.photos_galerie || []).length > 0 && (
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                          {p.photos_galerie.map((url) => (
-                            <div key={url} style={{ position: "relative" }}>
-                              <img src={url} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: "cover", border: "1px solid #DDD8CC" }} />
-                              <button
-                                onClick={() => retirerPhotoGalerie(p, url)}
-                                style={{ position: "absolute", top: -5, right: -5, width: 16, height: 16, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 10, lineHeight: 1, cursor: "pointer" }}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <label style={{ display: "inline-block", fontSize: 11.5, color: "#6B7168", textDecoration: "underline", cursor: "pointer" }}>
-                        {galerieEnvoiId === p.id ? "Envoi..." : `🖼️ Ajouter une photo à la galerie (${(p.photos_galerie || []).length}/6)`}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: "none" }}
-                          disabled={(p.photos_galerie || []).length >= 6}
-                          onChange={(e) => ajouterPhotoGalerie(p, e.target.files?.[0])}
-                        />
-                      </label>
-                    </div>
-                    {editDescId === p.id ? (
-                      <div style={{ marginTop: 6 }}>
-                        <EditeurRiche
-                          valeur={editDescValue}
-                          onChange={setEditDescValue}
-                          workspaceId={workspaceId}
-                          placeholder="Description visible par les clients en boutique"
-                        />
-                        <button onClick={() => { onUpdateDescription(p.id, editDescValue); setEditDescId(null); }} style={{ marginTop: 6, background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Enregistrer</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditDescId(p.id); setEditDescValue(p.description || ""); }} style={{ display: "block", background: "none", border: "none", padding: 0, marginTop: 4, fontSize: 12, color: p.description ? "#6B7168" : "#D64933", textDecoration: "underline", cursor: "pointer", textAlign: "left" }}>
-                        {p.description ? "📝 " + p.description.replace(/<[^>]*>/g, " ").trim().slice(0, 40) + "..." : "📝 Ajouter une description (pour la boutique)"}
-                      </button>
-                    )}
-                    <button onClick={() => { setEditLivraisonId(editLivraisonId === p.id ? null : p.id); setEditLivraisonValeurs({ livraison_gratuite: !!p.livraison_gratuite, frais_livraison_produit: p.frais_livraison_produit ?? "", frais_expedition_produit: p.frais_expedition_produit ?? "", bundles: Array.isArray(p.bundles) ? p.bundles : [] }); }} style={{ display: "block", background: "none", border: "none", padding: 0, marginTop: 6, fontSize: 12, color: (p.livraison_gratuite || p.frais_livraison_produit != null || (p.bundles || []).length > 0) ? "#1a7a3c" : "#6B7168", textDecoration: "underline", cursor: "pointer", textAlign: "left" }}>
-                      🚚 Livraison & 🎁 Bundles{p.livraison_gratuite ? " — Gratuite" : ""}{(p.bundles || []).length > 0 ? ` — ${p.bundles.length} bundle(s)` : ""}
-                    </button>
-                  </div>
-                  <button onClick={() => onDelete(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>
-                </div>
-
-                {editLivraisonId === p.id && (
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #ECE8DC" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
-                      <input type="checkbox" checked={editLivraisonValeurs.livraison_gratuite} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, livraison_gratuite: e.target.checked }))} />
-                      🎁 Livraison gratuite pour ce produit
-                    </label>
-                    {!editLivraisonValeurs.livraison_gratuite && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
-                        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Frais livraison locale ({currency})
-                          <input type="number" placeholder="Frais boutique par défaut" value={editLivraisonValeurs.frais_livraison_produit} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, frais_livraison_produit: e.target.value }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, marginTop: 3, boxSizing: "border-box" }} />
-                        </label>
-                        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Frais expédition ({currency})
-                          <input type="number" placeholder="Frais boutique par défaut" value={editLivraisonValeurs.frais_expedition_produit} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, frais_expedition_produit: e.target.value }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, marginTop: 3, boxSizing: "border-box" }} />
-                        </label>
-                      </div>
-                    )}
-                    <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 8 }}>Laisse vide pour utiliser les frais généraux de la boutique.</div>
-
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>🎁 Bundles de ce produit</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-                      {editLivraisonValeurs.bundles.map((b, i) => (
-                        <div key={b.id || i} style={{ border: "1px solid #ECE8DC", borderRadius: 8, padding: 8 }}>
-                          <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>
-                            <input placeholder="Nom (ex: Pack x2)" value={b.label} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
-                            <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer" }}>×</button>
-                          </div>
-                          <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>
-                            <input type="number" min="1" placeholder="Qté" value={b.qty} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x) }))} style={{ width: 60, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
-                            <select value={b.mode || "pourcentage"} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, mode: e.target.value } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5, background: "white" }}>
-                              <option value="pourcentage">Remise %</option>
-                              <option value="prix_fixe">Prix fixe</option>
-                            </select>
-                          </div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            {(b.mode || "pourcentage") === "prix_fixe" ? (
-                              <input type="number" min="0" placeholder={`Prix total pour ${b.qty} pièce(s) (${currency})`} value={b.prix_fixe ?? ""} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, prix_fixe: e.target.value === "" ? "" : Math.max(0, Number(e.target.value) || 0) } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
-                            ) : (
-                              <input type="number" min="0" max="90" placeholder="Remise %" value={b.discount ?? ""} onChange={(e) => setEditLivraisonValeurs((v) => ({ ...v, bundles: v.bundles.map((x, j) => j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x) }))} style={{ flex: 1, padding: "5px 7px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={() => setEditLivraisonValeurs((v) => ({ ...v, bundles: [...v.bundles, { id: "b" + Date.now(), qty: (v.bundles.length || 0) + 2, label: "Pack x" + ((v.bundles.length || 0) + 2), mode: "pourcentage", discount: 10 }] }))} style={{ width: "100%", border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: 7, fontSize: 11, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 8 }}>＋ Ajouter un bundle</button>
-
-                    <button onClick={() => { onUpdateLivraisonBundles(p.id, { livraison_gratuite: editLivraisonValeurs.livraison_gratuite, frais_livraison_produit: editLivraisonValeurs.frais_livraison_produit === "" ? null : Number(editLivraisonValeurs.frais_livraison_produit), frais_expedition_produit: editLivraisonValeurs.frais_expedition_produit === "" ? null : Number(editLivraisonValeurs.frais_expedition_produit), bundles: editLivraisonValeurs.bundles }); setEditLivraisonId(null); }} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      Enregistrer
-                    </button>
-                  </div>
-                )}
-
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #ECE8DC" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase" }}>Stock acheté</span>
-                    {editStockId === p.id ? (
-                      <div style={{ display: "flex", gap: 5 }}>
-                        <input type="number" value={editStockValue} onChange={(e) => setEditStockValue(e.target.value)} autoFocus style={{ width: 65, padding: "4px 6px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
-                        <button onClick={() => { onUpdateStock(p.id, editStockValue); setEditStockId(null); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 6, padding: "0 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>OK</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditStockId(p.id); setEditStockValue(String(p.stock_initial || 0)); }} style={{ background: "none", border: "none", padding: 0, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 13, color: "#16231F", textDecoration: "underline", cursor: "pointer" }}>
-                        {stock} pièces
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 5 }}>
-                    <div style={{ flex: 1, background: "#FBF3E3", borderRadius: 7, padding: "5px 7px", textAlign: "center" }}>
-                      <div style={{ fontSize: 9.5, color: "#8A6412" }}>Engagé</div>
-                      <div style={{ fontWeight: 700, fontSize: 12.5, color: "#8A6412" }}>{q.commandees}</div>
-                    </div>
-                    <div style={{ flex: 1, background: "#EAF7F1", borderRadius: 7, padding: "5px 7px", textAlign: "center" }}>
-                      <div style={{ fontSize: 9.5, color: "#1F9D6E" }}>Livré</div>
-                      <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1F9D6E" }}>{q.livrees}</div>
-                    </div>
-                    <div style={{ flex: 1, background: restant <= 5 && stock > 0 ? "#FBEAE6" : "#EAF3DE", borderRadius: 7, padding: "5px 7px", textAlign: "center" }}>
-                      <div style={{ fontSize: 9.5, color: restant <= 5 && stock > 0 ? "#D64933" : "#3B6D11" }}>Restant</div>
-                      <div style={{ fontWeight: 700, fontSize: 12.5, color: restant <= 5 && stock > 0 ? "#D64933" : "#3B6D11" }}>{stock > 0 ? restant : "—"}</div>
-                    </div>
-                  </div>
-                  {stock > 0 && restant <= 5 && restant > 0 && (
-                    <div style={{ fontSize: 10, color: "#D64933", marginTop: 4, fontWeight: 600 }}>⚠️ Stock bientôt épuisé</div>
-                  )}
-                  {stock > 0 && restant <= 0 && (
-                    <div style={{ fontSize: 10, color: "#D64933", marginTop: 4, fontWeight: 600 }}>🔴 Stock épuisé</div>
-                  )}
-                </div>
+        <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "330px minmax(0, 1fr)" }}>
+          <aside className="rv-produits-sidebar" style={{ minWidth: 0, background: "#fff", borderRight: "1px solid #E1E6E2", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: 14, borderBottom: "1px solid #E8ECE9" }}>
+              <div style={{ display: "flex", gap: 7 }}>
+                <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="🔎 Rechercher un produit…" style={{ flex: 1, minWidth: 0, padding: "10px 11px", border: "1px solid #D9E0DB", borderRadius: 9, fontSize: 12.5, outline: "none" }} />
               </div>
-            );
-          })}
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+              {produitsFiltres.map((p) => {
+                const stats = quantitesParProduit[p.nom] || {};
+                const stock = Number(p.stock_initial || 0);
+                const restant = Math.max(0, stock - Number(stats.commandees || 0));
+                const selected = p.id === produitSelectionneId;
+                return (
+                  <button key={p.id} onClick={() => setProduitSelectionneId(p.id)} style={{ width: "100%", textAlign: "left", display: "grid", gridTemplateColumns: "58px minmax(0,1fr) auto", gap: 10, alignItems: "center", padding: 9, marginBottom: 5, border: selected ? "2px solid #1a7a3c" : "1px solid #E5E9E6", borderRadius: 11, background: selected ? "#F1F8F3" : "#fff", cursor: "pointer" }}>
+                    {p.photo_url ? <img src={p.photo_url} alt="" style={{ width: 58, height: 58, objectFit: "cover", borderRadius: 8, border: "1px solid #E0E5E1" }} /> : <div style={{ width: 58, height: 58, borderRadius: 8, background: "#EEF3EF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🛍️</div>}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 12.5, color: "#17241D", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.nom}</div>
+                      <div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 750, marginTop: 4 }}>{Number(p.prix_vente || 0).toLocaleString("fr-FR")} {currency}</div>
+                      <div style={{ fontSize: 10, color: restant <= 5 && stock > 0 ? "#D64933" : "#7A857E", marginTop: 2 }}>{stock > 0 ? `${restant} restant${restant > 1 ? "s" : ""}` : "Stock non défini"}</div>
+                    </div>
+                    <div style={{ textAlign: "right", fontSize: 10, color: "#7A857E" }}><div>↗ {stats.commandees || 0}</div><div style={{ marginTop: 4 }}>✓ {stats.livrees || 0}</div></div>
+                  </button>
+                );
+              })}
+              {!produitsFiltres.length && <div style={{ padding: 30, textAlign: "center", color: "#7A857E", fontSize: 12 }}>Aucun produit trouvé.</div>}
+            </div>
+            <div style={{ padding: 12, borderTop: "1px solid #E8ECE9", background: "#FAFBFA" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#47534C", marginBottom: 7 }}>Ajouter rapidement</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: 6 }}>
+                <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom du produit" style={{ width: "100%", boxSizing: "border-box", padding: "9px", border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11.5 }} />
+                <input type="number" min="0" value={cout} onChange={(e) => setCout(e.target.value)} placeholder="Coût" style={{ width: "100%", boxSizing: "border-box", padding: "9px", border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11.5 }} />
+              </div>
+              <button onClick={ajouter} style={{ marginTop: 6, width: "100%", border: 0, borderRadius: 8, padding: 9, background: "#16231F", color: "#fff", fontWeight: 800, cursor: "pointer", fontSize: 11.5 }}>＋ Ajouter le produit</button>
+            </div>
+          </aside>
+
+          <main className="rv-produits-editor" style={{ minWidth: 0, overflowY: "auto", padding: 18 }}>
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: 10, fontWeight: 750, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer", marginBottom: 12 }}>
+              {importEnCours ? "Import en cours…" : "📥 Importer un catalogue CSV Shopify ou autre"}
+              <input type="file" accept=".csv" style={{ display: "none" }} disabled={importEnCours} onChange={async (e) => {
+                const fichier = e.target.files?.[0];
+                if (!fichier) return;
+                setImportEnCours(true);
+                setResultatImport(null);
+                try {
+                  const texte = await fichier.text();
+                  const brut = parserCSV(texte);
+                  const mappe = mapperColonnesShopify(brut);
+                  if (!mappe.length) setResultatImport({ succes: false, message: 'Aucun produit reconnu. Vérifie la colonne "Title" ou "nom".' });
+                  else {
+                    const resultat = await onImportCSV(mappe);
+                    setResultatImport({ succes: !!resultat.succes, message: resultat.succes ? `${resultat.importes} produit${resultat.importes > 1 ? "s" : ""} importé${resultat.importes > 1 ? "s" : ""}.` : (resultat.message || "Erreur lors de l'import.") });
+                  }
+                } catch (err) { setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + err.message }); }
+                setImportEnCours(false);
+                e.target.value = "";
+              }} />
+            </label>
+            {resultatImport && <div style={{ marginBottom: 12, padding: 9, borderRadius: 8, background: resultatImport.succes ? "#EAF7F1" : "#FBEAE6", color: resultatImport.succes ? "#1a7a3c" : "#B33B27", fontSize: 11, fontWeight: 700 }}>{resultatImport.message}</div>}
+
+            {!produitSelectionne ? (
+              <div style={{ minHeight: 450, background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 30, color: "#728078" }}>
+                <div><div style={{ fontSize: 42 }}>🛍️</div><div style={{ fontWeight: 800, color: "#27342D", marginTop: 8 }}>Sélectionne un produit</div><div style={{ fontSize: 12, marginTop: 4 }}>La fiche complète du produit apparaîtra ici.</div></div>
+              </div>
+            ) : (
+              <>
+                <div style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 10, textTransform: "uppercase", color: "#7A857E", letterSpacing: ".07em", fontWeight: 800 }}>Produit sélectionné</div>
+                      <input value={draft.nom} onChange={(e) => setChamp(produitSelectionne, "nom", e.target.value)} disabled style={{ marginTop: 5, width: "100%", boxSizing: "border-box", border: 0, padding: 0, background: "transparent", fontSize: 22, fontWeight: 850, color: "#16231F" }} />
+                    </div>
+                    <button onClick={() => supprimerProduit(produitSelectionne)} style={{ border: "1px solid #F0C8C0", background: "#FFF7F5", color: "#D64933", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 750, cursor: "pointer" }}>🗑️ Supprimer</button>
+                  </div>
+                </div>
+
+                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#16231F" }}>🖼️ Médias</h3>
+                  <p style={{ margin: "0 0 12px", fontSize: 11, color: "#7A857E" }}>Image principale et jusqu'à 6 photos supplémentaires.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 14 }}>
+                    <div>
+                      {produitSelectionne.photo_url ? <img src={produitSelectionne.photo_url} alt="" style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 11, border: "1px solid #DCE3DE" }} /> : <div style={{ width: 140, height: 140, borderRadius: 11, background: "#EEF3EF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38 }}>🛍️</div>}
+                    </div>
+                    <div>
+                      <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 14px", borderRadius: 8, background: "#16231F", color: "#fff", fontSize: 11.5, fontWeight: 750, cursor: "pointer" }}>
+                        {photoEnvoiId === produitSelectionne.id ? "Envoi…" : "📷 Remplacer l'image principale"}
+                        <input type="file" accept="image/*" style={{ display: "none" }} disabled={photoEnvoiId === produitSelectionne.id} onChange={(e) => envoyerPhoto(produitSelectionne.id, e.target.files?.[0])} />
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(55px, 1fr))", gap: 7, marginTop: 12 }}>
+                        {(produitSelectionne.photos_galerie || []).map((url, i) => <div key={url + i} style={{ position: "relative" }}><img src={url} alt="" style={{ width: "100%", height: 65, objectFit: "cover", borderRadius: 7, border: "1px solid #DCE3DE" }} /><button onClick={() => retirerPhotoGalerie(produitSelectionne, url)} style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, border: 0, borderRadius: "50%", background: "#D64933", color: "#fff", cursor: "pointer", lineHeight: 1 }}>×</button></div>)}
+                        {(produitSelectionne.photos_galerie || []).length < 6 && <label style={{ minHeight: 65, border: "1px dashed #AFC0B4", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: 10, color: "#1a7a3c", fontWeight: 700, cursor: "pointer", padding: 5 }}>{galerieEnvoiId === produitSelectionne.id ? "Envoi…" : "＋ Photo"}<input type="file" accept="image/*" style={{ display: "none" }} disabled={galerieEnvoiId === produitSelectionne.id} onChange={(e) => ajouterPhotoGalerie(produitSelectionne, e.target.files?.[0])} /></label>}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#16231F" }}>📝 Description</h3>
+                  <p style={{ margin: "0 0 10px", fontSize: 11, color: "#7A857E" }}>Cette description est visible par les clients dans la boutique.</p>
+                  <textarea value={draft.description} onChange={(e) => setChamp(produitSelectionne, "description", e.target.value)} onBlur={() => sauvegarderChamp(produitSelectionne, "description")} rows={7} placeholder="Décris ton produit…" style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 12, border: "1px solid #D9E0DB", borderRadius: 9, fontFamily: "inherit", fontSize: 13, lineHeight: 1.5, outline: "none" }} />
+                  {enregistrements[`${produitSelectionne.id}:description`] === "saved" && <div style={{ color: "#1a7a3c", fontSize: 11, fontWeight: 700, marginTop: 4 }}>✓ Enregistré</div>}
+                </section>
+
+                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#16231F" }}>💰 Tarification</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+                    {champNumerique(produitSelectionne, "prix_vente", "Prix de vente")}
+                    {champNumerique(produitSelectionne, "cout_achat", "Coût d'achat")}
+                    {champNumerique(produitSelectionne, "frais_import_unitaire", "Frais d'import")}
+                  </div>
+                  <div style={{ marginTop: 12, padding: 10, background: "#F7F9F7", borderRadius: 9, fontSize: 11, color: "#58635C" }}>Marge estimée : <b style={{ color: "#16231F" }}>{(Number(draft.prix_vente || 0) - Number(draft.cout_achat || 0) - Number(draft.frais_import_unitaire || 0)).toLocaleString("fr-FR")} {currency}</b></div>
+                </section>
+
+                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#16231F" }}>📦 Inventaire</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {champNumerique(produitSelectionne, "stock_initial", "Stock acheté", "pièces")}
+                    <div><label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#27342D", marginBottom: 6 }}>Stock restant</label><div style={{ padding: "11px 12px", border: "1px solid #E2E8E3", borderRadius: 9, background: "#F7F9F7", fontWeight: 850, fontSize: 14 }}>{Math.max(0, Number(draft.stock_initial || 0) - Number(q.commandees || 0))} pièces</div></div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
+                    {[['Engagé', q.commandees || 0], ['Livré', q.livrees || 0], ['Restant', Math.max(0, Number(draft.stock_initial || 0) - Number(q.commandees || 0))]].map(([label, value]) => <div key={label} style={{ background: "#F7F9F7", borderRadius: 8, padding: 9, textAlign: "center" }}><div style={{ fontSize: 10, color: "#7A857E" }}>{label}</div><div style={{ fontSize: 15, fontWeight: 850, marginTop: 2, color: "#16231F" }}>{value}</div></div>)}
+                  </div>
+                </section>
+
+                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#16231F" }}>🚚 Livraison & Bundles</h3>
+                  <p style={{ margin: "0 0 12px", fontSize: 11, color: "#7A857E" }}>Ces réglages sont enregistrés automatiquement en quittant les champs.</p>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, marginBottom: 12, cursor: "pointer" }}><input type="checkbox" checked={!!draft.livraison_gratuite} onChange={(e) => setChamp(produitSelectionne, "livraison_gratuite", e.target.checked)} onBlur={() => sauvegarderLivraison(produitSelectionne)} /> Livraison gratuite pour ce produit</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {champNumerique(produitSelectionne, "frais_livraison_produit", "Frais de livraison")}
+                    {champNumerique(produitSelectionne, "frais_expedition_produit", "Frais d'expédition")}
+                  </div>
+                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #E8ECE9" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#27342D", marginBottom: 8 }}>Bundles / Packs</div>
+                    {(draft.bundles || []).map((b, i) => <div key={b.id || i} style={{ display: "grid", gridTemplateColumns: "70px 1fr 110px 28px", gap: 7, alignItems: "center", marginBottom: 7 }}>
+                      <input type="number" min="1" value={b.qty ?? 1} onChange={(e) => setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles: draft.bundles.map((x, j) => j === i ? { ...x, qty: Number(e.target.value) || 1 } : x) } }))} onBlur={() => sauvegarderLivraison(produitSelectionne)} style={{ padding: 9, border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11 }} />
+                      <input value={b.label || ""} onChange={(e) => setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles: draft.bundles.map((x, j) => j === i ? { ...x, label: e.target.value } : x) } }))} onBlur={() => sauvegarderLivraison(produitSelectionne)} placeholder="Nom du pack" style={{ padding: 9, border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11 }} />
+                      <input type="number" min="0" max="90" value={b.discount ?? 0} onChange={(e) => setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles: draft.bundles.map((x, j) => j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x) }))} onBlur={() => sauvegarderLivraison(produitSelectionne)} placeholder="Remise %" style={{ padding: 9, border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11 }} />
+                      <button onClick={() => { const bundles = draft.bundles.filter((_, j) => j !== i); setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles } })); window.setTimeout(() => sauvegarderLivraison({ ...produitSelectionne, bundles }), 0); }} style={{ width: 28, height: 28, border: "1px solid #F0C8C0", background: "#FFF7F5", color: "#D64933", borderRadius: 7, cursor: "pointer" }}>×</button>
+                    </div>)}
+                    <button onClick={() => { const bundles = [...(draft.bundles || []), { id: "b" + Date.now(), qty: (draft.bundles?.length || 0) + 2, label: "Pack x" + ((draft.bundles?.length || 0) + 2), mode: "pourcentage", discount: 10 }]; setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles } })); window.setTimeout(() => sauvegarderLivraison({ ...produitSelectionne, bundles }), 0); }} style={{ width: "100%", border: "1px dashed #9FB5A5", background: "#F7FAF7", color: "#1a7a3c", borderRadius: 8, padding: 9, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>＋ Ajouter un bundle</button>
+                    {bundleEnCours && <div style={{ fontSize: 11, color: "#7A857E", marginTop: 5 }}>Enregistrement…</div>}
+                  </div>
+                </section>
+
+                <div style={{ padding: "8px 2px 18px", color: "#7A857E", fontSize: 10.5 }}>✓ Les champs de prix, coût, frais et stock sont sauvegardés automatiquement quand tu quittes le champ.</div>
+              </>
+            )}
+          </main>
         </div>
       </div>
+      <style>{`@media (max-width: 760px){.rv-produits-modal-inner{max-height:96vh!important;height:96vh!important}.rv-produits-grid{grid-template-columns:1fr!important}.rv-produits-sidebar{max-height:38vh!important;border-right:0!important;border-bottom:1px solid #E1E6E2}.rv-produits-editor{max-height:none!important}.rv-produits-stats{grid-template-columns:repeat(2,1fr)!important}}`}</style>
     </div>
   );
 }
+
 
 function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);

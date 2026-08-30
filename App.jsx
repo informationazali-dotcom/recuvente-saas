@@ -5795,6 +5795,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [confirmSuppr, setConfirmSuppr] = useState(null);
+  const [creationEnCours, setCreationEnCours] = useState(false);
+  const [creationErreur, setCreationErreur] = useState("");
+  const [derniereCreation, setDerniereCreation] = useState("");
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
@@ -5879,12 +5882,27 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   async function ajouter() {
     if (!nouveauNom.trim()) return;
-    const resultat = await onAdd({ nom: nouveauNom.trim(), cout_achat: nouveauCout });
+    setCreationEnCours(true);
+    setCreationErreur("");
+    const nomCree = nouveauNom.trim();
+    let resultat = null;
+    try {
+      resultat = await onAdd({ nom: nomCree, cout_achat: nouveauCout });
+    } catch (e) {
+      resultat = null;
+    }
+    setCreationEnCours(false);
+    if (!resultat) {
+      setCreationErreur("La création a échoué. Vérifie ta connexion et réessaie.");
+      return;
+    }
     setNouveauNom("");
     setNouveauCout("");
     setAjoutOuvert(false);
     // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
     if (resultat?.id) setSelectedId(resultat.id);
+    setDerniereCreation(nomCree);
+    setTimeout(() => setDerniereCreation((n) => (n === nomCree ? "" : n)), 3500);
   }
 
   const totalStock = produits.reduce((s, p) => s + Number(p.stock_initial || 0), 0);
@@ -5941,7 +5959,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
                 <input placeholder="Nom du produit" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
                 <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
-                <button onClick={ajouter} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Créer le produit</button>
+                {creationErreur && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8, fontWeight: 600 }}>⚠️ {creationErreur}</div>}
+                <button onClick={ajouter} disabled={creationEnCours || !nouveauNom.trim()} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: creationEnCours ? "default" : "pointer", opacity: creationEnCours || !nouveauNom.trim() ? 0.6 : 1 }}>{creationEnCours ? "Création..." : "Créer le produit"}</button>
               </div>
             )}
 
@@ -6025,6 +6044,11 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
           {/* ===== Colonne droite : éditeur détaillé ===== */}
           <div className="rv-pm-detail" style={{ overflowY: "auto", padding: "22px 28px 60px" }}>
+            {derniereCreation && (
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, marginBottom: 16 }}>
+                ✅ « {derniereCreation} » a été créé et ajouté au catalogue.
+              </div>
+            )}
             {!selected ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8A9089", fontSize: 13.5, textAlign: "center", flexDirection: "column", gap: 10 }}>
                 <div style={{ fontSize: 38 }}>📦</div>

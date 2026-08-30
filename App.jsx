@@ -5971,7 +5971,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
-  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "" });
+  const [optionsProduit, setOptionsProduit] = useState([{ nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }]);
+  const [variantesListe, setVariantesListe] = useState([]);
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
 
   const produitsFiltres = recherche.trim()
@@ -5994,13 +5996,39 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         frais_expedition_produit: selected.frais_expedition_produit ?? "",
         bundles: Array.isArray(selected.bundles) ? selected.bundles : [],
         masquer_produits_similaires: !!selected.masquer_produits_similaires,
+        bump_produit_id: selected.bump_produit_id || "",
+        bump_prix_special: selected.bump_prix_special ?? "",
       });
+      const optsExistantes = Array.isArray(selected.options) ? selected.options : [];
+      setOptionsProduit([0, 1, 2].map((i) => optsExistantes[i] ? { nom: optsExistantes[i].nom || "", valeursTexte: (optsExistantes[i].valeurs || []).join(", ") } : { nom: "", valeursTexte: "" }));
+      setVariantesListe(Array.isArray(selected.variantes) ? selected.variantes.map((v) => ({ ...v, prix: v.prix ?? "", stock: v.stock ?? "" })) : []);
     }
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function flash(nom) {
     setSavedFlash(nom);
     setTimeout(() => setSavedFlash((f) => (f === nom ? null : f)), 1600);
+  }
+
+  function regenererVariantes() {
+    const optionsValides = optionsProduit.filter((o) => o.nom.trim() && o.valeursTexte.trim());
+    if (optionsValides.length === 0) { setVariantesListe([]); return; }
+    const listesValeurs = optionsValides.map((o) => o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean));
+    let combos = [{}];
+    optionsValides.forEach((o, i) => {
+      const nouvelles = [];
+      combos.forEach((c) => {
+        listesValeurs[i].forEach((v) => { nouvelles.push({ ...c, [o.nom.trim()]: v }); });
+      });
+      combos = nouvelles;
+    });
+    setVariantesListe((ancienneListe) =>
+      combos.map((combinaison) => {
+        const cle = JSON.stringify(combinaison);
+        const existant = ancienneListe.find((v) => JSON.stringify(v.combinaison) === cle);
+        return existant || { id: "v" + Date.now() + Math.random().toString(36).slice(2), combinaison, prix: "", stock: "" };
+      })
+    );
   }
 
   async function envoyerPhoto(produitId, fichier) {
@@ -6310,6 +6338,52 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   {(savedFlash === "prix" || savedFlash === "cout" || savedFlash === "frais") && <ConfirmationEnregistre />}
                 </Carte>
 
+                {/* --- Carte Variantes --- */}
+                <Carte titre="🎨 Variantes">
+                  <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.5 }}>
+                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Laisse un prix vide pour garder le prix de vente par défaut.
+                  </div>
+                  <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
+                    {optionsProduit.map((o, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6 }}>
+                        <input placeholder={`Option ${i + 1} (ex: ${["Couleur", "Taille", "Matière"][i]})`} value={o.nom} onChange={(e) => setOptionsProduit((liste) => liste.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+                        <input placeholder="Valeurs séparées par des virgules" value={o.valeursTexte} onChange={(e) => setOptionsProduit((liste) => liste.map((x, j) => (j === i ? { ...x, valeursTexte: e.target.value } : x)))} style={{ flex: 2, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={regenererVariantes} style={{ border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 14 }}>
+                    🔄 Générer les variantes
+                  </button>
+
+                  {variantesListe.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+                      {variantesListe.map((v, i) => (
+                        <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #ECE8DC", borderRadius: 9, padding: "8px 10px" }}>
+                          <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "#16231F" }}>{Object.values(v.combinaison).join(" / ")}</div>
+                          <input type="number" placeholder={`Prix (${currency})`} value={v.prix} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, prix: e.target.value } : x)))} style={{ width: 100, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                          <input type="number" placeholder="Stock" value={v.stock} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, stock: e.target.value } : x)))} style={{ width: 70, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <button
+                      onClick={() => {
+                        onUpdateLivraisonBundles(selected.id, {
+                          options: optionsProduit.filter((o) => o.nom.trim() && o.valeursTexte.trim()).map((o) => ({ nom: o.nom.trim(), valeurs: o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean) })),
+                          variantes: variantesListe.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: v.stock === "" ? 0 : Number(v.stock) })),
+                        });
+                        flash("variantes");
+                      }}
+                      style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Enregistrer les variantes
+                    </button>
+                    {savedFlash === "variantes" && <ConfirmationEnregistre inline />}
+                  </div>
+                </Carte>
+
                 {/* --- Carte Inventaire --- */}
                 <Carte titre="📦 Inventaire">
                   <div className="rv-pm-grid2">
@@ -6377,6 +6451,20 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     </label>
                   </div>
 
+                  <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 12, marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#344239", marginBottom: 6 }}>➕ Order bump (proposé juste avant la validation de commande)</div>
+                    <select value={livraison.bump_produit_id} onChange={(e) => setLivraison((v) => ({ ...v, bump_produit_id: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8 }}>
+                      <option value="">Aucun order bump pour ce produit</option>
+                      {produits.filter((p) => p.id !== selected.id).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                    </select>
+                    {livraison.bump_produit_id && (
+                      <>
+                        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Prix spécial pour ce bump (optionnel — laisse vide pour garder son prix normal)</div>
+                        <input type="number" min="0" placeholder={`Prix normal si vide (${currency})`} value={livraison.bump_prix_special} onChange={(e) => setLivraison((v) => ({ ...v, bump_prix_special: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+                      </>
+                    )}
+                  </div>
+
                   <div>
                     <button
                       onClick={() => {
@@ -6386,6 +6474,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           frais_expedition_produit: livraison.frais_expedition_produit === "" ? null : Number(livraison.frais_expedition_produit),
                           bundles: livraison.bundles,
                           masquer_produits_similaires: livraison.masquer_produits_similaires,
+                          bump_produit_id: livraison.bump_produit_id || null,
+                          bump_prix_special: livraison.bump_prix_special === "" ? null : Number(livraison.bump_prix_special),
                         });
                         flash("livraison");
                       }}

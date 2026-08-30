@@ -1360,7 +1360,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   function GrilleProduits({ liste, max }) {
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12 }}>
+      <div className="rv-builder-grid-produits">
         {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} />)}
       </div>
     );
@@ -1428,7 +1428,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <div style={{ fontSize: 10, fontWeight: 950, color: "#b16b00", letterSpacing: ".08em" }}>🔥 OFFRES QUANTITÉ</div>
             <h3 style={{ margin: "5px 0", fontSize: 22, color: "#14221b" }}>Plus tu prends, plus tu économises</h3>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
+          <div className="rv-builder-grid-bundles">
             {(config.bundles || []).map((b, i) => {
               const total = Number(base) * b.qty * (1 - (Number(b.discount) || 0) / 100);
               return (
@@ -1483,7 +1483,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 9 }}>
+          <div className="rv-builder-grid-galerie">
             {config.gallery.map((u, i) => <img key={i} src={u} alt="" loading="lazy" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}
           </div>
         </div>
@@ -1550,6 +1550,22 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         @media (min-width: 640px) {
           .rv-collections-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); overflow: visible; }
           .rv-collections-item { flex: none; width: auto; }
+        }
+        .rv-builder-grid-produits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .rv-builder-grid-bundles { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .rv-builder-grid-galerie { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        @media (min-width: 640px) {
+          .rv-builder-grid-produits { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .rv-builder-grid-bundles { grid-template-columns: repeat(2, 1fr); }
+          .rv-builder-grid-galerie { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (min-width: 960px) {
+          .rv-builder-grid-produits { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+          .rv-builder-grid-bundles { grid-template-columns: repeat(3, 1fr); }
+          .rv-builder-grid-galerie { grid-template-columns: repeat(4, 1fr); }
+        }
+        @media (min-width: 1280px) {
+          .rv-builder-grid-produits { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />

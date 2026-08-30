@@ -911,6 +911,7 @@ export default function CataloguePublic({ workspaceId }) {
             </div>
           </div>
         )}
+        <BulleWhatsApp whatsapp={entreprise.whatsapp} messageDefaut={`Bonjour, j'ai une question sur "${produitOuvert.produit_nom}".`} surCtaBar={!envoye} />
       </div>
     );
   }
@@ -963,6 +964,7 @@ export default function CataloguePublic({ workspaceId }) {
         </div>
 
         <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+        <BulleWhatsApp whatsapp={entreprise.whatsapp} messageDefaut={`Bonjour, j'ai une question sur "${titreCollection}".`} />
       </div>
     );
   }
@@ -1167,6 +1169,7 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         </div>
       )}
+      <BulleWhatsApp whatsapp={entreprise.whatsapp} />
     </div>
   );
 }
@@ -1438,6 +1441,39 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 
 const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };
 
+function BulleWhatsApp({ whatsapp, messageDefaut, surCtaBar }) {
+  if (!whatsapp) return null;
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <div style={{ position: "fixed", right: 16, bottom: surCtaBar ? 96 : 20, zIndex: 40, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
+      {ouvert && (
+        <div style={{ background: "white", borderRadius: 14, boxShadow: "0 8px 28px rgba(0,0,0,0.18)", width: 250, padding: 14, border: "1px solid #ECE8DC" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>💬 Une question ?</div>
+            <button onClick={() => setOuvert(false)} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "#8A9089" }}>×</button>
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 12, lineHeight: 1.5 }}>Écris-nous directement sur WhatsApp, on répond vite.</div>
+          <a
+            href={`https://wa.me/${String(whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(messageDefaut || "Bonjour, j'ai une question.")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "block", textAlign: "center", background: "#168a45", color: "white", borderRadius: 9, padding: "10px 0", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
+          >
+            Ouvrir la conversation
+          </a>
+        </div>
+      )}
+      <button
+        onClick={() => setOuvert((o) => !o)}
+        aria-label="Contact WhatsApp"
+        style={{ width: 54, height: 54, borderRadius: "50%", background: "#168a45", color: "white", border: "none", fontSize: 26, cursor: "pointer", boxShadow: "0 6px 18px rgba(22,138,69,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        💬
+      </button>
+    </div>
+  );
+}
+
 function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL }) {
   const devise = entreprise.devise;
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
@@ -1689,6 +1725,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         </div>
       )}
+      <BulleWhatsApp whatsapp={entreprise.whatsapp} />
     </div>
   );
 }

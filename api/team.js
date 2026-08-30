@@ -5,14 +5,26 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-async function verifierProprietaire(workspaceId, userId) {
+// Autorise le vrai propriétaire, OU un membre avec le rôle "rh"
+// (le rôle RH ne peut cependant pas créer d'autres comptes admin/rh — voir plus bas)
+async function peutGererEquipe(workspaceId, userId) {
   const { data: ws, error } = await supabaseAdmin
     .from("workspaces")
     .select("owner_id")
     .eq("id", workspaceId)
     .single();
   if (error || !ws) return null;
-  return ws.owner_id === userId ? ws : false;
+  if (ws.owner_id === userId) return { ws, viaRole: "owner" };
+
+  const { data: membre } = await supabaseAdmin
+    .from("workspace_members")
+    .select("role")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (membre && membre.role === "rh") return { ws, viaRole: "rh" };
+  return false;
 }
 
 export default async function handler(req, res) {
@@ -64,8 +76,15 @@ export default async function handler(req, res) {
     const { email, password, role, titre } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Champs manquants" });
 
-    const ws = await verifierProprietaire(workspaceId, userData.user.id);
-    if (!ws) return res.status(403).json({ error: "Seul le propriétaire peut inviter des membres" });
+    const autorisation = await peutGererEquipe(workspaceId, userData.user.id);
+    if (!autorisation) return res.status(403).json({ error: "Seul le propriétaire ou une personne RH peut inviter des membres" });
+
+    // Le rôle RH ne peut pas créer de comptes admin ou rh (pas d'auto-élévation de privilèges)
+    if (autorisation.viaRole === "rh" && (role === "admin" || role === "rh")) {
+      return res.status(403).json({ error: "Le rôle RH ne peut inviter que des Closers, Livreurs ou Comptables. Seul le propriétaire peut créer un Admin ou un autre RH." });
+    }
+
+    const ws = autorisation.ws;
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -113,11 +132,26 @@ export default async function handler(req, res) {
     const { memberUserId } = req.body;
     if (!memberUserId) return res.status(400).json({ error: "memberUserId manquant" });
 
-    const ws = await verifierProprietaire(workspaceId, userData.user.id);
-    if (!ws) return res.status(403).json({ error: "Seul le propriétaire peut retirer un membre" });
+    const autorisation = await peutGererEquipe(workspaceId, userData.user.id);
+    if (!autorisation) return res.status(403).json({ error: "Seul le propriétaire ou une personne RH peut retirer un membre" });
+
+    const ws = autorisation.ws;
 
     if (memberUserId === ws.owner_id) {
       return res.status(400).json({ error: "Impossible de retirer le propriétaire de son propre espace" });
+    }
+
+    // Le rôle RH ne peut pas retirer un admin ou un autre RH (protège contre les abus)
+    if (autorisation.viaRole === "rh") {
+      const { data: cible } = await supabaseAdmin
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", memberUserId)
+        .maybeSingle();
+      if (cible && (cible.role === "admin" || cible.role === "rh")) {
+        return res.status(403).json({ error: "Le rôle RH ne peut pas retirer un Admin ou un autre RH." });
+      }
     }
 
     const { error: deleteError } = await supabaseAdmin

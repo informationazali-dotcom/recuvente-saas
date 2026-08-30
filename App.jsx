@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
+import CataloguePublic from "./CataloguePublic.jsx";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -209,6 +210,21 @@ export default function App() {
   });
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [showAjouterEspace, setShowAjouterEspace] = useState(false);
+  const [domaineWorkspaceId, setDomaineWorkspaceId] = useState(null);
+  const [domaineVerifie, setDomaineVerifie] = useState(false);
+
+  useEffect(() => {
+    const hote = typeof window !== "undefined" ? window.location.hostname : "";
+    const domainesConnus = ["localhost", "127.0.0.1"];
+    if (domainesConnus.includes(hote) || hote.endsWith(".vercel.app")) {
+      setDomaineVerifie(true);
+      return;
+    }
+    supabase.rpc("workspace_par_domaine", { p_domaine: hote }).then(({ data }) => {
+      setDomaineWorkspaceId(data || null);
+      setDomaineVerifie(true);
+    }).catch(() => setDomaineVerifie(true));
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -295,6 +311,12 @@ export default function App() {
     setLoadingWorkspace(false);
     setShowAjouterEspace(false);
   }
+
+  if (!domaineVerifie) return <Centered>Chargement…</Centered>;
+  if (domaineWorkspaceId) return <CataloguePublic workspaceId={domaineWorkspaceId} />;
+
+  const catalogueId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("catalogue") : null;
+  if (catalogueId) return <CataloguePublic workspaceId={catalogueId} />;
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
 

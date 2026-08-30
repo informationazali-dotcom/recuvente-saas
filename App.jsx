@@ -4034,7 +4034,7 @@ function TeamModal({ workspace, onClose }) {
               <div key={m.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
-                  <div style={{ fontSize: 11.5, color: "#6B7168" }}>{roleLabels[m.role] || m.role}</div>
+                  <div style={{ fontSize: 11.5, color: "#6B7168" }}>{m.titre ? `${m.titre} · ${roleLabels[m.role] || m.role}` : (roleLabels[m.role] || m.role)}</div>
                 </div>
                 {m.role !== "owner" && (
                   <button
@@ -4069,6 +4069,7 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("closer");
+  const [titre, setTitre] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -4091,7 +4092,7 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
       const res = await fetch("/api/team", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ action: "invite", workspaceId: workspace.id, email, password, role }),
+        body: JSON.stringify({ action: "invite", workspaceId: workspace.id, email, password, role, titre: titre.trim() || null }),
       });
       const json = await res.json().catch(() => ({ error: `Réponse invalide du serveur (code ${res.status})` }));
       if (!res.ok) setError(json.error || `Erreur (${res.status})`);
@@ -4113,12 +4114,22 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Inviter quelqu'un</div>
         <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
         <input placeholder="Mot de passe temporaire" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
-        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 6 }}>Rôle</div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 6 }}>Titre (optionnel — ex: CEO, Directeur Général, RH, Secrétaire...)</div>
+        <input placeholder="Ex: Directeur Général" value={titre} onChange={(e) => setTitre(e.target.value)} list="rv-titres-suggeres" style={inputStyle} />
+        <datalist id="rv-titres-suggeres">
+          <option value="CEO" />
+          <option value="Directeur Général" />
+          <option value="Ressources Humaines" />
+          <option value="Secrétaire" />
+          <option value="Responsable Ventes" />
+        </datalist>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 6 }}>Droits d'accès (rôle système)</div>
         <select value={role} onChange={(e) => setRole(e.target.value)} style={{ ...inputStyle, background: "white" }}>
           {roles.map((r) => (
             <option key={r.key} value={r.key}>{r.label}</option>
           ))}
         </select>
+        <div style={{ fontSize: 11, color: "#8A9089", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>Le titre est juste un libellé affiché. Ce sont les droits d'accès ci-dessus qui déterminent ce que cette personne peut voir et faire.</div>
         {error && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
         <button onClick={submit} disabled={loading} style={btnStyle}>
           {loading ? "Création..." : "Créer le compte"}

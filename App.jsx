@@ -6250,7 +6250,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                 <Carte titre="📝 Description">
                   <EditeurRiche
                     key={selected.id}
-                    valeur={champs.description}
+                    valeur={selected.description || ""}
                     onChange={(v) => setChamps((c) => ({ ...c, description: v }))}
                     workspaceId={workspaceId}
                     placeholder="Description visible par les clients en boutique"

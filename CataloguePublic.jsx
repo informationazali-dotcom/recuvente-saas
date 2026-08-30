@@ -44,6 +44,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [recherche, setRecherche] = useState("");
   const [collectionOuverte, setCollectionOuverte] = useState(null);
   const [bundleChoisiId, setBundleChoisiId] = useState(null);
+  const [produitBumpId, setProduitBumpId] = useState(null);
 
   function chargerPixelFacebook(pixelId) {
     if (!pixelId || window.fbq) return;
@@ -67,8 +68,55 @@ export default function CataloguePublic({ workspaceId }) {
     window.fbq("track", "PageView");
   }
 
+  function chargerPixelTiktok(pixelId) {
+    if (!pixelId || window.ttq) return;
+    (function (w, d, t) {
+      w.TiktokAnalyticsObject = t;
+      var ttq = (w[t] = w[t] || []);
+      ttq.methods = ["page", "track", "identify", "instances", "debug", "on", "off", "once", "ready", "alias", "group", "enableCookie", "disableCookie", "holdConsent", "revokeConsent", "grantConsent"];
+      ttq.setAndDefer = function (t, e) {
+        t[e] = function () {
+          t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+        };
+      };
+      for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+      ttq.instance = function (t) {
+        var e = ttq._i[t] || [];
+        for (var n = 0; n < ttq.methods.length; n++) ttq.setAndDefer(e, ttq.methods[n]);
+        return e;
+      };
+      ttq.load = function (e, n) {
+        var i = "https://analytics.tiktok.com/i18n/pixel/events.js";
+        ttq._i = ttq._i || {};
+        ttq._i[e] = [];
+        ttq._i[e]._u = i;
+        ttq._t = ttq._t || {};
+        ttq._t[e] = +new Date();
+        ttq._o = ttq._o || {};
+        ttq._o[e] = n || {};
+        var o = d.createElement("script");
+        o.type = "text/javascript";
+        o.async = !0;
+        o.src = i + "?sdkid=" + e + "&lib=" + t;
+        var a = d.getElementsByTagName("script")[0];
+        a.parentNode.insertBefore(o, a);
+      };
+      ttq.load(pixelId);
+      ttq.page();
+    })(window, document, "ttq");
+  }
+
   function trackEvenement(nom, params) {
     if (window.fbq) window.fbq("track", nom, params);
+    if (window.ttq) {
+      window.ttq.track(nom, {
+        content_id: params?.content_ids?.[0],
+        content_type: "product",
+        content_name: params?.content_name,
+        value: params?.value,
+        currency: params?.currency,
+      });
+    }
   }
 
   useEffect(() => {
@@ -99,6 +147,7 @@ export default function CataloguePublic({ workspaceId }) {
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
+      chargerPixelTiktok(data[0].tiktok_pixel_id);
       if (data[0].facebook_domain_verification) {
         const balise = document.createElement("meta");
         balise.name = "facebook-domain-verification";
@@ -138,6 +187,7 @@ export default function CataloguePublic({ workspaceId }) {
     setForm({ client: "", tel: "", zone: "" });
     setQuantite(1);
     setBundleChoisiId(null);
+    setProduitBumpId(null);
     setTypeLivraisonChoisi(entreprise?.fraisExpedition > 0 ? null : "livraison");
     setPhotoActive(0);
     setEnvoye(false);
@@ -203,12 +253,21 @@ export default function CataloguePublic({ workspaceId }) {
     setErreurEnvoi("");
     const bundleActifEnvoi = (Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : []).find((b) => b.id === bundleChoisiId) || null;
     const prixUnitaireEnvoi = prixUnitairePourBundle(produitOuvert.prix_vente, bundleActifEnvoi);
+    const produitBump = produitBumpId ? produits.find((p) => p.produit_id === produitBumpId) : null;
     const items = [{
       produit_id: produitOuvert.produit_id,
       produit_nom: produitOuvert.produit_nom,
       quantite: quantite,
       prix_unitaire: prixUnitaireEnvoi,
     }];
+    if (produitBump) {
+      items.push({
+        produit_id: produitBump.produit_id,
+        produit_nom: produitBump.produit_nom,
+        quantite: 1,
+        prix_unitaire: Number(produitBump.prix_vente),
+      });
+    }
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
@@ -233,7 +292,7 @@ export default function CataloguePublic({ workspaceId }) {
     }
     trackEvenement("Lead", {
       content_ids: [produitOuvert.produit_id],
-      value: prixUnitaireEnvoi * quantite,
+      value: items.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0),
       currency: entreprise?.devise || "XOF",
     });
     setEnvoye(true);
@@ -777,11 +836,55 @@ export default function CataloguePublic({ workspaceId }) {
 
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
 
+              {(() => {
+                const candidatsBump = produits
+                  .filter((p) => p.produit_id !== produitOuvert.produit_id)
+                  .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))
+                  .slice(0, 3);
+                if (candidatsBump.length === 0) return null;
+                return (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>➕ Ajoute un produit à ta commande</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {candidatsBump.map((p) => {
+                        const choisi = produitBumpId === p.produit_id;
+                        return (
+                          <button
+                            key={p.produit_id}
+                            onClick={() => setProduitBumpId(choisi ? null : p.produit_id)}
+                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: choisi ? "#EAF3DE" : "white", border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+                          >
+                            <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, background: choisi ? couleur : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", flexShrink: 0 }}>{choisi ? "✓" : ""}</span>
+                            {p.photo_url ? (
+                              <img src={p.photo_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 32, height: 32, borderRadius: 6, background: "#EEF0EA", flexShrink: 0 }} />
+                            )}
+                            <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: couleur, flexShrink: 0 }}>+{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
                   <span>{(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} {entreprise.devise}</span>
                 </div>
+                {produitBumpId && (() => {
+                  const bump = produits.find((p) => p.produit_id === produitBumpId);
+                  if (!bump) return null;
+                  return (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#6B7168" }}>+ {bump.produit_nom}</span>
+                      <span>{Number(bump.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                    </div>
+                  );
+                })()}
                 {fraisLivraisonActuel > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
                     <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}</span>
@@ -790,7 +893,7 @@ export default function CataloguePublic({ workspaceId }) {
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
                   <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0) : 0)).toLocaleString("fr-FR")} {entreprise.devise}</span>
                 </div>
               </div>
 
@@ -803,7 +906,7 @@ export default function CataloguePublic({ workspaceId }) {
                 disabled={envoi}
                 style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1, marginTop: 4 }}
               >
-                {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>
             </div>
           </div>

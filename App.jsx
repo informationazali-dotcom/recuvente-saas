@@ -1459,9 +1459,17 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function addProduit(form) {
-    const { error } = await supabase.from("produits").insert([{ nom: form.nom, cout_achat: Number(form.cout_achat) || 0, workspace_id: workspace.id }]);
-    if (error) alert("Erreur: " + error.message);
-    else await loadProduits();
+    const { data, error } = await supabase
+      .from("produits")
+      .insert([{ nom: form.nom, cout_achat: Number(form.cout_achat) || 0, workspace_id: workspace.id }])
+      .select()
+      .single();
+    if (error) {
+      alert("Erreur: " + error.message);
+      return null;
+    }
+    await loadProduits();
+    return data;
   }
 
   async function importerProduitsCSV(lignes) {
@@ -5777,96 +5785,48 @@ function AvisModal({ workspaceId, onClose }) {
 }
 
 function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
-  const [nom, setNom] = useState("");
-  const [cout, setCout] = useState("");
+  const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
-  const [produitSelectionneId, setProduitSelectionneId] = useState(produits[0]?.id || null);
-  const [brouillons, setBrouillons] = useState({});
-  const [enregistrements, setEnregistrements] = useState({});
-  const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
-  const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
+  const [nouveauNom, setNouveauNom] = useState("");
+  const [nouveauCout, setNouveauCout] = useState("");
+  const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
-  const [bundleEnCours, setBundleEnCours] = useState(false);
+  const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
+  const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
+  const [confirmSuppr, setConfirmSuppr] = useState(null);
+
+  // États locaux du produit sélectionné (édition avant sauvegarde)
+  const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [] });
+  const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
+
+  const produitsFiltres = recherche.trim()
+    ? produits.filter((p) => p.nom.toLowerCase().includes(recherche.trim().toLowerCase()))
+    : produits;
+  const selected = produits.find((p) => p.id === selectedId) || null;
 
   useEffect(() => {
-    if (!produits.length) {
-      setProduitSelectionneId(null);
-      return;
-    }
-    if (!produits.some((p) => p.id === produitSelectionneId)) setProduitSelectionneId(produits[0].id);
-  }, [produits, produitSelectionneId]);
-
-  const produitSelectionne = produits.find((p) => p.id === produitSelectionneId) || null;
-
-  function valeursProduit(p) {
-    if (!p) return {};
-    return brouillons[p.id] || {
-      nom: p.nom || "",
-      cout_achat: p.cout_achat ?? 0,
-      frais_import_unitaire: p.frais_import_unitaire ?? 0,
-      prix_vente: p.prix_vente ?? 0,
-      stock_initial: p.stock_initial ?? 0,
-      description: p.description || "",
-      frais_livraison_produit: p.frais_livraison_produit ?? "",
-      frais_expedition_produit: p.frais_expedition_produit ?? "",
-      livraison_gratuite: !!p.livraison_gratuite,
-      bundles: Array.isArray(p.bundles) ? p.bundles : [],
-    };
-  }
-
-  function setChamp(p, champ, valeur) {
-    if (!p) return;
-    setBrouillons((prev) => ({ ...prev, [p.id]: { ...valeursProduit(p), [champ]: valeur } }));
-    setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "modified" }));
-  }
-
-  async function sauvegarderChamp(p, champ) {
-    if (!p) return;
-    const v = valeursProduit(p);
-    setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "saving" }));
-    try {
-      if (champ === "cout_achat") await onUpdateCout(p.id, v.cout_achat);
-      else if (champ === "frais_import_unitaire") await onUpdateFraisImport(p.id, v.frais_import_unitaire);
-      else if (champ === "prix_vente") await onUpdatePrixVente(p.id, v.prix_vente);
-      else if (champ === "stock_initial") await onUpdateStock(p.id, v.stock_initial);
-      else if (champ === "description") await onUpdateDescription(p.id, v.description);
-      else if (champ === "livraison") await onUpdateLivraisonBundles(p.id, {
-        livraison_gratuite: !!v.livraison_gratuite,
-        frais_livraison_produit: v.frais_livraison_produit === "" ? null : Number(v.frais_livraison_produit) || 0,
-        frais_expedition_produit: v.frais_expedition_produit === "" ? null : Number(v.frais_expedition_produit) || 0,
-        bundles: v.bundles || [],
+    if (selected) {
+      setChamps({
+        cout: String(selected.cout_achat ?? ""),
+        fraisImport: String(selected.frais_import_unitaire ?? ""),
+        prixVente: String(selected.prix_vente ?? ""),
+        stock: String(selected.stock_initial ?? ""),
+        description: selected.description || "",
       });
-      setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "saved" }));
-      window.setTimeout(() => setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "" })), 1800);
-    } catch (e) {
-      console.error(e);
-      setEnregistrements((prev) => ({ ...prev, [`${p.id}:${champ}`]: "error" }));
+      setLivraison({
+        livraison_gratuite: !!selected.livraison_gratuite,
+        frais_livraison_produit: selected.frais_livraison_produit ?? "",
+        frais_expedition_produit: selected.frais_expedition_produit ?? "",
+        bundles: Array.isArray(selected.bundles) ? selected.bundles : [],
+      });
     }
-  }
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function champNumerique(p, champ, label, suffix = currency, min = 0) {
-    const v = valeursProduit(p)[champ] ?? "";
-    const statut = enregistrements[`${p.id}:${champ}`];
-    return (
-      <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#27342D", marginBottom: 6 }}>{label}</label>
-        <div style={{ position: "relative" }}>
-          <input
-            type="number"
-            min={min}
-            value={v}
-            onChange={(e) => setChamp(p, champ, e.target.value)}
-            onBlur={() => sauvegarderChamp(p, champ)}
-            style={{ width: "100%", boxSizing: "border-box", padding: "11px 90px 11px 12px", border: "1px solid #D9E0DB", borderRadius: 9, fontSize: 14, outline: "none", background: "#fff" }}
-          />
-          {suffix && <span style={{ position: "absolute", right: 12, top: 11, color: "#7A857E", fontSize: 12, pointerEvents: "none" }}>{suffix}</span>}
-        </div>
-        {statut === "saved" && <div style={{ color: "#1a7a3c", fontSize: 11, fontWeight: 700, marginTop: 4 }}>✓ Enregistré</div>}
-        {statut === "saving" && <div style={{ color: "#7A857E", fontSize: 11, marginTop: 4 }}>Enregistrement…</div>}
-        {statut === "error" && <div style={{ color: "#D64933", fontSize: 11, fontWeight: 700, marginTop: 4 }}>Erreur d'enregistrement</div>}
-      </div>
-    );
+  function flash(nom) {
+    setSavedFlash(nom);
+    setTimeout(() => setSavedFlash((f) => (f === nom ? null : f)), 1600);
   }
 
   async function envoyerPhoto(produitId, fichier) {
@@ -5879,9 +5839,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     const fichierCompresse = await compresserImage(fichier);
     const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${produitId}-${Date.now()}.${extension}`;
-    const { error } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
-    if (error) {
-      alert("Erreur lors de l'envoi de la photo : " + error.message);
+    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+    if (erreurUpload) {
+      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
       setPhotoEnvoiId(null);
       return;
     }
@@ -5896,235 +5856,401 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       alert("L'image est trop lourde (max 5 Mo). Choisis une photo plus légère.");
       return;
     }
-    if ((produit.photos_galerie || []).length >= 6) return;
     setGalerieEnvoiId(produit.id);
     const fichierCompresse = await compresserImage(fichier);
     const extension = fichierCompresse.name.split(".").pop();
     const chemin = `${produit.id}-galerie-${Date.now()}.${extension}`;
-    const { error } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
-    if (error) {
-      alert("Erreur lors de l'envoi de la photo : " + error.message);
+    const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+    if (erreurUpload) {
+      alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message);
       setGalerieEnvoiId(null);
       return;
     }
     const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
-    await onUpdateGalerie(produit.id, [...(produit.photos_galerie || []), data.publicUrl]);
+    const nouvelleGalerie = [...(produit.photos_galerie || []), data.publicUrl];
+    await onUpdateGalerie(produit.id, nouvelleGalerie);
     setGalerieEnvoiId(null);
   }
 
-  async function retirerPhotoGalerie(produit, url) {
-    await onUpdateGalerie(produit.id, (produit.photos_galerie || []).filter((u) => u !== url));
+  async function retirerPhotoGalerie(produit, urlARetirer) {
+    const nouvelleGalerie = (produit.photos_galerie || []).filter((u) => u !== urlARetirer);
+    await onUpdateGalerie(produit.id, nouvelleGalerie);
   }
 
   async function ajouter() {
-    if (!nom.trim()) return;
-    await onAdd({ nom: nom.trim(), cout_achat: cout });
-    setNom("");
-    setCout("");
+    if (!nouveauNom.trim()) return;
+    const resultat = await onAdd({ nom: nouveauNom.trim(), cout_achat: nouveauCout });
+    setNouveauNom("");
+    setNouveauCout("");
+    setAjoutOuvert(false);
+    // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
+    if (resultat?.id) setSelectedId(resultat.id);
   }
-
-  async function supprimerProduit(p) {
-    if (!window.confirm(`Supprimer « ${p.nom} » ? Cette action est irréversible.`)) return;
-    await onDelete(p.id);
-    if (produitSelectionneId === p.id) setProduitSelectionneId(null);
-  }
-
-  async function sauvegarderLivraison(p) {
-    setBundleEnCours(true);
-    await sauvegarderChamp(p, "livraison");
-    setBundleEnCours(false);
-  }
-
-  const produitsFiltres = useMemo(() => {
-    const q = recherche.trim().toLowerCase();
-    if (!q) return produits;
-    return produits.filter((p) => String(p.nom || "").toLowerCase().includes(q));
-  }, [produits, recherche]);
 
   const totalStock = produits.reduce((s, p) => s + Number(p.stock_initial || 0), 0);
-  const totalEngage = produits.reduce((s, p) => s + Number(quantitesParProduit[p.nom]?.commandees || 0), 0);
-  const totalLivre = produits.reduce((s, p) => s + Number(quantitesParProduit[p.nom]?.livrees || 0), 0);
-  const totalRestant = Math.max(0, totalStock - totalEngage);
-  const q = produitSelectionne ? (quantitesParProduit[produitSelectionne.nom] || {}) : {};
-  const draft = produitSelectionne ? valeursProduit(produitSelectionne) : {};
+  const totalVendu = produits.reduce((s, p) => s + (quantitesParProduit[p.nom]?.commandees || 0), 0);
+  const totalLivre = produits.reduce((s, p) => s + (quantitesParProduit[p.nom]?.livrees || 0), 0);
+
+  const q = selected ? (quantitesParProduit[selected.nom] || { commandees: 0, livrees: 0 }) : { commandees: 0, livrees: 0 };
+  const stockSel = selected ? Number(selected.stock_initial || 0) : 0;
+  const restantSel = stockSel - q.commandees;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.58)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
-      <div className="rv-produits-modal-inner" onClick={(e) => e.stopPropagation()} style={{ background: "#F7F8F6", borderRadius: 16, width: "100%", maxWidth: 1180, height: "min(92vh, 900px)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 25px 70px rgba(0,0,0,.25)" }}>
-        <div style={{ padding: "18px 22px", background: "#fff", borderBottom: "1px solid #E1E6E2", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 850, color: "#16231F" }}>Catalogue produits</div>
-            <div style={{ fontSize: 12, color: "#748078", marginTop: 3 }}>Gère chaque produit comme dans Shopify : médias, prix, stock, livraison et bundles.</div>
-          </div>
-          <button onClick={onClose} style={{ width: 34, height: 34, border: "1px solid #DDE3DE", background: "#fff", borderRadius: 9, fontSize: 20, cursor: "pointer", color: "#47534C" }}>×</button>
-        </div>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <style>{`
+        .rv-pm-body { display: flex; min-height: 0; flex: 1; }
+        .rv-pm-list { width: 340px; flex-shrink: 0; border-right: 1px solid #ECE8DC; }
+        .rv-pm-detail { flex: 1; min-width: 0; }
+        @media (max-width: 860px) {
+          .rv-pm-body { flex-direction: column; overflow-y: auto; }
+          .rv-pm-list { width: 100%; border-right: none; border-bottom: 1px solid #ECE8DC; max-height: 260px; }
+        }
+        .rv-pm-field:focus { outline: 2px solid #1a7a3c; outline-offset: -1px; }
+      `}</style>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 1180, height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "sans-serif" }}>
 
-        <div className="rv-produits-stats" style={{ padding: "12px 22px", background: "#fff", borderBottom: "1px solid #E1E6E2", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {[['Produits', produits.length], ['Stock', totalStock], ['Engagé', totalEngage], ['Restant', totalRestant]].map(([label, value]) => (
-            <div key={label} style={{ background: "#F7F9F7", border: "1px solid #E2E8E3", borderRadius: 10, padding: "9px 12px" }}>
-              <div style={{ fontSize: 10, color: "#7C867F", textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
-              <div style={{ fontSize: 17, fontWeight: 850, color: "#16231F", marginTop: 2 }}>{value.toLocaleString("fr-FR")}</div>
+        {/* ===== Barre du haut ===== */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 22px", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>📦 Catalogue produits</div>
+          {produits.length > 0 && (
+            <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: "#6B7168" }}>
+              <span><strong style={{ color: "#16231F" }}>{totalStock}</strong> en stock</span>
+              <span><strong style={{ color: "#8A6412" }}>{totalVendu}</strong> engagé</span>
+              <span><strong style={{ color: "#1F9D6E" }}>{totalLivre}</strong> livré</span>
             </div>
-          ))}
+          )}
+          <button onClick={onClose} style={{ marginLeft: "auto", background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#8A9089" }}>×</button>
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "330px minmax(0, 1fr)" }}>
-          <aside className="rv-produits-sidebar" style={{ minWidth: 0, background: "#fff", borderRight: "1px solid #E1E6E2", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: 14, borderBottom: "1px solid #E8ECE9" }}>
-              <div style={{ display: "flex", gap: 7 }}>
-                <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="🔎 Rechercher un produit…" style={{ flex: 1, minWidth: 0, padding: "10px 11px", border: "1px solid #D9E0DB", borderRadius: 9, fontSize: 12.5, outline: "none" }} />
+        <div className="rv-pm-body">
+          {/* ===== Colonne gauche : liste ===== */}
+          <div className="rv-pm-list" style={{ display: "flex", flexDirection: "column", background: "#FAFAF7" }}>
+            <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC" }}>
+              <input
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder="🔍 Rechercher un produit..."
+                style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 8 }}
+              />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setAjoutOuvert((v) => !v)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>＋ Nouveau produit</button>
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+
+            {ajoutOuvert && (
+              <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
+                <input placeholder="Nom du produit" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
+                <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+                <button onClick={ajouter} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Créer le produit</button>
+              </div>
+            )}
+
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, margin: 14, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer" }}>
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV"}
+              <input
+                type="file" accept=".csv" style={{ display: "none" }}
+                onChange={async (e) => {
+                  const fichier = e.target.files?.[0];
+                  if (!fichier) return;
+                  setImportEnCours(true);
+                  setResultatImport(null);
+                  try {
+                    const texte = await fichier.text();
+                    const brut = parserCSV(texte);
+                    const mappe = mapperColonnesShopify(brut);
+                    if (mappe.length === 0) {
+                      setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });
+                    } else {
+                      const resultat = await onImportCSV(mappe);
+                      if (resultat.succes) {
+                        setResultatImport({ succes: true, message: `${resultat.importes} produit(s) importé(s).${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré(s).` : ""}` });
+                      } else {
+                        setResultatImport({ succes: false, message: resultat.message || "Erreur lors de l'import." });
+                      }
+                    }
+                  } catch (err) {
+                    setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + err.message });
+                  }
+                  setImportEnCours(false);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {resultatImport && (
+              <div style={{ margin: "0 14px 10px", background: resultatImport.succes ? "#EAF3DE" : "#FBEAE6", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#F0B8AC"}`, borderRadius: 8, padding: "8px 10px", fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#D64933" }}>
+                {resultatImport.succes ? "✅ " : "⚠️ "}{resultatImport.message}
+              </div>
+            )}
+
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 12px" }}>
+              {produitsFiltres.length === 0 && (
+                <div style={{ color: "#8A9089", fontSize: 12.5, textAlign: "center", padding: "24px 10px" }}>
+                  {produits.length === 0 ? "Aucun produit dans le catalogue." : "Aucun résultat."}
+                </div>
+              )}
               {produitsFiltres.map((p) => {
-                const stats = quantitesParProduit[p.nom] || {};
-                const stock = Number(p.stock_initial || 0);
-                const restant = Math.max(0, stock - Number(stats.commandees || 0));
-                const selected = p.id === produitSelectionneId;
+                const qp = quantitesParProduit[p.nom] || { commandees: 0, livrees: 0 };
+                const st = Number(p.stock_initial || 0);
+                const rest = st - qp.commandees;
+                const actif = p.id === selectedId;
                 return (
-                  <button key={p.id} onClick={() => setProduitSelectionneId(p.id)} style={{ width: "100%", textAlign: "left", display: "grid", gridTemplateColumns: "58px minmax(0,1fr) auto", gap: 10, alignItems: "center", padding: 9, marginBottom: 5, border: selected ? "2px solid #1a7a3c" : "1px solid #E5E9E6", borderRadius: 11, background: selected ? "#F1F8F3" : "#fff", cursor: "pointer" }}>
-                    {p.photo_url ? <img src={p.photo_url} alt="" style={{ width: 58, height: 58, objectFit: "cover", borderRadius: 8, border: "1px solid #E0E5E1" }} /> : <div style={{ width: 58, height: 58, borderRadius: 8, background: "#EEF3EF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🛍️</div>}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 12.5, color: "#17241D", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.nom}</div>
-                      <div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 750, marginTop: 4 }}>{Number(p.prix_vente || 0).toLocaleString("fr-FR")} {currency}</div>
-                      <div style={{ fontSize: 10, color: restant <= 5 && stock > 0 ? "#D64933" : "#7A857E", marginTop: 2 }}>{stock > 0 ? `${restant} restant${restant > 1 ? "s" : ""}` : "Stock non défini"}</div>
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedId(p.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+                      background: actif ? "#EAF3DE" : "transparent", border: actif ? "1px solid #C7DDA3" : "1px solid transparent",
+                      borderRadius: 9, padding: 9, cursor: "pointer", marginBottom: 4,
+                    }}
+                  >
+                    {p.photo_url ? (
+                      <img src={p.photo_url} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: "cover", flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 40, height: 40, borderRadius: 7, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>📦</div>
+                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 650, fontSize: 12.8, color: "#16231F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}</div>
+                      <div style={{ fontSize: 11, color: p.prix_vente ? "#1a7a3c" : "#D64933", fontWeight: 700 }}>
+                        {p.prix_vente ? `${Number(p.prix_vente).toLocaleString("fr-FR")} ${currency}` : "Prix manquant"}
+                      </div>
                     </div>
-                    <div style={{ textAlign: "right", fontSize: 10, color: "#7A857E" }}><div>↗ {stats.commandees || 0}</div><div style={{ marginTop: 4 }}>✓ {stats.livrees || 0}</div></div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: st > 0 && rest <= 5 ? "#D64933" : "#8A9089", flexShrink: 0 }}>
+                      {st > 0 ? `${rest} rest.` : "—"}
+                    </div>
                   </button>
                 );
               })}
-              {!produitsFiltres.length && <div style={{ padding: 30, textAlign: "center", color: "#7A857E", fontSize: 12 }}>Aucun produit trouvé.</div>}
             </div>
-            <div style={{ padding: 12, borderTop: "1px solid #E8ECE9", background: "#FAFBFA" }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#47534C", marginBottom: 7 }}>Ajouter rapidement</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: 6 }}>
-                <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom du produit" style={{ width: "100%", boxSizing: "border-box", padding: "9px", border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11.5 }} />
-                <input type="number" min="0" value={cout} onChange={(e) => setCout(e.target.value)} placeholder="Coût" style={{ width: "100%", boxSizing: "border-box", padding: "9px", border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11.5 }} />
-              </div>
-              <button onClick={ajouter} style={{ marginTop: 6, width: "100%", border: 0, borderRadius: 8, padding: 9, background: "#16231F", color: "#fff", fontWeight: 800, cursor: "pointer", fontSize: 11.5 }}>＋ Ajouter le produit</button>
-            </div>
-          </aside>
+          </div>
 
-          <main className="rv-produits-editor" style={{ minWidth: 0, overflowY: "auto", padding: 18 }}>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: 10, fontWeight: 750, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer", marginBottom: 12 }}>
-              {importEnCours ? "Import en cours…" : "📥 Importer un catalogue CSV Shopify ou autre"}
-              <input type="file" accept=".csv" style={{ display: "none" }} disabled={importEnCours} onChange={async (e) => {
-                const fichier = e.target.files?.[0];
-                if (!fichier) return;
-                setImportEnCours(true);
-                setResultatImport(null);
-                try {
-                  const texte = await fichier.text();
-                  const brut = parserCSV(texte);
-                  const mappe = mapperColonnesShopify(brut);
-                  if (!mappe.length) setResultatImport({ succes: false, message: 'Aucun produit reconnu. Vérifie la colonne "Title" ou "nom".' });
-                  else {
-                    const resultat = await onImportCSV(mappe);
-                    setResultatImport({ succes: !!resultat.succes, message: resultat.succes ? `${resultat.importes} produit${resultat.importes > 1 ? "s" : ""} importé${resultat.importes > 1 ? "s" : ""}.` : (resultat.message || "Erreur lors de l'import.") });
-                  }
-                } catch (err) { setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + err.message }); }
-                setImportEnCours(false);
-                e.target.value = "";
-              }} />
-            </label>
-            {resultatImport && <div style={{ marginBottom: 12, padding: 9, borderRadius: 8, background: resultatImport.succes ? "#EAF7F1" : "#FBEAE6", color: resultatImport.succes ? "#1a7a3c" : "#B33B27", fontSize: 11, fontWeight: 700 }}>{resultatImport.message}</div>}
-
-            {!produitSelectionne ? (
-              <div style={{ minHeight: 450, background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 30, color: "#728078" }}>
-                <div><div style={{ fontSize: 42 }}>🛍️</div><div style={{ fontWeight: 800, color: "#27342D", marginTop: 8 }}>Sélectionne un produit</div><div style={{ fontSize: 12, marginTop: 4 }}>La fiche complète du produit apparaîtra ici.</div></div>
+          {/* ===== Colonne droite : éditeur détaillé ===== */}
+          <div className="rv-pm-detail" style={{ overflowY: "auto", padding: "22px 28px 60px" }}>
+            {!selected ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8A9089", fontSize: 13.5, textAlign: "center", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 38 }}>📦</div>
+                Sélectionne un produit à gauche, ou crées-en un nouveau.
               </div>
             ) : (
               <>
-                <div style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 10, textTransform: "uppercase", color: "#7A857E", letterSpacing: ".07em", fontWeight: 800 }}>Produit sélectionné</div>
-                      <input value={draft.nom} onChange={(e) => setChamp(produitSelectionne, "nom", e.target.value)} disabled style={{ marginTop: 5, width: "100%", boxSizing: "border-box", border: 0, padding: 0, background: "transparent", fontSize: 22, fontWeight: 850, color: "#16231F" }} />
-                    </div>
-                    <button onClick={() => supprimerProduit(produitSelectionne)} style={{ border: "1px solid #F0C8C0", background: "#FFF7F5", color: "#D64933", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 750, cursor: "pointer" }}>🗑️ Supprimer</button>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 21, color: "#16231F" }}>{selected.nom}</div>
+                    <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 3 }}>Le nom doit rester identique à celui utilisé dans tes commandes.</div>
                   </div>
+                  {confirmSuppr === selected.id ? (
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => { onDelete(selected.id); setConfirmSuppr(null); setSelectedId(null); }} style={{ background: "#D64933", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmer</button>
+                      <button onClick={() => setConfirmSuppr(null)} style={{ background: "#fff", border: "1px solid #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmSuppr(selected.id)} style={{ flexShrink: 0, background: "none", border: "1px solid #F0B8AC", color: "#D64933", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑️ Supprimer</button>
+                  )}
                 </div>
 
-                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#16231F" }}>🖼️ Médias</h3>
-                  <p style={{ margin: "0 0 12px", fontSize: 11, color: "#7A857E" }}>Image principale et jusqu'à 6 photos supplémentaires.</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 14 }}>
+                {/* --- Carte Médias --- */}
+                <Carte titre="🖼️ Médias">
+                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                     <div>
-                      {produitSelectionne.photo_url ? <img src={produitSelectionne.photo_url} alt="" style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 11, border: "1px solid #DCE3DE" }} /> : <div style={{ width: 140, height: 140, borderRadius: 11, background: "#EEF3EF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38 }}>🛍️</div>}
-                    </div>
-                    <div>
-                      <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 14px", borderRadius: 8, background: "#16231F", color: "#fff", fontSize: 11.5, fontWeight: 750, cursor: "pointer" }}>
-                        {photoEnvoiId === produitSelectionne.id ? "Envoi…" : "📷 Remplacer l'image principale"}
-                        <input type="file" accept="image/*" style={{ display: "none" }} disabled={photoEnvoiId === produitSelectionne.id} onChange={(e) => envoyerPhoto(produitSelectionne.id, e.target.files?.[0])} />
+                      <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 6, fontWeight: 600 }}>Photo principale</div>
+                      <label style={{ display: "block", width: 120, height: 120, borderRadius: 12, border: "1.5px dashed #DDD8CC", cursor: "pointer", position: "relative", overflow: "hidden", background: "#FAFAF7" }}>
+                        {photoEnvoiId === selected.id ? (
+                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#8A9089" }}>Envoi...</div>
+                        ) : selected.photo_url ? (
+                          <img src={selected.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#C7C2B4" }}>＋</div>
+                        )}
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => envoyerPhoto(selected.id, e.target.files?.[0])} />
                       </label>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(55px, 1fr))", gap: 7, marginTop: 12 }}>
-                        {(produitSelectionne.photos_galerie || []).map((url, i) => <div key={url + i} style={{ position: "relative" }}><img src={url} alt="" style={{ width: "100%", height: 65, objectFit: "cover", borderRadius: 7, border: "1px solid #DCE3DE" }} /><button onClick={() => retirerPhotoGalerie(produitSelectionne, url)} style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, border: 0, borderRadius: "50%", background: "#D64933", color: "#fff", cursor: "pointer", lineHeight: 1 }}>×</button></div>)}
-                        {(produitSelectionne.photos_galerie || []).length < 6 && <label style={{ minHeight: 65, border: "1px dashed #AFC0B4", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: 10, color: "#1a7a3c", fontWeight: 700, cursor: "pointer", padding: 5 }}>{galerieEnvoiId === produitSelectionne.id ? "Envoi…" : "＋ Photo"}<input type="file" accept="image/*" style={{ display: "none" }} disabled={galerieEnvoiId === produitSelectionne.id} onChange={(e) => ajouterPhotoGalerie(produitSelectionne, e.target.files?.[0])} /></label>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                      <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 6, fontWeight: 600 }}>Galerie ({(selected.photos_galerie || []).length}/6)</div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {(selected.photos_galerie || []).map((url) => (
+                          <div key={url} style={{ position: "relative" }}>
+                            <img src={url} alt="" style={{ width: 60, height: 60, borderRadius: 8, objectFit: "cover", border: "1px solid #DDD8CC" }} />
+                            <button onClick={() => retirerPhotoGalerie(selected, url)} style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 11, lineHeight: 1, cursor: "pointer" }}>×</button>
+                          </div>
+                        ))}
+                        {(selected.photos_galerie || []).length < 6 && (
+                          <label style={{ width: 60, height: 60, borderRadius: 8, border: "1.5px dashed #DDD8CC", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#C7C2B4" }}>
+                            {galerieEnvoiId === selected.id ? <span style={{ fontSize: 9, color: "#8A9089" }}>...</span> : "＋"}
+                            <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => ajouterPhotoGalerie(selected, e.target.files?.[0])} />
+                          </label>
+                        )}
                       </div>
                     </div>
                   </div>
-                </section>
+                </Carte>
 
-                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#16231F" }}>📝 Description</h3>
-                  <p style={{ margin: "0 0 10px", fontSize: 11, color: "#7A857E" }}>Cette description est visible par les clients dans la boutique.</p>
-                  <textarea value={draft.description} onChange={(e) => setChamp(produitSelectionne, "description", e.target.value)} onBlur={() => sauvegarderChamp(produitSelectionne, "description")} rows={7} placeholder="Décris ton produit…" style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 12, border: "1px solid #D9E0DB", borderRadius: 9, fontFamily: "inherit", fontSize: 13, lineHeight: 1.5, outline: "none" }} />
-                  {enregistrements[`${produitSelectionne.id}:description`] === "saved" && <div style={{ color: "#1a7a3c", fontSize: 11, fontWeight: 700, marginTop: 4 }}>✓ Enregistré</div>}
-                </section>
+                {/* --- Carte Description --- */}
+                <Carte titre="📝 Description">
+                  <EditeurRiche
+                    valeur={champs.description}
+                    onChange={(v) => setChamps((c) => ({ ...c, description: v }))}
+                    workspaceId={workspaceId}
+                    placeholder="Description visible par les clients en boutique"
+                  />
+                  <BoutonEnregistrer
+                    visible={champs.description !== (selected.description || "")}
+                    onClick={() => { onUpdateDescription(selected.id, champs.description); flash("description"); }}
+                    flash={savedFlash === "description"}
+                  />
+                </Carte>
 
-                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#16231F" }}>💰 Tarification</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-                    {champNumerique(produitSelectionne, "prix_vente", "Prix de vente")}
-                    {champNumerique(produitSelectionne, "cout_achat", "Coût d'achat")}
-                    {champNumerique(produitSelectionne, "frais_import_unitaire", "Frais d'import")}
+                {/* --- Carte Tarification --- */}
+                <Carte titre="💰 Tarification">
+                  <div className="rv-pm-grid2">
+                    <Champ label={`Prix de vente (${currency})`} obligatoire={!selected.prix_vente}>
+                      <input type="number" className="rv-pm-field" value={champs.prixVente} onChange={(e) => setChamps((c) => ({ ...c, prixVente: e.target.value }))} onBlur={() => { if (champs.prixVente !== String(selected.prix_vente ?? "")) { onUpdatePrixVente(selected.id, champs.prixVente); flash("prix"); } }} style={champStyle} />
+                    </Champ>
+                    <Champ label={`Coût d'achat (${currency})`}>
+                      <input type="number" className="rv-pm-field" value={champs.cout} onChange={(e) => setChamps((c) => ({ ...c, cout: e.target.value }))} onBlur={() => { if (champs.cout !== String(selected.cout_achat ?? "")) { onUpdateCout(selected.id, champs.cout); flash("cout"); } }} style={champStyle} />
+                    </Champ>
+                    <Champ label={`🚢 Transport + douane / pièce (${currency})`}>
+                      <input type="number" className="rv-pm-field" value={champs.fraisImport} onChange={(e) => setChamps((c) => ({ ...c, fraisImport: e.target.value }))} onBlur={() => { if (champs.fraisImport !== String(selected.frais_import_unitaire ?? "")) { onUpdateFraisImport(selected.id, champs.fraisImport); flash("frais"); } }} style={champStyle} />
+                    </Champ>
                   </div>
-                  <div style={{ marginTop: 12, padding: 10, background: "#F7F9F7", borderRadius: 9, fontSize: 11, color: "#58635C" }}>Marge estimée : <b style={{ color: "#16231F" }}>{(Number(draft.prix_vente || 0) - Number(draft.cout_achat || 0) - Number(draft.frais_import_unitaire || 0)).toLocaleString("fr-FR")} {currency}</b></div>
-                </section>
+                  {(savedFlash === "prix" || savedFlash === "cout" || savedFlash === "frais") && <ConfirmationEnregistre />}
+                </Carte>
 
-                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#16231F" }}>📦 Inventaire</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {champNumerique(produitSelectionne, "stock_initial", "Stock acheté", "pièces")}
-                    <div><label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#27342D", marginBottom: 6 }}>Stock restant</label><div style={{ padding: "11px 12px", border: "1px solid #E2E8E3", borderRadius: 9, background: "#F7F9F7", fontWeight: 850, fontSize: 14 }}>{Math.max(0, Number(draft.stock_initial || 0) - Number(q.commandees || 0))} pièces</div></div>
+                {/* --- Carte Inventaire --- */}
+                <Carte titre="📦 Inventaire">
+                  <div className="rv-pm-grid2">
+                    <Champ label="Stock acheté (pièces)">
+                      <input type="number" className="rv-pm-field" value={champs.stock} onChange={(e) => setChamps((c) => ({ ...c, stock: e.target.value }))} onBlur={() => { if (champs.stock !== String(selected.stock_initial ?? "")) { onUpdateStock(selected.id, champs.stock); flash("stock"); } }} style={champStyle} />
+                    </Champ>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
-                    {[['Engagé', q.commandees || 0], ['Livré', q.livrees || 0], ['Restant', Math.max(0, Number(draft.stock_initial || 0) - Number(q.commandees || 0))]].map(([label, value]) => <div key={label} style={{ background: "#F7F9F7", borderRadius: 8, padding: 9, textAlign: "center" }}><div style={{ fontSize: 10, color: "#7A857E" }}>{label}</div><div style={{ fontSize: 15, fontWeight: 850, marginTop: 2, color: "#16231F" }}>{value}</div></div>)}
+                  {savedFlash === "stock" && <ConfirmationEnregistre />}
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <StatPill label="Engagé" valeur={q.commandees} couleur="#8A6412" fond="#FBF3E3" />
+                    <StatPill label="Livré" valeur={q.livrees} couleur="#1F9D6E" fond="#EAF7F1" />
+                    <StatPill label="Restant" valeur={stockSel > 0 ? restantSel : "—"} couleur={restantSel <= 5 && stockSel > 0 ? "#D64933" : "#3B6D11"} fond={restantSel <= 5 && stockSel > 0 ? "#FBEAE6" : "#EAF3DE"} />
                   </div>
-                </section>
+                  {stockSel > 0 && restantSel <= 5 && restantSel > 0 && <div style={{ fontSize: 11, color: "#D64933", marginTop: 8, fontWeight: 600 }}>⚠️ Stock bientôt épuisé</div>}
+                  {stockSel > 0 && restantSel <= 0 && <div style={{ fontSize: 11, color: "#D64933", marginTop: 8, fontWeight: 600 }}>🔴 Stock épuisé</div>}
+                </Carte>
 
-                <section style={{ background: "#fff", border: "1px solid #E0E6E1", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#16231F" }}>🚚 Livraison & Bundles</h3>
-                  <p style={{ margin: "0 0 12px", fontSize: 11, color: "#7A857E" }}>Ces réglages sont enregistrés automatiquement en quittant les champs.</p>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, marginBottom: 12, cursor: "pointer" }}><input type="checkbox" checked={!!draft.livraison_gratuite} onChange={(e) => setChamp(produitSelectionne, "livraison_gratuite", e.target.checked)} onBlur={() => sauvegarderLivraison(produitSelectionne)} /> Livraison gratuite pour ce produit</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {champNumerique(produitSelectionne, "frais_livraison_produit", "Frais de livraison")}
-                    {champNumerique(produitSelectionne, "frais_expedition_produit", "Frais d'expédition")}
-                  </div>
-                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #E8ECE9" }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#27342D", marginBottom: 8 }}>Bundles / Packs</div>
-                    {(draft.bundles || []).map((b, i) => <div key={b.id || i} style={{ display: "grid", gridTemplateColumns: "70px 1fr 110px 28px", gap: 7, alignItems: "center", marginBottom: 7 }}>
-                      <input type="number" min="1" value={b.qty ?? 1} onChange={(e) => setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles: draft.bundles.map((x, j) => j === i ? { ...x, qty: Number(e.target.value) || 1 } : x) } }))} onBlur={() => sauvegarderLivraison(produitSelectionne)} style={{ padding: 9, border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11 }} />
-                      <input value={b.label || ""} onChange={(e) => setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles: draft.bundles.map((x, j) => j === i ? { ...x, label: e.target.value } : x) } }))} onBlur={() => sauvegarderLivraison(produitSelectionne)} placeholder="Nom du pack" style={{ padding: 9, border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11 }} />
-                      <input type="number" min="0" max="90" value={b.discount ?? 0} onChange={(e) => setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles: draft.bundles.map((x, j) => j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x) }))} onBlur={() => sauvegarderLivraison(produitSelectionne)} placeholder="Remise %" style={{ padding: 9, border: "1px solid #D9E0DB", borderRadius: 8, fontSize: 11 }} />
-                      <button onClick={() => { const bundles = draft.bundles.filter((_, j) => j !== i); setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles } })); window.setTimeout(() => sauvegarderLivraison({ ...produitSelectionne, bundles }), 0); }} style={{ width: 28, height: 28, border: "1px solid #F0C8C0", background: "#FFF7F5", color: "#D64933", borderRadius: 7, cursor: "pointer" }}>×</button>
-                    </div>)}
-                    <button onClick={() => { const bundles = [...(draft.bundles || []), { id: "b" + Date.now(), qty: (draft.bundles?.length || 0) + 2, label: "Pack x" + ((draft.bundles?.length || 0) + 2), mode: "pourcentage", discount: 10 }]; setBrouillons((prev) => ({ ...prev, [produitSelectionne.id]: { ...draft, bundles } })); window.setTimeout(() => sauvegarderLivraison({ ...produitSelectionne, bundles }), 0); }} style={{ width: "100%", border: "1px dashed #9FB5A5", background: "#F7FAF7", color: "#1a7a3c", borderRadius: 8, padding: 9, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>＋ Ajouter un bundle</button>
-                    {bundleEnCours && <div style={{ fontSize: 11, color: "#7A857E", marginTop: 5 }}>Enregistrement…</div>}
-                  </div>
-                </section>
+                {/* --- Carte Livraison & bundles --- */}
+                <Carte titre="🚚 Livraison & 🎁 Bundles">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
+                    <input type="checkbox" checked={livraison.livraison_gratuite} onChange={(e) => setLivraison((v) => ({ ...v, livraison_gratuite: e.target.checked }))} />
+                    🎁 Livraison gratuite pour ce produit
+                  </label>
+                  {!livraison.livraison_gratuite && (
+                    <div className="rv-pm-grid2" style={{ marginBottom: 10 }}>
+                      <Champ label={`Frais livraison locale (${currency})`}>
+                        <input type="number" className="rv-pm-field" placeholder="Frais boutique par défaut" value={livraison.frais_livraison_produit} onChange={(e) => setLivraison((v) => ({ ...v, frais_livraison_produit: e.target.value }))} style={champStyle} />
+                      </Champ>
+                      <Champ label={`Frais expédition (${currency})`}>
+                        <input type="number" className="rv-pm-field" placeholder="Frais boutique par défaut" value={livraison.frais_expedition_produit} onChange={(e) => setLivraison((v) => ({ ...v, frais_expedition_produit: e.target.value }))} style={champStyle} />
+                      </Champ>
+                    </div>
+                  )}
+                  <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 14 }}>Laisse vide pour utiliser les frais généraux de la boutique.</div>
 
-                <div style={{ padding: "8px 2px 18px", color: "#7A857E", fontSize: 10.5 }}>✓ Les champs de prix, coût, frais et stock sont sauvegardés automatiquement quand tu quittes le champ.</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>Bundles de ce produit</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8, marginBottom: 10 }}>
+                    {livraison.bundles.map((b, i) => (
+                      <div key={b.id || i} style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 10 }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                          <input placeholder="Nom (ex: Pack x2)" value={b.label} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                          <button onClick={() => setLivraison((v) => ({ ...v, bundles: v.bundles.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 14 }}>×</button>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                          <input type="number" min="1" placeholder="Qté" value={b.qty} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x)) }))} style={{ width: 60, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                          <select value={b.mode || "pourcentage"} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, mode: e.target.value } : x)) }))} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, background: "white" }}>
+                            <option value="pourcentage">Remise %</option>
+                            <option value="prix_fixe">Prix fixe</option>
+                          </select>
+                        </div>
+                        {(b.mode || "pourcentage") === "prix_fixe" ? (
+                          <input type="number" min="0" placeholder={`Prix total (${currency})`} value={b.prix_fixe ?? ""} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, prix_fixe: e.target.value === "" ? "" : Math.max(0, Number(e.target.value) || 0) } : x)) }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box" }} />
+                        ) : (
+                          <input type="number" min="0" max="90" placeholder="Remise %" value={b.discount ?? ""} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x)) }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box" }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => setLivraison((v) => ({ ...v, bundles: [...v.bundles, { id: "b" + Date.now(), qty: (v.bundles.length || 0) + 2, label: "Pack x" + ((v.bundles.length || 0) + 2), mode: "pourcentage", discount: 10 }] }))} style={{ border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 12 }}>＋ Ajouter un bundle</button>
+
+                  <div>
+                    <button
+                      onClick={() => {
+                        onUpdateLivraisonBundles(selected.id, {
+                          livraison_gratuite: livraison.livraison_gratuite,
+                          frais_livraison_produit: livraison.frais_livraison_produit === "" ? null : Number(livraison.frais_livraison_produit),
+                          frais_expedition_produit: livraison.frais_expedition_produit === "" ? null : Number(livraison.frais_expedition_produit),
+                          bundles: livraison.bundles,
+                        });
+                        flash("livraison");
+                      }}
+                      style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Enregistrer la livraison & les bundles
+                    </button>
+                    {savedFlash === "livraison" && <ConfirmationEnregistre inline />}
+                  </div>
+                </Carte>
               </>
             )}
-          </main>
+          </div>
         </div>
       </div>
-      <style>{`@media (max-width: 760px){.rv-produits-modal-inner{max-height:96vh!important;height:96vh!important}.rv-produits-grid{grid-template-columns:1fr!important}.rv-produits-sidebar{max-height:38vh!important;border-right:0!important;border-bottom:1px solid #E1E6E2}.rv-produits-editor{max-height:none!important}.rv-produits-stats{grid-template-columns:repeat(2,1fr)!important}}`}</style>
     </div>
   );
 }
 
+function Carte({ titre, children }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #ECE8DC", borderRadius: 12, padding: 18, marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16231F", marginBottom: 14 }}>{titre}</div>
+      {children}
+      <style>{`.rv-pm-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }`}</style>
+    </div>
+  );
+}
+
+function Champ({ label, obligatoire, children }) {
+  return (
+    <label style={{ display: "block", fontSize: 11.5, color: obligatoire ? "#D64933" : "#6B7168", fontWeight: 600 }}>
+      {label}{obligatoire ? " ⚠️" : ""}
+      <div style={{ marginTop: 5 }}>{children}</div>
+    </label>
+  );
+}
+
+function StatPill({ label, valeur, couleur, fond }) {
+  return (
+    <div style={{ flex: 1, background: fond, borderRadius: 9, padding: "8px 10px", textAlign: "center" }}>
+      <div style={{ fontSize: 10, color: couleur }}>{label}</div>
+      <div style={{ fontWeight: 700, fontSize: 15, color: couleur }}>{valeur}</div>
+    </div>
+  );
+}
+
+function BoutonEnregistrer({ visible, onClick, flash }) {
+  return (
+    <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
+      {visible && (
+        <button onClick={onClick} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+          Enregistrer
+        </button>
+      )}
+      {flash && <ConfirmationEnregistre inline />}
+    </div>
+  );
+}
+
+function ConfirmationEnregistre({ inline }) {
+  return (
+    <span style={{ display: inline ? "inline-flex" : "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "#3B6D11", fontWeight: 700, marginTop: inline ? 0 : 8, marginLeft: inline ? 10 : 0 }}>
+      ✓ Enregistré
+    </span>
+  );
+}
+
+const champStyle = { width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" };
 
 function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);

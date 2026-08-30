@@ -2429,6 +2429,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return <ComptablePortalSaas workspace={workspace} commandes={commandes} livreurs={livreurs} produits={produits} />;
   }
 
+  if (workspace.role === "rh") {
+    return <TeamModal workspace={workspace} onClose={() => {}} pleinePage />;
+  }
+
   const monProfilCloser = closers.find((c) => c.email && c.email.toLowerCase() === session.user.email.toLowerCase());
 
   if (workspace.role === "closer" && monProfilCloser) {
@@ -3976,7 +3980,7 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" };
 const btnStyle = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#1a7a3c", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" };
 
-function TeamModal({ workspace, onClose }) {
+function TeamModal({ workspace, onClose, pleinePage }) {
   const [members, setMembers] = useState(null);
   const [error, setError] = useState("");
   const [showInvite, setShowInvite] = useState(false);
@@ -4011,14 +4015,13 @@ function TeamModal({ workspace, onClose }) {
     setRetraitEnCours(null);
   }
 
-  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable" };
+  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)" };
 
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }}>
+  const contenu = (
+    <>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>Équipe</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          {!pleinePage && <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>}
         </div>
 
         <button onClick={() => setShowInvite(true)} style={{ ...btnStyle, marginBottom: 14 }}>
@@ -4036,7 +4039,7 @@ function TeamModal({ workspace, onClose }) {
                   <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
                   <div style={{ fontSize: 11.5, color: "#6B7168" }}>{m.titre ? `${m.titre} · ${roleLabels[m.role] || m.role}` : (roleLabels[m.role] || m.role)}</div>
                 </div>
-                {m.role !== "owner" && (
+                {m.role !== "owner" && !(workspace.role === "rh" && (m.role === "admin" || m.role === "rh")) && (
                   <button
                     onClick={() => retirerMembre(m.user_id, m.email)}
                     disabled={retraitEnCours === m.user_id}
@@ -4060,6 +4063,33 @@ function TeamModal({ workspace, onClose }) {
             }}
           />
         )}
+    </>
+  );
+
+  if (pleinePage) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+        <div style={{ background: "#1a7a3c", color: "white", padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>RecuVente — {workspace.name} · 👥 Équipe</div>
+            <button onClick={() => supabase.auth.signOut()} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+              Déconnexion
+            </button>
+          </div>
+        </div>
+        <div style={{ maxWidth: 480, margin: "24px auto", padding: "0 20px 40px" }}>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 24 }}>
+            {contenu}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }}>
+        {contenu}
       </div>
     </div>
   );
@@ -4078,7 +4108,8 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
     { key: "closer", label: "Closer — ses commandes" },
     { key: "livreur", label: "Livreur — ses livraisons" },
     { key: "comptable", label: "Comptable — lecture financière" },
-  ];
+    { key: "rh", label: "RH — gestion de l'équipe uniquement" },
+  ].filter((r) => workspace.role === "owner" || (r.key !== "admin" && r.key !== "rh"));
 
   async function submit() {
     if (!email || !password) {

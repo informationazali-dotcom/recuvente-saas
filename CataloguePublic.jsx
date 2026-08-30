@@ -6,6 +6,11 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+function lireCookieMeta(nom) {
+  const match = document.cookie.match(new RegExp("(^| )" + nom + "=([^;]+)"));
+  return match ? match[2] : null;
+}
+
 function prixUnitairePourBundle(prixVente, bundle) {
   if (!bundle) return Number(prixVente);
   if ((bundle.mode || "pourcentage") === "prix_fixe") {
@@ -94,6 +99,12 @@ export default function CataloguePublic({ workspaceId }) {
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
+      if (data[0].facebook_domain_verification) {
+        const balise = document.createElement("meta");
+        balise.name = "facebook-domain-verification";
+        balise.content = data[0].facebook_domain_verification;
+        document.head.appendChild(balise);
+      }
       const listeProduits = data.filter((p) => p.produit_nom);
       setProduits(listeProduits);
 
@@ -209,6 +220,10 @@ export default function CataloguePublic({ workspaceId }) {
         const fraisExpeditionP = livraisonGratuiteP ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
         return !livraisonGratuiteP && fraisExpeditionP > 0 ? typeLivraisonChoisi : "livraison";
       })(),
+      p_fbp: lireCookieMeta("_fbp"),
+      p_fbc: lireCookieMeta("_fbc"),
+      p_user_agent: navigator.userAgent,
+      p_event_source_url: window.location.href,
     });
     setEnvoi(false);
     const resultat = data && data[0];

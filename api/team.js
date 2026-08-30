@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
     const { data: members, error } = await supabaseAdmin
       .from("workspace_members")
-      .select("id, user_id, role, created_at")
+      .select("id, user_id, role, titre, created_at")
       .eq("workspace_id", workspaceId);
 
     if (error) return res.status(400).json({ error: error.message });
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
   // ===== INVITER =====
   if (action === "invite") {
-    const { email, password, role } = req.body;
+    const { email, password, role, titre } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Champs manquants" });
 
     const ws = await verifierProprietaire(workspaceId, userData.user.id);
@@ -100,7 +100,7 @@ export default async function handler(req, res) {
     }
 
     const { error: memberError } = await supabaseAdmin.from("workspace_members").insert([
-      { workspace_id: workspaceId, user_id: userId, role },
+      { workspace_id: workspaceId, user_id: userId, role, titre: titre || null },
     ]);
 
     if (memberError) return res.status(400).json({ error: memberError.message });

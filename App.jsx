@@ -8871,6 +8871,17 @@ function IntegrationsModal({ workspace, onClose }) {
   const [capiToken, setCapiToken] = useState(workspace.facebook_capi_token || "");
   const [savingCapiToken, setSavingCapiToken] = useState(false);
   const [capiTokenSaved, setCapiTokenSaved] = useState(false);
+  const [domaineMeta, setDomaineMeta] = useState(workspace.facebook_domain_verification || "");
+  const [savingDomaineMeta, setSavingDomaineMeta] = useState(false);
+  const [domaineMetaSaved, setDomaineMetaSaved] = useState(false);
+
+  async function sauvegarderDomaineMeta() {
+    setSavingDomaineMeta(true);
+    await supabase.from("workspaces").update({ facebook_domain_verification: domaineMeta.trim() || null }).eq("id", workspace.id);
+    setSavingDomaineMeta(false);
+    setDomaineMetaSaved(true);
+    setTimeout(() => setDomaineMetaSaved(false), 2000);
+  }
 
   async function sauvegarderPixel() {
     setSavingPixel(true);
@@ -9238,6 +9249,30 @@ function IntegrationsModal({ workspace, onClose }) {
           </div>
           <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
             Trouve-le sur business.facebook.com → Gestionnaire d'événements → ton pixel → onglet "API Conversions" → "Générer un token d'accès".
+          </div>
+
+          <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
+            🌐 Vérification de domaine Meta
+          </div>
+          <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
+            Si Meta te demande de vérifier ton domaine (Gestionnaire de marque → Domaines), colle ici le code fourni — il sera automatiquement ajouté sur ta boutique.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={domaineMeta}
+              onChange={(e) => setDomaineMeta(e.target.value)}
+              placeholder="Ex: a1b2c3d4e5f6..."
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C3D4F0", fontSize: 13 }}
+            />
+            <button
+              onClick={sauvegarderDomaineMeta}
+              disabled={savingDomaineMeta}
+              style={{ background: domaineMetaSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {domaineMetaSaved ? "✅" : savingDomaineMeta ? "..." : "Enregistrer"}
+            </button>
           </div>
         </div>
 

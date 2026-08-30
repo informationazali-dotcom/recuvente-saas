@@ -645,7 +645,7 @@ export default function CataloguePublic({ workspaceId }) {
               </div>
             )}
 
-            {!envoye && (() => {
+            {!envoye && !produitOuvert.masquer_produits_similaires && (() => {
               const similaires = produits
                 .filter((p) => p.produit_id !== produitOuvert.produit_id)
                 .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))

@@ -2282,6 +2282,23 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         );
         if (!continuer) return;
       }
+
+      // Détecte un client "à risque" : historique d'échecs/annulations sur ce numéro,
+      // même en dehors de la fenêtre de 2h ci-dessus — utile avant d'envoyer un livreur.
+      const { data: historiqueRisque } = await supabase
+        .from("commandes")
+        .select("id, statut")
+        .eq("workspace_id", workspace.id)
+        .eq("tel", form.tel)
+        .in("statut", ["echouee", "annulee"]);
+
+      const nbRisque = (historiqueRisque || []).length;
+      if (nbRisque > 0) {
+        const continuer = window.confirm(
+          `⚠️ Client à risque : ce numéro a déjà ${nbRisque} commande${nbRisque > 1 ? "s" : ""} échouée${nbRisque > 1 ? "s" : ""} ou annulée${nbRisque > 1 ? "s" : ""} par le passé.\n\nContinuer quand même ?`
+        );
+        if (!continuer) return;
+      }
     }
 
     const montantDejaPaye = workspace.activity_type === "retail" ? (form.montant_paye === "" ? montantTotal : Number(form.montant_paye)) : 0;
@@ -5442,6 +5459,7 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
   const editeurRef = useRef(null);
   const [envoiImage, setEnvoiImage] = useState(false);
   const [initialise, setInitialise] = useState(false);
+  const positionCurseurRef = useRef(null);
 
   useEffect(() => {
     if (editeurRef.current && !initialise) {
@@ -5450,9 +5468,35 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     }
   }, [valeur, initialise]);
 
+  function sauvegarderPositionCurseur() {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const plage = selection.getRangeAt(0);
+      if (editeurRef.current && editeurRef.current.contains(plage.commonAncestorContainer)) {
+        positionCurseurRef.current = plage.cloneRange();
+      }
+    }
+  }
+
+  function restaurerPositionCurseur() {
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    if (positionCurseurRef.current) {
+      selection.addRange(positionCurseurRef.current);
+    } else {
+      // Pas de position connue (ex: éditeur jamais cliqué) : on place le curseur à la toute fin
+      const plage = document.createRange();
+      plage.selectNodeContents(editeurRef.current);
+      plage.collapse(false);
+      selection.addRange(plage);
+    }
+  }
+
   function appliquer(commande, arg) {
     editeurRef.current.focus();
+    restaurerPositionCurseur();
     document.execCommand(commande, false, arg);
+    sauvegarderPositionCurseur();
     onChange(editeurRef.current.innerHTML);
   }
 
@@ -5462,6 +5506,9 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
       alert("L'image est trop lourde (max 5 Mo). Choisis une image plus légère.");
       return;
     }
+    // On garde une copie de la position au moment du clic (avant l'upload asynchrone),
+    // car la sélection du navigateur peut se perdre pendant l'attente.
+    const plageAuMomentDuClic = positionCurseurRef.current ? positionCurseurRef.current.cloneRange() : null;
     setEnvoiImage(true);
     const fichierCompresse = await compresserImage(fichier);
     const extension = fichierCompresse.name.split(".").pop();
@@ -5473,19 +5520,39 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
       return;
     }
     const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
-    editeurRef.current.focus();
-    document.execCommand("insertHTML", false, `<img src="${data.publicUrl}" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;" />`);
-    onChange(editeurRef.current.innerHTML);
+    const img = document.createElement("img");
+    img.src = data.publicUrl;
+    img.style.cssText = "max-width:100%;border-radius:8px;margin:8px 0;display:block;";
+
+    const editeur = editeurRef.current;
+    const plageValide = plageAuMomentDuClic && editeur && editeur.contains(plageAuMomentDuClic.commonAncestorContainer);
+    if (plageValide) {
+      plageAuMomentDuClic.deleteContents();
+      plageAuMomentDuClic.insertNode(img);
+      plageAuMomentDuClic.setStartAfter(img);
+      plageAuMomentDuClic.collapse(true);
+      positionCurseurRef.current = plageAuMomentDuClic.cloneRange();
+    } else {
+      // Pas de position connue : on ajoute l'image à la fin plutôt qu'au début
+      editeur.appendChild(img);
+      const plageFin = document.createRange();
+      plageFin.selectNodeContents(editeur);
+      plageFin.collapse(false);
+      positionCurseurRef.current = plageFin;
+    }
+    editeur.focus();
+    restaurerPositionCurseur();
+    onChange(editeur.innerHTML);
     setEnvoiImage(false);
   }
 
   return (
     <div style={{ border: "1px solid #DDD8CC", borderRadius: 8, overflow: "hidden" }}>
       <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap" }}>
-        <button type="button" onClick={() => appliquer("bold")} style={boutonEditeurStyle}><b>G</b></button>
-        <button type="button" onClick={() => appliquer("italic")} style={boutonEditeurStyle}><i>I</i></button>
-        <button type="button" onClick={() => appliquer("insertUnorderedList")} style={boutonEditeurStyle}>• Liste</button>
-        <label style={{ ...boutonEditeurStyle, cursor: "pointer" }}>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("bold")} style={boutonEditeurStyle}><b>G</b></button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("italic")} style={boutonEditeurStyle}><i>I</i></button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("insertUnorderedList")} style={boutonEditeurStyle}>• Liste</button>
+        <label style={{ ...boutonEditeurStyle, cursor: "pointer" }} onMouseDown={sauvegarderPositionCurseur}>
           {envoiImage ? "Envoi..." : "🖼️ Image"}
           <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
         </label>
@@ -5494,6 +5561,9 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
         ref={editeurRef}
         contentEditable
         onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        onBlur={sauvegarderPositionCurseur}
+        onKeyUp={sauvegarderPositionCurseur}
+        onMouseUp={sauvegarderPositionCurseur}
         data-placeholder={placeholder}
         style={{ minHeight: 220, padding: "12px 14px", fontSize: 14, lineHeight: 1.6, outline: "none" }}
         className="rv-editeur-riche"
@@ -9021,6 +9091,9 @@ function IntegrationsModal({ workspace, onClose }) {
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
+  const [tiktokPixelId, setTiktokPixelId] = useState(workspace.tiktok_pixel_id || "");
+  const [savingTiktokPixel, setSavingTiktokPixel] = useState(false);
+  const [tiktokPixelSaved, setTiktokPixelSaved] = useState(false);
   const [savingPolitiqueLivraison, setSavingPolitiqueLivraison] = useState(false);
   const [savedPolitiqueLivraison, setSavedPolitiqueLivraison] = useState(false);
   const [savingPolitiqueRetours, setSavingPolitiqueRetours] = useState(false);
@@ -9068,6 +9141,14 @@ function IntegrationsModal({ workspace, onClose }) {
     setSavingPixel(false);
     setPixelSaved(true);
     setTimeout(() => setPixelSaved(false), 2000);
+  }
+
+  async function sauvegarderTiktokPixel() {
+    setSavingTiktokPixel(true);
+    await supabase.from("workspaces").update({ tiktok_pixel_id: tiktokPixelId.trim() || null }).eq("id", workspace.id);
+    setSavingTiktokPixel(false);
+    setTiktokPixelSaved(true);
+    setTimeout(() => setTiktokPixelSaved(false), 2000);
   }
 
   async function sauvegarderCapiToken() {
@@ -9428,6 +9509,33 @@ function IntegrationsModal({ workspace, onClose }) {
           </div>
           <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
             Trouve-le sur business.facebook.com → Gestionnaire d'événements → ton pixel → onglet "API Conversions" → "Générer un token d'accès".
+          </div>
+
+          <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
+            🎵 Pixel TikTok — suis tes publicités TikTok
+          </div>
+          <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
+            Colle ton identifiant de Pixel TikTok pour suivre les ventes venant de tes publicités TikTok Ads.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={tiktokPixelId}
+              onChange={(e) => setTiktokPixelId(e.target.value)}
+              placeholder="Ex: C4A1B2C3D4E5F6G7H8I9"
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C3D4F0", fontSize: 13 }}
+            />
+            <button
+              onClick={sauvegarderTiktokPixel}
+              disabled={savingTiktokPixel}
+              style={{ background: tiktokPixelSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {tiktokPixelSaved ? "✅" : savingTiktokPixel ? "..." : "Enregistrer"}
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "#1E4B8C", marginTop: 8, opacity: 0.8 }}>
+            Trouve-le sur ads.tiktok.com → Actifs → Événements → Gérer. Suit automatiquement : visite, vue produit, et lancement de commande.
           </div>
 
           <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />

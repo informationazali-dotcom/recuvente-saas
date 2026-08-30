@@ -2543,7 +2543,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           RECU<span style={{ color: "#e8920a" }}>VENTE</span>
         </div>
 
-        {(workspace.role === "owner" || workspace.role === "admin") && (
+        {workspace.role === "owner" && (
           <SelecteurEspace
             workspace={workspace}
             workspacesDisponibles={workspacesDisponibles}
@@ -2742,7 +2742,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             {workspace.country} · {workspace.currency} · rôle : {workspace.role}
           </div>
 
-          {(workspace.role === "owner" || workspace.role === "admin") && (
+          {workspace.role === "owner" && (
             <button
               onClick={onDemanderAjoutEspace}
               className="rv-saas-tabs-mobile"
@@ -2760,7 +2760,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             📖 Comment utiliser RecuVente
           </button>
 
-          {(workspace.role === "owner" || workspace.role === "admin") && workspacesDisponibles.length > 1 && (
+          {workspace.role === "owner" && workspacesDisponibles.length > 1 && (
             <div className="rv-saas-tabs-mobile" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
               {workspacesDisponibles.map((w) => (
                 <button
@@ -4015,7 +4015,7 @@ function TeamModal({ workspace, onClose, pleinePage }) {
     setRetraitEnCours(null);
   }
 
-  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)" };
+  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)", secretaire: "Secrétaire" };
 
   const contenu = (
     <>
@@ -4104,7 +4104,8 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
   const [error, setError] = useState("");
 
   const roles = [
-    { key: "admin", label: "Admin — gestion opérationnelle" },
+    { key: "admin", label: "Admin (Directeur) — tout sauf gérer les boutiques/l'équipe" },
+    { key: "secretaire", label: "Secrétaire — Commandes & Clients uniquement" },
     { key: "closer", label: "Closer — ses commandes" },
     { key: "livreur", label: "Livreur — ses livraisons" },
     { key: "comptable", label: "Comptable — lecture financière" },

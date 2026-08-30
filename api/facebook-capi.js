@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
 const supabaseAdmin = createClient(
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
   const { data: commande, error: erreurCommande } = await supabaseAdmin
     .from("commandes")
-    .select("id, workspace_id, client, tel, montant, statut, confirmed_at")
+    .select("id, workspace_id, client, tel, montant, statut, confirmed_at, fb_fbp, fb_fbc, fb_user_agent, fb_event_source_url")
     .eq("id", commandeId)
     .single();
 
@@ -59,13 +59,21 @@ export default async function handler(req, res) {
     return res.status(200).json({ envoye: false, raison: "Pixel Facebook ou token Conversions API non configuré" });
   }
 
+  // "website" (et non "system_generated") car la commande vient bien du site public,
+  // même si l'événement est envoyé plus tard, au moment de la confirmation par l'équipe.
+  // fbp/fbc/user_agent/event_source_url permettent à Facebook de relier précisément
+  // cet achat à la publicité qui l'a généré — sans ça, l'optimisation des pubs est très limitée.
   const evenement = {
     event_name: "Purchase",
     event_time: Math.floor(new Date(commande.confirmed_at || Date.now()).getTime() / 1000),
-    action_source: "system_generated",
+    action_source: "website",
     event_id: `commande-${commande.id}`,
+    event_source_url: commande.fb_event_source_url || undefined,
     user_data: {
       ph: [hasher(normaliserTelephone(commande.tel))].filter(Boolean),
+      client_user_agent: commande.fb_user_agent || undefined,
+      fbp: commande.fb_fbp || undefined,
+      fbc: commande.fb_fbc || undefined,
     },
     custom_data: {
       value: Number(commande.montant),

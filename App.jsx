@@ -9141,6 +9141,32 @@ function IntegrationsModal({ workspace, onClose }) {
   }
   const [savingDomaineMeta, setSavingDomaineMeta] = useState(false);
   const [domaineMetaSaved, setDomaineMetaSaved] = useState(false);
+  const [devise, setDevise] = useState(workspace.currency || "XOF");
+  const [savingDevise, setSavingDevise] = useState(false);
+  const [deviseSaved, setDeviseSaved] = useState(false);
+  const [paysListe, setPaysListe] = useState(workspace.countries_livraison || (workspace.country ? [workspace.country] : []));
+  const [savingPays, setSavingPays] = useState(false);
+  const [paysSaved, setPaysSaved] = useState(false);
+
+  async function sauvegarderDevise() {
+    setSavingDevise(true);
+    await supabase.from("workspaces").update({ currency: devise }).eq("id", workspace.id);
+    setSavingDevise(false);
+    setDeviseSaved(true);
+    setTimeout(() => setDeviseSaved(false), 2000);
+  }
+
+  function togglePays(code) {
+    setPaysListe((liste) => (liste.includes(code) ? liste.filter((c) => c !== code) : [...liste, code]));
+  }
+
+  async function sauvegarderPays() {
+    setSavingPays(true);
+    await supabase.from("workspaces").update({ countries_livraison: paysListe, country: paysListe[0] || workspace.country }).eq("id", workspace.id);
+    setSavingPays(false);
+    setPaysSaved(true);
+    setTimeout(() => setPaysSaved(false), 2000);
+  }
 
   async function sauvegarderDomaineMeta() {
     setSavingDomaineMeta(true);
@@ -9576,6 +9602,53 @@ function IntegrationsModal({ workspace, onClose }) {
               {domaineMetaSaved ? "✅" : savingDomaineMeta ? "..." : "Enregistrer"}
             </button>
           </div>
+
+          <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
+            💱 Devise de la boutique
+          </div>
+          <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
+            S'applique à tous les prix affichés (nouveaux montants uniquement — les commandes déjà enregistrées gardent leur devise d'origine).
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select value={devise} onChange={(e) => setDevise(e.target.value)} style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C3D4F0", fontSize: 13, background: "white" }}>
+              {[["XOF", "Franc CFA (XOF) — Afrique de l'Ouest"], ["XAF", "Franc CFA (XAF) — Afrique Centrale"], ["GNF", "Franc guinéen (GNF)"], ["MAD", "Dirham marocain (MAD)"], ["DZD", "Dinar algérien (DZD)"], ["TND", "Dinar tunisien (TND)"], ["EUR", "Euro (EUR)"], ["USD", "Dollar américain (USD)"], ["GHS", "Cedi ghanéen (GHS)"], ["NGN", "Naira nigérian (NGN)"], ["CDF", "Franc congolais (CDF)"]].map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+            </select>
+            <button
+              onClick={sauvegarderDevise}
+              disabled={savingDevise}
+              style={{ background: deviseSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {deviseSaved ? "✅" : savingDevise ? "..." : "Enregistrer"}
+            </button>
+          </div>
+
+          <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
+            🌍 Pays où tu livres
+          </div>
+          <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
+            Coche un ou plusieurs pays. Le premier coché devient le pays principal de ta boutique.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6, marginBottom: 10 }}>
+            {[["CI", "🇨🇮 Côte d'Ivoire"], ["SN", "🇸🇳 Sénégal"], ["ML", "🇲🇱 Mali"], ["BF", "🇧🇫 Burkina Faso"], ["TG", "🇹🇬 Togo"], ["BJ", "🇧🇯 Bénin"], ["GN", "🇬🇳 Guinée"], ["CM", "🇨🇲 Cameroun"], ["GA", "🇬🇦 Gabon"], ["CD", "🇨🇩 RD Congo"], ["MA", "🇲🇦 Maroc"], ["DZ", "🇩🇿 Algérie"], ["TN", "🇹🇳 Tunisie"], ["GH", "🇬🇭 Ghana"], ["NG", "🇳🇬 Nigeria"], ["FR", "🇫🇷 France"]].map(([code, label]) => {
+              const coche = paysListe.includes(code);
+              return (
+                <label key={code} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 8px", borderRadius: 7, background: coche ? "#DCEBFF" : "white", border: "1px solid " + (coche ? "#1E4B8C" : "#C3D4F0"), cursor: "pointer" }}>
+                  <input type="checkbox" checked={coche} onChange={() => togglePays(code)} /> {label}
+                </label>
+              );
+            })}
+          </div>
+          <button
+            onClick={sauvegarderPays}
+            disabled={savingPays}
+            style={{ background: paysSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "9px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+          >
+            {paysSaved ? "✅ Enregistré" : savingPays ? "..." : "Enregistrer les pays"}
+          </button>
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

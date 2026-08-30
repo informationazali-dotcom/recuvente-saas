@@ -8895,6 +8895,24 @@ function IntegrationsModal({ workspace, onClose }) {
   const [savingCapiToken, setSavingCapiToken] = useState(false);
   const [capiTokenSaved, setCapiTokenSaved] = useState(false);
   const [domaineMeta, setDomaineMeta] = useState(workspace.facebook_domain_verification || "");
+  const [domainePerso, setDomainePerso] = useState(workspace.domaine_personnalise || "");
+  const [savingDomainePerso, setSavingDomainePerso] = useState(false);
+  const [domainePersoSaved, setDomainePersoSaved] = useState(false);
+  const [erreurDomainePerso, setErreurDomainePerso] = useState("");
+
+  async function sauvegarderDomainePerso() {
+    setSavingDomainePerso(true);
+    setErreurDomainePerso("");
+    const valeur = domainePerso.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "") || null;
+    const { error } = await supabase.from("workspaces").update({ domaine_personnalise: valeur }).eq("id", workspace.id);
+    setSavingDomainePerso(false);
+    if (error) {
+      setErreurDomainePerso(error.message.includes("duplicate") || error.message.includes("unique") ? "Ce domaine est déjà utilisé par une autre boutique." : "Erreur : " + error.message);
+      return;
+    }
+    setDomainePersoSaved(true);
+    setTimeout(() => setDomainePersoSaved(false), 2000);
+  }
   const [savingDomaineMeta, setSavingDomaineMeta] = useState(false);
   const [domaineMetaSaved, setDomaineMetaSaved] = useState(false);
 
@@ -9381,6 +9399,34 @@ function IntegrationsModal({ workspace, onClose }) {
             </span>
             {workspace.marque_blanche ? "Activée — mention masquée" : "Désactivée — mention affichée"}
           </button>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🌍 Domaine personnalisé
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 12, lineHeight: 1.5 }}>
+            Affiche ta boutique directement sur ton propre nom de domaine (ex: boutique.tonentreprise.com), sans le lien "?catalogue=...".
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={domainePerso}
+              onChange={(e) => setDomainePerso(e.target.value)}
+              placeholder="boutique.tonentreprise.com"
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }}
+            />
+            <button
+              onClick={sauvegarderDomainePerso}
+              disabled={savingDomainePerso}
+              style={{ background: domainePersoSaved ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {domainePersoSaved ? "✅" : savingDomainePerso ? "..." : "Enregistrer"}
+            </button>
+          </div>
+          {erreurDomainePerso && <div style={{ color: "#D64933", fontSize: 11.5, marginTop: 6 }}>{erreurDomainePerso}</div>}
+          <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, lineHeight: 1.5 }}>
+            Écris juste le domaine (sans https://). Il faut aussi le connecter sur Vercel — demande le guide à ton support si besoin.
+          </div>
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

@@ -5487,7 +5487,7 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
         contentEditable
         onInput={(e) => onChange(e.currentTarget.innerHTML)}
         data-placeholder={placeholder}
-        style={{ minHeight: 90, padding: "10px 12px", fontSize: 13, lineHeight: 1.5, outline: "none" }}
+        style={{ minHeight: 220, padding: "12px 14px", fontSize: 14, lineHeight: 1.6, outline: "none" }}
         className="rv-editeur-riche"
       />
       <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; }`}</style>
@@ -5859,7 +5859,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 860, maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>Catalogue & Stock</div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>

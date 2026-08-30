@@ -226,9 +226,23 @@ export default function App() {
     }).catch(() => setDomaineVerifie(true));
   }, []);
 
+  const aEuUneSessionRef = useRef(false);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session) aEuUneSessionRef.current = true;
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      if (s) {
+        aEuUneSessionRef.current = true;
+      } else if (aEuUneSessionRef.current) {
+        // La session vient d'expirer (ou déconnexion manuelle) : on envoie directement
+        // vers l'écran de connexion, pas vers la page d'accueil marketing.
+        aEuUneSessionRef.current = false;
+        if (typeof window !== "undefined") window.location.href = "?login=1";
+      }
+    });
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -332,7 +346,7 @@ export default function App() {
     const wantsLogin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1";
     if (wantsLogin) return <AuthScreen modeInitial="login" />;
     if (!wantsAuth) return <LandingPage />;
-    return <AuthScreen />;
+    return <AuthScreen modeInitial="login" />;
   }
 
   const isAdminRoute = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";

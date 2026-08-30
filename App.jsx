@@ -322,6 +322,7 @@ export default function App() {
   return (
     <>
       <WorkspaceDashboard
+        key={workspace.id}
         workspace={workspace}
         session={session}
         subscription={subscription}

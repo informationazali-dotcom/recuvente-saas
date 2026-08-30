@@ -44,6 +44,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [recherche, setRecherche] = useState("");
   const [collectionOuverte, setCollectionOuverte] = useState(null);
   const [bundleChoisiId, setBundleChoisiId] = useState(null);
+  const [optionsChoisies, setOptionsChoisies] = useState({});
   const [produitBumpId, setProduitBumpId] = useState(null);
 
   function chargerPixelFacebook(pixelId) {
@@ -187,6 +188,7 @@ export default function CataloguePublic({ workspaceId }) {
     setForm({ client: "", tel: "", zone: "" });
     setQuantite(1);
     setBundleChoisiId(null);
+    setOptionsChoisies({});
     setProduitBumpId(null);
     setTypeLivraisonChoisi(entreprise?.fraisExpedition > 0 ? null : "livraison");
     setPhotoActive(0);
@@ -242,6 +244,23 @@ export default function CataloguePublic({ workspaceId }) {
       setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
       return;
     }
+    const optionsProduitEnvoi = Array.isArray(produitOuvert.options) ? produitOuvert.options : [];
+    if (optionsProduitEnvoi.length > 0) {
+      const toutesChoisiesEnvoi = optionsProduitEnvoi.every((o) => optionsChoisies[o.nom]);
+      if (!toutesChoisiesEnvoi) {
+        setErreurEnvoi(`⚠️ Merci de choisir ${optionsProduitEnvoi.map((o) => o.nom.toLowerCase()).join(", ")} avant de confirmer.`);
+        return;
+      }
+      const varianteEnvoi = (Array.isArray(produitOuvert.variantes) ? produitOuvert.variantes : []).find((v) => optionsProduitEnvoi.every((o) => v.combinaison[o.nom] === optionsChoisies[o.nom]));
+      if (!varianteEnvoi) {
+        setErreurEnvoi("⚠️ Cette combinaison n'est pas disponible.");
+        return;
+      }
+      if (Number(varianteEnvoi.stock ?? 0) <= 0) {
+        setErreurEnvoi("⚠️ Cette variante est en rupture de stock.");
+        return;
+      }
+    }
     const livraisonGratuiteV = !!produitOuvert.livraison_gratuite;
     const fraisExpeditionV = livraisonGratuiteV ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
     const aChoixLivraisonV = !livraisonGratuiteV && fraisExpeditionV > 0;
@@ -251,12 +270,20 @@ export default function CataloguePublic({ workspaceId }) {
     }
     setEnvoi(true);
     setErreurEnvoi("");
-    const bundleActifEnvoi = (Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : []).find((b) => b.id === bundleChoisiId) || null;
-    const prixUnitaireEnvoi = prixUnitairePourBundle(produitOuvert.prix_vente, bundleActifEnvoi);
+    const bundleActifEnvoi = optionsProduitEnvoi.length > 0 ? null : (Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : []).find((b) => b.id === bundleChoisiId) || null;
+    const varianteChoisieEnvoi = optionsProduitEnvoi.length > 0
+      ? (Array.isArray(produitOuvert.variantes) ? produitOuvert.variantes : []).find((v) => optionsProduitEnvoi.every((o) => v.combinaison[o.nom] === optionsChoisies[o.nom]))
+      : null;
+    const prixUnitaireEnvoi = varianteChoisieEnvoi
+      ? (varianteChoisieEnvoi.prix != null ? Number(varianteChoisieEnvoi.prix) : Number(produitOuvert.prix_vente))
+      : prixUnitairePourBundle(produitOuvert.prix_vente, bundleActifEnvoi);
+    const nomProduitEnvoi = varianteChoisieEnvoi
+      ? `${produitOuvert.produit_nom} — ${Object.values(varianteChoisieEnvoi.combinaison).join(" / ")}`
+      : produitOuvert.produit_nom;
     const produitBump = produitBumpId ? produits.find((p) => p.produit_id === produitBumpId) : null;
     const items = [{
       produit_id: produitOuvert.produit_id,
-      produit_nom: produitOuvert.produit_nom,
+      produit_nom: nomProduitEnvoi,
       quantite: quantite,
       prix_unitaire: prixUnitaireEnvoi,
     }];
@@ -265,7 +292,7 @@ export default function CataloguePublic({ workspaceId }) {
         produit_id: produitBump.produit_id,
         produit_nom: produitBump.produit_nom,
         quantite: 1,
-        prix_unitaire: Number(produitBump.prix_vente),
+        prix_unitaire: produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produitBump.prix_vente),
       });
     }
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
@@ -327,7 +354,17 @@ export default function CataloguePublic({ workspaceId }) {
     const aChoixLivraison = !livraisonGratuite && fraisExpeditionEffectif > 0;
     const bundlesProduit = Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : [];
     const bundleActif = bundlesProduit.find((b) => b.id === bundleChoisiId) || null;
-    const prixUnitaireEffectif = prixUnitairePourBundle(produitOuvert.prix_vente, bundleActif);
+    const optionsProduitListe = Array.isArray(produitOuvert.options) ? produitOuvert.options : [];
+    const variantesProduit = Array.isArray(produitOuvert.variantes) ? produitOuvert.variantes : [];
+    const toutesOptionsChoisies = optionsProduitListe.length > 0 && optionsProduitListe.every((o) => optionsChoisies[o.nom]);
+    const varianteActive = toutesOptionsChoisies
+      ? variantesProduit.find((v) => optionsProduitListe.every((o) => v.combinaison[o.nom] === optionsChoisies[o.nom]))
+      : null;
+    const prixUnitaireEffectif = varianteActive
+      ? (varianteActive.prix != null ? Number(varianteActive.prix) : Number(produitOuvert.prix_vente))
+      : prixUnitairePourBundle(produitOuvert.prix_vente, bundleActif);
+    const stockVarianteActive = varianteActive ? Number(varianteActive.stock ?? 0) : null;
+    const varianteEnRupture = varianteActive && stockVarianteActive <= 0;
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
@@ -777,7 +814,37 @@ export default function CataloguePublic({ workspaceId }) {
                 </div>
               </div>
 
-              {bundlesProduit.length > 0 && (
+              {optionsProduitListe.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  {optionsProduitListe.map((o) => (
+                    <div key={o.nom} style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{o.nom} <span style={{ color: "#D64933" }}>*</span></div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {o.valeurs.map((val) => {
+                          const actif = optionsChoisies[o.nom] === val;
+                          return (
+                            <button
+                              key={val}
+                              onClick={() => setOptionsChoisies((c) => ({ ...c, [o.nom]: val }))}
+                              style={{ border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", color: "#16231F", borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                            >
+                              {val}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {toutesOptionsChoisies && !varianteActive && (
+                    <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 4 }}>⚠️ Cette combinaison n'est pas disponible.</div>
+                  )}
+                  {varianteEnRupture && (
+                    <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 4, fontWeight: 700 }}>🔴 Cette variante est en rupture de stock.</div>
+                  )}
+                </div>
+              )}
+
+              {optionsProduitListe.length === 0 && bundlesProduit.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>🔥 OFFRES QUANTITÉ</div>
                   <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
@@ -837,35 +904,31 @@ export default function CataloguePublic({ workspaceId }) {
               {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
 
               {(() => {
-                const candidatsBump = produits
-                  .filter((p) => p.produit_id !== produitOuvert.produit_id)
-                  .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))
-                  .slice(0, 3);
-                if (candidatsBump.length === 0) return null;
+                const bumpProduit = produitOuvert.bump_produit_id ? produits.find((p) => p.produit_id === produitOuvert.bump_produit_id) : null;
+                if (!bumpProduit) return null;
+                const bumpPrix = produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(bumpProduit.prix_vente);
+                const choisi = produitBumpId === bumpProduit.produit_id;
                 return (
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>➕ Ajoute un produit à ta commande</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {candidatsBump.map((p) => {
-                        const choisi = produitBumpId === p.produit_id;
-                        return (
-                          <button
-                            key={p.produit_id}
-                            onClick={() => setProduitBumpId(choisi ? null : p.produit_id)}
-                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: choisi ? "#EAF3DE" : "white", border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
-                          >
-                            <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, background: choisi ? couleur : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", flexShrink: 0 }}>{choisi ? "✓" : ""}</span>
-                            {p.photo_url ? (
-                              <img src={p.photo_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-                            ) : (
-                              <div style={{ width: 32, height: 32, borderRadius: 6, background: "#EEF0EA", flexShrink: 0 }} />
-                            )}
-                            <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: couleur, flexShrink: 0 }}>+{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button
+                      onClick={() => setProduitBumpId(choisi ? null : bumpProduit.produit_id)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: choisi ? "#EAF3DE" : "white", border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+                    >
+                      <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, background: choisi ? couleur : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", flexShrink: 0 }}>{choisi ? "✓" : ""}</span>
+                      {bumpProduit.photo_url ? (
+                        <img src={bumpProduit.photo_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#EEF0EA", flexShrink: 0 }} />
+                      )}
+                      <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bumpProduit.produit_nom}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: couleur, flexShrink: 0 }}>
+                        {produitOuvert.bump_prix_special != null && Number(produitOuvert.bump_prix_special) < Number(bumpProduit.prix_vente) && (
+                          <span style={{ textDecoration: "line-through", color: "#8A9089", fontWeight: 500, marginRight: 5 }}>{Number(bumpProduit.prix_vente).toLocaleString("fr-FR")}</span>
+                        )}
+                        +{bumpPrix.toLocaleString("fr-FR")} {entreprise.devise}
+                      </span>
+                    </button>
                   </div>
                 );
               })()}
@@ -878,10 +941,11 @@ export default function CataloguePublic({ workspaceId }) {
                 {produitBumpId && (() => {
                   const bump = produits.find((p) => p.produit_id === produitBumpId);
                   if (!bump) return null;
+                  const prixBumpAffiche = produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(bump.prix_vente);
                   return (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ color: "#6B7168" }}>+ {bump.produit_nom}</span>
-                      <span>{Number(bump.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                      <span>{prixBumpAffiche.toLocaleString("fr-FR")} {entreprise.devise}</span>
                     </div>
                   );
                 })()}
@@ -893,7 +957,7 @@ export default function CataloguePublic({ workspaceId }) {
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
                   <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0) : 0)).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} {entreprise.devise}</span>
                 </div>
               </div>
 
@@ -903,10 +967,10 @@ export default function CataloguePublic({ workspaceId }) {
 
               <button
                 onClick={envoyerCommande}
-                disabled={envoi}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.7 : 1, marginTop: 4 }}
+                disabled={envoi || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4 }}
               >
-                {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>
             </div>
           </div>

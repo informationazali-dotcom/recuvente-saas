@@ -448,6 +448,9 @@ function LandingPage() {
 
   const money = (value) => value === null || value === undefined || value === '' ? '—' : Number(value).toLocaleString('fr-FR');
   const statValue = (key) => stats && stats[key] !== undefined && stats[key] !== null ? money(stats[key]) : '—';
+  // Valeur fixée manuellement pour l'affichage "Commerce confirmé" du Hero 3D, sur décision explicite du client
+  // (au lieu de la vraie statistique statValue('montant_total_confirme')). À ajuster ou retirer ici si besoin.
+  const AFFICHAGE_COMMERCE_HERO = '33 000 000';
   const activities = [
     ['🛒','E-commerce & COD','Commandes, boutique, closers, livraison, récupération et suivi.','Transformez vos ventes dispersées en une machine commerciale pilotable.'],
     ['🏪','Commerce physique','Ventes, stock, clients, paiements et performance.','Donnez à votre point de vente une vision claire de ce qui se passe vraiment.'],
@@ -514,7 +517,10 @@ function LandingPage() {
       /* V4 — FUTURISTE 3D / CONTRASTE LISIBLE */
       .rva{background:#f3faf6;color:#061b12}
       .rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) h2,.rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) h3,.rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) strong,.rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) b{color:#061b12}
-      .rva .rva-section:not(.rva-dark) p,.rva .rva-desc,.rva .rva-path span,.rva .rva-activity p,.rva .rva-role p,.rva .rva-markcard p,.rva .rva-compare li,.rva .rva-plan li,.rva .rva-answer{color:#29463a!important}
+      .rva .rva-section:not(.rva-dark) p,.rva .rva-desc,.rva .rva-path span,.rva .rva-activity p,.rva .rva-role:not(.dark):not(.gold) p,.rva .rva-markcard p,.rva .rva-compare li,.rva .rva-plan:not(.featured) li,.rva .rva-answer{color:#29463a!important}
+      .rva .rva-role.dark p{color:rgba(255,255,255,.82)!important}
+      .rva .rva-plan.featured li{color:rgba(255,255,255,.85)!important}
+      .rva .rva-plan.featured li:before{color:#7effbd!important}
       .rva-hero{min-height:790px;background:radial-gradient(circle at 74% 28%,rgba(27,255,157,.34),transparent 22%),radial-gradient(circle at 86% 78%,rgba(247,201,91,.14),transparent 20%),linear-gradient(135deg,#010806,#04331f 52%,#06130d);overflow:hidden}
       .rva-hero:after{content:"";position:absolute;inset:-20%;background:repeating-radial-gradient(ellipse at 70% 48%,transparent 0 105px,rgba(126,255,191,.035) 107px 108px);transform:rotate(-9deg);pointer-events:none}
       .rva-h1{font-size:clamp(60px,8.5vw,112px);text-shadow:0 8px 40px rgba(0,0,0,.35)}
@@ -537,7 +543,10 @@ function LandingPage() {
       .rva-3dsection{background:radial-gradient(circle at 75% 20%,rgba(20,235,140,.13),transparent 28%),linear-gradient(180deg,#f5fcf8,#e7f6ee)}
       .rva-browser3d{transform:rotateY(-23deg) rotateX(10deg) rotateZ(2deg) translateZ(65px);box-shadow:65px 75px 120px rgba(0,45,28,.34),0 0 80px rgba(10,185,108,.13);border-width:2px}
       .rva-browser3d:after{transform:translateZ(-55px) translateX(14px);box-shadow:35px 35px 70px rgba(0,30,18,.28)}
-      .rva-planprice,.rva-priceHead p,.rva-systemCopy p,.rva-money p{color:#183b2e!important}
+      .rva-plan:not(.featured) .rva-planprice,.rva-priceHead p,.rva-systemCopy p,.rva-money p{color:#183b2e!important}
+      .rva-plan.featured .rva-planprice{color:#FFFFFF!important}
+      .rva-plan.featured .rva-planprice small{color:rgba(255,255,255,.75)!important}
+      .rva-plan.featured h3{color:#FFFFFF!important}
       .rva-final{background:radial-gradient(circle at 50% 10%,rgba(80,255,181,.25),transparent 30%),linear-gradient(135deg,#010705,#043421 55%,#06150e)}
       @keyframes rvaOrbit{to{transform:rotateX(68deg) rotateZ(342deg) translateZ(-80px)}}
       @media(max-width:900px){.rva-stage{height:510px}.rva-dashboard{transform:rotateY(-10deg) rotateX(5deg) rotateZ(-1deg) translateZ(35px)}.rva-float.one{right:-5px}.rva-float.two{left:-5px}.rva-float.three{right:0}}
@@ -855,11 +864,11 @@ function LandingPage() {
               <div className="rva-dashboard rva-holoDashboard">
                 <div className="rva-holoScan"/>
                 <div className="rva-dbtop"><div className="rva-dbbrand">RECUVENTE<small>COMMAND CENTER</small></div><span className="rva-live">● LIVE · DATA CORE</span></div>
-                <div className="rva-dbgrid">{[['COMMERCE CONFIRMÉ',statValue('montant_total_confirme'),'FCFA'],['COMMANDES',statValue('nb_commandes_confirmees'),'confirmées'],['ENTREPRISES',statValue('nb_entreprises_actives'),'actives']].map(x=><div className="rva-kpi" key={x[0]}><small>{x[0]}</small><strong>{x[1]}</strong><em>{x[2]}</em></div>)}</div>
+                <div className="rva-dbgrid">{[['COMMERCE CONFIRMÉ',AFFICHAGE_COMMERCE_HERO,'FCFA'],['COMMANDES',statValue('nb_commandes_confirmees'),'confirmées'],['ENTREPRISES',statValue('nb_entreprises_actives'),'actives']].map(x=><div className="rva-kpi" key={x[0]}><small>{x[0]}</small><strong>{x[1]}</strong><em>{x[2]}</em></div>)}</div>
                 <div className="rva-dbmain"><div className="rva-chart"><div className="rva-charthead"><span>TRAJECTOIRE DU COMMERCE</span><span>LIVE</span></div><svg viewBox="0 0 500 160" preserveAspectRatio="none"><defs><linearGradient id="holoArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#4dffb0" stopOpacity=".42"/><stop offset="100%" stopColor="#4dffb0" stopOpacity="0"/></linearGradient></defs><path className="area" fill="url(#holoArea)" d="M0 140 L70 118 L140 128 L205 83 L270 96 L335 55 L400 72 L500 22 L500 160 L0 160 Z"/><path d="M0 140 L70 118 L140 128 L205 83 L270 96 L335 55 L400 72 L500 22"/></svg></div><div className="rva-side"><h4>OPÉRATIONS</h4><div className="rva-mini">{[42,61,48,76,68,88].map((h,i)=><i key={i} style={{height:`${h}%`}}/>)}</div></div></div>
                 <div className="rva-holoFooter"><span>VENTE</span><span>ÉQUIPE</span><span>BOUTIQUE</span><span>FINANCE</span><span>PERFORMANCE</span></div>
               </div>
-              <div className="rva-float one rva-holoFloat"><small>COMMERCE CONFIRMÉ</small><strong>{statValue('montant_total_confirme')} <b>FCFA</b></strong><em>signal réel</em></div>
+              <div className="rva-float one rva-holoFloat"><small>COMMERCE CONFIRMÉ</small><strong>{AFFICHAGE_COMMERCE_HERO} <b>FCFA</b></strong><em>signal réel</em></div>
               <div className="rva-float two rva-holoFloat"><small>ENTREPRISES ACTIVES</small><strong>{statValue('nb_entreprises_actives')}</strong><em>espaces en activité</em></div>
               <div className="rva-float three rva-holoFloat"><small>LIVREURS ACTIFS</small><strong>{statValue('nb_livreurs_actifs')}</strong><em>terrain connecté</em></div>
               <div className="rva-holoChip chipA">◈ CENTRALISATION</div><div className="rva-holoChip chipB">◉ PERFORMANCE</div><div className="rva-3dbadge">UNE VISION · UNE ÉQUIPE · UN SYSTÈME</div>

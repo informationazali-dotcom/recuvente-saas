@@ -573,12 +573,12 @@ function LandingPage() {
 .rvp-hero, .rvp-hero * { color: #fff; }
 .rvp-hero .rvp-muted, .rvp-hero .rvp-desc, .rvp-hero small { color: rgba(255,255,255,.84); }
 
-:root{--rv-orange:#ff7a18;--rv-orange-2:#ffb000}
+:root{--rv-orange:#FF6A00;--rv-orange-2:#FFB000}
 .rva-orange{color:var(--rv-orange)!important}
-.rva-orangeGlow{box-shadow:0 0 42px rgba(255,122,24,.26)}
-.rva-orangeDot{background:linear-gradient(135deg,var(--rv-orange),var(--rv-orange-2));box-shadow:0 0 22px rgba(255,122,24,.55)}
-.rva .rva-btn.primary{background:linear-gradient(135deg,#ff9b42 0%,#ff7a18 48%,#ffb000 100%);color:#fff;box-shadow:0 16px 42px rgba(255,122,24,.28)}
-.rva .rva-btn.primary:hover{box-shadow:0 20px 52px rgba(255,122,24,.38)}
+.rva-orangeGlow{box-shadow:0 0 42px rgba(255,106,0,.26)}
+.rva-orangeDot{background:linear-gradient(135deg,var(--rv-orange),var(--rv-orange-2));box-shadow:0 0 22px rgba(255,106,0,.55)}
+.rva .rva-btn.primary{background:linear-gradient(135deg,#FF6A00 0%,#FFB000 100%);color:#fff;box-shadow:0 16px 42px rgba(255,106,0,.28)}
+.rva .rva-btn.primary:hover{box-shadow:0 20px 52px rgba(255,106,0,.38)}
 
 
 /* =========================================================
@@ -586,13 +586,13 @@ function LandingPage() {
    Emerald holographic + orange energy + premium gold + white
    ========================================================= */
 .rva{
-  --rv-ink:#071812;
-  --rv-deep:#04110d;
+  --rv-ink:#03110C;
+  --rv-deep:#03110C;
   --rv-emerald:#00D084;
   --rv-emerald-2:#00F5A0;
   --rv-orange:#FF6A00;
   --rv-orange-2:#FFB000;
-  --rv-gold:#FFD166;
+  --rv-gold:#FFB000;
   --rv-white:#FFFFFF;
   --rv-white-82:rgba(255,255,255,.82);
   --rv-white-68:rgba(255,255,255,.68);

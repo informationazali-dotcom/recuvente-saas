@@ -258,7 +258,19 @@ export default function App() {
       .from("workspace_members")
       .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition)")
       .eq("user_id", userId);
-    if (!error && data && data.length > 0) {
+    if (error) {
+      // Erreur réseau/temporaire (ex: jeton en cours de rafraîchissement après une
+      // longue inactivité) : on NE TOUCHE PAS à l'espace déjà chargé, pour éviter
+      // de renvoyer la personne vers "Créer mon espace" à cause d'un simple raté réseau.
+      console.error("Erreur de chargement de l'espace (non bloquant) :", error.message);
+      if (workspace === undefined) {
+        // Tout premier chargement : on retente une fois après une courte pause,
+        // plutôt que de laisser la personne bloquée sur l'écran de chargement.
+        setTimeout(() => loadWorkspace(idASelectionner), 1500);
+      }
+      return;
+    }
+    if (data && data.length > 0) {
       const liste = data.filter((d) => d.workspaces).map((d) => ({ ...d.workspaces, role: d.role }));
       setWorkspacesDisponibles(liste);
       const cibleId = idASelectionner || workspaceActifId;
@@ -269,6 +281,7 @@ export default function App() {
         setWorkspaceActifId(actif.id);
       }
     } else {
+      // Ici, la requête a bien réussi et a confirmé qu'il n'y a réellement aucun espace.
       setWorkspace(null);
       setWorkspacesDisponibles([]);
     }

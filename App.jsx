@@ -1506,6 +1506,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       alert("Erreur: " + error.message);
       return null;
     }
+    enregistrerAudit("Produit créé", form.nom);
     await loadProduits();
     return data;
   }
@@ -1558,7 +1559,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function updateProduitPrixVente(id, prix) {
+    const produitConcerne = produits.find((p) => p.id === id);
+    const ancienPrix = produitConcerne?.prix_vente;
     await supabase.from("produits").update({ prix_vente: Number(prix) || 0 }).eq("id", id);
+    if (produitConcerne && Number(ancienPrix) !== Number(prix)) {
+      enregistrerAudit("Prix modifié", `${produitConcerne.nom} : ${ancienPrix ?? "—"} → ${prix} ${workspace.currency}`);
+    }
     await loadProduits();
   }
 
@@ -9408,11 +9414,37 @@ function IntegrationsModal({ workspace, onClose }) {
   const [erreurJournalAudit, setErreurJournalAudit] = useState(null);
   useEffect(() => {
     if (!afficherJournalAudit || journalAudit) return;
-    supabase.from("journal_audit").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(30).then(({ data, error }) => {
+    supabase.from("journal_audit").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(200).then(({ data, error }) => {
       if (error) setErreurJournalAudit(error.message);
       setJournalAudit(data || []);
     });
   }, [afficherJournalAudit]);
+
+  function echapperCSVAudit(valeur) {
+    const texte = String(valeur ?? "");
+    return /[",\n]/.test(texte) ? `"${texte.replace(/"/g, '""')}"` : texte;
+  }
+
+  function exporterJournalAuditCSV() {
+    if (!journalAudit || journalAudit.length === 0) { alert("Aucune action à exporter."); return; }
+    const entetes = ["Date", "Action", "Détails", "Effectué par"];
+    const lignes = journalAudit.map((e) => [
+      new Date(e.created_at).toLocaleString("fr-FR"),
+      e.action,
+      e.details || "",
+      e.effectue_par,
+    ].map(echapperCSVAudit).join(","));
+    const csv = "\uFEFF" + [entetes.join(","), ...lignes].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `journal-audit-${workspace.name.replace(/[^a-z0-9]+/gi, "-")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   const [personnalisation, setPersonnalisation] = useState({
     logo_url: workspace.logo_url || "",
@@ -9477,9 +9509,20 @@ function IntegrationsModal({ workspace, onClose }) {
   const [savingLangue, setSavingLangue] = useState(false);
   const [langueSaved, setLangueSaved] = useState(false);
 
+  async function tracerAuditLocal(action, details) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    await supabase.from("journal_audit").insert([{
+      workspace_id: workspace.id,
+      action,
+      details,
+      effectue_par: sessionData.session?.user?.email || "Inconnu",
+    }]);
+  }
+
   async function sauvegarderLangue() {
     setSavingLangue(true);
     await supabase.from("workspaces").update({ langue: langueBoutique }).eq("id", workspace.id);
+    if (langueBoutique !== (workspace.langue || "fr")) tracerAuditLocal("Langue boutique modifiée", `${workspace.langue || "fr"} → ${langueBoutique}`);
     setSavingLangue(false);
     setLangueSaved(true);
     setTimeout(() => setLangueSaved(false), 2000);
@@ -9488,6 +9531,7 @@ function IntegrationsModal({ workspace, onClose }) {
   async function sauvegarderDevise() {
     setSavingDevise(true);
     await supabase.from("workspaces").update({ currency: devise }).eq("id", workspace.id);
+    if (devise !== workspace.currency) tracerAuditLocal("Devise modifiée", `${workspace.currency} → ${devise}`);
     setSavingDevise(false);
     setDeviseSaved(true);
     setTimeout(() => setDeviseSaved(false), 2000);
@@ -9500,6 +9544,7 @@ function IntegrationsModal({ workspace, onClose }) {
   async function sauvegarderPays() {
     setSavingPays(true);
     await supabase.from("workspaces").update({ countries_livraison: paysListe, country: paysListe[0] || workspace.country }).eq("id", workspace.id);
+    tracerAuditLocal("Pays de livraison modifiés", paysListe.join(", ") || "aucun");
     setSavingPays(false);
     setPaysSaved(true);
     setTimeout(() => setPaysSaved(false), 2000);
@@ -9617,14 +9662,24 @@ function IntegrationsModal({ workspace, onClose }) {
             🔐 Journal d'audit
           </div>
           <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
-            Qui a fait quoi, et quand — les 30 dernières actions importantes.
+            Qui a fait quoi, et quand — les 200 dernières actions importantes.
           </div>
-          <button
-            onClick={() => setAfficherJournalAudit(!afficherJournalAudit)}
-            style={{ background: "#8A6412", border: "none", borderRadius: 9, padding: "10px 16px", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}
-          >
-            {afficherJournalAudit ? "Masquer ▲" : "Voir le journal ▼"}
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setAfficherJournalAudit(!afficherJournalAudit)}
+              style={{ background: "#8A6412", border: "none", borderRadius: 9, padding: "10px 16px", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}
+            >
+              {afficherJournalAudit ? "Masquer ▲" : "Voir le journal ▼"}
+            </button>
+            {afficherJournalAudit && journalAudit && journalAudit.length > 0 && (
+              <button
+                onClick={exporterJournalAuditCSV}
+                style={{ background: "white", border: "1px solid #F0DDA8", borderRadius: 9, padding: "10px 16px", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#8A6412" }}
+              >
+                ⬇️ Export CSV
+              </button>
+            )}
+          </div>
 
           {afficherJournalAudit && (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>

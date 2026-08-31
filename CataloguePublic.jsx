@@ -80,6 +80,9 @@ const TRADUCTIONS = {
     confidentialite: "Confidentialité",
     discuterWhatsapp: "💬 Discuter sur WhatsApp",
     retourEnHaut: "▲ Retour en haut",
+    resteInforme: "Reste informé(e)",
+    texteInscriptionNewsletter: "Bonjour, je souhaite recevoir vos offres et nouveautés.",
+    sInscrire: "S'inscrire",
     proposePar: "Propulsé par RecuVente",
     aucunProduit: "Aucun produit disponible pour le moment.",
     resultatsPour: "Résultats pour",
@@ -162,6 +165,9 @@ const TRADUCTIONS = {
     confidentialite: "Privacy",
     discuterWhatsapp: "💬 Chat on WhatsApp",
     retourEnHaut: "▲ Back to top",
+    resteInforme: "Stay updated",
+    texteInscriptionNewsletter: "Hello, I'd like to receive your offers and updates.",
+    sInscrire: "Subscribe",
     proposePar: "Powered by RecuVente",
     aucunProduit: "No products available right now.",
     resultatsPour: "Results for",
@@ -1619,7 +1625,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue }) {
   );
 }
 
-function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection }) {
+function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, footerConfig }) {
   const anneeEnCours = new Date().getFullYear();
   const t = creerTraducteur(entreprise.langue);
   const reseaux = [
@@ -1627,9 +1633,12 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
     { url: entreprise.instagramUrl, icone: "📷", nom: "Instagram" },
     { url: entreprise.tiktokUrl, icone: "🎵", nom: "TikTok" },
   ].filter((r) => r.url);
+  const bgFooter = footerConfig?.bgColor || "#16231F";
+  const texteFooter = footerConfig?.textColor || "rgba(255,255,255,0.75)";
+  const colonnesPerso = Array.isArray(footerConfig?.colonnes) ? footerConfig.colonnes.filter((c) => c.titre) : [];
 
   return (
-    <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30 }}>
+    <div style={{ background: bgFooter, color: texteFooter, marginTop: 30 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
         {[
           { icone: "🚚", texte: t("livraisonRapide") },
@@ -1705,9 +1714,32 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
             </div>
           </div>
         )}
+        {colonnesPerso.map((col) => (
+          <div key={col.id}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{col.titre}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(col.liens || []).filter((l) => l.label).map((l, i) => (
+                <a
+                  key={i}
+                  href={l.href || "#"}
+                  target={l.href && l.href.startsWith("http") ? "_blank" : undefined}
+                  rel={l.href && l.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                  style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0, textDecoration: "none" }}
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
         {entreprise.whatsapp && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("contact")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              {entreprise.logo && (
+                <img src={entreprise.logo} alt="" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+              )}
+              <div style={{ fontWeight: 700, fontSize: 13, color: "white", textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("contact")}</div>
+            </div>
             <a
               href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
               target="_blank"
@@ -1720,14 +1752,41 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
         )}
       </div>
 
-      <div style={{ textAlign: "center", padding: "4px 0 16px" }}>
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)", borderRadius: 999, padding: "8px 18px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
-        >
-          {t("retourEnHaut")}
-        </button>
-      </div>
+      {footerConfig?.newsletterActif && (
+        <div style={{ textAlign: "center", padding: "20px 16px", borderTop: "1px solid rgba(255,255,255,0.12)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, color: "white" }}>📩 {t("resteInforme")}</div>
+          {footerConfig.newsletterTexte && <div style={{ fontSize: 11.5, opacity: 0.75, margin: "6px 0 12px" }}>{footerConfig.newsletterTexte}</div>}
+          {entreprise.whatsapp && (
+            <a
+              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(t("texteInscriptionNewsletter"))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-block", background: "rgba(255,255,255,0.9)", color: "#16231F", borderRadius: 999, padding: "9px 20px", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
+            >
+              {t("sInscrire")}
+            </a>
+          )}
+        </div>
+      )}
+
+      {Array.isArray(footerConfig?.paiements) && footerConfig.paiements.filter(Boolean).length > 0 && (
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", padding: "18px 20px 0" }}>
+          {footerConfig.paiements.filter(Boolean).map((p, i) => (
+            <span key={i} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 7, padding: "6px 11px", fontSize: 11, fontWeight: 600 }}>{p}</span>
+          ))}
+        </div>
+      )}
+
+      {footerConfig?.backToTop !== false && (
+        <div style={{ textAlign: "center", padding: "16px 0" }}>
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)", borderRadius: 999, padding: "8px 18px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+          >
+            {t("retourEnHaut")}
+          </button>
+        </div>
+      )}
 
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "16px 20px", textAlign: "center", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
         © {anneeEnCours} {entreprise.nom}{!entreprise.marqueBlanche && ` — ${t("proposePar")}`}
@@ -2032,7 +2091,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         );
       })}
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>

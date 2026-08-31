@@ -27,6 +27,19 @@ async function peutGererEquipe(workspaceId, userId) {
   return false;
 }
 
+async function tracerAudit(workspaceId, action, details, effectuePar) {
+  try {
+    await supabaseAdmin.from("journal_audit").insert([{
+      workspace_id: workspaceId,
+      action,
+      details,
+      effectue_par: effectuePar || "Inconnu",
+    }]);
+  } catch (e) {
+    console.error("Erreur journal d'audit (non bloquant) :", e.message);
+  }
+}
+
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.replace("Bearer ", "");
@@ -124,6 +137,8 @@ export default async function handler(req, res) {
 
     if (memberError) return res.status(400).json({ error: memberError.message });
 
+    await tracerAudit(workspaceId, "Membre invité", `${email} — rôle : ${role}${titre ? ` (${titre})` : ""}`, userData.user.email);
+
     return res.status(200).json({ success: true, email, compteExistant: !!createError });
   }
 
@@ -154,6 +169,15 @@ export default async function handler(req, res) {
       }
     }
 
+    const { data: cibleAvantSuppression } = await supabaseAdmin
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", memberUserId)
+      .maybeSingle();
+
+    const { data: userSupprime } = await supabaseAdmin.auth.admin.getUserById(memberUserId);
+
     const { error: deleteError } = await supabaseAdmin
       .from("workspace_members")
       .delete()
@@ -161,6 +185,13 @@ export default async function handler(req, res) {
       .eq("user_id", memberUserId);
 
     if (deleteError) return res.status(400).json({ error: deleteError.message });
+
+    await tracerAudit(
+      workspaceId,
+      "Membre retiré",
+      `${userSupprime?.user?.email || memberUserId}${cibleAvantSuppression?.role ? ` — rôle : ${cibleAvantSuppression.role}` : ""}`,
+      userData.user.email
+    );
 
     return res.status(200).json({ success: true });
   }

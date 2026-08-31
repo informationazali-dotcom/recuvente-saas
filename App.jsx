@@ -9217,6 +9217,50 @@ function RapprochementView({ workspace, commandes, onValide }) {
   const [enCours, setEnCours] = useState(false);
   const [historique, setHistorique] = useState(null);
   const [afficherHistorique, setAfficherHistorique] = useState(false);
+  const [scanEnCours, setScanEnCours] = useState(false);
+  const [dernierScan, setDernierScan] = useState(null);
+
+  async function scannerRecu(fichier) {
+    if (!fichier) return;
+    if (!window.Tesseract) {
+      alert("Le lecteur de reçu n'est pas encore chargé, réessaie dans quelques secondes.");
+      return;
+    }
+    setScanEnCours(true);
+    setDernierScan(null);
+    try {
+      const { data } = await window.Tesseract.recognize(fichier, "fra");
+      const texteOCR = data.text || "";
+
+      // Cherche le plus gros montant (souvent le montant de la transaction),
+      // en ignorant les nombres trop courts (probablement une date/heure).
+      const montantsTrouves = (texteOCR.match(/\d[\d\s.,]{3,}/g) || [])
+        .map((m) => Number(m.replace(/[\s.,](?=\d{3}\b)/g, "").replace(",", ".")))
+        .filter((n) => !isNaN(n) && n >= 100 && n <= 100000000);
+      const montant = montantsTrouves.length ? Math.max(...montantsTrouves) : null;
+
+      // Cherche un numéro de téléphone ivoirien (10 chiffres, ou +225/00225 suivi de 10 chiffres)
+      const telMatch = texteOCR.match(/(?:\+?225|00225)?[\s.]?0?[0-9]{1,2}(?:[\s.]?[0-9]{2}){4,5}/);
+      const telephone = telMatch ? telMatch[0].replace(/\s/g, "") : "";
+
+      // Cherche une référence de transaction (souvent après "Réf", "ID", ou une suite alphanumérique)
+      const refMatch = texteOCR.match(/(?:réf|ref|id|transaction)[\s:.]*([A-Z0-9]{5,})/i);
+      const reference = refMatch ? refMatch[1] : "";
+
+      if (!montant) {
+        setDernierScan({ succes: false, message: "Aucun montant clair détecté sur cette image. Ajoute la ligne manuellement." });
+        setScanEnCours(false);
+        return;
+      }
+
+      const nouvelleLigne = `${montant},${telephone},${reference}`;
+      setTexteColle((t) => (t.trim() ? t.trim() + "\n" + nouvelleLigne : nouvelleLigne));
+      setDernierScan({ succes: true, montant, telephone, reference });
+    } catch (e) {
+      setDernierScan({ succes: false, message: "Erreur de lecture : " + e.message });
+    }
+    setScanEnCours(false);
+  }
 
   function normaliserTel(tel) {
     return String(tel || "").replace(/\D/g, "").replace(/^225/, "").replace(/^0/, "");
@@ -9323,6 +9367,17 @@ function RapprochementView({ workspace, commandes, onValide }) {
 
       {!propositions && (
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13, color: "#3B6D11", cursor: scanEnCours ? "default" : "pointer", marginBottom: 12, boxSizing: "border-box" }}>
+            {scanEnCours ? "🔍 Lecture du reçu en cours..." : "📸 Scanner un reçu (photo)"}
+            <input type="file" accept="image/*" capture="environment" disabled={scanEnCours} style={{ display: "none" }} onChange={(e) => scannerRecu(e.target.files?.[0])} />
+          </label>
+          {dernierScan && (
+            <div style={{ background: dernierScan.succes ? "#EAF3DE" : "#FBEAE6", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 11.5, color: dernierScan.succes ? "#3B6D11" : "#D64933" }}>
+              {dernierScan.succes
+                ? `✅ Détecté : ${Number(dernierScan.montant).toLocaleString("fr-FR")} FCFA${dernierScan.telephone ? " · " + dernierScan.telephone : ""}${dernierScan.reference ? " · " + dernierScan.reference : ""} — vérifie la ligne ajoutée ci-dessous avant d'analyser.`
+                : "⚠️ " + dernierScan.message}
+            </div>
+          )}
           <textarea
             value={texteColle}
             onChange={(e) => setTexteColle(e.target.value)}

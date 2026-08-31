@@ -11,6 +11,177 @@ function lireCookieMeta(nom) {
   return match ? match[2] : null;
 }
 
+const TRADUCTIONS = {
+  fr: {
+    rechercher: "Rechercher un produit...",
+    nousContacter: "Nous contacter",
+    accueil: "Accueil",
+    meilleuresVentes: "🔥 Meilleures ventes",
+    nouveautes: "✨ Nouveautés",
+    badgeLivraison: "🚚 Livraison rapide",
+    badgePaiement: "💵 Paiement à la livraison",
+    badgeSecurise: "🛡️ Achat sécurisé",
+    bestSeller: "Best-seller",
+    ventes: "vente(s)",
+    avis: "avis",
+    livraisonGratuite: "🎁 Livraison gratuite",
+    fraisAChoisir: "🚚 Frais de livraison à choisir à la commande",
+    deFraisLivraison: "de frais de livraison",
+    plusQue: "Plus que",
+    enStock: "en stock",
+    offresDispo: "🔥 Offres quantité disponibles — choisis ton pack dans le formulaire de commande",
+    aucuneDescription: "Aucune description disponible.",
+    avisClients: "Avis clients",
+    laisserAvis: "Laisser un avis",
+    aucunAvis: "Aucun avis pour le moment. Sois le premier !",
+    commandeEnvoyee: "Commande envoyée !",
+    merciMerci: "Merci",
+    vaTeContacter: "va te contacter au",
+    pourConfirmer: "pour confirmer ta commande.",
+    livraisonA: "Livraison à :",
+    telephone: "Téléphone :",
+    etMaintenant: "Et maintenant ?",
+    etape1: "On te contacte pour confirmer ta commande",
+    etape2: "Ton colis est préparé et remis au livreur",
+    etape3: "Tu payes à la réception, une fois satisfait",
+    uneQuestion: "💬 Une question ? Contacte-nous",
+    continuerAchats: "← Continuer mes achats",
+    tuPourraisAimer: "Tu pourrais aussi aimer",
+    badgePaiement2: "Paiement à la livraison",
+    badgeLivraison2: "Livraison rapide",
+    badgeVerifie: "Vérifie avant de payer",
+    merciCommander: "⚠️ Merci de ne commander que si tu es réellement intéressé(e)",
+    commander: "Commander",
+    tesCoordonnees: "Tes coordonnées",
+    pourTeContacter: "Pour qu'on puisse te contacter et te livrer.",
+    tonNom: "Ton nom",
+    tonTelephone: "Ton numéro de téléphone",
+    taVille: "Ta ville et ton quartier",
+    quantite: "Quantité",
+    offresQuantite: "🔥 OFFRES QUANTITÉ",
+    prixFixe: "Prix fixe",
+    modeLivraison: "Mode de livraison",
+    choisisMode: "Choisis un mode de livraison pour continuer.",
+    ajouteProduit: "➕ Ajoute un produit à ta commande",
+    engagement: "⚠️ En confirmant, tu t'engages à réceptionner ce colis. Merci de ne pas commander \"pour voir\" si tu n'es pas certain(e) d'être intéressé(e).",
+    confirmer: "Confirmer",
+    envoiEnCours: "Envoi...",
+    combinaisonIndispo: "⚠️ Cette combinaison n'est pas disponible.",
+    varianteRupture: "🔴 Cette variante est en rupture de stock.",
+    livraisonRapide: "Livraison rapide",
+    paiementLivraison: "Paiement à la livraison",
+    retourFacile: "Retour facile",
+    achatSecurise: "Achat sécurisé",
+    boutique: "Boutique",
+    informations: "Informations",
+    contact: "Contact",
+    politiqueLivraison: "Politique de livraison",
+    politiqueRetours: "Politique de retours",
+    confidentialite: "Confidentialité",
+    discuterWhatsapp: "💬 Discuter sur WhatsApp",
+    retourEnHaut: "▲ Retour en haut",
+    proposePar: "Propulsé par RecuVente",
+    aucunProduit: "Aucun produit disponible pour le moment.",
+    resultatsPour: "Résultats pour",
+    tousLesProduits: "Tous les produits",
+    voirTout: "Voir tout →",
+    voirTousLesProduits: "Voir tous les produits",
+    aucunResultat: "Aucun produit ne correspond à ta recherche.",
+    retourAccueil: "← Retour à l'accueil",
+    erreurGenerique: "Une erreur est survenue, réessaie.",
+    envoyerAvis: "Envoyer mon avis",
+    tonCommentaire: "Ton commentaire (optionnel)",
+    nouveauBadge: "Nouveau",
+    restants: "restants",
+  },
+  en: {
+    rechercher: "Search for a product...",
+    nousContacter: "Contact us",
+    accueil: "Home",
+    meilleuresVentes: "🔥 Best sellers",
+    nouveautes: "✨ New arrivals",
+    badgeLivraison: "🚚 Fast delivery",
+    badgePaiement: "💵 Pay on delivery",
+    badgeSecurise: "🛡️ Secure purchase",
+    bestSeller: "Best-seller",
+    ventes: "sale(s)",
+    avis: "reviews",
+    livraisonGratuite: "🎁 Free delivery",
+    fraisAChoisir: "🚚 Delivery fee to choose at checkout",
+    deFraisLivraison: "delivery fee",
+    plusQue: "Only",
+    enStock: "left in stock",
+    offresDispo: "🔥 Quantity deals available — pick your pack in the order form",
+    aucuneDescription: "No description available.",
+    avisClients: "Customer reviews",
+    laisserAvis: "Leave a review",
+    aucunAvis: "No reviews yet. Be the first!",
+    commandeEnvoyee: "Order sent!",
+    merciMerci: "Thank you",
+    vaTeContacter: "will contact you at",
+    pourConfirmer: "to confirm your order.",
+    livraisonA: "Deliver to:",
+    telephone: "Phone:",
+    etMaintenant: "What happens next?",
+    etape1: "We'll contact you to confirm your order",
+    etape2: "Your package is prepared and handed to the courier",
+    etape3: "You pay on delivery, once you're satisfied",
+    uneQuestion: "💬 A question? Contact us",
+    continuerAchats: "← Continue shopping",
+    tuPourraisAimer: "You might also like",
+    badgePaiement2: "Pay on delivery",
+    badgeLivraison2: "Fast delivery",
+    badgeVerifie: "Check before you pay",
+    merciCommander: "⚠️ Please only order if you're genuinely interested",
+    commander: "Order",
+    tesCoordonnees: "Your details",
+    pourTeContacter: "So we can contact you and deliver.",
+    tonNom: "Your name",
+    tonTelephone: "Your phone number",
+    taVille: "Your city and neighborhood",
+    quantite: "Quantity",
+    offresQuantite: "🔥 QUANTITY DEALS",
+    prixFixe: "Fixed price",
+    modeLivraison: "Delivery method",
+    choisisMode: "Choose a delivery method to continue.",
+    ajouteProduit: "➕ Add a product to your order",
+    engagement: "⚠️ By confirming, you commit to receiving this package. Please don't order \"just to see\" if you're not sure you're interested.",
+    confirmer: "Confirm",
+    envoiEnCours: "Sending...",
+    combinaisonIndispo: "⚠️ This combination isn't available.",
+    varianteRupture: "🔴 This variant is out of stock.",
+    livraisonRapide: "Fast delivery",
+    paiementLivraison: "Pay on delivery",
+    retourFacile: "Easy returns",
+    achatSecurise: "Secure purchase",
+    boutique: "Shop",
+    informations: "Information",
+    contact: "Contact",
+    politiqueLivraison: "Delivery policy",
+    politiqueRetours: "Return policy",
+    confidentialite: "Privacy",
+    discuterWhatsapp: "💬 Chat on WhatsApp",
+    retourEnHaut: "▲ Back to top",
+    proposePar: "Powered by RecuVente",
+    aucunProduit: "No products available right now.",
+    resultatsPour: "Results for",
+    tousLesProduits: "All products",
+    voirTout: "See all →",
+    voirTousLesProduits: "See all products",
+    aucunResultat: "No products match your search.",
+    retourAccueil: "← Back to home",
+    nouveauBadge: "New",
+    restants: "left",
+    erreurGenerique: "Something went wrong, please try again.",
+    envoyerAvis: "Submit my review",
+    tonCommentaire: "Your comment (optional)",
+  },
+};
+function creerTraducteur(langue) {
+  const dict = TRADUCTIONS[langue] || TRADUCTIONS.fr;
+  return (cle) => dict[cle] || TRADUCTIONS.fr[cle] || cle;
+}
+
 function prixUnitairePourBundle(prixVente, bundle) {
   if (!bundle) return Number(prixVente);
   if ((bundle.mode || "pourcentage") === "prix_fixe") {
@@ -148,6 +319,7 @@ export default function CataloguePublic({ workspaceId }) {
         labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
         temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
+        langue: data[0].langue || "fr",
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       chargerPixelTiktok(data[0].tiktok_pixel_id);
@@ -320,7 +492,7 @@ export default function CataloguePublic({ workspaceId }) {
     setEnvoi(false);
     const resultat = data && data[0];
     if (error || !resultat?.succes) {
-      setErreurEnvoi(resultat?.message || "Une erreur est survenue, réessaie.");
+      setErreurEnvoi(resultat?.message || t("erreurGenerique"));
       return;
     }
     trackEvenement("Lead", {
@@ -332,6 +504,7 @@ export default function CataloguePublic({ workspaceId }) {
   }
 
   const couleur = entreprise?.couleur || "#1a7a3c";
+  const t = creerTraducteur(entreprise?.langue);
 
   if (entreprise === undefined && !erreur) {
     return (
@@ -446,7 +619,7 @@ export default function CataloguePublic({ workspaceId }) {
           <div className="rv-shop-produit-info" style={{ padding: "22px 18px 140px" }}>
             {produitOuvert.nb_ventes > 0 && (
               <div style={{ display: "inline-block", fontSize: 11, fontWeight: 700, color: "#8A6412", background: "#FBF3E3", padding: "3px 10px", borderRadius: 999, marginBottom: 10 }}>
-                🔥 Best-seller — {produitOuvert.nb_ventes} vente{produitOuvert.nb_ventes > 1 ? "s" : ""}
+                🔥 {t("bestSeller")} — {produitOuvert.nb_ventes} {t("ventes")}
               </div>
             )}
             <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
@@ -467,23 +640,23 @@ export default function CataloguePublic({ workspaceId }) {
 
             {livraisonGratuite ? (
               <div style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#1F9D6E", background: "#EAF7F1", padding: "4px 10px", borderRadius: 999, marginBottom: 12 }}>
-                🎁 Livraison gratuite
+                {t("livraisonGratuite")}
               </div>
             ) : aChoixLivraison ? (
               <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
-                🚚 Frais de livraison à choisir à la commande ({entreprise.labelLivraisonLocale} : {fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise} — {entreprise.labelLivraisonExpedition} : {fraisExpeditionEffectif.toLocaleString("fr-FR")} {entreprise.devise})
+                {t("fraisAChoisir")} ({entreprise.labelLivraisonLocale} : {fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise} — {entreprise.labelLivraisonExpedition} : {fraisExpeditionEffectif.toLocaleString("fr-FR")} {entreprise.devise})
               </div>
             ) : (
               fraisLivraisonEffectif > 0 && (
                 <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
-                  🚚 + {fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise} de frais de livraison
+                  🚚 + {fraisLivraisonEffectif.toLocaleString("fr-FR")} {entreprise.devise} {t("deFraisLivraison")}
                 </div>
               )
             )}
 
             {produitOuvert.stock_initial > 0 && produitOuvert.stock_initial <= 5 && (
               <div style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#D64933", background: "#FBEAE6", padding: "4px 10px", borderRadius: 999, marginBottom: 18 }}>
-                ⚡ Plus que {produitOuvert.stock_initial} en stock
+                ⚡ {t("plusQue")} {produitOuvert.stock_initial} {t("enStock")}
               </div>
             )}
             {!(produitOuvert.stock_initial > 0 && produitOuvert.stock_initial <= 5) && <div style={{ marginBottom: 10 }} />}
@@ -552,15 +725,15 @@ export default function CataloguePublic({ workspaceId }) {
                 />
               </>
             ) : (
-              <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>Aucune description disponible.</div>
+              <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>{t("aucuneDescription")}</div>
             )}
 
             <div id="rv-shop-avis-section" style={{ borderTop: "1px solid #ECE8DC", paddingTop: 20, marginBottom: 26 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>Avis clients {avisListe.length > 0 && `(${avisListe.length})`}</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{t("avisClients")} {avisListe.length > 0 && `(${avisListe.length})`}</div>
                 {!afficherFormAvis && !avisEnvoye && (
                   <button onClick={() => setAfficherFormAvis(true)} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                    Laisser un avis
+                    {t("laisserAvis")}
                   </button>
                 )}
               </div>
@@ -585,13 +758,13 @@ export default function CataloguePublic({ workspaceId }) {
                     ))}
                   </div>
                   <input
-                    placeholder="Ton nom"
+                    placeholder={t("tonNom")}
                     value={formAvis.nom}
                     onChange={(e) => setFormAvis({ ...formAvis, nom: e.target.value })}
                     style={{ ...inputStyle, marginBottom: 8 }}
                   />
                   <textarea
-                    placeholder="Ton commentaire (optionnel)"
+                    placeholder={t("tonCommentaire")}
                     value={formAvis.commentaire}
                     onChange={(e) => setFormAvis({ ...formAvis, commentaire: e.target.value })}
                     rows={3}
@@ -602,13 +775,13 @@ export default function CataloguePublic({ workspaceId }) {
                     disabled={envoiAvis || !formAvis.nom.trim()}
                     style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: (envoiAvis || !formAvis.nom.trim()) ? 0.5 : 1 }}
                   >
-                    {envoiAvis ? "Envoi..." : "Envoyer mon avis"}
+                    {envoiAvis ? t("envoiEnCours") : t("envoyerAvis")}
                   </button>
                 </div>
               )}
 
               {avisListe.length === 0 ? (
-                <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic" }}>Aucun avis pour le moment. Sois le premier !</div>
+                <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic" }}>{t("aucunAvis")}</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {avisListe.map((a, i) => (
@@ -627,9 +800,9 @@ export default function CataloguePublic({ workspaceId }) {
             {envoye && (
               <div style={{ textAlign: "center", padding: "10px 0 30px" }}>
                 <div style={{ fontSize: 52, marginBottom: 10 }}>🎉</div>
-                <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: "#16231F" }}>Commande envoyée !</div>
+                <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: "#16231F" }}>{t("commandeEnvoyee")}</div>
                 <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 24, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
-                  Merci {form.client.split(" ")[0]} 🙏 — {entreprise.nom} va te contacter au <strong>{form.tel}</strong> pour confirmer ta commande.
+                  {t("merciMerci")} {form.client.split(" ")[0]} 🙏 — {entreprise.nom} {t("vaTeContacter")} <strong>{form.tel}</strong> {t("pourConfirmer")}
                 </div>
 
                 <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, textAlign: "left", marginBottom: 18 }}>
@@ -650,17 +823,17 @@ export default function CataloguePublic({ workspaceId }) {
                     </div>
                   </div>
                   <div style={{ fontSize: 12.5, color: "#6B7168", lineHeight: 1.7 }}>
-                    <div><strong style={{ color: "#16231F" }}>Livraison à :</strong> {form.zone}</div>
-                    <div><strong style={{ color: "#16231F" }}>Téléphone :</strong> {form.tel}</div>
+                    <div><strong style={{ color: "#16231F" }}>{t("livraisonA")}</strong> {form.zone}</div>
+                    <div><strong style={{ color: "#16231F" }}>{t("telephone")}</strong> {form.tel}</div>
                   </div>
                 </div>
 
                 <div style={{ textAlign: "left", marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Et maintenant ?</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{t("etMaintenant")}</div>
                   {[
-                    { n: "1", texte: "On te contacte pour confirmer ta commande" },
-                    { n: "2", texte: "Ton colis est préparé et remis au livreur" },
-                    { n: "3", texte: "Tu payes à la réception, une fois satisfait" },
+                    { n: "1", texte: t("etape1") },
+                    { n: "2", texte: t("etape2") },
+                    { n: "3", texte: t("etape3") },
                   ].map((etape) => (
                     <div key={etape.n} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
                       <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#EAF3DE", color: "#3B6D11", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{etape.n}</div>
@@ -676,14 +849,14 @@ export default function CataloguePublic({ workspaceId }) {
                     rel="noopener noreferrer"
                     style={{ display: "block", background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, textDecoration: "none", marginBottom: 10 }}
                   >
-                    💬 Une question ? Contacte-nous
+                    {t("uneQuestion")}
                   </a>
                 )}
                 <button
                   onClick={fermerProduit}
                   style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
                 >
-                  ← Continuer mes achats
+                  {t("continuerAchats")}
                 </button>
               </div>
             )}
@@ -704,7 +877,7 @@ export default function CataloguePublic({ workspaceId }) {
               if (similaires.length === 0) return null;
               return (
                 <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 20, marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Tu pourrais aussi aimer</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t("tuPourraisAimer")}</div>
                   <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
                     {similaires.map((p) => (
                       <button
@@ -733,9 +906,9 @@ export default function CataloguePublic({ workspaceId }) {
             {!envoye && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
                 {[
-                  { icone: "💵", texte: "Paiement à la livraison" },
-                  { icone: "🚚", texte: "Livraison rapide" },
-                  { icone: "✅", texte: "Vérifie avant de payer" },
+                  { icone: "💵", texte: t("badgePaiement2") },
+                  { icone: "🚚", texte: t("badgeLivraison2") },
+                  { icone: "✅", texte: t("badgeVerifie") },
                 ].map((item, i) => (
                   <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
                     <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
@@ -751,7 +924,7 @@ export default function CataloguePublic({ workspaceId }) {
               <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)", zIndex: 20 }}>
                 <div className="rv-shop-cta-bar-inner">
                   <div style={{ fontSize: 10.5, color: "#8A9089", textAlign: "center", marginBottom: 6 }}>
-                    ⚠️ Merci de ne commander que si tu es réellement intéressé(e)
+                    {t("merciCommander")}
                   </div>
                   <button
                     onClick={() => {
@@ -764,7 +937,7 @@ export default function CataloguePublic({ workspaceId }) {
                     }}
                     style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                   >
-                    {`Commander — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                    {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
                   </button>
                 </div>
               </div>
@@ -782,35 +955,35 @@ export default function CataloguePublic({ workspaceId }) {
               style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto" }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ fontWeight: 700, fontSize: 17 }}>Tes coordonnées</div>
+                <div style={{ fontWeight: 700, fontSize: 17 }}>{t("tesCoordonnees")}</div>
                 <button onClick={() => setAfficherFormulaire(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
               </div>
               <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
-                Pour qu'on puisse te contacter et te livrer.
+                {t("pourTeContacter")}
               </div>
 
               <input
-                placeholder="Ton nom"
+                placeholder={t("tonNom")}
                 value={form.client}
                 onChange={(e) => setForm({ ...form, client: e.target.value })}
                 autoFocus
                 style={inputStyle}
               />
               <input
-                placeholder="Ton numéro de téléphone"
+                placeholder={t("tonTelephone")}
                 value={form.tel}
                 onChange={(e) => setForm({ ...form, tel: e.target.value })}
                 style={inputStyle}
               />
               <input
-                placeholder="Ta ville et ton quartier"
+                placeholder={t("taVille")}
                 value={form.zone}
                 onChange={(e) => setForm({ ...form, zone: e.target.value })}
                 style={inputStyle}
               />
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <span style={{ fontSize: 13, color: "#6B7168" }}>Quantité</span>
+                <span style={{ fontSize: 13, color: "#6B7168" }}>{t("quantite")}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <button
                     onClick={() => { setQuantite((q) => Math.max(1, q - 1)); setBundleChoisiId(null); }}
@@ -860,7 +1033,7 @@ export default function CataloguePublic({ workspaceId }) {
 
               {optionsProduitListe.length === 0 && bundlesProduit.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>🔥 OFFRES QUANTITÉ</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>{t("offresQuantite")}</div>
                   <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
                     {bundlesProduit.map((b) => {
                       const actif = bundleChoisiId === b.id;
@@ -877,7 +1050,7 @@ export default function CataloguePublic({ workspaceId }) {
                         >
                           <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
                           {!estPrixFixe && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
-                          {estPrixFixe && <div style={{ fontSize: 9.5, color: "#8A6412" }}>Prix fixe</div>}
+                          {estPrixFixe && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}
                           <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{totalBundle.toLocaleString("fr-FR")} {entreprise.devise}</div>
                         </button>
                       );
@@ -894,7 +1067,7 @@ export default function CataloguePublic({ workspaceId }) {
 
               {aChoixLivraison && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>Mode de livraison <span style={{ color: "#D64933" }}>*</span></div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{t("modeLivraison")} <span style={{ color: "#D64933" }}>*</span></div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => setTypeLivraisonChoisi("livraison")}
@@ -911,7 +1084,7 @@ export default function CataloguePublic({ workspaceId }) {
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisExpeditionEffectif.toLocaleString("fr-FR")} {entreprise.devise}</div>
                     </button>
                   </div>
-                  {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>Choisis un mode de livraison pour continuer.</div>}
+                  {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
                 </div>
               )}
 
@@ -924,7 +1097,7 @@ export default function CataloguePublic({ workspaceId }) {
                 const choisi = produitBumpId === bumpProduit.produit_id;
                 return (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>➕ Ajoute un produit à ta commande</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>{t("ajouteProduit")}</div>
                     <button
                       onClick={() => setProduitBumpId(choisi ? null : bumpProduit.produit_id)}
                       style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: choisi ? "#EAF3DE" : "white", border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
@@ -976,7 +1149,7 @@ export default function CataloguePublic({ workspaceId }) {
               </div>
 
               <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                ⚠️ En confirmant, tu t'engages à réceptionner ce colis. Merci de ne pas commander "pour voir" si tu n'es pas certain(e) d'être intéressé(e).
+                {t("engagement")}
               </div>
 
               <button
@@ -984,7 +1157,7 @@ export default function CataloguePublic({ workspaceId }) {
                 disabled={envoi || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
                 style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4 }}
               >
-                {envoi ? "Envoi..." : `Confirmer — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>
             </div>
           </div>
@@ -1008,7 +1181,7 @@ export default function CataloguePublic({ workspaceId }) {
           : produits;
     const titreCollection = collectionManuelleActive
       ? `📁 ${collectionManuelleActive.nom}`
-      : collectionOuverte === "bestseller" ? "🔥 Meilleures ventes" : collectionOuverte === "nouveautes" ? "✨ Nouveautés" : "Tous les produits";
+      : collectionOuverte === "bestseller" ? t("meilleuresVentes") : collectionOuverte === "nouveautes" ? t("nouveautes") : t("tousLesProduits");
 
     return (
       <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -1030,13 +1203,13 @@ export default function CataloguePublic({ workspaceId }) {
             onClick={() => setCollectionOuverte(null)}
             style={{ background: "none", border: "none", color: "#6B7168", fontSize: 13, cursor: "pointer", marginBottom: 10, padding: 0 }}
           >
-            ← Retour à l'accueil
+            {t("retourAccueil")}
           </button>
           <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 18 }}>{titreCollection} ({listeCollection.length})</div>
 
           <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
             {listeCollection.map((p) => (
-              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} />
             ))}
           </div>
         </div>
@@ -1150,29 +1323,33 @@ export default function CataloguePublic({ workspaceId }) {
       <div className="rv-shop-content" style={{ paddingTop: 20 }}>
         {produits.length === 0 && (
           <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40, paddingBottom: 40 }}>
-            Aucun produit disponible pour le moment.
+            {t("aucunProduit")}
           </div>
         )}
 
         {!recherche.trim() && meilleuresVentes.length > 0 && (
           <SectionCollection
-            titre="🔥 Meilleures ventes"
+            titre={t("meilleuresVentes")}
             produits={meilleuresVentes}
             couleur={couleur}
             devise={entreprise.devise}
+            langue={entreprise.langue}
             onOpen={ouvrirProduit}
             voirTout={meilleuresVentesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("bestseller") : null}
+            libelleVoirTout={t("voirTout")}
           />
         )}
 
         {!recherche.trim() && nouveautes.length > 0 && (
           <SectionCollection
-            titre="✨ Nouveautés"
+            titre={t("nouveautes")}
             produits={nouveautes}
             couleur={couleur}
             devise={entreprise.devise}
+            langue={entreprise.langue}
             onOpen={ouvrirProduit}
             voirTout={nouveautesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("nouveautes") : null}
+            libelleVoirTout={t("voirTout")}
           />
         )}
 
@@ -1186,32 +1363,34 @@ export default function CataloguePublic({ workspaceId }) {
               produits={produitsDeLaCollection.slice(0, NOMBRE_OPTIMAL_PAR_COLLECTION)}
               couleur={couleur}
               devise={entreprise.devise}
+              langue={entreprise.langue}
               onOpen={ouvrirProduit}
               voirTout={produitsDeLaCollection.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte(`manuelle-${col.id}`) : null}
+              libelleVoirTout={t("voirTout")}
             />
           );
         })}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>
-            {recherche.trim() ? `Résultats pour "${recherche.trim()}"` : "Tous les produits"}
+            {recherche.trim() ? `${t("resultatsPour")} "${recherche.trim()}"` : t("tousLesProduits")}
           </div>
           {!recherche.trim() && produitsFiltres.length > NOMBRE_MAX_ACCUEIL && (
             <button onClick={() => setCollectionOuverte("tous")} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              Voir tout →
+              {t("voirTout")}
             </button>
           )}
         </div>
 
         {produitsFiltres.length === 0 && recherche.trim() && (
           <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, padding: "20px 0 40px" }}>
-            Aucun produit ne correspond à ta recherche.
+            {t("aucunResultat")}
           </div>
         )}
 
         <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
           {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p) => (
-            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} />
+            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} />
           ))}
         </div>
 
@@ -1220,7 +1399,7 @@ export default function CataloguePublic({ workspaceId }) {
             onClick={() => setCollectionOuverte("tous")}
             style={{ display: "block", width: "100%", background: "white", border: `1px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginBottom: 20 }}
           >
-            Voir tous les produits ({produitsFiltres.length}) →
+            {t("voirTousLesProduits")} ({produitsFiltres.length}) →
           </button>
         )}
       </div>
@@ -1255,12 +1434,13 @@ export default function CataloguePublic({ workspaceId }) {
 
 function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive }) {
   const aDesLiensNav = aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
+  const t = creerTraducteur(entreprise.langue);
 
   return (
     <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
       <div style={{ background: couleur, overflow: "hidden" }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
-          {["🚚 Livraison rapide", "💵 Paiement à la livraison", "🛡️ Achat sécurisé"].map((txt, i) => (
+          {[t("badgeLivraison"), t("badgePaiement"), t("badgeSecurise")].map((txt, i) => (
             <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: "white", opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
           ))}
         </div>
@@ -1283,7 +1463,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             <input
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher un produit..."
+              placeholder={t("rechercher")}
               style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
             />
           </div>
@@ -1296,7 +1476,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
               className="rv-shop-header-whatsapp"
               style={{ display: "flex", alignItems: "center", gap: 6, background: "#EAF3DE", color: "#3B6D11", padding: "8px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
             >
-              💬 <span className="rv-shop-header-whatsapp-txt">Nous contacter</span>
+              💬 <span className="rv-shop-header-whatsapp-txt">{t("nousContacter")}</span>
             </a>
           )}
         </div>
@@ -1306,9 +1486,9 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         <div style={{ borderTop: "1px solid #F0EEE6", overflowX: "auto" }}>
           <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
             {[
-              { id: null, label: "Accueil" },
-              ...(aDesBestSellers ? [{ id: "bestseller", label: "🔥 Meilleures ventes" }] : []),
-              ...(aDesNouveautes ? [{ id: "nouveautes", label: "✨ Nouveautés" }] : []),
+              { id: null, label: t("accueil") },
+              ...(aDesBestSellers ? [{ id: "bestseller", label: t("meilleuresVentes") }] : []),
+              ...(aDesNouveautes ? [{ id: "nouveautes", label: t("nouveautes") }] : []),
               ...collectionsManuelles.map((col) => ({ id: `manuelle-${col.id}`, label: col.nom })),
             ].map((lien) => {
               const actif = collectionActive === lien.id;
@@ -1329,21 +1509,21 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   );
 }
 
-function SectionCollection({ titre, produits, couleur, devise, onOpen, voirTout }) {
+function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, voirTout, libelleVoirTout }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 16 }}>{titre}</div>
         {voirTout && (
           <button onClick={voirTout} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-            Voir tout →
+            {libelleVoirTout || "Voir tout →"}
           </button>
         )}
       </div>
       <div className="rv-shop-collection-scroll">
         {produits.map((p) => (
           <div key={p.produit_id} className="rv-shop-collection-card">
-            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} />
+            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} />
           </div>
         ))}
       </div>
@@ -1351,7 +1531,8 @@ function SectionCollection({ titre, produits, couleur, devise, onOpen, voirTout 
   );
 }
 
-function CarteProduit({ p, couleur, devise, onOpen }) {
+function CarteProduit({ p, couleur, devise, onOpen, langue }) {
+  const t = creerTraducteur(langue);
   return (
     <button
       onClick={() => onOpen(p)}
@@ -1372,17 +1553,17 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
         )}
         {p.nb_ventes > 0 && (
           <div style={{ position: "absolute", top: 6, left: 6, background: "#8A6412", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
-            🔥 Best-seller
+            🔥 {t("bestSeller")}
           </div>
         )}
         {p.est_nouveau && (
           <div style={{ position: "absolute", top: 6, right: 6, background: "#1a7a3c", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
-            Nouveau
+            {t("nouveauBadge")}
           </div>
         )}
         {p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5 && (
           <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(214,73,51,0.92)", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
-            ⚡ {p.stock_initial} restants
+            ⚡ {p.stock_initial} {t("restants")}
           </div>
         )}
       </div>
@@ -1404,6 +1585,7 @@ function CarteProduit({ p, couleur, devise, onOpen }) {
 
 function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection }) {
   const anneeEnCours = new Date().getFullYear();
+  const t = creerTraducteur(entreprise.langue);
   const reseaux = [
     { url: entreprise.facebookUrl, icone: "📘", nom: "Facebook" },
     { url: entreprise.instagramUrl, icone: "📷", nom: "Instagram" },
@@ -1414,10 +1596,10 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
     <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
         {[
-          { icone: "🚚", texte: "Livraison rapide" },
-          { icone: "💵", texte: "Paiement à la livraison" },
-          { icone: "🔄", texte: "Retour facile" },
-          { icone: "🛡️", texte: "Achat sécurisé" },
+          { icone: "🚚", texte: t("livraisonRapide") },
+          { icone: "💵", texte: t("paiementLivraison") },
+          { icone: "🔄", texte: t("retourFacile") },
+          { icone: "🛡️", texte: t("achatSecurise") },
         ].map((badge, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 14px" }}>
             <span style={{ fontSize: 24, flexShrink: 0 }}>{badge.icone}</span>
@@ -1455,14 +1637,14 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 
         {(aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0) && onNaviguerVersCollection && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Boutique</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("boutique")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button onClick={() => onNaviguerVersCollection(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Accueil</button>
+              <button onClick={() => onNaviguerVersCollection(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("accueil")}</button>
               {aDesBestSellers && (
-                <button onClick={() => onNaviguerVersCollection("bestseller")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>🔥 Meilleures ventes</button>
+                <button onClick={() => onNaviguerVersCollection("bestseller")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("meilleuresVentes")}</button>
               )}
               {aDesNouveautes && (
-                <button onClick={() => onNaviguerVersCollection("nouveautes")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>✨ Nouveautés</button>
+                <button onClick={() => onNaviguerVersCollection("nouveautes")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("nouveautes")}</button>
               )}
               {collectionsManuelles.map((col) => (
                 <button key={col.id} onClick={() => onNaviguerVersCollection(`manuelle-${col.id}`)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{col.nom}</button>
@@ -1473,30 +1655,30 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 
         {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Informations</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("informations")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {entreprise.politiqueLivraison && (
-                <button onClick={() => onOuvrirPolitique("livraison")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Politique de livraison</button>
+                <button onClick={() => onOuvrirPolitique("livraison")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("politiqueLivraison")}</button>
               )}
               {entreprise.politiqueRetours && (
-                <button onClick={() => onOuvrirPolitique("retours")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Politique de retours</button>
+                <button onClick={() => onOuvrirPolitique("retours")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("politiqueRetours")}</button>
               )}
               {entreprise.politiqueConfidentialite && (
-                <button onClick={() => onOuvrirPolitique("confidentialite")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>Confidentialité</button>
+                <button onClick={() => onOuvrirPolitique("confidentialite")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("confidentialite")}</button>
               )}
             </div>
           </div>
         )}
         {entreprise.whatsapp && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>Contact</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("contact")}</div>
             <a
               href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, textDecoration: "none" }}
             >
-              💬 Discuter sur WhatsApp
+              {t("discuterWhatsapp")}
             </a>
           </div>
         )}
@@ -1507,12 +1689,12 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)", borderRadius: 999, padding: "8px 18px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
         >
-          ▲ Retour en haut
+          {t("retourEnHaut")}
         </button>
       </div>
 
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "16px 20px", textAlign: "center", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
-        © {anneeEnCours} {entreprise.nom}{!entreprise.marqueBlanche && " — Propulsé par RecuVente"}
+        © {anneeEnCours} {entreprise.nom}{!entreprise.marqueBlanche && ` — ${t("proposePar")}`}
       </div>
     </div>
   );
@@ -1579,7 +1761,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
     return (
       <div className="rv-builder-grid-produits">
-        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} />)}
+        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} />)}
       </div>
     );
   }

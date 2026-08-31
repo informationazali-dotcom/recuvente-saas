@@ -25,6 +25,7 @@ const TRADUCTIONS = {
     ventes: "vente(s)",
     avis: "avis",
     livraisonGratuite: "🎁 Livraison gratuite",
+    livraisonGratuiteCourt: "Gratuit",
     fraisAChoisir: "🚚 Frais de livraison à choisir à la commande",
     deFraisLivraison: "de frais de livraison",
     plusQue: "Plus que",
@@ -111,6 +112,7 @@ const TRADUCTIONS = {
     ventes: "sale(s)",
     avis: "reviews",
     livraisonGratuite: "🎁 Free delivery",
+    livraisonGratuiteCourt: "Free",
     fraisAChoisir: "🚚 Delivery fee to choose at checkout",
     deFraisLivraison: "delivery fee",
     plusQue: "Only",
@@ -1908,6 +1910,11 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier })
             ⚡ {p.stock_initial} {t("restants")}
           </div>
         )}
+        {p.livraison_gratuite && !(p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5) && (
+          <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(31,157,110,0.92)", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+            🎁 {t("livraisonGratuiteCourt")}
+          </div>
+        )}
         {onAjouterAuPanier && (
           <button
             onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
@@ -1919,7 +1926,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier })
         )}
       </div>
       <div style={{ padding: "10px 12px 14px" }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.3, minHeight: "2.6em" }}>{p.produit_nom}</div>
         {p.note_moyenne != null && Number(p.nb_avis) > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             <span style={{ color: "#e8920a", fontSize: 11.5 }}>{"★".repeat(Math.round(p.note_moyenne))}{"☆".repeat(5 - Math.round(p.note_moyenne))}</span>

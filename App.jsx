@@ -479,7 +479,7 @@ function LandingPage() {
   const liveStats = [
     ['ENTREPRISES ACTIVES', statValue('nb_entreprises_actives'), 'espaces en activité'],
     ['COMMANDES CONFIRMÉES', statValue('nb_commandes_confirmees'), 'signal commercial'],
-    ['COMMERCE PILOTÉ', '25 MILLION+', 'FCFA · ambition de croissance'],
+    ['COMMERCE PILOTÉ', '3 300 000', 'FCFA · ambition de croissance'],
     ['LIVREURS ACTIFS', statValue('nb_livreurs_actifs'), 'opérations terrain'],
     ['COMMISSIONS ESTIMÉES', statValue('commissions_livreurs_estimees'), 'FCFA']
   ];
@@ -881,11 +881,16 @@ function PageImpact() {
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-/* V5.5.1 — FOND VERT + TEXTE BLANC */
+/* =========================================================
+   RECUVENTE — VERT DOMINANT / TYPOGRAPHIE BLANCHE
+   Surcharge finale : priorité maximale sur les anciennes V5.x
+   ========================================================= */
 .rva.rva-premium-africa{
   --rv-green-deep:#03110C;
   --rv-green:#063B26;
   --rv-green-2:#087A4D;
+  --rv-emerald:#00D084;
+  --rv-emerald-2:#00F5A0;
   --rv-orange:#FF6A00;
   --rv-gold:#FFB000;
   --rv-white:#FFFFFF;
@@ -893,7 +898,7 @@ function PageImpact() {
   color:#FFFFFF!important;
 }
 
-/* Grandes sections : fond vert */
+/* FOND VERT sur toute la landing, hors interfaces internes de mockup */
 .rva.rva-premium-africa .rva-numbers,
 .rva.rva-premium-africa .rva-section,
 .rva.rva-premium-africa .rva-3dsection,
@@ -902,12 +907,12 @@ function PageImpact() {
 .rva.rva-premium-africa .rva-pricing,
 .rva.rva-premium-africa .rva-final{
   background:
-    radial-gradient(circle at 80% 15%,rgba(0,245,160,.12),transparent 28%),
+    radial-gradient(circle at 78% 12%,rgba(0,245,160,.13),transparent 26%),
     linear-gradient(145deg,#03110C 0%,#063B26 52%,#052719 100%)!important;
   color:#FFFFFF!important;
 }
 
-/* Règle absolue : texte blanc sur les surfaces vertes */
+/* Texte BLANC — priorité maximale */
 .rva.rva-premium-africa .rva-numbers *,
 .rva.rva-premium-africa .rva-section *,
 .rva.rva-premium-africa .rva-system *,
@@ -917,45 +922,62 @@ function PageImpact() {
   color:#FFFFFF!important;
 }
 
-/* Paragraphes : blanc avec légère transparence */
+.rva.rva-premium-africa .rva-numbers p,
 .rva.rva-premium-africa .rva-numbers span,
 .rva.rva-premium-africa .rva-numbers small,
 .rva.rva-premium-africa .rva-section p,
+.rva.rva-premium-africa .rva-section span,
+.rva.rva-premium-africa .rva-section small,
 .rva.rva-premium-africa .rva-system p,
 .rva.rva-premium-africa .rva-money p,
-.rva.rva-premium-africa .rva-priceHead p,
 .rva.rva-premium-africa .rva-final p{
-  color:rgba(255,255,255,.88)!important;
+  color:rgba(255,255,255,.9)!important;
 }
 
-/* Cartes principales : vert + texte blanc */
+/* Labels : blanc, avec accent orange */
+.rva.rva-premium-africa .rva-label,
+.rva.rva-premium-africa .rva-dark .rva-label{
+  color:#FFFFFF!important;
+}
+
+/* Cartes : elles restent dans l'identité verte */
 .rva.rva-premium-africa .rva-activity,
 .rva.rva-premium-africa .rva-role,
-.rva.rva-premium-africa .rva-markcard:not(.dark),
+.rva.rva-premium-africa .rva-markcard,
 .rva.rva-premium-africa .rva-recovery,
-.rva.rva-premium-africa .rva-plan,
-.rva.rva-premium-africa .rva-compare>div{
+.rva.rva-premium-africa .rva-compare>div,
+.rva.rva-premium-africa .rva-plan{
   background:linear-gradient(145deg,#0A4A31,#06321F)!important;
-  border-color:rgba(255,255,255,.15)!important;
-  color:#FFFFFF!important;
-}
-.rva.rva-premium-africa .rva-activity *,
-.rva.rva-premium-africa .rva-role *,
-.rva.rva-premium-africa .rva-markcard:not(.dark) *,
-.rva.rva-premium-africa .rva-recovery *,
-.rva.rva-premium-africa .rva-plan *,
-.rva.rva-premium-africa .rva-compare>div *{
+  border-color:rgba(255,255,255,.16)!important;
   color:#FFFFFF!important;
 }
 
-/* Pricing : plan recommandé dominant */
-.rva.rva-premium-africa .rva-plan.featured{
-  background:linear-gradient(145deg,#087A4D,#063B26)!important;
-  border-color:#00F5A0!important;
+.rva.rva-premium-africa .rva-activity *,
+.rva.rva-premium-africa .rva-role *,
+.rva.rva-premium-africa .rva-markcard *,
+.rva.rva-premium-africa .rva-recovery *,
+.rva.rva-premium-africa .rva-compare>div *,
+.rva.rva-premium-africa .rva-plan *{
+  color:#FFFFFF!important;
 }
-.rva.rva-premium-africa .rva-plan button,
-.rva.rva-premium-africa .rva-plan.featured button{
-  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
+
+/* Comparaison avant/après */
+.rva.rva-premium-africa .rva-compare{
+  background:rgba(255,255,255,.15)!important;
+}
+.rva.rva-premium-africa .rva-compare .good{
+  background:linear-gradient(145deg,#087A4D,#063B26)!important;
+}
+
+/* Pricing : tous les plans verts, recommandé plus lumineux */
+.rva.rva-premium-africa .rva-plan.featured{
+  background:linear-gradient(145deg,#0A8B58,#06452D)!important;
+  border:1px solid #00F5A0!important;
+  box-shadow:0 25px 70px rgba(0,245,160,.18)!important;
+}
+.rva.rva-premium-africa .rva-planprice,
+.rva.rva-premium-africa .rva-planprice small,
+.rva.rva-premium-africa .rva-plan .sub{
   color:#FFFFFF!important;
 }
 .rva.rva-premium-africa .rva-badge{
@@ -963,41 +985,96 @@ function PageImpact() {
   color:#FFFFFF!important;
 }
 
-/* Pills : actif en orange avec texte blanc */
-.rva.rva-premium-africa .rva-pill{
-  color:#FFFFFF!important;
-}
-.rva.rva-premium-africa .rva-pill.active{
+/* TOUS LES CTA : ORANGE + TEXTE BLANC */
+.rva.rva-premium-africa .rva-btn.primary,
+.rva.rva-premium-africa .rva-holoCTA,
+.rva.rva-premium-africa .rva-plan button,
+.rva.rva-premium-africa .rva-plan.featured button,
+.rva.rva-premium-africa .rva-navcta,
+.rva.rva-premium-africa .mobileCta,
+.rva.rva-premium-africa .rva-sticky a{
   background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
   color:#FFFFFF!important;
+  border:0!important;
+  box-shadow:0 16px 45px rgba(255,106,0,.32)!important;
+}
+.rva.rva-premium-africa .rva-btn.primary *,
+.rva.rva-premium-africa .rva-plan button *,
+.rva.rva-premium-africa .rva-navcta *,
+.rva.rva-premium-africa .mobileCta *{
+  color:#FFFFFF!important;
+}
+
+/* CTA secondaire : transparent, contour blanc, texte blanc */
+.rva.rva-premium-africa .rva-btn.ghost{
+  color:#FFFFFF!important;
+  border-color:rgba(255,255,255,.38)!important;
+  background:rgba(255,255,255,.06)!important;
+}
+.rva.rva-premium-africa .rva-btn.ghost *{
+  color:#FFFFFF!important;
+}
+
+/* Pills du système */
+.rva.rva-premium-africa .rva-pill{
+  color:#FFFFFF!important;
+  background:rgba(255,255,255,.08)!important;
+  border-color:rgba(255,255,255,.2)!important;
+}
+.rva.rva-premium-africa .rva-pill.active{
+  color:#FFFFFF!important;
+  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
   border-color:#FFB000!important;
 }
 
-/* CTA : orange/or + écriture blanche */
-.rva.rva-premium-africa .rva-btn.primary,
-.rva.rva-premium-africa .rva-navcta,
-.rva.rva-premium-africa .rva-holoCTA{
-  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
-  color:#FFFFFF!important;
-  border-color:transparent!important;
-}
-.rva.rva-premium-africa .rva-btn.primary *,
-.rva.rva-premium-africa .rva-navcta *,
-.rva.rva-premium-africa .rva-holoCTA *{
+/* Chiffres : blancs, jamais gris/noir */
+.rva.rva-premium-africa .rva-number strong,
+.rva.rva-premium-africa .rva-number small,
+.rva.rva-premium-africa .rva-number span,
+.rva.rva-premium-africa .rva-statbox strong,
+.rva.rva-premium-africa .rva-statbox small{
   color:#FFFFFF!important;
 }
 
-/* FAQ : fond vert + texte blanc */
+/* Hero */
+.rva.rva-premium-africa .rva-hero{
+  background:
+    radial-gradient(circle at 70% 40%,rgba(0,245,160,.25),transparent 25%),
+    linear-gradient(125deg,#03110C,#063B26 52%,#03110C)!important;
+  color:#FFFFFF!important;
+}
+.rva.rva-premium-africa .rva-heroCopy *,
+.rva.rva-premium-africa .rva-holoTitle,
+.rva.rva-premium-africa .rva-holoTitle small,
+.rva.rva-premium-africa .rva-holoTrust,
+.rva.rva-premium-africa .rva-holoTrust span{
+  color:#FFFFFF!important;
+}
+.rva.rva-premium-africa .rva-holoTitle span{
+  color:#FFFFFF!important;
+  -webkit-text-fill-color:#FFFFFF!important;
+  background:none!important;
+}
+.rva.rva-premium-africa .rva-kicker{
+  color:#FFFFFF!important;
+  border-color:rgba(255,255,255,.3)!important;
+}
+
+/* FAQ */
 .rva.rva-premium-africa .rva-faqrow{
-  border-color:rgba(255,255,255,.18)!important;
+  border-color:rgba(255,255,255,.2)!important;
 }
 .rva.rva-premium-africa .rva-faqrow button,
-.rva.rva-premium-africa .rva-answer{
+.rva.rva-premium-africa .rva-answer,
+.rva.rva-premium-africa .rva-faqrow button span{
+  color:#FFFFFF!important;
+}
+.rva.rva-premium-africa .rva-plus{
+  background:#FF6A00!important;
   color:#FFFFFF!important;
 }
 
-/* Exception volontaire : le faux écran de boutique reste blanc,
-   comme une vraie interface, avec texte sombre. */
+/* Boutique mockup : écran blanc volontairement conservé */
 .rva.rva-premium-africa .rva-shop{
   background:linear-gradient(145deg,#F9FFFB,#E6FFF1)!important;
   color:#082519!important;
@@ -1005,18 +1082,32 @@ function PageImpact() {
 .rva.rva-premium-africa .rva-shop *{
   color:#082519!important;
 }
-.rva.rva-premium-africa .rva-shop p,
-.rva.rva-premium-africa .rva-shop span{
-  color:#365248!important;
+
+/* Navigation */
+.rva.rva-premium-africa .rva-nav{
+  background:rgba(3,17,12,.96)!important;
+}
+.rva.rva-premium-africa .rva-links a{
+  color:#FFFFFF!important;
 }
 
-@media (prefers-reduced-motion:reduce){
+/* Mobile */
+@media(max-width:650px){
+  .rva.rva-premium-africa .rva-mobile{
+    background:#03110C!important;
+  }
+  .rva.rva-premium-africa .rva-mobile a{
+    color:#FFFFFF!important;
+  }
+}
+
+/* Accessibilité mouvement */
+@media(prefers-reduced-motion:reduce){
   .rva.rva-premium-africa *,
   .rva.rva-premium-africa *::before,
   .rva.rva-premium-africa *::after{
-    animation-duration:.01ms!important;
-    animation-iteration-count:1!important;
-    scroll-behavior:auto!important;
+    animation:none!important;
+    transition:none!important;
   }
 }
 

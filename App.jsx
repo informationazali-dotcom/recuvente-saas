@@ -3701,7 +3701,23 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {(vue === "commandes" || vue === "compta") && (
+      {accesBloque && (
+        <div style={{ background: "white", border: "1.5px solid #F0DDA8", borderRadius: 16, padding: "40px 24px", textAlign: "center", maxWidth: 480, margin: "40px auto" }}>
+          <div style={{ fontSize: 44, marginBottom: 14 }}>🔒</div>
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: "#16231F" }}>Ton essai gratuit est terminé</div>
+          <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.6, marginBottom: 22 }}>
+            Passe à un plan payant pour retrouver l'accès à tout ton espace — commandes, clients, produits, équipe, et le reste.
+          </div>
+          <button
+            onClick={() => setShowAbonnement(true)}
+            style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+          >
+            💳 Voir les plans d'abonnement
+          </button>
+        </div>
+      )}
+
+      {(vue === "commandes" || vue === "compta") && !accesBloque && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 2 }}>
           {[
             { key: "aujourdhui", label: "Aujourd'hui" },
@@ -3729,7 +3745,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {vue === "aujourdhui" && (
+      {vue === "aujourdhui" && !accesBloque && (
         <div>
           {commandes.length === 0 && (
             <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 16, padding: "20px 18px", marginBottom: 20 }}>
@@ -4038,11 +4054,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       </>
       )}
 
-      {vue === "validations" && (
+      {vue === "validations" && !accesBloque && (
         <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
       )}
 
-      {vue === "biens_location" && (
+      {vue === "biens_location" && !accesBloque && (
         <BiensLocationView
           biensLocation={biensLocation}
           currency={workspace.currency}
@@ -4052,7 +4068,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "logements" && (
+      {vue === "logements" && !accesBloque && (
         <LogementsView
           logements={logements}
           currency={workspace.currency}
@@ -4062,7 +4078,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "menu_restaurant" && (
+      {vue === "menu_restaurant" && !accesBloque && (
         <MenuRestaurantView
           plats={plats}
           currency={workspace.currency}
@@ -4075,7 +4091,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "cuisine" && (
+      {vue === "cuisine" && !accesBloque && (
         <CuisineView
           commandes={commandes.filter((c) => c.statut !== "annulee" && c.statut !== "echouee")}
           onChangerStatutCuisine={changerStatutCuisine}
@@ -4083,7 +4099,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "produits_vue" && (
+      {vue === "produits_vue" && !accesBloque && (
         <ProduitsViewSaas
           produitsAvecBenefice={produitsAvecBenefice}
           currency={workspace.currency}
@@ -4091,7 +4107,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "clients" && (
+      {vue === "clients" && !accesBloque && (
         <div>
           {clientsARelancer.length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -4158,7 +4174,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {vue === "recovery" && (
+      {vue === "recovery" && !accesBloque && (
         <RecoveryCenterView
           commandes={commandesRecuperables}
           toutesCommandes={commandes}
@@ -4167,7 +4183,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "score_business" && (
+      {vue === "score_business" && !accesBloque && (
         <ScoreBusinessView
           toutesCommandes={commandes}
           beneficeReel={beneficeReel}
@@ -4181,11 +4197,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "simulateur" && (
+      {vue === "simulateur" && !accesBloque && (
         <SimulateurCampagneView currency={workspace.currency} />
       )}
 
-      {vue === "rapprochement" && (
+      {vue === "rapprochement" && !accesBloque && (
         <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
       )}
 
@@ -4413,11 +4429,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
-      {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
+      {showTeam && !accesBloque && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
-      {showStoreBuilder && (
+      {showStoreBuilder && !accesBloque && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
           <div style={{ width: "100%", maxWidth: 1200, maxHeight: "94vh", overflowY: "auto" }}>
             <RVStoreBuilder
@@ -4445,10 +4461,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
-      {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
-      {showTemoignages && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
-      {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
+      {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
+      {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
   );
 }

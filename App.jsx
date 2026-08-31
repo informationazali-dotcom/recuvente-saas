@@ -4416,6 +4416,55 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   );
 }
 
+function BoutonMicro({ onResultat, langue = "fr-FR" }) {
+  const [ecoute, setEcoute] = useState(false);
+  const reconnaissanceRef = useRef(null);
+
+  function demarrer() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("La saisie vocale n'est pas disponible sur ce navigateur. Utilise plutôt Chrome.");
+      return;
+    }
+    const reco = new SpeechRecognition();
+    reco.lang = langue;
+    reco.interimResults = false;
+    reco.maxAlternatives = 1;
+    reco.onresult = (e) => {
+      const texte = e.results?.[0]?.[0]?.transcript;
+      if (texte) onResultat(texte);
+    };
+    reco.onerror = () => setEcoute(false);
+    reco.onend = () => setEcoute(false);
+    reconnaissanceRef.current = reco;
+    try { reco.start(); setEcoute(true); } catch (_) {}
+  }
+
+  function arreter() {
+    try { reconnaissanceRef.current?.stop(); } catch (_) {}
+    setEcoute(false);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={ecoute ? arreter : demarrer}
+      title={ecoute ? "Arrêter l'écoute" : "Dicter avec la voix"}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 40, height: "auto", alignSelf: "stretch", borderRadius: 8,
+        border: `1px solid ${ecoute ? "#D64933" : "#DDD8CC"}`,
+        background: ecoute ? "#FBEAE6" : "white", color: ecoute ? "#D64933" : "#526057",
+        cursor: "pointer", fontSize: 16, flexShrink: 0,
+        animation: ecoute ? "rvMicPulse 1s ease-in-out infinite" : "none",
+      }}
+    >
+      🎙️
+      <style>{`@keyframes rvMicPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+    </button>
+  );
+}
+
 function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [], logements = [] }) {
   const estRetail = activityType === "retail";
   const estLocation = activityType === "location_immobiliere";
@@ -4758,17 +4807,24 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
           </>
         )}
 
-        {champs.map((f) => (
-          <input
-            key={f}
-            placeholder={f === "montant" ? (estLocation ? `Loyer mensuel (${currency})` : `Montant total (${currency})`) : f === "produit" ? (estLocation ? "Logement (ex: Appartement 2)" : estRetail ? "Produit vendu" : "Produit") : f === "zone" ? (estLocation ? "Adresse du logement" : f) : f === "client" ? (estLocation ? "Nom du locataire" : "Nom du client") : f}
-            value={form[f]}
-            onChange={(e) => setForm({ ...form, [f]: e.target.value })}
-            type={f === "montant" ? "number" : "text"}
-            min={f === "montant" ? "1" : undefined}
-            style={inputStyle}
-          />
-        ))}
+        {champs.map((f) => {
+          const champTexteDictable = f === "client" || f === "produit" || f === "zone";
+          return (
+            <div key={f} style={champTexteDictable ? { display: "flex", gap: 6, marginBottom: 10 } : undefined}>
+              <input
+                placeholder={f === "montant" ? (estLocation ? `Loyer mensuel (${currency})` : `Montant total (${currency})`) : f === "produit" ? (estLocation ? "Logement (ex: Appartement 2)" : estRetail ? "Produit vendu" : "Produit") : f === "zone" ? (estLocation ? "Adresse du logement" : f) : f === "client" ? (estLocation ? "Nom du locataire" : "Nom du client") : f}
+                value={form[f]}
+                onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+                type={f === "montant" ? "number" : "text"}
+                min={f === "montant" ? "1" : undefined}
+                style={champTexteDictable ? { ...inputStyle, marginBottom: 0, flex: 1 } : inputStyle}
+              />
+              {champTexteDictable && (
+                <BoutonMicro onResultat={(texte) => setForm((prev) => ({ ...prev, [f]: prev[f] ? prev[f] + " " + texte : texte }))} />
+              )}
+            </div>
+          );
+        })}
         {form.montant && !montantValide && (
           <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
         )}
@@ -6270,6 +6326,7 @@ function HistoriqueRelances({ commandeId }) {
           placeholder="Ex: Appelé, pas de réponse"
           style={{ flex: 1, padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12 }}
         />
+        <BoutonMicro onResultat={(texte) => setNote((n) => (n ? n + " " + texte : texte))} />
         <button onClick={ajouter} disabled={adding || !note.trim()} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "0 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           +
         </button>

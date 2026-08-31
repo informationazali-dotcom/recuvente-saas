@@ -259,9 +259,19 @@ export default function App() {
       .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition)")
       .eq("user_id", userId);
     if (error) {
-      // Erreur réseau/temporaire (ex: jeton en cours de rafraîchissement après une
-      // longue inactivité) : on NE TOUCHE PAS à l'espace déjà chargé, pour éviter
-      // de renvoyer la personne vers "Créer mon espace" à cause d'un simple raté réseau.
+      const estErreurAuth = /jwt|token|expired|unauthorized|401|invalid refresh/i.test(error.message || "") || error.code === "PGRST301";
+      if (estErreurAuth) {
+        // Jeton de connexion cassé/périmé (souvent après une longue inactivité) :
+        // on nettoie proprement la session plutôt que de laisser la personne
+        // bloquée sur "Chargement de ton espace…" indéfiniment. La déconnexion
+        // déclenche automatiquement le renvoi vers l'écran de connexion.
+        console.error("Session invalide détectée, déconnexion automatique :", error.message);
+        await supabase.auth.signOut();
+        return;
+      }
+      // Erreur réseau/temporaire (pas liée au jeton) : on NE TOUCHE PAS à l'espace
+      // déjà chargé, pour éviter de renvoyer la personne vers "Créer mon espace"
+      // à cause d'un simple raté réseau.
       console.error("Erreur de chargement de l'espace (non bloquant) :", error.message);
       if (workspace === undefined) {
         // Tout premier chargement : on retente une fois après une courte pause,

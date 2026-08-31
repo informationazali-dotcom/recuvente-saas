@@ -707,50 +707,89 @@ function LandingPage() {
 }
 
 
-/* V5.4 — ACTUAL SECTION CONTRAST OVERRIDES
-   These selectors match the landing page classes actually rendered. */
-.rva .rva-hero,
-.rva .rva-system,
-.rva .rva-money,
-.rva .rva-final,
-.rva .rva-dark,
-.rva .rva-manifesto,
-.rva .rva-markcard.dark {
-  color:#FFFFFF !important;
+/* V5.5 FINAL — explicit typography by actual component, not generic selectors */
+.rva.rva-premium-africa .rva-hero,
+.rva.rva-premium-africa .rva-system,
+.rva.rva-premium-africa .rva-money,
+.rva.rva-premium-africa .rva-final,
+.rva.rva-premium-africa .rva-manifesto,
+.rva.rva-premium-africa .rva-markcard.dark {
+  color:#fff !important;
 }
-.rva .rva-hero h1,.rva .rva-hero h2,.rva .rva-hero h3,.rva .rva-hero p,.rva .rva-hero span,.rva .rva-hero small,
-.rva .rva-system h1,.rva .rva-system h2,.rva .rva-system h3,.rva .rva-system h4,.rva .rva-system p,.rva .rva-system span,.rva .rva-system small,.rva .rva-system li,
-.rva .rva-money h1,.rva .rva-money h2,.rva .rva-money h3,.rva .rva-money h4,.rva .rva-money p,.rva .rva-money span,.rva .rva-money small,
-.rva .rva-final h1,.rva .rva-final h2,.rva .rva-final h3,.rva .rva-final p,.rva .rva-final span,.rva .rva-final small,
-.rva .rva-dark h1,.rva .rva-dark h2,.rva .rva-dark h3,.rva .rva-dark h4,.rva .rva-dark p,.rva .rva-dark span,.rva .rva-dark small,
-.rva .rva-manifesto h1,.rva .rva-manifesto h2,.rva .rva-manifesto h3,.rva .rva-manifesto h4,.rva .rva-manifesto p,.rva .rva-manifesto span,
-.rva .rva-markcard.dark h1,.rva .rva-markcard.dark h2,.rva .rva-markcard.dark h3,.rva .rva-markcard.dark p,.rva .rva-markcard.dark span {
-  color:#FFFFFF !important;
+
+/* Every readable text node in green/dark content columns */
+.rva.rva-premium-africa .rva-heroCopy,
+.rva.rva-premium-africa .rva-systemCopy,
+.rva.rva-premium-africa .rva-money,
+.rva.rva-premium-africa .rva-final {
+  color:#fff !important;
 }
-.rva .rva-system .rva-title span,
-.rva .rva-money .rva-title span,
-.rva .rva-final h2 span,
-.rva .rva-dark .rva-title span {
-  color:#7DFFC2 !important;
+.rva.rva-premium-africa .rva-heroCopy h1,
+.rva.rva-premium-africa .rva-heroCopy p,
+.rva.rva-premium-africa .rva-systemCopy h2,
+.rva.rva-premium-africa .rva-systemCopy p,
+.rva.rva-premium-africa .rva-money h2,
+.rva.rva-premium-africa .rva-money p,
+.rva.rva-premium-africa .rva-final h2,
+.rva.rva-premium-africa .rva-final p,
+.rva.rva-premium-africa .rva-manifesto h3,
+.rva.rva-premium-africa .rva-manifesto p,
+.rva.rva-premium-africa .rva-markcard.dark b,
+.rva.rva-premium-africa .rva-markcard.dark p {
+  color:#fff !important;
 }
-.rva .rva-hero .rva-kicker,
-.rva .rva-hero .rva-label,
-.rva .rva-system .rva-label,
-.rva .rva-money .rva-label,
-.rva .rva-final .rva-label,
-.rva .rva-dark .rva-label {
-  color:#A7FFD2 !important;
+
+/* Secondary text: still clearly white, never grey-green */
+.rva.rva-premium-africa .rva-heroCopy > p,
+.rva.rva-premium-africa .rva-systemCopy > p,
+.rva.rva-premium-africa .rva-money > p,
+.rva.rva-premium-africa .rva-final > p,
+.rva.rva-premium-africa .rva-manifesto > p {
+  color:rgba(255,255,255,.88) !important;
 }
-.rva .rva-hero .rva-btn.primary,
-.rva .rva-final .rva-btn.primary,
-.rva .rva-system .rva-btn.primary {
-  color:#FFFFFF !important;
-  background:linear-gradient(135deg,#FF6A00,#FFB000) !important;
+
+/* Emerald highlight is reserved for small emphasis, never body copy */
+.rva.rva-premium-africa .rva-systemCopy h2 span,
+.rva.rva-premium-africa .rva-money h2 span,
+.rva.rva-premium-africa .rva-final h2 span {
+  color:#9CFFD3 !important;
 }
-.rva .rva-hero .rva-btn.ghost,
-.rva .rva-final .rva-btn.ghost {
-  color:#FFFFFF !important;
-  border-color:rgba(255,255,255,.38) !important;
+
+/* Pills: white text by default; active pill gets dark text because its
+   background itself is bright emerald. */
+.rva.rva-premium-africa .rva-pill {
+  color:#fff !important;
+  background:rgba(255,255,255,.075) !important;
+  border-color:rgba(255,255,255,.18) !important;
+}
+.rva.rva-premium-africa .rva-pill.active {
+  color:#052217 !important;
+  background:#7CFFBF !important;
+}
+
+/* Orange + gold are visible accents */
+.rva.rva-premium-africa .rva-btn.primary,
+.rva.rva-premium-africa .rva-holoCTA {
+  color:#fff !important;
+  background:linear-gradient(135deg,#FF6200 0%,#FF7A18 48%,#FFB000 100%) !important;
+  border-color:transparent !important;
+  box-shadow:0 18px 55px rgba(255,106,0,.34) !important;
+}
+.rva.rva-premium-africa .rva-kicker:before,
+.rva.rva-premium-africa .rva-label:before {
+  background:linear-gradient(135deg,#FF6200,#FFB000) !important;
+  box-shadow:0 0 20px rgba(255,106,0,.5) !important;
+}
+
+/* Numbers on dark/green surfaces are white and dominant */
+.rva.rva-premium-africa .rva-statbox strong,
+.rva.rva-premium-africa .rva-systemNumber,
+.rva.rva-premium-africa .rva-kpi strong {
+  color:#fff !important;
+}
+.rva.rva-premium-africa .rva-statbox small,
+.rva.rva-premium-africa .rva-systemdesc {
+  color:rgba(255,255,255,.82) !important;
 }
 
 </style>

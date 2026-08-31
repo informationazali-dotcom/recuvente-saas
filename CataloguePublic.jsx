@@ -196,6 +196,16 @@ export default function CataloguePublic({ workspaceId }) {
   const [produits, setProduits] = useState([]);
   const [collectionsManuelles, setCollectionsManuelles] = useState([]);
   const [avisBoutique, setAvisBoutique] = useState([]);
+  const [sourceCampagne] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const utmSource = params.get("utm_source");
+    const utmCampaign = params.get("utm_campaign");
+    if (utmSource || utmCampaign) return [utmSource, utmCampaign].filter(Boolean).join(" — ");
+    if (params.get("fbclid")) return "Facebook/Instagram Ads";
+    if (params.get("ttclid")) return "TikTok Ads";
+    return null;
+  });
   const [erreur, setErreur] = useState(null);
   const [produitOuvert, setProduitOuvert] = useState(null);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
@@ -488,6 +498,7 @@ export default function CataloguePublic({ workspaceId }) {
       p_fbc: lireCookieMeta("_fbc"),
       p_user_agent: navigator.userAgent,
       p_event_source_url: window.location.href,
+      p_source_campagne: sourceCampagne,
     });
     setEnvoi(false);
     const resultat = data && data[0];

@@ -83,6 +83,7 @@ const TRADUCTIONS = {
     resteInforme: "Reste informé(e)",
     texteInscriptionNewsletter: "Bonjour, je souhaite recevoir vos offres et nouveautés.",
     sInscrire: "S'inscrire",
+    ajouterPanier: "Ajouter au panier",
     proposePar: "Propulsé par RecuVente",
     aucunProduit: "Aucun produit disponible pour le moment.",
     resultatsPour: "Résultats pour",
@@ -168,6 +169,7 @@ const TRADUCTIONS = {
     resteInforme: "Stay updated",
     texteInscriptionNewsletter: "Hello, I'd like to receive your offers and updates.",
     sInscrire: "Subscribe",
+    ajouterPanier: "Add to cart",
     proposePar: "Powered by RecuVente",
     aucunProduit: "No products available right now.",
     resultatsPour: "Results for",
@@ -213,6 +215,41 @@ export default function CataloguePublic({ workspaceId }) {
     return null;
   });
   const [erreur, setErreur] = useState(null);
+  const [panier, setPanier] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`rv_panier_${workspaceId}`) || "[]"); } catch (_) { return []; }
+  });
+  const [panierOuvert, setPanierOuvert] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(`rv_panier_${workspaceId}`, JSON.stringify(panier)); } catch (_) {}
+  }, [panier, workspaceId]);
+
+  function ajouterAuPanier(p, quantiteAjoutee = 1) {
+    setPanier((liste) => {
+      const existant = liste.find((it) => it.produit_id === p.produit_id);
+      if (existant) {
+        return liste.map((it) => it.produit_id === p.produit_id ? { ...it, quantite: it.quantite + quantiteAjoutee } : it);
+      }
+      return [...liste, { produit_id: p.produit_id, produit_nom: p.produit_nom, prix_unitaire: Number(p.prix_vente), photo_url: p.photo_url, quantite: quantiteAjoutee, livraison_gratuite: !!p.livraison_gratuite, frais_livraison_produit: p.frais_livraison_produit, frais_expedition_produit: p.frais_expedition_produit }];
+    });
+    setPanierOuvert(true);
+  }
+
+  function modifierQuantitePanier(produitId, nouvelleQuantite) {
+    if (nouvelleQuantite <= 0) { retirerDuPanier(produitId); return; }
+    setPanier((liste) => liste.map((it) => it.produit_id === produitId ? { ...it, quantite: nouvelleQuantite } : it));
+  }
+
+  function retirerDuPanier(produitId) {
+    setPanier((liste) => liste.filter((it) => it.produit_id !== produitId));
+  }
+
+  function viderPanier() {
+    setPanier([]);
+  }
+
+  const totalArticlesPanier = panier.reduce((s, it) => s + it.quantite, 0);
+  const totalPanier = panier.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0);
   const [produitOuvert, setProduitOuvert] = useState(null);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
@@ -564,7 +601,7 @@ export default function CataloguePublic({ workspaceId }) {
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} />
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
@@ -943,19 +980,27 @@ export default function CataloguePublic({ workspaceId }) {
                   <div style={{ fontSize: 10.5, color: "#8A9089", textAlign: "center", marginBottom: 6 }}>
                     {t("merciCommander")}
                   </div>
-                  <button
-                    onClick={() => {
-                      trackEvenement("InitiateCheckout", {
-                        content_ids: [produitOuvert.produit_id],
-                        value: prixUnitaireEffectif * quantite,
-                        currency: entreprise?.devise || "XOF",
-                      });
-                      setAfficherFormulaire(true);
-                    }}
-                    style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
-                  >
-                    {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
-                  </button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => ajouterAuPanier(produitOuvert, quantite)}
+                      style={{ flexShrink: 0, background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                    >
+                      🛒
+                    </button>
+                    <button
+                      onClick={() => {
+                        trackEvenement("InitiateCheckout", {
+                          content_ids: [produitOuvert.produit_id],
+                          value: prixUnitaireEffectif * quantite,
+                          currency: entreprise?.devise || "XOF",
+                        });
+                        setAfficherFormulaire(true);
+                      }}
+                      style={{ flex: 1, background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                    >
+                      {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1180,6 +1225,18 @@ export default function CataloguePublic({ workspaceId }) {
           </div>
         )}
         <BulleWhatsApp whatsapp={entreprise.whatsapp} messageDefaut={`Bonjour, j'ai une question sur "${produitOuvert.produit_nom}".`} surCtaBar={!envoye} />
+        {panierOuvert && (
+          <PanierDrawer
+            panier={panier}
+            entreprise={entreprise}
+            couleur={couleur}
+            workspaceId={workspaceId}
+            onFermer={() => setPanierOuvert(false)}
+            onModifierQuantite={modifierQuantitePanier}
+            onRetirer={retirerDuPanier}
+            onViderPanier={viderPanier}
+          />
+        )}
       </div>
     );
   }
@@ -1213,7 +1270,7 @@ export default function CataloguePublic({ workspaceId }) {
           @media (min-width: 1280px) { .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; } .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
@@ -1226,13 +1283,25 @@ export default function CataloguePublic({ workspaceId }) {
 
           <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
             {listeCollection.map((p) => (
-              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} />
+              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} />
             ))}
           </div>
         </div>
 
         <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
         <BulleWhatsApp whatsapp={entreprise.whatsapp} messageDefaut={`Bonjour, j'ai une question sur "${titreCollection}".`} />
+        {panierOuvert && (
+          <PanierDrawer
+            panier={panier}
+            entreprise={entreprise}
+            couleur={couleur}
+            workspaceId={workspaceId}
+            onFermer={() => setPanierOuvert(false)}
+            onModifierQuantite={modifierQuantitePanier}
+            onRetirer={retirerDuPanier}
+            onViderPanier={viderPanier}
+          />
+        )}
       </div>
     );
   }
@@ -1250,27 +1319,44 @@ export default function CataloguePublic({ workspaceId }) {
 
   if (entreprise.storeConfig && Array.isArray(entreprise.storeConfig.sections) && entreprise.storeConfig.sections.length > 0) {
     return (
-      <PageAccueilPersonnalisee
-        config={entreprise.storeConfig}
-        entreprise={entreprise}
-        couleur={couleur}
-        produits={produits}
-        meilleuresVentes={meilleuresVentes}
-        meilleuresVentesToutes={meilleuresVentesToutes}
-        nouveautes={nouveautes}
-        nouveautesToutes={nouveautesToutes}
-        collectionsManuelles={collectionsManuelles}
-        recherche={recherche}
-        setRecherche={setRecherche}
-        produitsFiltres={produitsFiltres}
-        ouvrirProduit={ouvrirProduit}
-        naviguerVersCollection={naviguerVersCollection}
-        setCollectionOuverte={setCollectionOuverte}
-        setPolitiqueOuverte={setPolitiqueOuverte}
-        politiqueOuverte={politiqueOuverte}
-        NOMBRE_MAX_ACCUEIL={NOMBRE_MAX_ACCUEIL}
-        avisBoutique={avisBoutique}
-      />
+      <>
+        <PageAccueilPersonnalisee
+          config={entreprise.storeConfig}
+          entreprise={entreprise}
+          couleur={couleur}
+          produits={produits}
+          meilleuresVentes={meilleuresVentes}
+          meilleuresVentesToutes={meilleuresVentesToutes}
+          nouveautes={nouveautes}
+          nouveautesToutes={nouveautesToutes}
+          collectionsManuelles={collectionsManuelles}
+          recherche={recherche}
+          setRecherche={setRecherche}
+          produitsFiltres={produitsFiltres}
+          ouvrirProduit={ouvrirProduit}
+          naviguerVersCollection={naviguerVersCollection}
+          setCollectionOuverte={setCollectionOuverte}
+          setPolitiqueOuverte={setPolitiqueOuverte}
+          politiqueOuverte={politiqueOuverte}
+          NOMBRE_MAX_ACCUEIL={NOMBRE_MAX_ACCUEIL}
+          avisBoutique={avisBoutique}
+          totalArticlesPanier={totalArticlesPanier}
+          onOuvrirPanier={() => setPanierOuvert(true)}
+          onAjouterAuPanier={ajouterAuPanier}
+        />
+        {panierOuvert && (
+          <PanierDrawer
+            panier={panier}
+            entreprise={entreprise}
+            couleur={couleur}
+            workspaceId={workspaceId}
+            onFermer={() => setPanierOuvert(false)}
+            onModifierQuantite={modifierQuantitePanier}
+            onRetirer={retirerDuPanier}
+            onViderPanier={viderPanier}
+          />
+        )}
+      </>
     );
   }
 
@@ -1307,7 +1393,7 @@ export default function CataloguePublic({ workspaceId }) {
         }
       `}</style>
 
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} />
 
       <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
         {entreprise.banniere ? (
@@ -1352,6 +1438,7 @@ export default function CataloguePublic({ workspaceId }) {
             devise={entreprise.devise}
             langue={entreprise.langue}
             onOpen={ouvrirProduit}
+            onAjouterAuPanier={ajouterAuPanier}
             voirTout={meilleuresVentesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("bestseller") : null}
             libelleVoirTout={t("voirTout")}
           />
@@ -1365,6 +1452,7 @@ export default function CataloguePublic({ workspaceId }) {
             devise={entreprise.devise}
             langue={entreprise.langue}
             onOpen={ouvrirProduit}
+            onAjouterAuPanier={ajouterAuPanier}
             voirTout={nouveautesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("nouveautes") : null}
             libelleVoirTout={t("voirTout")}
           />
@@ -1382,6 +1470,7 @@ export default function CataloguePublic({ workspaceId }) {
               devise={entreprise.devise}
               langue={entreprise.langue}
               onOpen={ouvrirProduit}
+              onAjouterAuPanier={ajouterAuPanier}
               voirTout={produitsDeLaCollection.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte(`manuelle-${col.id}`) : null}
               libelleVoirTout={t("voirTout")}
             />
@@ -1407,7 +1496,7 @@ export default function CataloguePublic({ workspaceId }) {
 
         <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
           {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p) => (
-            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} />
+            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} />
           ))}
         </div>
 
@@ -1445,11 +1534,169 @@ export default function CataloguePublic({ workspaceId }) {
         </div>
       )}
       <BulleWhatsApp whatsapp={entreprise.whatsapp} />
+      {panierOuvert && (
+        <PanierDrawer
+          panier={panier}
+          entreprise={entreprise}
+          couleur={couleur}
+          workspaceId={workspaceId}
+          onFermer={() => setPanierOuvert(false)}
+          onModifierQuantite={modifierQuantitePanier}
+          onRetirer={retirerDuPanier}
+          onViderPanier={viderPanier}
+        />
+      )}
     </div>
   );
 }
 
-function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig }) {
+function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onModifierQuantite, onRetirer, onViderPanier }) {
+  const [etape, setEtape] = useState("liste"); // liste | form | envoye
+  const [form, setForm] = useState({ client: "", tel: "", zone: "" });
+  const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  const total = panier.reduce((s, it) => s + Number(it.prix_unitaire) * it.quantite, 0);
+  const auMoinsUnPayant = panier.some((it) => !it.livraison_gratuite);
+  const fraisLivraisonDefaut = Number(entreprise.fraisLivraison || 0);
+  const fraisExpeditionDefaut = Number(entreprise.fraisExpedition || 0);
+  const aChoixLivraison = auMoinsUnPayant && fraisExpeditionDefaut > 0;
+  const fraisLivraisonActuel = !auMoinsUnPayant ? 0 : (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionDefaut : fraisLivraisonDefaut) : fraisLivraisonDefaut);
+  const totalAvecLivraison = total + (typeLivraisonChoisi || !aChoixLivraison ? fraisLivraisonActuel : 0);
+
+  async function envoyerCommandePanier() {
+    if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
+      setErreur("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
+      return;
+    }
+    if (aChoixLivraison && !typeLivraisonChoisi) {
+      setErreur("⚠️ Merci de choisir un mode de livraison avant de confirmer.");
+      return;
+    }
+    setEnvoi(true);
+    setErreur("");
+    const items = panier.map((it) => ({ produit_id: it.produit_id, produit_nom: it.produit_nom, quantite: it.quantite, prix_unitaire: it.prix_unitaire }));
+    const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
+      p_workspace_id: workspaceId,
+      p_client: form.client,
+      p_tel: form.tel,
+      p_zone: form.zone,
+      p_items: items,
+      p_type_livraison: aChoixLivraison ? typeLivraisonChoisi : "livraison",
+      p_fbp: lireCookieMeta("_fbp"),
+      p_fbc: lireCookieMeta("_fbc"),
+      p_user_agent: navigator.userAgent,
+      p_event_source_url: window.location.href,
+    });
+    setEnvoi(false);
+    if (error || !data?.[0]?.succes) {
+      setErreur(data?.[0]?.message || "Une erreur est survenue, réessaie.");
+      return;
+    }
+    onViderPanier();
+    setEtape("envoye");
+  }
+
+  return (
+    <div onClick={onFermer} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", zIndex: 70, display: "flex", justifyContent: "flex-end" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, height: "100%", overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{etape === "envoye" ? "✅ Commande envoyée" : "🛒 Mon panier"}</div>
+          <button onClick={onFermer} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#8A9089" }}>×</button>
+        </div>
+
+        {etape === "envoye" && (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ fontSize: 46, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontSize: 14, color: "#16231F", fontWeight: 700, marginBottom: 6 }}>Merci {form.client.split(" ")[0]} 🙏</div>
+            <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.6, marginBottom: 20 }}>
+              Ta commande est bien enregistrée. Un conseiller va t'appeler au <strong>{form.tel}</strong> très bientôt — merci de répondre, c'est indispensable pour valider ta livraison.
+            </div>
+            <button onClick={onFermer} style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+              Continuer mes achats
+            </button>
+          </div>
+        )}
+
+        {etape !== "envoye" && panier.length === 0 && (
+          <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "50px 0" }}>Ton panier est vide.</div>
+        )}
+
+        {etape === "liste" && panier.length > 0 && (
+          <>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              {panier.map((it) => (
+                <div key={it.produit_id} style={{ display: "flex", gap: 10, borderBottom: "1px solid #ECE8DC", paddingBottom: 12 }}>
+                  {it.photo_url ? (
+                    <img src={it.photo_url} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 56, height: 56, borderRadius: 8, background: "#EEF0EA", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📦</div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.produit_nom}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{Number(it.prix_unitaire).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                      <button onClick={() => onModifierQuantite(it.produit_id, it.quantite - 1)} style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid #DDD8CC", background: "white", cursor: "pointer" }}>−</button>
+                      <span style={{ fontSize: 13, fontWeight: 700, minWidth: 16, textAlign: "center" }}>{it.quantite}</span>
+                      <button onClick={() => onModifierQuantite(it.produit_id, it.quantite + 1)} style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid #DDD8CC", background: "white", cursor: "pointer" }}>+</button>
+                      <button onClick={() => onRetirer(it.produit_id)} style={{ marginLeft: "auto", background: "none", border: "none", color: "#D64933", fontSize: 12, cursor: "pointer" }}>Retirer</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 14, paddingTop: 10, borderTop: "2px solid #ECE8DC" }}>
+              <span>Total</span><span style={{ color: couleur }}>{total.toLocaleString("fr-FR")} {entreprise.devise}</span>
+            </div>
+            <button onClick={() => setEtape("form")} style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Passer la commande →
+            </button>
+          </>
+        )}
+
+        {etape === "form" && (
+          <>
+            <button onClick={() => setEtape("liste")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12.5, textAlign: "left", padding: 0, marginBottom: 14, cursor: "pointer" }}>← Retour au panier</button>
+            <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
+
+            {aChoixLivraison && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 6 }}>Choisis ton mode de livraison</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setTypeLivraisonChoisi("livraison")} style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", cursor: "pointer" }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>🏍️ {entreprise.labelLivraisonLocale}</div>
+                    <div style={{ fontSize: 11, color: "#6B7168" }}>{fraisLivraisonDefaut.toLocaleString("fr-FR")} {entreprise.devise}</div>
+                  </button>
+                  <button onClick={() => setTypeLivraisonChoisi("expedition")} style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", cursor: "pointer" }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>🚛 {entreprise.labelLivraisonExpedition}</div>
+                    <div style={{ fontSize: 11, color: "#6B7168" }}>{fraisExpeditionDefaut.toLocaleString("fr-FR")} {entreprise.devise}</div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Articles</span><span>{total.toLocaleString("fr-FR")} {entreprise.devise}</span></div>
+              {fraisLivraisonActuel > 0 && <div style={{ display: "flex", justifyContent: "space-between", color: "#6B7168" }}><span>Livraison</span><span>{fraisLivraisonActuel.toLocaleString("fr-FR")} {entreprise.devise}</span></div>}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 15, marginTop: 6, paddingTop: 6, borderTop: "1px solid #ECE8DC" }}><span>Total</span><span style={{ color: couleur }}>{totalAvecLivraison.toLocaleString("fr-FR")} {entreprise.devise}</span></div>
+            </div>
+
+            {erreur && <div style={{ background: "#FBEAE6", color: "#D64933", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12.5 }}>{erreur}</div>}
+
+            <button onClick={envoyerCommandePanier} disabled={envoi} style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: envoi ? 0.7 : 1 }}>
+              {envoi ? "Envoi..." : "Confirmer ma commande"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig, nbArticlesPanier = 0, onOuvrirPanier }) {
   const aDesLiensPersonnalises = Array.isArray(headerConfig?.liens) && headerConfig.liens.length > 0;
   const aDesLiensNav = aDesLiensPersonnalises || aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
   const t = creerTraducteur(entreprise.langue);
@@ -1507,6 +1754,20 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
               💬 <span className="rv-shop-header-whatsapp-txt">{t("nousContacter")}</span>
             </a>
           )}
+
+          {onOuvrirPanier && (
+            <button
+              onClick={onOuvrirPanier}
+              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: couleur, border: "none", color: "white", width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
+            >
+              🛒
+              {nbArticlesPanier > 0 && (
+                <span style={{ position: "absolute", top: -5, right: -5, background: "#D64933", color: "white", fontSize: 10, fontWeight: 700, minWidth: 17, height: 17, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                  {nbArticlesPanier}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1551,7 +1812,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   );
 }
 
-function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, voirTout, libelleVoirTout }) {
+function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, voirTout, libelleVoirTout, onAjouterAuPanier }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1565,7 +1826,7 @@ function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, v
       <div className="rv-shop-collection-scroll">
         {produits.map((p) => (
           <div key={p.produit_id} className="rv-shop-collection-card">
-            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} />
+            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} />
           </div>
         ))}
       </div>
@@ -1573,12 +1834,14 @@ function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, v
   );
 }
 
-function CarteProduit({ p, couleur, devise, onOpen, langue }) {
+function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier }) {
   const t = creerTraducteur(langue);
   return (
-    <button
+    <div
       onClick={() => onOpen(p)}
       className="rv-shop-card"
+      role="button"
+      tabIndex={0}
       style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(22,35,31,0.04)" }}
     >
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
@@ -1608,6 +1871,15 @@ function CarteProduit({ p, couleur, devise, onOpen, langue }) {
             ⚡ {p.stock_initial} {t("restants")}
           </div>
         )}
+        {onAjouterAuPanier && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
+            aria-label={t("ajouterPanier")}
+            style={{ position: "absolute", bottom: 6, right: 6, width: 32, height: 32, borderRadius: "50%", background: couleur, color: "white", border: "2px solid white", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}
+          >
+            🛒
+          </button>
+        )}
       </div>
       <div style={{ padding: "10px 12px 14px" }}>
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
@@ -1621,7 +1893,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue }) {
           {Number(p.prix_vente).toLocaleString("fr-FR")} {devise}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -1830,7 +2102,7 @@ function BulleWhatsApp({ whatsapp, messageDefaut, surCtaBar }) {
   );
 }
 
-function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [] }) {
+function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier }) {
   const devise = entreprise.devise;
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
     typeof s === "string" ? { id: `s${i}`, type: s, visible: true } : { id: s.id || `s${i}`, type: s.type, visible: s.visible !== false }
@@ -1856,7 +2128,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
     return (
       <div className="rv-builder-grid-produits">
-        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} />)}
+        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />)}
       </div>
     );
   }
@@ -2082,7 +2354,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           .rv-builder-grid-produits { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} />
       {sectionsNormalisees.filter((s) => s.visible !== false).map((s) => {
         const idsCorrespondants = { products: "produits", promo: "promo", contact: "contact", faq: "faq", testimonials: "avis", whatsapp: "whatsapp", delivery: "livraison", bundles: "bundles" };
         return (

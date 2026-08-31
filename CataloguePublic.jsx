@@ -251,6 +251,43 @@ export default function CataloguePublic({ workspaceId }) {
   const totalArticlesPanier = panier.reduce((s, it) => s + it.quantite, 0);
   const totalPanier = panier.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0);
   const [produitOuvert, setProduitOuvert] = useState(null);
+
+  useEffect(() => {
+    if (entreprise === undefined || entreprise === null) return;
+
+    function definirMeta(nomOuProp, contenu, estProperty) {
+      const selecteur = estProperty ? `meta[property="${nomOuProp}"]` : `meta[name="${nomOuProp}"]`;
+      let balise = document.querySelector(selecteur);
+      if (!balise) {
+        balise = document.createElement("meta");
+        if (estProperty) balise.setAttribute("property", nomOuProp);
+        else balise.setAttribute("name", nomOuProp);
+        document.head.appendChild(balise);
+      }
+      balise.setAttribute("content", contenu || "");
+    }
+
+    if (produitOuvert) {
+      const titre = `${produitOuvert.produit_nom} — ${entreprise.nom}`;
+      const description = (produitOuvert.produit_description || entreprise.description || "").replace(/<[^>]*>/g, "").slice(0, 160);
+      document.title = titre;
+      definirMeta("description", description);
+      definirMeta("og:title", titre, true);
+      definirMeta("og:description", description, true);
+      if (produitOuvert.photo_url) definirMeta("og:image", produitOuvert.photo_url, true);
+      definirMeta("og:type", "product", true);
+    } else {
+      const titre = entreprise.nom;
+      const description = (entreprise.description || `Découvrez les produits de ${entreprise.nom}, paiement à la livraison.`).slice(0, 160);
+      document.title = titre;
+      definirMeta("description", description);
+      definirMeta("og:title", titre, true);
+      definirMeta("og:description", description, true);
+      if (entreprise.logo) definirMeta("og:image", entreprise.logo, true);
+      definirMeta("og:type", "website", true);
+    }
+  }, [entreprise, produitOuvert]);
+
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "" });
   const [quantite, setQuantite] = useState(1);

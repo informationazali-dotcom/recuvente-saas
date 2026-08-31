@@ -1712,9 +1712,9 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           {headerConfig?.barreTop ? (
             <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
           ) : (
-            [t("badgeLivraison"), t("badgePaiement"), t("badgeSecurise")].map((txt, i) => (
-              <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
-            ))
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>
+              {[t("badgeLivraison"), t("badgePaiement"), t("badgeSecurise")].join("  ·  ")}
+            </span>
           )}
         </div>
       </div>
@@ -1743,7 +1743,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             </div>
           )}
 
-          {afficherPanier && entreprise.whatsapp && (
+          {entreprise.whatsapp && (
             <a
               href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
               target="_blank"
@@ -1755,7 +1755,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             </a>
           )}
 
-          {onOuvrirPanier && (
+          {afficherPanier && onOuvrirPanier && (
             <button
               onClick={onOuvrirPanier}
               style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.2)", border: "none", color: texteHeader, width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}

@@ -562,7 +562,15 @@ function LandingPage() {
       @media(max-width:650px){.rva-holoHero{min-height:940px!important;padding-top:55px!important}.rva-holoTitle{font-size:clamp(48px,14vw,72px)!important}.rva-holoTitle small{font-size:16px}.rva-holoHero .rva-heroCopy>p{font-size:15px!important}.rva-holoStage{height:440px!important;margin-top:8px}.rva-holoDashboard{top:28px!important;transform:rotateY(-6deg) rotateX(3deg) translateZ(25px)!important}.rva-holoRings{inset:10px -55px 20px}.rva-holoFloat.one{right:-2px;top:18px}.rva-holoFloat.two{left:-2px;bottom:48px}.rva-holoFloat.three{right:0;bottom:0}.rva-holoFooter{display:none}.rva-holoTrust{font-size:9px}}
 
       @media(max-width:650px){.rva-stage{height:400px}.rva-dashboard{top:35px;transform:rotateY(-5deg) rotateX(3deg) translateZ(20px)}.rva-float.one{top:25px}.rva-float.two{bottom:55px}.rva-float.three{bottom:0}.rva-orbit{inset:15px -70px 5px}.rva-heroCopy>p{font-size:15px}}
-      `}</style>
+      `}
+/* V5.1 — contrast rules: white typography on green/dark premium surfaces */
+.rvp-dark, .rvp-dark * { color: #fff; }
+.rvp-dark .rvp-muted, .rvp-dark .rvp-desc, .rvp-dark small { color: rgba(255,255,255,.82); }
+.rvp-green, .rvp-green * { color: #fff; }
+.rvp-green .rvp-muted, .rvp-green .rvp-desc, .rvp-green small { color: rgba(255,255,255,.82); }
+.rvp-hero, .rvp-hero * { color: #fff; }
+.rvp-hero .rvp-muted, .rvp-hero .rvp-desc, .rvp-hero small { color: rgba(255,255,255,.84); }
+</style>
 
       <header className="rva-nav"><div className="wrap rva-navin">
         <a className="rva-logo" href="#top"><i>R</i>RecuVente</a>

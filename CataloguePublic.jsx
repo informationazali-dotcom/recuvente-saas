@@ -2149,9 +2149,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         <div style={{ padding: "26px 20px 34px" }}>
           <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
           <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
-          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
-            {config.buttonText}
-          </button>
+          {config.buttonText && config.buttonText.trim() && (
+            <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+              {config.buttonText}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -2319,7 +2321,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       <div style={{ ...commonPad, textAlign: "center", background: "#0d2417", color: "#fff" }}>
         <h3 style={{ margin: "0 0 9px", fontSize: 25 }}>Prêt à passer à l'action ?</h3>
         <p style={{ fontSize: 12, color: "rgba(255,255,255,.68)" }}>Commandez, ou contactez-nous maintenant.</p>
-        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: couleur, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button>
+        {config.buttonText && config.buttonText.trim() && (
+          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: couleur, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button>
+        )}
       </div>
     );
 

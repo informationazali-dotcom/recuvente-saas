@@ -200,6 +200,44 @@ function creerTraducteur(langue) {
   return (cle) => dict[cle] || TRADUCTIONS.fr[cle] || cle;
 }
 
+// Règles vérifiées précisément (réformes récentes des plans de numérotation) :
+// - Côte d'Ivoire (CI) : passée à 10 chiffres le 31/01/2021, préfixes mobiles 01/05/07/25/27...
+// - Bénin (BJ) : passé à 10 chiffres le 30/11/2024, préfixe "01" ajouté devant chaque numéro.
+// Règles bien établies et stables (non réformées récemment) :
+// - Sénégal (SN) : 9 chiffres, mobile commence par 7.
+// - Mali (ML), Burkina Faso (BF), Togo (TG) : 8 chiffres.
+// Pour les autres pays listés dans l'app, aucune règle précise n'a été vérifiée ici :
+// on applique une plage large (8 à 12 chiffres) plutôt que d'inventer une précision qu'on n'a pas.
+const REGLES_TELEPHONE_PAR_PAYS = {
+  CI: { longueur: 10, regexPrefixe: /^(01|05|07|21|22|23|24|25|27|30|31|32|33|34|35|36)/, exemple: "07 12 34 56 78" },
+  BJ: { longueur: 10, regexPrefixe: /^01/, exemple: "01 97 12 34 56" },
+  SN: { longueur: 9, regexPrefixe: /^7/, exemple: "77 123 45 67" },
+  ML: { longueur: 8, exemple: "70 12 34 56" },
+  BF: { longueur: 8, exemple: "70 12 34 56" },
+  TG: { longueur: 8, exemple: "90 12 34 56" },
+};
+
+function validerTelephone(numero, codePays) {
+  const chiffres = (numero || "").replace(/\D/g, "");
+  const regle = REGLES_TELEPHONE_PAR_PAYS[codePays];
+
+  if (regle) {
+    if (chiffres.length !== regle.longueur) {
+      return { valide: false, message: `Un numéro ${codePays === "CI" ? "ivoirien" : codePays === "BJ" ? "béninois" : codePays === "SN" ? "sénégalais" : "valide pour ce pays"} doit comporter ${regle.longueur} chiffres (ex: ${regle.exemple}).` };
+    }
+    if (regle.regexPrefixe && !regle.regexPrefixe.test(chiffres)) {
+      return { valide: false, message: `Ce numéro ne correspond pas à un préfixe valide (ex: ${regle.exemple}).` };
+    }
+    return { valide: true, message: "" };
+  }
+
+  // Pays sans règle précise vérifiée : on garde un contrôle large, honnête sur son imprécision.
+  if (chiffres.length < 8 || chiffres.length > 12) {
+    return { valide: false, message: "⚠️ Ce numéro de téléphone semble incomplet. Vérifie-le avant de continuer." };
+  }
+  return { valide: true, message: "" };
+}
+
 function prixUnitairePourBundle(prixVente, bundle) {
   if (!bundle) return Number(prixVente);
   if ((bundle.mode || "pourcentage") === "prix_fixe") {
@@ -417,6 +455,8 @@ export default function CataloguePublic({ workspaceId }) {
         instagramUrl: data[0].instagram_url,
         tiktokUrl: data[0].tiktok_url,
         storeConfig: data[0].store_config_published || null,
+        country: data[0].country || null,
+        countriesLivraison: Array.isArray(data[0].countries_livraison) ? data[0].countries_livraison : [],
         labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
         temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
@@ -526,6 +566,11 @@ export default function CataloguePublic({ workspaceId }) {
     const chiffresTelEnvoi = form.tel.replace(/\D/g, "");
     if (chiffresTelEnvoi.length < 8) {
       setErreurEnvoi(t("telIncomplet"));
+      return;
+    }
+    const verifTel = validerTelephone(form.tel, entreprise.country);
+    if (!verifTel.valide) {
+      setErreurEnvoi(verifTel.message);
       return;
     }
     if (!engagementCoche) {
@@ -1644,6 +1689,11 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     const chiffresTelPanier = form.tel.replace(/\D/g, "");
     if (chiffresTelPanier.length < 8) {
       setErreur("⚠️ Ce numéro de téléphone semble incomplet. Vérifie-le avant de continuer.");
+      return;
+    }
+    const verifTelPanier = validerTelephone(form.tel, entreprise.country);
+    if (!verifTelPanier.valide) {
+      setErreur(verifTelPanier.message);
       return;
     }
     if (aChoixLivraison && !typeLivraisonChoisi) {

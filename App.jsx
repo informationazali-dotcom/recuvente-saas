@@ -10614,19 +10614,48 @@ function IntegrationsModal({ workspace, onClose }) {
   const [savingDomainePerso, setSavingDomainePerso] = useState(false);
   const [domainePersoSaved, setDomainePersoSaved] = useState(false);
   const [erreurDomainePerso, setErreurDomainePerso] = useState("");
+  const [instructionsDomaine, setInstructionsDomaine] = useState(null);
 
   async function sauvegarderDomainePerso() {
     setSavingDomainePerso(true);
     setErreurDomainePerso("");
+    setInstructionsDomaine(null);
     const valeur = domainePerso.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "") || null;
-    const { error } = await supabase.from("workspaces").update({ domaine_personnalise: valeur }).eq("id", workspace.id);
-    setSavingDomainePerso(false);
-    if (error) {
-      setErreurDomainePerso(error.message.includes("duplicate") || error.message.includes("unique") ? "Ce domaine est déjà utilisé par une autre boutique." : "Erreur : " + error.message);
+
+    if (!valeur) {
+      await supabase.from("workspaces").update({ domaine_personnalise: null }).eq("id", workspace.id);
+      setSavingDomainePerso(false);
+      setDomainePersoSaved(true);
+      setTimeout(() => setDomainePersoSaved(false), 2000);
       return;
     }
-    setDomainePersoSaved(true);
-    setTimeout(() => setDomainePersoSaved(false), 2000);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const resp = await fetch("/api/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ workspaceId: workspace.id, domaine: valeur, action: "add" }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) {
+        setErreurDomainePerso(result.error || "Erreur lors de la connexion à Vercel.");
+        setSavingDomainePerso(false);
+        return;
+      }
+      const { error } = await supabase.from("workspaces").update({ domaine_personnalise: valeur }).eq("id", workspace.id);
+      if (error) {
+        setErreurDomainePerso(error.message.includes("duplicate") || error.message.includes("unique") ? "Ce domaine est déjà utilisé par une autre boutique." : "Erreur : " + error.message);
+        setSavingDomainePerso(false);
+        return;
+      }
+      setInstructionsDomaine(result.instructions);
+      setDomainePersoSaved(true);
+      setTimeout(() => setDomainePersoSaved(false), 2000);
+    } catch (e) {
+      setErreurDomainePerso("Erreur de connexion : " + e.message);
+    }
+    setSavingDomainePerso(false);
   }
   const [savingDomaineMeta, setSavingDomaineMeta] = useState(false);
   const [domaineMetaSaved, setDomaineMetaSaved] = useState(false);
@@ -11303,8 +11332,23 @@ function IntegrationsModal({ workspace, onClose }) {
             </button>
           </div>
           {erreurDomainePerso && <div style={{ color: "#D64933", fontSize: 11.5, marginTop: 6 }}>{erreurDomainePerso}</div>}
+          {instructionsDomaine && (
+            <div style={{ background: "#FFF8E7", border: "1px solid #F0DDA8", borderRadius: 10, padding: 12, marginTop: 10, fontSize: 11.5, lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 700, color: "#8A6412", marginBottom: 4 }}>✅ Domaine enregistré côté Vercel — dernière étape pour ton client</div>
+              <div>Ton client doit ajouter cet enregistrement chez <b>son</b> registrar (là où il a acheté le domaine) :</div>
+              {instructionsDomaine.a && (
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", borderRadius: 6, padding: "4px 8px", marginTop: 4 }}>
+                  Type: A — Nom: @ — Valeur: {instructionsDomaine.a.value}
+                </div>
+              )}
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", borderRadius: 6, padding: "4px 8px", marginTop: 4 }}>
+                Type: CNAME — Nom: {instructionsDomaine.cname.name} — Valeur: {instructionsDomaine.cname.value}
+              </div>
+              <div style={{ marginTop: 6, opacity: 0.8 }}>Le certificat SSL se met en place automatiquement une fois ces enregistrements détectés (quelques minutes à quelques heures selon son registrar).</div>
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, lineHeight: 1.5 }}>
-            Écris juste le domaine (sans https://). Il faut aussi le connecter sur Vercel — demande le guide à ton support si besoin.
+            Écris juste le domaine (sans https://). L'ajout côté Vercel se fait automatiquement en cliquant "Enregistrer".
           </div>
         </div>
 

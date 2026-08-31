@@ -3077,6 +3077,36 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
   const beneficeReel = caConfirme - coutLivraisons - coutProduitsInfo.coutTotal;
 
+  const rentabiliteParCloser = useMemo(() => {
+    const map = {};
+    confirmees.forEach((c) => {
+      const closer = c.closer || "Sans closer";
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
+      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
+      if (!map[closer]) map[closer] = { nom: closer, ca: 0, cout: 0, nbCommandes: 0 };
+      map[closer].ca += Number(c.montant);
+      map[closer].cout += cout;
+      map[closer].nbCommandes += 1;
+    });
+    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
+  }, [confirmees, produits]);
+
+  const rentabiliteParZone = useMemo(() => {
+    const map = {};
+    confirmees.forEach((c) => {
+      const zone = (c.zone || "").trim() || "Sans zone";
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
+      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
+      if (!map[zone]) map[zone] = { nom: zone, ca: 0, cout: 0, nbCommandes: 0 };
+      map[zone].ca += Number(c.montant);
+      map[zone].cout += cout;
+      map[zone].nbCommandes += 1;
+    });
+    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
+  }, [confirmees, produits]);
+
   const depotsParLivreur = useMemo(() => {
     return livreurs
       .map((l) => {
@@ -4040,6 +4070,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           caConfirme={caConfirme}
           currency={workspace.currency}
           depotsParLivreur={depotsParLivreur}
+          rentabiliteParCloser={rentabiliteParCloser}
+          rentabiliteParZone={rentabiliteParZone}
         />
       )}
 
@@ -9294,7 +9326,7 @@ function SimulateurCampagneView({ currency }) {
   );
 }
 
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur }) {
+function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur, rentabiliteParCloser = [], rentabiliteParZone = [] }) {
   const composantes = useMemo(() => {
     const now = new Date();
     const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -9423,6 +9455,55 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
       <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.6 }}>
         Calculé à partir de tes 30 derniers jours de commandes, ton bénéfice réel, et la fiabilité de ton équipe. Un score qui remonte reflète une activité qui se solidifie.
       </div>
+
+      {rentabiliteParCloser.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>💼 Rentabilité par closer</div>
+          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Bénéfice réel généré, pas juste le nombre de ventes.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {rentabiliteParCloser.map((r) => (
+              <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{r.nom}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: r.benefice >= 0 ? "#1F9D6E" : "#D64933" }}>
+                    {r.benefice.toLocaleString("fr-FR")} {currency}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#8A9089" }}>bénéfice réel</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rentabiliteParZone.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>📍 Rentabilité par zone</div>
+          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Certaines zones coûtent plus cher à livrer qu'elles ne rapportent.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {rentabiliteParZone.slice(0, 10).map((r) => (
+              <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: r.benefice >= 0 ? "#1F9D6E" : "#D64933" }}>
+                    {r.benefice.toLocaleString("fr-FR")} {currency}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#8A9089" }}>bénéfice réel</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {rentabiliteParZone.length > 10 && (
+            <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, textAlign: "center" }}>+ {rentabiliteParZone.length - 10} autre{rentabiliteParZone.length - 10 > 1 ? "s" : ""} zone{rentabiliteParZone.length - 10 > 1 ? "s" : ""}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

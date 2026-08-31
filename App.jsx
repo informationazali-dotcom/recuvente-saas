@@ -4177,6 +4177,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           rentabiliteParCloser={rentabiliteParCloser}
           rentabiliteParZone={rentabiliteParZone}
           rentabiliteParCampagne={rentabiliteParCampagne}
+          workspaceId={workspace.id}
         />
       )}
 
@@ -9670,7 +9671,31 @@ function SimulateurCampagneView({ currency }) {
   );
 }
 
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur, rentabiliteParCloser = [], rentabiliteParZone = [], rentabiliteParCampagne = [] }) {
+function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur, rentabiliteParCloser = [], rentabiliteParZone = [], rentabiliteParCampagne = [], workspaceId }) {
+  const [depensesParCampagne, setDepensesParCampagne] = useState({});
+  const [saisieDepense, setSaisieDepense] = useState({});
+  const [enregistrementCampagne, setEnregistrementCampagne] = useState(null);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    supabase.from("depenses_publicitaires").select("nom_campagne, montant").eq("workspace_id", workspaceId).then(({ data }) => {
+      if (!data) return;
+      const totaux = {};
+      data.forEach((d) => { totaux[d.nom_campagne] = (totaux[d.nom_campagne] || 0) + Number(d.montant); });
+      setDepensesParCampagne(totaux);
+    });
+  }, [workspaceId]);
+
+  async function ajouterDepenseCampagne(nomCampagne) {
+    const montant = Number(saisieDepense[nomCampagne]);
+    if (!montant || montant <= 0) return;
+    setEnregistrementCampagne(nomCampagne);
+    await supabase.from("depenses_publicitaires").insert([{ workspace_id: workspaceId, nom_campagne: nomCampagne, montant }]);
+    setDepensesParCampagne((v) => ({ ...v, [nomCampagne]: (v[nomCampagne] || 0) + montant }));
+    setSaisieDepense((v) => ({ ...v, [nomCampagne]: "" }));
+    setEnregistrementCampagne(null);
+  }
+
   const composantes = useMemo(() => {
     const now = new Date();
     const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -9852,22 +9877,49 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
       {rentabiliteParCampagne.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>🎯 Rentabilité par campagne publicitaire</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Uniquement les commandes arrivées via un lien avec suivi (utm_source/utm_campaign, ou pub Facebook/TikTok détectée).</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {rentabiliteParCampagne.map((r) => (
-              <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
-                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: r.benefice >= 0 ? "#1F9D6E" : "#D64933" }}>
-                    {r.benefice.toLocaleString("fr-FR")} {currency}
+          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Uniquement les commandes arrivées via un lien avec suivi (utm_source/utm_campaign, ou pub Facebook/TikTok détectée). Ajoute ce que tu as réellement dépensé pour voir ton vrai ROAS.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {rentabiliteParCampagne.map((r) => {
+              const depensePub = depensesParCampagne[r.nom] || 0;
+              const beneficeApresPub = r.benefice - depensePub;
+              return (
+                <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: depensePub > 0 ? 10 : 0 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
+                      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: beneficeApresPub >= 0 ? "#1F9D6E" : "#D64933" }}>
+                        {beneficeApresPub.toLocaleString("fr-FR")} {currency}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#8A9089" }}>{depensePub > 0 ? "bénéfice après pub" : "bénéfice (sans dépense pub renseignée)"}</div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 10, color: "#8A9089" }}>bénéfice réel</div>
+                  {depensePub > 0 && (
+                    <div style={{ fontSize: 10.5, color: "#8A9089", borderTop: "1px solid #F0EEE6", paddingTop: 8, marginBottom: 8 }}>
+                      {r.benefice.toLocaleString("fr-FR")} {currency} de bénéfice avant pub − {depensePub.toLocaleString("fr-FR")} {currency} dépensés = ROAS {depensePub > 0 ? (r.ca / depensePub).toFixed(1) : "—"}x
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="number"
+                      placeholder={`Ajouter une dépense pub (${currency})`}
+                      value={saisieDepense[r.nom] || ""}
+                      onChange={(e) => setSaisieDepense((v) => ({ ...v, [r.nom]: e.target.value }))}
+                      style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12 }}
+                    />
+                    <button
+                      onClick={() => ajouterDepenseCampagne(r.nom)}
+                      disabled={enregistrementCampagne === r.nom}
+                      style={{ background: "#1E4B8C", color: "white", border: "none", borderRadius: 7, padding: "0 12px", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}
+                    >
+                      {enregistrementCampagne === r.nom ? "..." : "＋ Ajouter"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

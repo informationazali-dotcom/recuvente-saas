@@ -1848,10 +1848,19 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "bestsellers" || type === "products") {
       const liste = type === "bestsellers" ? bestsellersAffiches : produitsFiltres;
+      const max = type === "products" ? NOMBRE_MAX_ACCUEIL : 8;
+      const troncature = liste.length > max;
       return (
         <div id={type === "products" ? "rv-shop-produits" : undefined} style={commonPad}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : "Nos produits"}</h3>
-          <GrilleProduits liste={liste} max={type === "products" ? NOMBRE_MAX_ACCUEIL : 8} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : "Nos produits"}</h3>
+            {troncature && (
+              <button onClick={() => setCollectionOuverte(type === "bestsellers" ? "bestseller" : "tous")} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                Voir tout ({liste.length}) →
+              </button>
+            )}
+          </div>
+          <GrilleProduits liste={liste} max={max} />
         </div>
       );
     }

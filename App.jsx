@@ -1364,6 +1364,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
   const [showProduits, setShowProduits] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
+  const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
@@ -2642,6 +2643,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
+            onClick={() => setShowTemoignages(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            💬 Témoignages
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
             onClick={() => setShowCollections(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
@@ -3611,6 +3620,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
+      {showTemoignages && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
   );
@@ -5979,6 +5989,81 @@ function AvisModal({ workspaceId, onClose }) {
   );
 }
 
+function TemoignagesModal({ workspace, onClose }) {
+  const [liste, setListe] = useState(Array.isArray(workspace.temoignages_manuels) ? workspace.temoignages_manuels : []);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [nom, setNom] = useState("");
+  const [note, setNote] = useState(5);
+  const [texte, setTexte] = useState("");
+
+  function ajouter() {
+    if (!nom.trim() || !texte.trim()) return;
+    setListe((l) => [...l, { id: "t" + Date.now(), nom: nom.trim(), note, texte: texte.trim() }]);
+    setNom("");
+    setNote(5);
+    setTexte("");
+  }
+
+  function supprimer(id) {
+    setListe((l) => l.filter((t) => t.id !== id));
+  }
+
+  async function sauvegarder() {
+    setSaving(true);
+    await supabase.from("workspaces").update({ temoignages_manuels: liste }).eq("id", workspace.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>💬 Témoignages</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
+          Écris toi-même des témoignages à afficher sur ta boutique. Les vrais avis clients approuvés s'affichent aussi automatiquement à côté, tu n'as pas besoin de les recopier ici.
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <input placeholder="Nom du client" value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} onClick={() => setNote(n)} style={{ background: "none", border: "none", padding: 0, fontSize: 22, cursor: "pointer", color: n <= note ? "#e8920a" : "#DDD8CC" }}>★</button>
+            ))}
+          </div>
+          <textarea placeholder="Le témoignage..." value={texte} onChange={(e) => setTexte(e.target.value)} rows={3} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }} />
+          <button onClick={ajouter} disabled={!nom.trim() || !texte.trim()} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", opacity: (!nom.trim() || !texte.trim()) ? 0.5 : 1 }}>＋ Ajouter ce témoignage</button>
+        </div>
+
+        {liste.length === 0 ? (
+          <div style={{ color: "#8A9089", fontSize: 13, marginBottom: 16 }}>Aucun témoignage écrit pour l'instant.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {liste.map((t) => (
+              <div key={t.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{t.nom}</span>
+                  <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(t.note)}{"☆".repeat(5 - t.note)}</span>
+                </div>
+                <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{t.texte}</div>
+                <button onClick={() => supprimer(t.id)} style={{ marginTop: 6, background: "none", border: "none", color: "#D64933", fontSize: 11.5, cursor: "pointer", padding: 0 }}>🗑️ Retirer</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={sauvegarder} disabled={saving} style={{ width: "100%", background: saved ? "#1F9D6E" : "#16231F", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          {saved ? "✅ Enregistré" : saving ? "Enregistrement..." : "Enregistrer les témoignages"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
@@ -5996,7 +6081,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
-  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "" });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [] });
   const [optionsProduit, setOptionsProduit] = useState([{ nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }]);
   const [variantesListe, setVariantesListe] = useState([]);
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
@@ -6023,6 +6108,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         masquer_produits_similaires: !!selected.masquer_produits_similaires,
         bump_produit_id: selected.bump_produit_id || "",
         bump_prix_special: selected.bump_prix_special ?? "",
+        produits_similaires_ids: Array.isArray(selected.produits_similaires_ids) ? selected.produits_similaires_ids : [],
       });
       const optsExistantes = Array.isArray(selected.options) ? selected.options : [];
       setOptionsProduit([0, 1, 2].map((i) => optsExistantes[i] ? { nom: optsExistantes[i].nom || "", valeursTexte: (optsExistantes[i].valeurs || []).join(", ") } : { nom: "", valeursTexte: "" }));
@@ -6490,6 +6576,23 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     )}
                   </div>
 
+                  <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 12, marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#344239", marginBottom: 4 }}>🔗 "Tu pourrais aussi aimer" sous ce produit</div>
+                    <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 8 }}>Choisis toi-même quels produits proposer (sinon l'app choisit automatiquement les meilleures ventes).</div>
+                    <div style={{ display: "grid", gap: 5, maxHeight: 160, overflow: "auto", border: "1px solid #ECE8DC", borderRadius: 8, padding: 8 }}>
+                      {produits.filter((p) => p.id !== selected.id).map((p) => {
+                        const coche = livraison.produits_similaires_ids.includes(p.id);
+                        return (
+                          <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "4px 2px", cursor: "pointer" }}>
+                            <input type="checkbox" checked={coche} onChange={() => setLivraison((v) => ({ ...v, produits_similaires_ids: coche ? v.produits_similaires_ids.filter((id) => id !== p.id) : [...v.produits_similaires_ids, p.id] }))} />
+                            {p.nom}
+                          </label>
+                        );
+                      })}
+                      {produits.length <= 1 && <div style={{ fontSize: 11, color: "#8A9089" }}>Ajoute d'autres produits à ton catalogue pour pouvoir en choisir ici.</div>}
+                    </div>
+                  </div>
+
                   <div>
                     <button
                       onClick={() => {
@@ -6501,6 +6604,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           masquer_produits_similaires: livraison.masquer_produits_similaires,
                           bump_produit_id: livraison.bump_produit_id || null,
                           bump_prix_special: livraison.bump_prix_special === "" ? null : Number(livraison.bump_prix_special),
+                          produits_similaires_ids: livraison.produits_similaires_ids,
                         });
                         flash("livraison");
                       }}

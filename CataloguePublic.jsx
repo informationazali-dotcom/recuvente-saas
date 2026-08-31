@@ -36,14 +36,14 @@ const TRADUCTIONS = {
     aucunAvis: "Aucun avis pour le moment. Sois le premier !",
     commandeEnvoyee: "Commande envoyée !",
     merciMerci: "Merci",
-    vaTeContacter: "va te contacter au",
-    pourConfirmer: "pour confirmer ta commande.",
+    vaTeContacter: "Ta commande est bien enregistrée. Un conseiller va t'appeler au",
+    pourConfirmer: "très bientôt — merci de répondre, c'est indispensable pour valider ta livraison.",
     livraisonA: "Livraison à :",
     telephone: "Téléphone :",
     etMaintenant: "Et maintenant ?",
-    etape1: "On te contacte pour confirmer ta commande",
-    etape2: "Ton colis est préparé et remis au livreur",
-    etape3: "Tu payes à la réception, une fois satisfait",
+    etape1: "Un conseiller t'appelle pour confirmer ta commande — réponds à son appel",
+    etape2: "Ton livreur t'appelle juste avant de passer, avec ta facture",
+    etape3: "Tu payes à la réception, une fois satisfait(e)",
     uneQuestion: "💬 Une question ? Contacte-nous",
     continuerAchats: "← Continuer mes achats",
     tuPourraisAimer: "Tu pourrais aussi aimer",
@@ -118,13 +118,13 @@ const TRADUCTIONS = {
     aucunAvis: "No reviews yet. Be the first!",
     commandeEnvoyee: "Order sent!",
     merciMerci: "Thank you",
-    vaTeContacter: "will contact you at",
-    pourConfirmer: "to confirm your order.",
+    vaTeContacter: "Your order is confirmed. An advisor will call you at",
+    pourConfirmer: "shortly — please answer, it's essential to arrange your delivery.",
     livraisonA: "Deliver to:",
     telephone: "Phone:",
     etMaintenant: "What happens next?",
-    etape1: "We'll contact you to confirm your order",
-    etape2: "Your package is prepared and handed to the courier",
+    etape1: "An advisor calls to confirm your order — please answer",
+    etape2: "Your courier calls just before arriving, with your invoice",
     etape3: "You pay on delivery, once you're satisfied",
     uneQuestion: "💬 A question? Contact us",
     continuerAchats: "← Continue shopping",
@@ -813,7 +813,7 @@ export default function CataloguePublic({ workspaceId }) {
                 <div style={{ fontSize: 52, marginBottom: 10 }}>🎉</div>
                 <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: "#16231F" }}>{t("commandeEnvoyee")}</div>
                 <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 24, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
-                  {t("merciMerci")} {form.client.split(" ")[0]} 🙏 — {entreprise.nom} {t("vaTeContacter")} <strong>{form.tel}</strong> {t("pourConfirmer")}
+                  {t("merciMerci")} {form.client.split(" ")[0]} 🙏 {t("vaTeContacter")} <strong>{form.tel}</strong> {t("pourConfirmer")}
                 </div>
 
                 <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, textAlign: "left", marginBottom: 18 }}>

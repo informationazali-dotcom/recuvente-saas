@@ -1530,7 +1530,7 @@ function LivreurCarteEcartCaisse({ l, workspaceId, currency }) {
   );
 }
 
-function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
+function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, produitsEnProgression = [], currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
   const nonTraitees = todoAujourdhui.total;
   const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
   const aRisque = todoAujourdhui.sansNouvelles.length;
@@ -1614,6 +1614,22 @@ function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLi
                 <button onClick={a.action} style={{ marginTop: 6, background: a.couleur, color: "white", border: "none", borderRadius: 7, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
                   {a.bouton}
                 </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {produitsEnProgression.length > 0 && (
+        <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 16, padding: "16px 20px", marginTop: 14 }}>
+          <div style={{ fontSize: 11, color: "#3B6D11", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>
+            📈 Ça progresse fort en ce moment
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {produitsEnProgression.map((p) => (
+              <div key={p.nom} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "#16231F" }}>{p.nom}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#1F9D6E" }}>+{p.croissance}% cette semaine</span>
               </div>
             ))}
           </div>
@@ -2628,6 +2644,33 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
     return { aRelivrer, jamaisContactees, sansNouvelles, total, argentARisque, argentRecuperable };
   }, [commandes, relanceCountByOrder]);
+
+  const produitsEnProgression = useMemo(() => {
+    const maintenant = Date.now();
+    const il7j = maintenant - 7 * 86400000;
+    const il14j = maintenant - 14 * 86400000;
+    const recentes = {};
+    const precedentes = {};
+    commandes.filter((c) => c.statut === "confirmee").forEach((c) => {
+      const t = new Date(c.created_at).getTime();
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      if (t >= il7j) {
+        recentes[nom] = (recentes[nom] || 0) + quantite;
+      } else if (t >= il14j && t < il7j) {
+        precedentes[nom] = (precedentes[nom] || 0) + quantite;
+      }
+    });
+    return Object.keys(recentes)
+      .map((nom) => {
+        const avant = precedentes[nom] || 0;
+        const apres = recentes[nom];
+        const croissance = avant > 0 ? Math.round(((apres - avant) / avant) * 100) : (apres >= 3 ? 100 : 0);
+        return { nom, avant, apres, croissance };
+      })
+      .filter((p) => p.apres >= 3 && p.croissance >= 30)
+      .sort((a, b) => b.croissance - a.croissance)
+      .slice(0, 3);
+  }, [commandes]);
 
   const [vue, setVue] = useState("commandes");
   const [datePreset, setDatePreset] = useState("aujourdhui");
@@ -3655,11 +3698,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             </div>
           )}
 
-          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0)) && (
+          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0) || produitsEnProgression.length > 0) && (
             <RadarDesFuitesEtActions
               todoAujourdhui={todoAujourdhui}
               clientsARelancer={clientsARelancer}
               depotsParLivreur={depotsParLivreur}
+              produitsEnProgression={produitsEnProgression}
               currency={workspace.currency}
               onVoirRecovery={() => setVue("recovery")}
               onVoirCompta={() => setVue("compta")}

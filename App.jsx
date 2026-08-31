@@ -821,6 +821,7 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
     { key: "location_immobiliere", icon: "🏠", titre: "Location immobilière", desc: "Suivi des loyers, locataires, relances de paiement" },
     { key: "restaurant", icon: "🍽️", titre: "Restaurant / Maquis / Fast-food", desc: "Menu, tables, suivi cuisine en temps réel" },
     { key: "location_vehicule", icon: "🚗", titre: "Location de véhicules / matériel", desc: "Véhicules, motos, matériel — dates, caution, disponibilité" },
+    { key: "personnalise", icon: "🗂️", titre: "Autre activité (conseil, agence, clinique, association...)", desc: "Dossiers/commandes, clients, services, comptabilité, équipe — sans écrans spécifiques à un secteur" },
   ];
 
   return (
@@ -1289,7 +1290,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
 }
 
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
-  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail";
+  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise";
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);

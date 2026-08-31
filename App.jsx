@@ -880,7 +880,147 @@ function PageImpact() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+/* V5.5.1 — FOND VERT + TEXTE BLANC */
+.rva.rva-premium-africa{
+  --rv-green-deep:#03110C;
+  --rv-green:#063B26;
+  --rv-green-2:#087A4D;
+  --rv-orange:#FF6A00;
+  --rv-gold:#FFB000;
+  --rv-white:#FFFFFF;
+  background:#03110C!important;
+  color:#FFFFFF!important;
+}
+
+/* Grandes sections : fond vert */
+.rva.rva-premium-africa .rva-numbers,
+.rva.rva-premium-africa .rva-section,
+.rva.rva-premium-africa .rva-3dsection,
+.rva.rva-premium-africa .rva-system,
+.rva.rva-premium-africa .rva-money,
+.rva.rva-premium-africa .rva-pricing,
+.rva.rva-premium-africa .rva-final{
+  background:
+    radial-gradient(circle at 80% 15%,rgba(0,245,160,.12),transparent 28%),
+    linear-gradient(145deg,#03110C 0%,#063B26 52%,#052719 100%)!important;
+  color:#FFFFFF!important;
+}
+
+/* Règle absolue : texte blanc sur les surfaces vertes */
+.rva.rva-premium-africa .rva-numbers *,
+.rva.rva-premium-africa .rva-section *,
+.rva.rva-premium-africa .rva-system *,
+.rva.rva-premium-africa .rva-money *,
+.rva.rva-premium-africa .rva-pricing *,
+.rva.rva-premium-africa .rva-final *{
+  color:#FFFFFF!important;
+}
+
+/* Paragraphes : blanc avec légère transparence */
+.rva.rva-premium-africa .rva-numbers span,
+.rva.rva-premium-africa .rva-numbers small,
+.rva.rva-premium-africa .rva-section p,
+.rva.rva-premium-africa .rva-system p,
+.rva.rva-premium-africa .rva-money p,
+.rva.rva-premium-africa .rva-priceHead p,
+.rva.rva-premium-africa .rva-final p{
+  color:rgba(255,255,255,.88)!important;
+}
+
+/* Cartes principales : vert + texte blanc */
+.rva.rva-premium-africa .rva-activity,
+.rva.rva-premium-africa .rva-role,
+.rva.rva-premium-africa .rva-markcard:not(.dark),
+.rva.rva-premium-africa .rva-recovery,
+.rva.rva-premium-africa .rva-plan,
+.rva.rva-premium-africa .rva-compare>div{
+  background:linear-gradient(145deg,#0A4A31,#06321F)!important;
+  border-color:rgba(255,255,255,.15)!important;
+  color:#FFFFFF!important;
+}
+.rva.rva-premium-africa .rva-activity *,
+.rva.rva-premium-africa .rva-role *,
+.rva.rva-premium-africa .rva-markcard:not(.dark) *,
+.rva.rva-premium-africa .rva-recovery *,
+.rva.rva-premium-africa .rva-plan *,
+.rva.rva-premium-africa .rva-compare>div *{
+  color:#FFFFFF!important;
+}
+
+/* Pricing : plan recommandé dominant */
+.rva.rva-premium-africa .rva-plan.featured{
+  background:linear-gradient(145deg,#087A4D,#063B26)!important;
+  border-color:#00F5A0!important;
+}
+.rva.rva-premium-africa .rva-plan button,
+.rva.rva-premium-africa .rva-plan.featured button{
+  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
+  color:#FFFFFF!important;
+}
+.rva.rva-premium-africa .rva-badge{
+  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
+  color:#FFFFFF!important;
+}
+
+/* Pills : actif en orange avec texte blanc */
+.rva.rva-premium-africa .rva-pill{
+  color:#FFFFFF!important;
+}
+.rva.rva-premium-africa .rva-pill.active{
+  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
+  color:#FFFFFF!important;
+  border-color:#FFB000!important;
+}
+
+/* CTA : orange/or + écriture blanche */
+.rva.rva-premium-africa .rva-btn.primary,
+.rva.rva-premium-africa .rva-navcta,
+.rva.rva-premium-africa .rva-holoCTA{
+  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
+  color:#FFFFFF!important;
+  border-color:transparent!important;
+}
+.rva.rva-premium-africa .rva-btn.primary *,
+.rva.rva-premium-africa .rva-navcta *,
+.rva.rva-premium-africa .rva-holoCTA *{
+  color:#FFFFFF!important;
+}
+
+/* FAQ : fond vert + texte blanc */
+.rva.rva-premium-africa .rva-faqrow{
+  border-color:rgba(255,255,255,.18)!important;
+}
+.rva.rva-premium-africa .rva-faqrow button,
+.rva.rva-premium-africa .rva-answer{
+  color:#FFFFFF!important;
+}
+
+/* Exception volontaire : le faux écran de boutique reste blanc,
+   comme une vraie interface, avec texte sombre. */
+.rva.rva-premium-africa .rva-shop{
+  background:linear-gradient(145deg,#F9FFFB,#E6FFF1)!important;
+  color:#082519!important;
+}
+.rva.rva-premium-africa .rva-shop *{
+  color:#082519!important;
+}
+.rva.rva-premium-africa .rva-shop p,
+.rva.rva-premium-africa .rva-shop span{
+  color:#365248!important;
+}
+
+@media (prefers-reduced-motion:reduce){
+  .rva.rva-premium-africa *,
+  .rva.rva-premium-africa *::before,
+  .rva.rva-premium-africa *::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    scroll-behavior:auto!important;
+  }
+}
+
+`}</style>
 
       <div style={{ background: "linear-gradient(170deg, #0F1B16 0%, #16231F 60%, #1a7a3c 200%)", color: "white", padding: "40px 24px 50px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, marginBottom: 20 }}>

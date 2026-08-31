@@ -65,6 +65,10 @@ const TRADUCTIONS = {
     choisisMode: "Choisis un mode de livraison pour continuer.",
     ajouteProduit: "➕ Ajoute un produit à ta commande",
     engagement: "⚠️ En confirmant, tu t'engages à réceptionner ce colis. Merci de ne pas commander \"pour voir\" si tu n'es pas certain(e) d'être intéressé(e).",
+    telIncomplet: "⚠️ Ce numéro de téléphone semble incomplet. Vérifie-le avant de continuer.",
+    dovaisCocherEngagement: "⚠️ Merci de cocher la case de confirmation avant d'envoyer ta commande.",
+    caseEngagement: "Je confirme que je veux vraiment recevoir ce produit et que je répondrai à l'appel de confirmation.",
+    onVaAppeler: "📞 Notre équipe t'appellera dans les prochaines heures pour confirmer ta commande — merci de répondre, même à un numéro que tu ne connais pas.",
     confirmer: "Confirmer",
     envoiEnCours: "Envoi...",
     combinaisonIndispo: "⚠️ Cette combinaison n'est pas disponible.",
@@ -152,6 +156,10 @@ const TRADUCTIONS = {
     choisisMode: "Choose a delivery method to continue.",
     ajouteProduit: "➕ Add a product to your order",
     engagement: "⚠️ By confirming, you commit to receiving this package. Please don't order \"just to see\" if you're not sure you're interested.",
+    telIncomplet: "⚠️ This phone number looks incomplete. Please check it before continuing.",
+    dovaisCocherEngagement: "⚠️ Please check the confirmation box before sending your order.",
+    caseEngagement: "I confirm I really want to receive this product and will answer the confirmation call.",
+    onVaAppeler: "📞 Our team will call you within the next few hours to confirm your order — please answer, even from a number you don't recognize.",
     confirmer: "Confirm",
     envoiEnCours: "Sending...",
     combinaisonIndispo: "⚠️ This combination isn't available.",
@@ -303,6 +311,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
+  const [engagementCoche, setEngagementCoche] = useState(false);
   const [lienCopie, setLienCopie] = useState(false);
   const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
   const [recherche, setRecherche] = useState("");
@@ -512,6 +521,15 @@ export default function CataloguePublic({ workspaceId }) {
   async function envoyerCommande() {
     if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
+      return;
+    }
+    const chiffresTelEnvoi = form.tel.replace(/\D/g, "");
+    if (chiffresTelEnvoi.length < 8) {
+      setErreurEnvoi(t("telIncomplet"));
+      return;
+    }
+    if (!engagementCoche) {
+      setErreurEnvoi(t("dovaisCocherEngagement"));
       return;
     }
     const optionsProduitEnvoi = Array.isArray(produitOuvert.options) ? produitOuvert.options : [];
@@ -1249,14 +1267,28 @@ export default function CataloguePublic({ workspaceId }) {
                 </div>
               </div>
 
-              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
+                {t("onVaAppeler")}
+              </div>
+
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                 {t("engagement")}
               </div>
 
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, cursor: "pointer", fontSize: 12, color: "#16231F", lineHeight: 1.5 }}>
+                <input
+                  type="checkbox"
+                  checked={engagementCoche}
+                  onChange={(e) => setEngagementCoche(e.target.checked)}
+                  style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, cursor: "pointer" }}
+                />
+                <span>{t("caseEngagement")}</span>
+              </label>
+
               <button
                 onClick={envoyerCommande}
-                disabled={envoi || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4 }}
+                disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4 }}
               >
                 {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>
@@ -1607,6 +1639,11 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   async function envoyerCommandePanier() {
     if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreur("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
+      return;
+    }
+    const chiffresTelPanier = form.tel.replace(/\D/g, "");
+    if (chiffresTelPanier.length < 8) {
+      setErreur("⚠️ Ce numéro de téléphone semble incomplet. Vérifie-le avant de continuer.");
       return;
     }
     if (aChoixLivraison && !typeLivraisonChoisi) {

@@ -6081,7 +6081,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
-  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [] });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [], produits_similaires_collection_id: "" });
+  const [collectionsDispo, setCollectionsDispo] = useState([]);
+
+  useEffect(() => {
+    supabase.from("collections").select("id, nom").eq("workspace_id", workspaceId).order("ordre", { ascending: true }).then(({ data }) => setCollectionsDispo(data || []));
+  }, [workspaceId]);
   const [optionsProduit, setOptionsProduit] = useState([{ nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }]);
   const [variantesListe, setVariantesListe] = useState([]);
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
@@ -6109,6 +6114,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         bump_produit_id: selected.bump_produit_id || "",
         bump_prix_special: selected.bump_prix_special ?? "",
         produits_similaires_ids: Array.isArray(selected.produits_similaires_ids) ? selected.produits_similaires_ids : [],
+        produits_similaires_collection_id: selected.produits_similaires_collection_id || "",
       });
       const optsExistantes = Array.isArray(selected.options) ? selected.options : [];
       setOptionsProduit([0, 1, 2].map((i) => optsExistantes[i] ? { nom: optsExistantes[i].nom || "", valeursTexte: (optsExistantes[i].valeurs || []).join(", ") } : { nom: "", valeursTexte: "" }));
@@ -6578,7 +6584,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
                   <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 12, marginBottom: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#344239", marginBottom: 4 }}>🔗 "Tu pourrais aussi aimer" sous ce produit</div>
-                    <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 8 }}>Choisis toi-même quels produits proposer (sinon l'app choisit automatiquement les meilleures ventes).</div>
+                    <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 8 }}>Choisis une collection entière et/ou des produits précis (sinon l'app choisit automatiquement les meilleures ventes).</div>
+                    <select value={livraison.produits_similaires_collection_id} onChange={(e) => setLivraison((v) => ({ ...v, produits_similaires_collection_id: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8 }}>
+                      <option value="">Aucune collection</option>
+                      {collectionsDispo.map((c) => <option key={c.id} value={c.id}>📁 {c.nom}</option>)}
+                    </select>
+                    <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 6 }}>+ Produits précis en plus (optionnel) :</div>
                     <div style={{ display: "grid", gap: 5, maxHeight: 160, overflow: "auto", border: "1px solid #ECE8DC", borderRadius: 8, padding: 8 }}>
                       {produits.filter((p) => p.id !== selected.id).map((p) => {
                         const coche = livraison.produits_similaires_ids.includes(p.id);
@@ -6605,6 +6616,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           bump_produit_id: livraison.bump_produit_id || null,
                           bump_prix_special: livraison.bump_prix_special === "" ? null : Number(livraison.bump_prix_special),
                           produits_similaires_ids: livraison.produits_similaires_ids,
+                          produits_similaires_collection_id: livraison.produits_similaires_collection_id || null,
                         });
                         flash("livraison");
                       }}

@@ -338,6 +338,13 @@ export default function App() {
     await supabase.from("workspace_members").insert([
       { workspace_id: ws.id, user_id: session.user.id, role: "owner" },
     ]);
+    const dansSeptJours = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error: erreurAbonnement } = await supabase.from("subscriptions").insert([
+      { workspace_id: ws.id, status: "trial", trial_ends_at: dansSeptJours },
+    ]);
+    if (erreurAbonnement) {
+      console.error("Erreur création abonnement d'essai:", erreurAbonnement.message);
+    }
     fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -5217,6 +5224,15 @@ function AdminPanel({ session }) {
                       {actionEnCours === ws.id ? "..." : suspendu ? "✅ Réactiver" : "🔒 Suspendre"}
                     </button>
                   )}
+                  {ws.subscription && essaiExpire && (
+                    <button
+                      onClick={() => toggleStatus(ws.id, "reactiver")}
+                      disabled={actionEnCours === ws.id}
+                      style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {actionEnCours === ws.id ? "..." : "✅ Activer l'accès"}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       if (window.confirm(`Supprimer définitivement "${ws.name}" ?\n\nToutes ses commandes, clients et données seront perdues pour toujours. Cette action est IRRÉVERSIBLE.`)) {
@@ -6333,8 +6349,11 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
 function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
   const editeurRef = useRef(null);
   const [envoiImage, setEnvoiImage] = useState(false);
+  const [envoiVideo, setEnvoiVideo] = useState(false);
   const [initialise, setInitialise] = useState(false);
   const positionCurseurRef = useRef(null);
+  const [modeHTML, setModeHTML] = useState(false);
+  const [htmlBrut, setHtmlBrut] = useState("");
 
   useEffect(() => {
     if (editeurRef.current && !initialise) {
@@ -6421,29 +6440,130 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     setEnvoiImage(false);
   }
 
+  function insererVideoParUrl() {
+    const url = prompt("Colle le lien de la vidéo (YouTube, Vimeo, ou lien direct .mp4) :");
+    if (!url || !url.trim()) return;
+    const lien = url.trim();
+    const ytMatch = lien.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+    const vimeoMatch = lien.match(/vimeo\.com\/(\d+)/);
+    let html;
+    if (ytMatch) {
+      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
+    } else if (vimeoMatch) {
+      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
+    } else {
+      html = `<video controls style="max-width:100%;border-radius:8px;margin:12px 0;display:block;"><source src="${lien}" /></video>`;
+    }
+    appliquer("insertHTML", html);
+  }
+
+  async function insererVideoFichier(fichier) {
+    if (!fichier) return;
+    if (fichier.size > 30 * 1024 * 1024) {
+      alert("La vidéo est trop lourde (max 30 Mo). Pour une vidéo plus longue, mets-la sur YouTube et colle le lien à la place.");
+      return;
+    }
+    const plageAuMomentDuClic = positionCurseurRef.current ? positionCurseurRef.current.cloneRange() : null;
+    setEnvoiVideo(true);
+    const extension = fichier.name.split(".").pop();
+    const chemin = `${workspaceId}-desc-video-${Date.now()}.${extension}`;
+    const { error } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true, contentType: fichier.type || undefined });
+    if (error) {
+      alert("Erreur lors de l'envoi de la vidéo : " + error.message);
+      setEnvoiVideo(false);
+      return;
+    }
+    const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+    const video = document.createElement("video");
+    video.controls = true;
+    video.src = data.publicUrl;
+    video.style.cssText = "max-width:100%;border-radius:8px;margin:12px 0;display:block;";
+
+    const editeur = editeurRef.current;
+    const plageValide = plageAuMomentDuClic && editeur && editeur.contains(plageAuMomentDuClic.commonAncestorContainer);
+    if (plageValide) {
+      plageAuMomentDuClic.deleteContents();
+      plageAuMomentDuClic.insertNode(video);
+      plageAuMomentDuClic.setStartAfter(video);
+      plageAuMomentDuClic.collapse(true);
+      positionCurseurRef.current = plageAuMomentDuClic.cloneRange();
+    } else {
+      editeur.appendChild(video);
+      const plageFin = document.createRange();
+      plageFin.selectNodeContents(editeur);
+      plageFin.collapse(false);
+      positionCurseurRef.current = plageFin;
+    }
+    editeur.focus();
+    restaurerPositionCurseur();
+    onChange(editeur.innerHTML);
+    setEnvoiVideo(false);
+  }
+
+  function basculerModeHTML() {
+    if (!modeHTML) {
+      setHtmlBrut(editeurRef.current ? editeurRef.current.innerHTML : valeur || "");
+      setModeHTML(true);
+    } else {
+      onChange(htmlBrut);
+      setInitialise(false);
+      setModeHTML(false);
+    }
+  }
+
   return (
     <div style={{ border: "1px solid #DDD8CC", borderRadius: 8, overflow: "hidden" }}>
-      <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap" }}>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("bold")} style={boutonEditeurStyle}><b>G</b></button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("italic")} style={boutonEditeurStyle}><i>I</i></button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("insertUnorderedList")} style={boutonEditeurStyle}>• Liste</button>
-        <label style={{ ...boutonEditeurStyle, cursor: "pointer" }} onMouseDown={sauvegarderPositionCurseur}>
+      <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap", alignItems: "center" }}>
+        <select
+          disabled={modeHTML}
+          onMouseDown={sauvegarderPositionCurseur}
+          onChange={(e) => { if (e.target.value) appliquer("formatBlock", e.target.value); e.target.value = ""; }}
+          defaultValue=""
+          style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }}
+        >
+          <option value="" disabled>Style</option>
+          <option value="P">Normal</option>
+          <option value="H2">Titre</option>
+          <option value="H3">Sous-titre</option>
+        </select>
+        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("bold")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><b>G</b></button>
+        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("italic")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><i>I</i></button>
+        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("underline")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><u>S</u></button>
+        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("insertUnorderedList")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}>• Liste</button>
+        <label style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }} onMouseDown={sauvegarderPositionCurseur}>
           {envoiImage ? "Envoi..." : "🖼️ Image"}
-          <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
+          <input type="file" accept="image/*" disabled={modeHTML} style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
         </label>
+        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={insererVideoParUrl} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}>🎥 Lien vidéo</button>
+        <label style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }} onMouseDown={sauvegarderPositionCurseur}>
+          {envoiVideo ? "Envoi..." : "📤 Vidéo"}
+          <input type="file" accept="video/*" disabled={modeHTML} style={{ display: "none" }} onChange={(e) => insererVideoFichier(e.target.files?.[0])} />
+        </label>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={basculerModeHTML} style={{ ...boutonEditeurStyle, marginLeft: "auto", background: modeHTML ? "#1a7a3c" : "white", color: modeHTML ? "white" : "#16231F" }}>
+          {modeHTML ? "✓ Terminer HTML" : "</> HTML"}
+        </button>
       </div>
-      <div
-        ref={editeurRef}
-        contentEditable
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
-        onBlur={sauvegarderPositionCurseur}
-        onKeyUp={sauvegarderPositionCurseur}
-        onMouseUp={sauvegarderPositionCurseur}
-        data-placeholder={placeholder}
-        style={{ minHeight: 220, padding: "12px 14px", fontSize: 14, lineHeight: 1.6, outline: "none" }}
-        className="rv-editeur-riche"
-      />
-      <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; }`}</style>
+      {modeHTML ? (
+        <textarea
+          value={htmlBrut}
+          onChange={(e) => setHtmlBrut(e.target.value)}
+          placeholder="<p>Colle ou écris ton code HTML ici...</p>"
+          style={{ width: "100%", minHeight: 220, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.6, outline: "none", border: "none", fontFamily: "'IBM Plex Mono', monospace", boxSizing: "border-box", resize: "vertical" }}
+        />
+      ) : (
+        <div
+          ref={editeurRef}
+          contentEditable
+          onInput={(e) => onChange(e.currentTarget.innerHTML)}
+          onBlur={sauvegarderPositionCurseur}
+          onKeyUp={sauvegarderPositionCurseur}
+          onMouseUp={sauvegarderPositionCurseur}
+          data-placeholder={placeholder}
+          style={{ minHeight: 220, padding: "12px 14px", fontSize: 14, lineHeight: 1.6, outline: "none" }}
+          className="rv-editeur-riche"
+        />
+      )}
+      <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; } .rv-editeur-riche h2 { font-size: 19px; font-weight: 700; margin: 14px 0 8px; } .rv-editeur-riche h3 { font-size: 16px; font-weight: 700; margin: 12px 0 6px; }`}</style>
     </div>
   );
 }

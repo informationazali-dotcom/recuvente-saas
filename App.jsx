@@ -3150,6 +3150,23 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
   }, [confirmees, produits]);
 
+  const rentabiliteParCampagne = useMemo(() => {
+    const avecSource = confirmees.filter((c) => c.source_campagne);
+    if (avecSource.length === 0) return [];
+    const map = {};
+    avecSource.forEach((c) => {
+      const source = c.source_campagne;
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
+      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
+      if (!map[source]) map[source] = { nom: source, ca: 0, cout: 0, nbCommandes: 0 };
+      map[source].ca += Number(c.montant);
+      map[source].cout += cout;
+      map[source].nbCommandes += 1;
+    });
+    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
+  }, [confirmees, produits]);
+
   const depotsParLivreur = useMemo(() => {
     return livreurs
       .map((l) => {
@@ -4116,6 +4133,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           depotsParLivreur={depotsParLivreur}
           rentabiliteParCloser={rentabiliteParCloser}
           rentabiliteParZone={rentabiliteParZone}
+          rentabiliteParCampagne={rentabiliteParCampagne}
         />
       )}
 
@@ -9370,7 +9388,7 @@ function SimulateurCampagneView({ currency }) {
   );
 }
 
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur, rentabiliteParCloser = [], rentabiliteParZone = [] }) {
+function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur, rentabiliteParCloser = [], rentabiliteParZone = [], rentabiliteParCampagne = [] }) {
   const composantes = useMemo(() => {
     const now = new Date();
     const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -9546,6 +9564,29 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
           {rentabiliteParZone.length > 10 && (
             <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, textAlign: "center" }}>+ {rentabiliteParZone.length - 10} autre{rentabiliteParZone.length - 10 > 1 ? "s" : ""} zone{rentabiliteParZone.length - 10 > 1 ? "s" : ""}</div>
           )}
+        </div>
+      )}
+
+      {rentabiliteParCampagne.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>🎯 Rentabilité par campagne publicitaire</div>
+          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Uniquement les commandes arrivées via un lien avec suivi (utm_source/utm_campaign, ou pub Facebook/TikTok détectée).</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {rentabiliteParCampagne.map((r) => (
+              <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: r.benefice >= 0 ? "#1F9D6E" : "#D64933" }}>
+                    {r.benefice.toLocaleString("fr-FR")} {currency}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#8A9089" }}>bénéfice réel</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

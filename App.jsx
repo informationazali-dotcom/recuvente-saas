@@ -326,11 +326,11 @@ export default function App() {
     setShowAjouterEspace(false);
   }
 
-  if (!domaineVerifie) return <Centered>Chargement…</Centered>;
-  if (domaineWorkspaceId) return <CataloguePublic workspaceId={domaineWorkspaceId} />;
-
   const catalogueId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("catalogue") : null;
   if (catalogueId) return <CataloguePublic workspaceId={catalogueId} />;
+
+  if (!domaineVerifie) return <Centered>Chargement…</Centered>;
+  if (domaineWorkspaceId) return <CataloguePublic workspaceId={domaineWorkspaceId} />;
 
   if (session === undefined) return <Centered>Chargement…</Centered>;
 

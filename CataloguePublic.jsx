@@ -24,6 +24,7 @@ export default function CataloguePublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
   const [collectionsManuelles, setCollectionsManuelles] = useState([]);
+  const [avisBoutique, setAvisBoutique] = useState([]);
   const [erreur, setErreur] = useState(null);
   const [produitOuvert, setProduitOuvert] = useState(null);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
@@ -146,6 +147,7 @@ export default function CataloguePublic({ workspaceId }) {
         storeConfig: data[0].store_config_published || null,
         labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
+        temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       chargerPixelTiktok(data[0].tiktok_pixel_id);
@@ -157,6 +159,10 @@ export default function CataloguePublic({ workspaceId }) {
       }
       const listeProduits = data.filter((p) => p.produit_nom);
       setProduits(listeProduits);
+
+      supabase.rpc("temoignages_publics", { p_workspace_id: workspaceId }).then(({ data: dataTemoignages }) => {
+        setAvisBoutique(dataTemoignages || []);
+      });
 
       supabase.rpc("collections_publiques", { p_workspace_id: workspaceId }).then(({ data: dataCollections }) => {
         if (!dataCollections || dataCollections.length === 0) return;
@@ -683,10 +689,13 @@ export default function CataloguePublic({ workspaceId }) {
             )}
 
             {!envoye && !produitOuvert.masquer_produits_similaires && (() => {
-              const similaires = produits
-                .filter((p) => p.produit_id !== produitOuvert.produit_id)
-                .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))
-                .slice(0, 6);
+              const idsChoisis = Array.isArray(produitOuvert.produits_similaires_ids) ? produitOuvert.produits_similaires_ids : [];
+              const similaires = idsChoisis.length > 0
+                ? idsChoisis.map((id) => produits.find((p) => p.produit_id === id)).filter(Boolean)
+                : produits
+                    .filter((p) => p.produit_id !== produitOuvert.produit_id)
+                    .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))
+                    .slice(0, 6);
               if (similaires.length === 0) return null;
               return (
                 <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 20, marginBottom: 20 }}>
@@ -1065,6 +1074,7 @@ export default function CataloguePublic({ workspaceId }) {
         setPolitiqueOuverte={setPolitiqueOuverte}
         politiqueOuverte={politiqueOuverte}
         NOMBRE_MAX_ACCUEIL={NOMBRE_MAX_ACCUEIL}
+        avisBoutique={avisBoutique}
       />
     );
   }
@@ -1538,7 +1548,7 @@ function BulleWhatsApp({ whatsapp, messageDefaut, surCtaBar }) {
   );
 }
 
-function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL }) {
+function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [] }) {
   const devise = entreprise.devise;
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
     typeof s === "string" ? { id: `s${i}`, type: s, visible: true } : { id: s.id || `s${i}`, type: s.type, visible: s.visible !== false }
@@ -1670,16 +1680,26 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       </div>
     );
 
-    if (type === "testimonials") return (
-      <div style={commonPad}>
-        <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>⭐ Ils nous font confiance</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 11 }}>
-          {["Une expérience simple et rapide.", "La commande a été parfaitement suivie.", "Je recommande sans hésiter."].map((t, i) => (
-            <div key={i} style={{ padding: 16, border: "1px solid #e6ece7", borderRadius: 12 }}><div style={{ color: "#e8920a" }}>★★★★★</div><div style={{ fontSize: 12, lineHeight: 1.55, color: "#435047", marginTop: 8 }}>"{t}"</div><div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 9 }}>Client</div></div>
-          ))}
+    if (type === "testimonials") {
+      const manuels = (entreprise.temoignagesManuels || []).map((t) => ({ nom: t.nom, note: t.note || 5, texte: t.texte }));
+      const reels = (avisBoutique || []).map((a) => ({ nom: a.client_nom, note: a.note || 5, texte: a.commentaire }));
+      const tousTemoignages = [...manuels, ...reels].slice(0, 9);
+      if (tousTemoignages.length === 0) return null;
+      return (
+        <div style={commonPad}>
+          <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>⭐ Ils nous font confiance</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 11 }}>
+            {tousTemoignages.map((t, i) => (
+              <div key={i} style={{ padding: 16, border: "1px solid #e6ece7", borderRadius: 12 }}>
+                <div style={{ color: "#e8920a" }}>{"★".repeat(t.note)}{"☆".repeat(5 - t.note)}</div>
+                <div style={{ fontSize: 12, lineHeight: 1.55, color: "#435047", marginTop: 8 }}>"{t.texte}"</div>
+                <div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 9 }}>{t.nom}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
 
     if (type === "gallery") {
       if (!config.gallery?.length) return null;

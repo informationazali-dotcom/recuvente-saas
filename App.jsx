@@ -3518,6 +3518,30 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
+          </div>
+
+          {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              <button
+                onClick={() => setShowStoreBuilder(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, background: "#e8920a", border: "none", color: "#16231F", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
+              >
+                🛍️ {workspace.store_is_published ? "Personnaliser ma boutique" : "Créer ma boutique"}
+              </button>
+              {workspace.id && (
+                <a
+                  href={`${window.location.origin}/?catalogue=${workspace.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.25)", color: "white", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}
+                >
+                  👁️ Voir ma boutique
+                </a>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {workspace.role === "owner" && (
                 <>
@@ -3527,11 +3551,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
                   </button>
-                  {estEcommerce && (
-                    <button onClick={() => setShowStoreBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
-                      🛍️
-                    </button>
-                  )}
                 </>
               )}
               {(workspace.role === "owner" || workspace.role === "admin") && (

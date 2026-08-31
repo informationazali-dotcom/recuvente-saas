@@ -1443,17 +1443,26 @@ export default function CataloguePublic({ workspaceId }) {
   );
 }
 
-function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive }) {
-  const aDesLiensNav = aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig }) {
+  const aDesLiensPersonnalises = Array.isArray(headerConfig?.liens) && headerConfig.liens.length > 0;
+  const aDesLiensNav = aDesLiensPersonnalises || aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
   const t = creerTraducteur(entreprise.langue);
+  const bgHeader = headerConfig?.bgColor || couleur;
+  const texteHeader = headerConfig?.textColor || "white";
+  const afficherRecherche = headerConfig?.showSearch !== false;
+  const afficherPanier = headerConfig?.showPanier !== false;
 
   return (
     <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
-      <div style={{ background: couleur, overflow: "hidden" }}>
+      <div style={{ background: bgHeader, overflow: "hidden" }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
-          {[t("badgeLivraison"), t("badgePaiement"), t("badgeSecurise")].map((txt, i) => (
-            <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: "white", opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
-          ))}
+          {headerConfig?.barreTop ? (
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
+          ) : (
+            [t("badgeLivraison"), t("badgePaiement"), t("badgeSecurise")].map((txt, i) => (
+              <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: "white", opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
+            ))
+          )}
         </div>
       </div>
 
@@ -1469,17 +1478,19 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             <span className="rv-shop-header-nom" style={{ fontWeight: 700, fontSize: 15, color: "#16231F", whiteSpace: "nowrap" }}>{entreprise.nom}</span>
           </button>
 
-          <div className="rv-shop-header-search" style={{ flex: 1, minWidth: 0, position: "relative" }}>
-            <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#8A9089", pointerEvents: "none" }}>🔍</span>
-            <input
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              placeholder={t("rechercher")}
-              style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
-            />
-          </div>
+          {afficherRecherche && (
+            <div className="rv-shop-header-search" style={{ flex: 1, minWidth: 0, position: "relative" }}>
+              <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#8A9089", pointerEvents: "none" }}>🔍</span>
+              <input
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder={t("rechercher")}
+                style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
+              />
+            </div>
+          )}
 
-          {entreprise.whatsapp && (
+          {afficherPanier && entreprise.whatsapp && (
             <a
               href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
               target="_blank"
@@ -1493,26 +1504,40 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         </div>
       </div>
 
-      {aDesLiensNav && onNaviguerVersCollection && (
+      {aDesLiensNav && (
         <div style={{ borderTop: "1px solid #F0EEE6", overflowX: "auto" }}>
           <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
-            {[
-              { id: null, label: t("accueil") },
-              ...(aDesBestSellers ? [{ id: "bestseller", label: t("meilleuresVentes") }] : []),
-              ...(aDesNouveautes ? [{ id: "nouveautes", label: t("nouveautes") }] : []),
-              ...collectionsManuelles.map((col) => ({ id: `manuelle-${col.id}`, label: col.nom })),
-            ].map((lien) => {
-              const actif = collectionActive === lien.id;
-              return (
-                <button
-                  key={lien.label}
-                  onClick={() => onNaviguerVersCollection(lien.id)}
-                  style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${couleur}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: actif ? "#16231F" : "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}
+            {aDesLiensPersonnalises ? (
+              headerConfig.liens.map((lien) => (
+                <a
+                  key={lien.id}
+                  href={lien.href || "#"}
+                  target={lien.href && lien.href.startsWith("http") ? "_blank" : undefined}
+                  rel={lien.href && lien.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                  style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
                 >
                   {lien.label}
-                </button>
-              );
-            })}
+                </a>
+              ))
+            ) : onNaviguerVersCollection && (
+              [
+                { id: null, label: t("accueil") },
+                ...(aDesBestSellers ? [{ id: "bestseller", label: t("meilleuresVentes") }] : []),
+                ...(aDesNouveautes ? [{ id: "nouveautes", label: t("nouveautes") }] : []),
+                ...collectionsManuelles.map((col) => ({ id: `manuelle-${col.id}`, label: col.nom })),
+              ].map((lien) => {
+                const actif = collectionActive === lien.id;
+                return (
+                  <button
+                    key={lien.label}
+                    onClick={() => onNaviguerVersCollection(lien.id)}
+                    style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${couleur}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: actif ? "#16231F" : "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {lien.label}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -1989,8 +2014,15 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           .rv-builder-grid-produits { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} />
-      {sectionsNormalisees.filter((s) => s.visible !== false).map((s) => <Section key={s.id} s={s} />)}
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} />
+      {sectionsNormalisees.filter((s) => s.visible !== false).map((s) => {
+        const idsCorrespondants = { products: "produits", promo: "promo", contact: "contact", faq: "faq", testimonials: "avis", whatsapp: "whatsapp", delivery: "livraison", bundles: "bundles" };
+        return (
+          <div key={s.id} id={idsCorrespondants[s.type] || undefined}>
+            <Section s={s} />
+          </div>
+        );
+      })}
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>

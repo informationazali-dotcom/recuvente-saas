@@ -2787,13 +2787,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             </div>
           )}
 
-          <div style={{ marginTop: 16, perspective: "800px" }}>
-            <div className="rv-3d-card" style={{ position: "relative", padding: "14px 16px", borderRadius: 14, background: "linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 70%)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 24px rgba(0,0,0,0.2)" }}>
-              <div className="rv-glow" style={{ position: "absolute", top: -16, left: -16, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />
-              <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: "0.04em", position: "relative" }}>Argent récupéré</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 32, fontWeight: 700, color: "#e8920a", marginTop: 4, position: "relative" }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
+          {workspace.role !== "secretaire" && (
+            <div style={{ marginTop: 16, perspective: "800px" }}>
+              <div className="rv-3d-card" style={{ position: "relative", padding: "14px 16px", borderRadius: 14, background: "linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 70%)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 24px rgba(0,0,0,0.2)" }}>
+                <div className="rv-glow" style={{ position: "absolute", top: -16, left: -16, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />
+                <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: "0.04em", position: "relative" }}>Argent récupéré</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 32, fontWeight: 700, color: "#e8920a", marginTop: 4, position: "relative" }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
+              </div>
             </div>
-          </div>
+          )}
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>

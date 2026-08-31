@@ -485,7 +485,7 @@ function LandingPage() {
   ];
 
   return (
-    <div className="rva">
+    <div className="rva rva-premium-africa">
       <style>{`
         :root{--ink:#04140d;--deep:#031b12;--deep2:#06291b;--emerald:#0bd47d;--lime:#8dffca;--mint:#dfffee;--gold:#f7c95b;--paper:#f7fbf8;--line:rgba(4,20,13,.11);--muted:#607269;--shadow:0 30px 90px rgba(0,42,25,.16)}
         .rva{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper);overflow:hidden}
@@ -577,6 +577,134 @@ function LandingPage() {
 .rva-orangeDot{background:linear-gradient(135deg,var(--rv-orange),var(--rv-orange-2));box-shadow:0 0 22px rgba(255,122,24,.55)}
 .rva .rva-btn.primary{background:linear-gradient(135deg,#ff9b42 0%,#ff7a18 48%,#ffb000 100%);color:#fff;box-shadow:0 16px 42px rgba(255,122,24,.28)}
 .rva .rva-btn.primary:hover{box-shadow:0 20px 52px rgba(255,122,24,.38)}
+
+
+/* =========================================================
+   RECVENTE V5.3 — MASTER COLOR / CONTRAST SYSTEM
+   Emerald holographic + orange energy + premium gold + white
+   ========================================================= */
+.rva{
+  --rv-ink:#071812;
+  --rv-deep:#04110d;
+  --rv-emerald:#00D084;
+  --rv-emerald-2:#00F5A0;
+  --rv-orange:#FF6A00;
+  --rv-orange-2:#FFB000;
+  --rv-gold:#FFD166;
+  --rv-white:#FFFFFF;
+  --rv-white-82:rgba(255,255,255,.82);
+  --rv-white-68:rgba(255,255,255,.68);
+}
+
+/* DARK / GREEN SURFACES: WHITE TEXT ONLY */
+.rva .rva-dark,
+.rva .rva-dark *,
+.rva .rva-green,
+.rva .rva-green *,
+.rva .rva-hero,
+.rva .rva-hero *,
+.rva [class*="dark"],
+.rva [class*="green"]{
+  color:var(--rv-white)!important;
+}
+
+.rva .rva-dark p,
+.rva .rva-dark span,
+.rva .rva-dark small,
+.rva .rva-dark li,
+.rva .rva-green p,
+.rva .rva-green span,
+.rva .rva-green small,
+.rva .rva-green li,
+.rva .rva-hero p,
+.rva .rva-hero span,
+.rva .rva-hero small{
+  color:var(--rv-white-82)!important;
+}
+
+.rva .rva-dark h1,
+.rva .rva-dark h2,
+.rva .rva-dark h3,
+.rva .rva-dark h4,
+.rva .rva-green h1,
+.rva .rva-green h2,
+.rva .rva-green h3,
+.rva .rva-green h4,
+.rva .rva-hero h1,
+.rva .rva-hero h2,
+.rva .rva-hero h3,
+.rva .rva-hero h4,
+.rva .rva-dark strong,
+.rva .rva-green strong,
+.rva .rva-hero strong{
+  color:#fff!important;
+}
+
+/* Any muted class on a dark/green section remains readable. */
+.rva .rva-dark .muted,
+.rva .rva-dark .desc,
+.rva .rva-dark .subtitle,
+.rva .rva-green .muted,
+.rva .rva-green .desc,
+.rva .rva-green .subtitle,
+.rva .rva-hero .muted,
+.rva .rva-hero .desc,
+.rva .rva-hero .subtitle{
+  color:rgba(255,255,255,.78)!important;
+}
+
+/* LIGHT SURFACES: DARK TEXT ONLY */
+.rva .rva-light,
+.rva .rva-white,
+.rva .rva-section-light{
+  color:var(--rv-ink)!important;
+}
+.rva .rva-light h1,.rva .rva-light h2,.rva .rva-light h3,
+.rva .rva-light p,.rva .rva-light span,
+.rva .rva-white h1,.rva .rva-white h2,.rva .rva-white h3,
+.rva .rva-white p,.rva .rva-white span{
+  color:var(--rv-ink)!important;
+}
+
+/* PREMIUM ACCENTS */
+.rva .rva-orange,
+.rva .orange-accent{color:var(--rv-orange)!important;}
+.rva .rva-gold,
+.rva .gold-accent{color:var(--rv-gold)!important;}
+
+.rva .rva-btn.primary,
+.rva button.rva-primary{
+  background:linear-gradient(135deg,var(--rv-orange),var(--rv-orange-2))!important;
+  color:#fff!important;
+  border-color:transparent!important;
+  box-shadow:0 18px 48px rgba(255,106,0,.32)!important;
+}
+.rva .rva-btn.primary *,
+.rva button.rva-primary *{color:#fff!important;}
+
+/* Holographic emerald surfaces */
+.rva .holo,
+.rva .hologram,
+.rva .rva-holo{
+  background:
+    radial-gradient(circle at 30% 20%,rgba(0,245,160,.24),transparent 35%),
+    linear-gradient(145deg,rgba(0,208,132,.24),rgba(4,17,13,.96))!important;
+  border-color:rgba(0,245,160,.34)!important;
+}
+
+/* Force white on common text elements inside explicit premium surfaces,
+   even when inline color styles were supplied by the old landing page. */
+.rva .rva-dark [style*="color"],
+.rva .rva-green [style*="color"],
+.rva .rva-hero [style*="color"]{
+  color:#fff!important;
+}
+.rva .rva-dark [style*="color"] p,
+.rva .rva-dark [style*="color"] span,
+.rva .rva-green [style*="color"] p,
+.rva .rva-green [style*="color"] span{
+  color:rgba(255,255,255,.82)!important;
+}
 
 </style>
 

@@ -460,6 +460,7 @@ export default function CataloguePublic({ workspaceId }) {
         depotRequis: data[0].depot_requis || false,
         depotMontant: data[0].depot_montant,
         depotMessage: data[0].depot_message || "",
+        boutiqueActive: data[0].boutique_active !== false,
         labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
         temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
@@ -679,6 +680,21 @@ export default function CataloguePublic({ workspaceId }) {
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 26, textAlign: "center", maxWidth: 340 }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
           <div style={{ color: "#6B7168", fontSize: 14 }}>{erreur}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (entreprise && entreprise.boutiqueActive === false) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "sans-serif", background: "#FAFAF7" }}>
+        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 32, textAlign: "center", maxWidth: 380 }}>
+          {entreprise.logo && <img src={entreprise.logo} alt="" style={{ width: 56, height: 56, borderRadius: 12, objectFit: "contain", marginBottom: 14 }} />}
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🔒</div>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 8, color: "#16231F" }}>Boutique temporairement indisponible</div>
+          <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.6 }}>
+            Cette boutique n'accepte plus de commandes pour le moment. Reviens un peu plus tard.
+          </div>
         </div>
       </div>
     );

@@ -1706,14 +1706,14 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   const afficherPanier = headerConfig?.showPanier !== false;
 
   return (
-    <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", position: "sticky", top: 0, zIndex: 30 }}>
-      <div style={{ background: bgHeader, overflow: "hidden" }}>
+    <div style={{ background: bgHeader, borderBottom: "1px solid rgba(0,0,0,0.08)", position: "sticky", top: 0, zIndex: 30 }}>
+      <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden" }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {headerConfig?.barreTop ? (
             <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
           ) : (
             [t("badgeLivraison"), t("badgePaiement"), t("badgeSecurise")].map((txt, i) => (
-              <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: "white", opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
+              <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, whiteSpace: "nowrap" }}>{txt}</span>
             ))
           )}
         </div>
@@ -1728,7 +1728,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             {entreprise.logo ? (
               <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
             ) : null}
-            <span className="rv-shop-header-nom" style={{ fontWeight: 700, fontSize: 15, color: "#16231F", whiteSpace: "nowrap" }}>{entreprise.nom}</span>
+            <span className="rv-shop-header-nom" style={{ fontWeight: 700, fontSize: 15, color: texteHeader, whiteSpace: "nowrap" }}>{entreprise.nom}</span>
           </button>
 
           {afficherRecherche && (
@@ -1738,7 +1738,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 placeholder={t("rechercher")}
-                style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid #DDD8CC", fontSize: 13.5, boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid rgba(255,255,255,0.4)", fontSize: 13.5, boxSizing: "border-box" }}
               />
             </div>
           )}
@@ -1758,7 +1758,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           {onOuvrirPanier && (
             <button
               onClick={onOuvrirPanier}
-              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: couleur, border: "none", color: "white", width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
+              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.2)", border: "none", color: texteHeader, width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
             >
               🛒
               {nbArticlesPanier > 0 && (
@@ -1772,7 +1772,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
       </div>
 
       {aDesLiensNav && (
-        <div style={{ borderTop: "1px solid #F0EEE6", overflowX: "auto" }}>
+        <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", overflowX: "auto" }}>
           <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
             {aDesLiensPersonnalises ? (
               headerConfig.liens.map((lien) => (
@@ -1781,7 +1781,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                   href={lien.href || "#"}
                   target={lien.href && lien.href.startsWith("http") ? "_blank" : undefined}
                   rel={lien.href && lien.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                  style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: "#6B7168", cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
+                  style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: texteHeader, opacity: 0.85, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
                 >
                   {lien.label}
                 </a>
@@ -1798,7 +1798,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                   <button
                     key={lien.label}
                     onClick={() => onNaviguerVersCollection(lien.id)}
-                    style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${couleur}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: actif ? "#16231F" : "#6B7168", cursor: "pointer", whiteSpace: "nowrap" }}
+                    style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${texteHeader}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: texteHeader, opacity: actif ? 1 : 0.85, cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {lien.label}
                   </button>

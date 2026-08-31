@@ -367,9 +367,10 @@ export default function App() {
   if (!session) {
     const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
     const wantsLogin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1";
+    const wantsSignup = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("signup") === "1";
     if (wantsLogin) return <AuthScreen modeInitial="login" />;
     if (!wantsAuth) return <LandingPage />;
-    return <AuthScreen modeInitial="login" />;
+    return <AuthScreen modeInitial={wantsSignup ? "signup" : "login"} />;
   }
 
   const isAdminRoute = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
@@ -411,113 +412,186 @@ function Centered({ children }) {
 function LandingPage() {
   const [plans, setPlans] = useState([]);
   const [stats, setStats] = useState(null);
-  const [profil, setProfil] = useState("cod");
-  const [active, setActive] = useState("01");
+  const [active, setActive] = useState('01');
   const [openFaq, setOpenFaq] = useState(null);
 
   useEffect(() => {
-    supabase.from("subscription_plans").select("*").order("prix").then(({ data }) => setPlans(data || []));
-    const pixelId = import.meta.env.VITE_RECUVENTE_PIXEL_ID;
-    if (pixelId && !window.fbq) {
-      !(function (f, b, e, v, n, t, s) {
-        if (f.fbq) return;
-        n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
-        if (!f._fbq) f._fbq = n;
-        n.push = n; n.loaded = true; n.version = "2.0"; n.queue = [];
-        t = b.createElement(e); t.async = true; t.src = v;
-        s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
-      })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
-      window.fbq("init", pixelId);
-      window.fbq("track", "PageView");
-    }
-    supabase.rpc("statistiques_plateforme_publiques").then(({ data }) => {
-      if (data && data[0]) setStats(data[0]);
-    });
+    supabase.from('subscription_plans').select('*').order('prix').then(({ data }) => setPlans(data || []));
+    supabase.from('platform_stats').select('*').maybeSingle().then(({ data }) => setStats(data));
   }, []);
 
-  function trackLead() {
-    if (window.fbq) window.fbq("track", "Lead");
-  }
+  const goSignup = () => {
+    try { if (typeof window !== 'undefined') { window.location.href = '?auth=1&signup=1'; } } catch (_) {}
+  };
+  const goLogin = () => {
+    try { if (typeof window !== 'undefined') { window.location.href = '?auth=1'; } } catch (_) {}
+  };
 
-  const modules = [
-    { id:"01", icon:"🛍️", name:"VENDRE", title:"Ta boutique devient ton point de départ.", text:"Crée rapidement ta boutique en ligne, ajoute tes produits, tes collections et tes avis. Connecte Shopify et ajoute tes pixels pour relier acquisition et ventes.", items:["Boutique publique personnalisable","Produits, collections, galerie et avis","Import de catalogue CSV","Connexion Shopify et commandes automatiques","Pixels et suivi publicitaire","Stock et rentabilité produit"] },
-    { id:"02", icon:"🎯", name:"CONVERTIR", title:"Chaque commande raconte une histoire.", text:"Ton équipe sait qui appeler, quoi faire et pourquoi. Les commandes en double, les numéros invalides et les appels sans réponse ne restent plus invisibles.", items:["Interface dédiée aux closers","Historique des appels et statuts","Doublons et commandes suspectes","Client confirmé, refusé ou injoignable","WhatsApp directement depuis le client","Centre de récupération des ventes à risque"] },
-    { id:"03", icon:"🚚", name:"LIVRER", title:"Le dernier kilomètre, sous contrôle.", text:"Attribue les commandes, suis les tournées, mesure les performances et reprogramme les clients qui souhaitent être livrés plus tard.", items:["Interface dédiée aux livreurs","Suivi GPS des livreurs en tournée","Commande attribuée à chaque livreur","Livrée, échouée, à reprogrammer","Priorités et urgences du jour","Lien/code de suivi pour le client"] },
-    { id:"04", icon:"💵", name:"ENCAISSER", title:"Enfin, tu sais où va ton argent.", text:"Relie les ventes, les paiements, les acomptes, les dépôts livreurs, les commissions, les coûts et le bénéfice réel.", items:["Cash et Mobile Money","Orange Money, Wave, MTN, Moov","Rapprochement des paiements","Factures PDF et reçus","Dépôts et commissions des livreurs","Bénéfice réel après coûts et frais"] },
-    { id:"05", icon:"🔁", name:"RÉACTIVER", title:"Tes anciens clients sont un actif.", text:"Segmente ta base, retrouve les habitudes d'achat et relance les clients qui connaissent déjà ta marque. La prochaine vente peut être dans ton historique.", items:["Nouveaux et anciens clients","Clients 1 fois, 2 fois ou plus","Historique d'achat","Campagnes et retargeting","Relances WhatsApp","Récupération des clients dormants"] },
-    { id:"06", icon:"🧭", name:"PILOTER", title:"Une équipe. Une vision. Une vérité.", text:"Chaque rôle dispose de son interface et la direction conserve une vision globale des opérations, des produits, des équipes et de l'argent.", items:["Closer, livreur, comptable, responsable","Rôles et permissions","Plusieurs activités / espaces","Statistiques globales et détaillées","Traçabilité des opérations","Exports et journal d'audit"] }
+  const activities = [
+    { icon: '🛒', title: 'E-commerce & COD', text: 'Boutique, commandes, closing, livraison, encaissement et suivi.' },
+    { icon: '🏪', title: 'Commerce physique', text: 'Ventes, équipe, opérations et pilotage de votre activité.' },
+    { icon: '🏠', title: 'Immobilier', text: 'Prospects, biens, activités commerciales et suivi des opérations.' },
+    { icon: '🍽️', title: 'Restaurant', text: 'Commandes, équipe, produits et organisation quotidienne.' },
+    { icon: '🚗', title: 'Location', text: 'Clients, véhicules, réservations et suivi opérationnel.' },
+    { icon: '🧩', title: 'Autre activité', text: 'Conseil, agence, clinique, association, formation, services et plus.' },
   ];
 
-  const activeModule = modules.find((m) => m.id === active) || modules[0];
-
-  const metiers = [
-    ["🛒", "E-commerce COD", "Vente, closing, livraison, récupération et retargeting."],
-    ["🏪", "Commerce physique", "Stock, ventes, acomptes, paiements et bénéfice."],
-    ["🏠", "Immobilier", "Locataires, loyers, paiements et reçus."],
-    ["🍽️", "Restaurant", "Tables, menus, préparation, service et livraison."],
-    ["🚗", "Location", "Véhicules ou matériel, dates, disponibilité et cautions."]
+  const pillars = [
+    ['01', 'Vendre', 'Centralisez produits, boutique, commandes et opportunités commerciales.'],
+    ['02', 'Convertir', 'Donnez à vos équipes un espace clair pour traiter et suivre les commandes.'],
+    ['03', 'Opérer', 'Coordonnez collaborateurs, tâches, clients, livraison et opérations.'],
+    ['04', 'Encaisser', 'Suivez les flux, dépôts, coûts et mouvements financiers de votre activité.'],
+    ['05', 'Réactiver', 'Identifiez les opportunités à relancer et donnez à votre équipe les bons éléments.'],
+    ['06', 'Piloter', 'Prenez vos décisions avec une vision globale de votre activité et de sa rentabilité.'],
   ];
 
   const faqs = [
-    ["RecuVente est-il uniquement destiné au e-commerce ?", "Non. Le système prévoit plusieurs univers : e-commerce COD, commerce physique, immobilier, restaurant et location de véhicules ou matériel."],
-    ["Puis-je créer ma propre boutique ?", "Oui. Tu peux créer un espace boutique avec produits, collections, galerie et avis clients, puis le partager à tes clients."],
-    ["Puis-je connecter Shopify ?", "Oui. RecuVente prévoit l'import de catalogue et la réception automatique des commandes Shopify via webhook."],
-    ["Mes livreurs et mes closers ont-ils leur propre espace ?", "Oui. L'application prévoit des interfaces adaptées aux différents rôles de l'équipe : closer, livreur, comptable et responsable."],
-    ["Puis-je suivre mes livreurs ?", "Oui. Le système prévoit le suivi des livreurs en tournée et l'analyse de leurs performances et de leurs commandes."],
-    ["Puis-je gérer plusieurs activités ?", "Oui. Tu peux créer plusieurs espaces d'activité et passer de l'un à l'autre selon ton organisation."],
-    ["Est-ce que RecuVente gère les paiements ?", "Oui. Le code prévoit notamment le cash, plusieurs Mobile Money, les acomptes, les dépôts livreurs, les factures et l'analyse de rentabilité."],
-    ["Est-ce que je peux relancer mes anciens clients ?", "Oui. L'historique client permet de travailler sur les nouveaux clients, les anciens clients et les clients ayant acheté plusieurs fois."]
+    ['RecuVente est-il réservé au e-commerce ?', 'Non. Le e-commerce est l’un des univers de RecuVente, mais la plateforme regroupe également le commerce physique, l’immobilier, le restaurant, la location et une catégorie Autre activité.'],
+    ['Puis-je gérer plusieurs activités ?', 'Oui. RecuVente est conçu pour permettre à une entreprise de structurer ses activités et ses espaces dans un même environnement.'],
+    ['Puis-je travailler avec mon équipe ?', 'Oui. Les rôles et espaces de travail permettent d’organiser les responsabilités entre direction, commercial, livraison, comptabilité et autres collaborateurs.'],
+    ['Est-ce que RecuVente remplace mes collaborateurs ?', 'Non. RecuVente équipe vos collaborateurs et centralise leur travail. Les closers, responsables, livreurs et autres membres de l’équipe restent au cœur de vos opérations.'],
+    ['Comment choisir mon abonnement ?', 'Choisissez le niveau correspondant à la taille de votre activité et aux fonctionnalités dont votre équipe a besoin. Vous pourrez faire évoluer votre formule lorsque votre entreprise grandit.'],
   ];
 
+  const visiblePlans = (plans || []).filter(p => Number(p.prix || 0) > 0).slice(0, 4);
+
   return (
-    <div className="rvx">
+    <div style={{ minHeight: '100vh', background: '#F7FAF8', color: '#10251B', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{`
-        .rvx{--g:#1a7a3c;--g2:#2e8b57;--o:#ff7a00;--ink:#07100b;--muted:#718078;--cream:#f7f8f4;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}.rvx *{box-sizing:border-box}.rvx a{text-decoration:none}.rvx .wrap{width:min(1160px,calc(100% - 32px));margin:auto}.rvx .serif{font-family:Georgia,"Times New Roman",serif;letter-spacing:-.055em}
-        .rvx-nav{height:72px;background:#06100b;color:#fff;display:flex;align-items:center;position:sticky;top:0;z-index:30;border-bottom:1px solid rgba(255,255,255,.08)}.rvx-navin{display:flex;justify-content:space-between;align-items:center}.rvx-brand{font:800 23px Georgia,serif;color:#fff}.rvx-brand em{color:var(--o);font-style:normal}.rvx-navlinks{display:flex;gap:22px;align-items:center}.rvx-navlinks a{color:#9ba89f;font-size:11px;font-weight:700}.rvx-navlinks .cta{background:#fff;color:#07100b;padding:11px 15px;border-radius:9px}
-        .rvx-hero{background:radial-gradient(circle at 12% 0,rgba(46,139,87,.5),transparent 28%),radial-gradient(circle at 95% 5%,rgba(255,122,0,.18),transparent 23%),linear-gradient(135deg,#030705,#08130d 48%,#10251a);color:#fff;padding:82px 0 105px;overflow:hidden}.rvx-hero-grid{display:grid;grid-template-columns:1.04fr .96fr;gap:55px;align-items:center}.rvx-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,122,0,.35);background:rgba(255,122,0,.08);border-radius:999px;padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:.1em;color:#ffd3aa}.rvx-dot{width:7px;height:7px;border-radius:50%;background:var(--o);box-shadow:0 0 0 5px rgba(255,122,0,.12)}.rvx-h1{font:900 clamp(48px,6.5vw,78px) Georgia,serif;line-height:.9;margin:22px 0;letter-spacing:-.065em}.rvx-h1 span{color:#84d89f}.rvx-lead{font-size:16px;line-height:1.72;color:#a9b4ad;max-width:650px}.rvx-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}.rvx-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:15px 20px;font-size:12px;font-weight:800}.rvx-primary{background:var(--o);color:#0c150f;box-shadow:0 18px 50px rgba(255,122,0,.22)}.rvx-secondary{color:#fff;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04)}.rvx-trust{display:flex;gap:17px;flex-wrap:wrap;margin-top:15px;color:#718078;font-size:9px}.rvx-trust b{color:#dfe8e2}
-        .rvx-map{min-height:450px;position:relative}.rvx-map:before{content:"";position:absolute;inset:9%;border:1px solid rgba(132,216,159,.13);border-radius:50%;box-shadow:0 0 0 38px rgba(132,216,159,.025),0 0 0 90px rgba(132,216,159,.018)}.rvx-hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:225px;height:225px;border-radius:50%;background:radial-gradient(circle at 35% 25%,#1d5532,#07130c 65%);border:1px solid rgba(255,255,255,.17);display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 30px 100px rgba(0,0,0,.5)}.rvx-hub strong{font:900 31px Georgia,serif}.rvx-hub strong em{font-style:normal;color:var(--o)}.rvx-hub small{display:block;color:#8d9a92;font-size:8px;letter-spacing:.12em;margin-top:7px}.rvx-node{position:absolute;width:157px;padding:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);backdrop-filter:blur(12px);border-radius:13px;box-shadow:0 16px 40px rgba(0,0,0,.2)}.rvx-node b{font-size:10px}.rvx-node span{display:block;color:#7e8c83;font-size:8px;line-height:1.45;margin-top:4px}.n1{left:0;top:7%}.n2{right:0;top:4%}.n3{left:-3%;bottom:11%}.n4{right:-2%;bottom:10%}.n5{left:50%;top:0;transform:translateX(-50%)}.n6{left:50%;bottom:0;transform:translateX(-50%)}
-        .rvx-proof{margin-top:-35px;position:relative;z-index:4}.rvx-proofbox{background:#fff;border:1px solid #e0e7e0;border-radius:17px;padding:17px 22px;box-shadow:0 24px 65px rgba(15,23,42,.1);display:flex;justify-content:space-between;align-items:center;gap:20px}.rvx-proofstats{display:flex;gap:25px}.rvx-proofstats strong{display:block;color:var(--g);font:800 17px monospace}.rvx-proofstats small{color:#8b958f;font-size:8px}
-        .rvx-section{padding:94px 0}.rvx-cream{background:var(--cream)}.rvx-dark{background:#07110b;color:#fff}.rvx-center{text-align:center}.rvx-kicker{text-transform:uppercase;color:var(--g);font-size:9px;font-weight:900;letter-spacing:.13em;margin-bottom:10px}.rvx-dark .rvx-kicker{color:#82d89f}.rvx-title{font:900 clamp(37px,5vw,60px) Georgia,serif;line-height:.98;margin:0;letter-spacing:-.06em}.rvx-title span{color:var(--g)}.rvx-dark .rvx-title span{color:#82d89f}.rvx-desc{max-width:700px;margin:15px auto 0;color:var(--muted);font-size:13px;line-height:1.7}.rvx-dark .rvx-desc{color:#89968e}
-        .rvx-profile{display:inline-flex;padding:4px;background:#101b15;border-radius:999px;margin:28px 0 10px}.rvx-profile button{border:0;background:transparent;color:#b4c0b8;padding:10px 17px;border-radius:999px;font-size:10px;font-weight:800;cursor:pointer}.rvx-profile button.active{background:#fff;color:#102017}.rvx-profile-note{font-size:9px;color:#87948c}
-        .rvx-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:38px 0 12px}.rvx-tab{cursor:pointer;border:1px solid #dfe6df;background:#fff;border-radius:11px;padding:12px 5px;color:#647069;font-size:8px;font-weight:900}.rvx-tab.active{background:var(--g);border-color:var(--g);color:#fff;box-shadow:0 13px 30px rgba(26,122,60,.2)}.rvx-tab i{display:block;font-style:normal;font-size:20px;margin-bottom:5px}.rvx-module{background:#fff;border:1px solid #e1e7e1;border-radius:20px;padding:28px;box-shadow:0 25px 70px rgba(15,23,42,.06)}.rvx-module-head{display:flex;justify-content:space-between;gap:35px;align-items:end}.rvx-module-head h3{font:900 31px Georgia,serif;margin:5px 0}.rvx-module-head p{max-width:560px;color:var(--muted);font-size:11.5px;line-height:1.65}.rvx-items{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.rvx-item{padding:15px;border:1px solid #e7ece7;border-radius:12px;background:#fbfcfa;font-size:10px;font-weight:700}.rvx-item:before{content:"✓";color:var(--g);font-weight:900;margin-right:7px}
-        .rvx-chain{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:42px}.rvx-step{padding:14px 7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:12px;text-align:center}.rvx-step b{font:800 15px monospace;color:var(--o)}.rvx-step strong{display:block;font-size:8.5px;margin-top:6px}.rvx-step span{display:block;color:#74827a;font-size:7.5px;line-height:1.4;margin-top:4px}
-        .rvx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}.rvx-card{border-radius:18px;padding:25px;border:1px solid #dfe6df;background:#fff;color:var(--ink)}.rvx-card.dark{background:#102017;color:#fff;border-color:rgba(255,255,255,.08)}.rvx-card h3{font:900 25px Georgia,serif;margin:0 0 9px;color:inherit}.rvx-card p{font-size:11px;line-height:1.65;color:var(--muted)}.rvx-card.dark p{color:#89968e}.rvx-list{display:grid;gap:8px;margin-top:16px}.rvx-list div{font-size:10px;color:inherit}.rvx-list b{color:var(--g);margin-right:7px}
-        .rvx-industries{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:40px}.rvx-ind{background:#fff;border:1px solid #e1e7e1;border-radius:15px;padding:18px 13px;transition:.2s}.rvx-ind:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.08)}.rvx-ind .icon{font-size:26px}.rvx-ind strong{display:block;font:900 16px Georgia,serif;margin-top:9px}.rvx-ind p{font-size:9.5px;line-height:1.5;color:var(--muted);margin:5px 0 0}
-        .rvx-pricing{background:linear-gradient(#f7f8f4,#fff)}.rvx-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.rvx-plan{background:#fff;border:1px solid #dfe6df;border-radius:17px;padding:24px}.rvx-plan.featured{border:2px solid var(--g);box-shadow:0 25px 60px rgba(26,122,60,.14);transform:translateY(-6px)}.rvx-plan h3{font:900 21px Georgia,serif;margin:0}.rvx-price{font:800 26px monospace;color:var(--g);margin-top:8px}.rvx-price small{font:9px Inter;color:#8a958e;font-weight:500}.rvx-plan ul{list-style:none;padding:0;margin:18px 0;display:grid;gap:7px}.rvx-plan li{font-size:10px;color:#59645e}.rvx-plan li:before{content:"✓";color:var(--g);font-weight:900;margin-right:6px}.rvx-plan a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:9px;padding:11px;font-size:10.5px;font-weight:900}
-        .rvx-faq{max-width:820px;margin:38px auto 0;display:grid;gap:7px}.rvx-faqrow{border:1px solid #dfe6df;border-radius:11px;background:#fff;overflow:hidden}.rvx-faqrow button{width:100%;border:0;background:#fff;padding:15px;display:flex;justify-content:space-between;text-align:left;font-size:11px;font-weight:800;cursor:pointer}.rvx-answer{padding:0 15px 15px;color:var(--muted);font-size:10px;line-height:1.6}
-        .rvx-final{background:radial-gradient(circle at 50% 0,rgba(46,139,87,.38),transparent 43%),linear-gradient(135deg,#030705,#10251a);color:#fff;text-align:center;padding:100px 0}.rvx-final h2{font:900 clamp(40px,6vw,70px) Georgia,serif;line-height:.92;letter-spacing:-.065em;max-width:900px;margin:0 auto 18px}.rvx-final h2 span{color:#82d89f}.rvx-final p{max-width:620px;margin:auto;color:#89968e;font-size:12px;line-height:1.7}.rvx-footer{text-align:center;color:#8b958f;font-size:9px;padding:28px 0 85px}.rvx-mobile{display:none}
-        @media(max-width:900px){.rvx-hero-grid{grid-template-columns:1fr}.rvx-hero{text-align:center}.rvx-lead{margin:auto}.rvx-actions,.rvx-trust{justify-content:center}.rvx-map{max-width:600px;width:100%;margin:auto}.rvx-navlinks a:not(.cta){display:none}.rvx-chain{grid-template-columns:repeat(4,1fr)}.rvx-industries{grid-template-columns:repeat(3,1fr)}.rvx-tabs{grid-template-columns:repeat(3,1fr)}}
-        @media(max-width:650px){.rvx .wrap{width:calc(100% - 24px)}.rvx-hero{padding:52px 0 76px}.rvx-h1{font-size:45px}.rvx-actions{flex-direction:column}.rvx-btn{width:100%}.rvx-map{min-height:400px;transform:scale(.9);margin:-15px auto}.rvx-proofbox{display:block;text-align:center}.rvx-proofstats{justify-content:center;flex-wrap:wrap;margin-top:13px}.rvx-section{padding:65px 0}.rvx-module-head{display:block}.rvx-items,.rvx-grid2,.rvx-plans{grid-template-columns:1fr}.rvx-industries{grid-template-columns:1fr 1fr}.rvx-chain{grid-template-columns:repeat(2,1fr)}.rvx-plan.featured{transform:none}.rvx-profile{flex-direction:column;width:100%;border-radius:14px}.rvx-profile button{width:100%}.rvx-mobile{display:block;position:fixed;bottom:8px;left:8px;right:8px;z-index:40;background:rgba(255,255,255,.96);border:1px solid #dce5dd;padding:7px;border-radius:12px;box-shadow:0 16px 35px rgba(0,0,0,.18)}.rvx-mobile a{display:block;text-align:center;background:var(--g);color:#fff;border-radius:8px;padding:13px;font-size:11px;font-weight:900}.rvx-footer{padding-bottom:85px}}
+        .rv-wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+        .rv-nav{position:sticky;top:0;z-index:50;background:rgba(247,250,248,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(16,37,27,.08)}
+        .rv-navin{height:76px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+        .rv-brand{display:flex;align-items:center;gap:11px;font-weight:900;letter-spacing:-.04em;font-size:22px;color:#103D29}
+        .rv-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#1B8F4D,#0F5E2E);display:grid;place-items:center;color:#fff;box-shadow:0 8px 20px rgba(15,94,46,.2)}
+        .rv-links{display:flex;gap:25px;align-items:center;font-size:13px;font-weight:700;color:#486156}
+        .rv-links button{border:0;background:none;color:inherit;cursor:pointer}
+        .rv-btn{border:0;cursor:pointer;border-radius:12px;padding:13px 19px;font-weight:800;font-size:13px;transition:.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+        .rv-btn:hover{transform:translateY(-2px)}
+        .rv-primary{background:#1B8F4D;color:#fff;box-shadow:0 10px 24px rgba(27,143,77,.2)}
+        .rv-dark{background:#103D29;color:#fff}
+        .rv-light{background:#fff;color:#174C35;border:1px solid #DCE8E0}
+        .rv-hero{padding:82px 0 70px;overflow:hidden;position:relative}
+        .rv-hero:before{content:"";position:absolute;width:560px;height:560px;right:-220px;top:-170px;background:radial-gradient(circle,rgba(76,175,80,.18),transparent 68%);pointer-events:none}
+        .rv-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:55px;align-items:center}
+        .rv-kicker{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #D9EBDD;background:#EFF8F1;color:#197044;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:18px}
+        .rv-h1{font-size:clamp(43px,5.2vw,72px);line-height:.98;letter-spacing:-.065em;margin:0 0 22px;font-weight:950;color:#102B20}
+        .rv-h1 span{color:#1B8F4D}
+        .rv-lead{font-size:18px;line-height:1.65;color:#5A6E64;max-width:650px;margin:0 0 28px}
+        .rv-actions{display:flex;gap:12px;flex-wrap:wrap}
+        .rv-trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:25px;color:#63766C;font-size:12px;font-weight:700}
+        .rv-trust span{display:flex;align-items:center;gap:7px}
+        .rv-dash{background:#102D21;border-radius:24px;padding:12px;box-shadow:0 35px 80px rgba(15,55,36,.24);transform:perspective(1200px) rotateY(-3deg) rotateX(2deg)}
+        .rv-dashbar{height:34px;display:flex;align-items:center;gap:6px;padding:0 8px}.rv-dot{width:7px;height:7px;border-radius:50%;background:#6F847A}.rv-dashbody{background:#F6FAF7;border-radius:16px;padding:17px}
+        .rv-dashtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.rv-mini{font-size:9px;color:#789087}.rv-big{font-size:22px;font-weight:900;color:#173B2A}
+        .rv-statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.rv-stat{background:#fff;border:1px solid #E4ECE7;border-radius:12px;padding:12px}.rv-stat b{display:block;font-size:17px}.rv-stat small{color:#788A82;font-size:9px}
+        .rv-chart{height:112px;background:#fff;border:1px solid #E4ECE7;border-radius:12px;margin-top:10px;padding:12px;position:relative;overflow:hidden}.rv-bars{height:72px;display:flex;align-items:end;gap:7px}.rv-bars i{flex:1;background:linear-gradient(#4CAF50,#1B8F4D);border-radius:4px 4px 0 0;opacity:.8}
+        .rv-float{position:absolute;background:#fff;border:1px solid #E1ECE5;border-radius:13px;padding:10px 12px;box-shadow:0 12px 30px rgba(21,54,38,.12);font-size:10px;font-weight:800}.rv-f1{right:-25px;top:48px}.rv-f2{left:-28px;bottom:50px}
+        .rv-section{padding:92px 0}.rv-white{background:#fff}.rv-soft{background:#EFF6F1}.rv-head{text-align:center;max-width:760px;margin:0 auto 42px}.rv-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#1B8F4D;font-weight:900}.rv-title{font-size:clamp(30px,4vw,48px);letter-spacing:-.05em;line-height:1.05;margin:9px 0 13px;font-weight:950}.rv-sub{font-size:16px;color:#687A71;line-height:1.65;margin:0}
+        .rv-activity{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.rv-card{background:#fff;border:1px solid #E2EBE5;border-radius:18px;padding:22px;transition:.22s;box-shadow:0 8px 24px rgba(16,51,34,.04)}.rv-card:hover{transform:translateY(-5px);box-shadow:0 18px 35px rgba(16,51,34,.09);border-color:#C7DDCE}.rv-icon{width:46px;height:46px;border-radius:14px;background:#EAF5ED;display:grid;place-items:center;font-size:23px;margin-bottom:17px}.rv-card h3{margin:0 0 7px;font-size:16px}.rv-card p{margin:0;color:#6C7C74;font-size:13px;line-height:1.55}
+        .rv-pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.rv-pillar{padding:23px;border:1px solid #DDE9E1;border-radius:18px;background:#F9FCFA}.rv-num{font-size:11px;color:#1B8F4D;font-weight:900}.rv-pillar h3{margin:8px 0 7px;font-size:20px}.rv-pillar p{margin:0;color:#6B7D73;font-size:13px;line-height:1.55}
+        .rv-split{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center}.rv-list{display:grid;gap:12px;margin-top:25px}.rv-li{display:flex;gap:12px;align-items:flex-start}.rv-check{width:23px;height:23px;border-radius:50%;background:#DFF2E4;color:#197044;display:grid;place-items:center;font-size:12px;font-weight:900;flex:none}.rv-li b{font-size:14px}.rv-li p{margin:3px 0 0;color:#6A7B73;font-size:12px;line-height:1.45}.rv-panel{background:#103D29;border-radius:24px;padding:28px;color:#fff;box-shadow:0 24px 60px rgba(16,61,41,.18)}.rv-panel h3{font-size:27px;letter-spacing:-.04em;margin:0 0 8px}.rv-panel p{color:#BFD5C9;font-size:13px;line-height:1.55}.rv-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}.rv-metric{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:15px}.rv-metric strong{font-size:24px;display:block}.rv-metric span{font-size:10px;color:#B8CEC2}
+        .rv-team{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.rv-role{background:#fff;border:1px solid #DFEAE3;border-radius:15px;padding:18px 12px;text-align:center}.rv-role div{font-size:24px;margin-bottom:8px}.rv-role b{font-size:11px}.rv-role span{display:block;color:#7B8A83;font-size:9px;margin-top:4px}
+        .rv-flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:32px}.rv-step{padding:12px 16px;border-radius:999px;background:#fff;border:1px solid #DCE8E0;font-weight:800;font-size:11px}.rv-arrow{color:#1B8F4D;font-weight:900}
+        .rv-pricing{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;align-items:stretch}.rv-price{background:#fff;border:1px solid #DCE7E0;border-radius:18px;padding:21px;position:relative}.rv-price.featured{border:2px solid #1B8F4D;box-shadow:0 18px 45px rgba(27,143,77,.12)}.rv-badge{position:absolute;right:12px;top:12px;background:#1B8F4D;color:#fff;font-size:9px;font-weight:900;padding:5px 8px;border-radius:999px}.rv-price h3{margin:0 0 7px;font-size:17px}.rv-price .amount{font-size:29px;font-weight:950;letter-spacing:-.04em}.rv-price .amount small{font-size:10px;color:#7A8982;font-weight:700}.rv-features{list-style:none;padding:15px 0;margin:0;border-top:1px solid #E8EFEB;display:grid;gap:8px}.rv-features li{font-size:11px;color:#60736A}.rv-features li:before{content:'✓';color:#1B8F4D;font-weight:900;margin-right:7px}
+        .rv-faq{max-width:820px;margin:0 auto;display:grid;gap:8px}.rv-faqitem{background:#fff;border:1px solid #DFE9E3;border-radius:14px;overflow:hidden}.rv-faqq{width:100%;background:none;border:0;padding:18px;text-align:left;display:flex;justify-content:space-between;gap:15px;font-weight:800;cursor:pointer;color:#173528}.rv-faqa{padding:0 18px 18px;color:#687A71;font-size:13px;line-height:1.6}
+        .rv-final{background:linear-gradient(135deg,#103D29,#1B8F4D);color:#fff;border-radius:28px;padding:55px;text-align:center;box-shadow:0 28px 70px rgba(16,61,41,.2)}.rv-final h2{font-size:clamp(31px,4vw,50px);letter-spacing:-.055em;margin:0 auto 13px;max-width:760px}.rv-final p{color:#D6E8DE;max-width:640px;margin:0 auto 25px;line-height:1.6;font-size:15px}.rv-footer{padding:30px 0 42px;color:#7A8A82;font-size:11px}.rv-footin{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.rv-footlinks{display:flex;gap:18px}.rv-footlinks button{border:0;background:none;color:inherit;cursor:pointer}.rv-mobilecta{display:none}
+        @media(max-width:900px){.rv-links{display:none}.rv-grid,.rv-split{grid-template-columns:1fr}.rv-hero{padding-top:55px}.rv-dash{max-width:650px;margin:auto}.rv-activity,.rv-pillars{grid-template-columns:1fr 1fr}.rv-team{grid-template-columns:repeat(3,1fr)}.rv-pricing{grid-template-columns:1fr 1fr}.rv-section{padding:70px 0}}
+        @media(max-width:600px){.rv-wrap{padding:0 16px}.rv-navin{height:66px}.rv-brand{font-size:19px}.rv-hero{padding:42px 0 48px}.rv-h1{font-size:43px}.rv-lead{font-size:16px}.rv-actions{display:grid;grid-template-columns:1fr}.rv-btn{width:100%}.rv-float{display:none}.rv-activity,.rv-pillars,.rv-pricing{grid-template-columns:1fr}.rv-team{grid-template-columns:1fr 1fr}.rv-statgrid{grid-template-columns:1fr 1fr}.rv-stat:last-child{grid-column:span 2}.rv-final{padding:35px 20px;border-radius:22px}.rv-mobilecta{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:60;padding:10px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-top:1px solid #DDE8E1}.rv-mobilecta .rv-btn{box-shadow:none}.rv-footer{padding-bottom:90px}}
       `}</style>
 
-      <header className="rvx-nav"><div className="wrap rvx-navin"><a href="?" className="rvx-brand">RECU<em>VENTE</em></a><nav className="rvx-navlinks"><a href="#systeme">Système</a><a href="#metiers">Métiers</a><a href="#tarifs">Tarifs</a><a href="?login=1">Connexion</a><a href="?auth=1" className="cta">Créer mon espace →</a></nav></div></header>
+      <header className="rv-nav">
+        <div className="rv-wrap rv-navin">
+          <div className="rv-brand"><div className="rv-mark">R</div>RecuVente</div>
+          <nav className="rv-links">
+            <button onClick={() => document.getElementById('activites')?.scrollIntoView({behavior:'smooth'})}>Activités</button>
+            <button onClick={() => document.getElementById('plateforme')?.scrollIntoView({behavior:'smooth'})}>Plateforme</button>
+            <button onClick={() => document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})}>Abonnements</button>
+            <button onClick={() => document.getElementById('faq')?.scrollIntoView({behavior:'smooth'})}>FAQ</button>
+          </nav>
+          <div style={{display:'flex',gap:8}}><button className="rv-btn rv-light" onClick={goLogin}>Connexion</button><button className="rv-btn rv-primary" onClick={goSignup}>S’abonner</button></div>
+        </div>
+      </header>
 
-      <section className="rvx-hero"><div className="wrap rvx-hero-grid"><div><div className="rvx-pill"><span className="rvx-dot"/> L'INFRASTRUCTURE DE TON BUSINESS</div><h1 className="rvx-h1">Ne gère plus<br/>des morceaux.<br/><span>Pilote tout.</span></h1><p className="rvx-lead">RecuVente relie ta boutique, tes commandes, tes closers, tes livreurs, tes clients, tes paiements, ta comptabilité, tes campagnes et ton équipe dans un seul système.</p><div className="rvx-actions"><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">🚀 Créer mon espace RecuVente</a><a href="#systeme" className="rvx-btn rvx-secondary">Découvrir le système ↓</a></div><div className="rvx-trust"><span>✓ <b>Boutique</b></span><span>✓ <b>Closing</b></span><span>✓ <b>GPS livreurs</b></span><span>✓ <b>Comptabilité</b></span><span>✓ <b>Retargeting</b></span></div></div><div className="rvx-map"><div className="rvx-hub"><div><strong>RECU<em>VENTE</em></strong><small>BUSINESS OPERATING SYSTEM</small></div></div><div className="rvx-node n1"><b>🛍️ VENDRE</b><span>Boutique · Shopify · produits · pixels</span></div><div className="rvx-node n2"><b>🎯 CONVERTIR</b><span>Closing · appels · qualification</span></div><div className="rvx-node n3"><b>🚚 LIVRER</b><span>GPS · attribution · reprogrammation</span></div><div className="rvx-node n4"><b>💵 ENCAISSER</b><span>Paiements · dépôts · bénéfice</span></div><div className="rvx-node n5"><b>🔁 RÉACTIVER</b><span>Clients · WhatsApp · campagnes</span></div><div className="rvx-node n6"><b>🧭 PILOTER</b><span>Équipe · statistiques · audit</span></div></div></div></section>
+      <main>
+        <section className="rv-hero">
+          <div className="rv-wrap rv-grid">
+            <div>
+              <div className="rv-kicker">✦ La plateforme pour piloter votre activité</div>
+              <h1 className="rv-h1">Un seul espace pour <span>faire avancer</span> toute votre entreprise.</h1>
+              <p className="rv-lead">Ventes, commandes, équipes, boutique, opérations, encaissements et performance : RecuVente rassemble l’essentiel de votre activité dans un environnement simple, structuré et professionnel.</p>
+              <div className="rv-actions"><button className="rv-btn rv-primary" onClick={goSignup}>Choisir mon abonnement →</button><button className="rv-btn rv-light" onClick={() => document.getElementById('plateforme')?.scrollIntoView({behavior:'smooth'})}>Découvrir la plateforme</button></div>
+              <div className="rv-trust"><span>✓ Multi-activité</span><span>✓ Gestion d’équipe</span><span>✓ Pilotage & performance</span></div>
+            </div>
+            <div style={{position:'relative'}}>
+              <div className="rv-dash">
+                <div className="rv-dashbar"><i className="rv-dot"/><i className="rv-dot"/><i className="rv-dot"/></div>
+                <div className="rv-dashbody">
+                  <div className="rv-dashtop"><div><div className="rv-mini">TABLEAU DE BORD</div><div className="rv-big">Vue globale</div></div><div className="rv-mini">Aujourd’hui</div></div>
+                  <div className="rv-statgrid"><div className="rv-stat"><b>1 284</b><small>Commandes</small></div><div className="rv-stat"><b>8,42 M</b><small>CA</small></div><div className="rv-stat"><b>2,16 M</b><small>Bénéfice</small></div></div>
+                  <div className="rv-chart"><div className="rv-mini">Performance commerciale</div><div className="rv-bars">{[28,42,36,58,48,72,66,88,74,94].map((h,i)=><i key={i} style={{height:`${h}%`}}/>)}</div></div>
+                  <div className="rv-flow"><span className="rv-step">Commandes</span><span className="rv-arrow">→</span><span className="rv-step">Équipe</span><span className="rv-arrow">→</span><span className="rv-step">Opérations</span></div>
+                </div>
+              </div>
+              <div className="rv-float rv-f1">✓ Équipe synchronisée</div><div className="rv-float rv-f2">↗ Performance suivie</div>
+            </div>
+          </div>
+        </section>
 
-      <div className="wrap rvx-proof"><div className="rvx-proofbox"><div><b style={{fontSize:13}}>Une seule vérité opérationnelle.</b><div style={{fontSize:9,color:"#8b958f",marginTop:4}}>Du premier clic jusqu'à l'argent réellement encaissé.</div></div><div className="rvx-proofstats"><div><strong>{stats?.nb_commandes_confirmees ? Number(stats.nb_commandes_confirmees).toLocaleString("fr-FR") : "360°"}</strong><small>vision commandes</small></div><div><strong>1</strong><small>écosystème</small></div><div><strong>24/7</strong><small>accès</small></div></div></div></div>
+        <section id="activites" className="rv-section rv-white">
+          <div className="rv-wrap">
+            <div className="rv-head"><div className="rv-eyebrow">Votre activité</div><h2 className="rv-title">Un même environnement. Plusieurs métiers.</h2><p className="rv-sub">RecuVente ne vous enferme pas dans un seul modèle. Choisissez l’univers qui correspond à votre activité et construisez votre organisation autour de vos besoins.</p></div>
+            <div className="rv-activity">{activities.map(a => <div className="rv-card" key={a.title}><div className="rv-icon">{a.icon}</div><h3>{a.title}</h3><p>{a.text}</p></div>)}</div>
+          </div>
+        </section>
 
-      <section id="systeme" className="rvx-section"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Le système complet</div><h2 className="rvx-title">Six moteurs.<br/><span>Une seule machine.</span></h2><p className="rvx-desc">RecuVente ne t'oblige plus à assembler plusieurs outils. Chaque étape de ton activité nourrit la suivante.</p><div className="rvx-profile"><button className={profil === "cod" ? "active" : ""} onClick={() => setProfil("cod")}>🏍️ Je vends en ligne / COD</button><button className={profil === "retail" ? "active" : ""} onClick={() => setProfil("retail")}>🏪 J'ai un commerce physique</button></div><div className="rvx-profile-note">Tu peux combiner vente en ligne et vente physique dans ton organisation.</div></div>
-        <div className="rvx-tabs">{modules.map((m) => <button key={m.id} className={`rvx-tab ${active === m.id ? "active" : ""}`} onClick={() => setActive(m.id)}><i>{m.icon}</i>{m.name}</button>)}</div>
-        <div className="rvx-module"><div className="rvx-module-head"><div><div className="rvx-kicker">Moteur {activeModule.id}</div><h3>{activeModule.title}</h3></div><p>{activeModule.text}</p></div><div className="rvx-items">{activeModule.items.map((item) => <div className="rvx-item" key={item}>{item}</div>)}</div></div>
-      </div></section>
+        <section id="plateforme" className="rv-section rv-soft">
+          <div className="rv-wrap">
+            <div className="rv-head"><div className="rv-eyebrow">La plateforme</div><h2 className="rv-title">De la vente au pilotage, tout est relié.</h2><p className="rv-sub">Au lieu de multiplier les outils et les fichiers, donnez à votre équipe un environnement commun avec une vision claire de ce qui se passe.</p></div>
+            <div className="rv-pillars">{pillars.map(p => <div className={`rv-pillar ${active===p[0]?'active':''}`} key={p[0]} onMouseEnter={() => setActive(p[0])}><div className="rv-num">{p[0]}</div><h3>{p[1]}</h3><p>{p[2]}</p></div>)}</div>
+            <div className="rv-flow"><span className="rv-step">Vendre</span><span className="rv-arrow">→</span><span className="rv-step">Convertir</span><span className="rv-arrow">→</span><span className="rv-step">Opérer</span><span className="rv-arrow">→</span><span className="rv-step">Encaisser</span><span className="rv-arrow">→</span><span className="rv-step">Piloter</span></div>
+          </div>
+        </section>
 
-      <section className="rvx-section rvx-dark"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">De bout en bout</div><h2 className="rvx-title">Du <span>clic publicitaire</span><br/>au dernier franc.</h2><p className="rvx-desc">Voici la chaîne que RecuVente transforme en données, actions et décisions.</p></div><div className="rvx-chain">{[["01","PUBLICITÉ","Pixel · campagne"],["02","BOUTIQUE","Produit · commande"],["03","CLOSING","Appel · confirmation"],["04","ATTRIBUTION","Closer · livreur"],["05","LIVRAISON","GPS · résultat"],["06","ENCAISSEMENT","Paiement · dépôt"],["07","RÉACTIVATION","Client · relance"]].map((x) => <div className="rvx-step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><span>{x[2]}</span></div>)}</div><div className="rvx-grid2"><div className="rvx-card"><h3>Tu veux retrouver une commande ?</h3><p>Tu peux descendre jusqu'au détail d'une commande, d'un client, d'un produit ou d'un membre de ton équipe.</p><div className="rvx-list">{["Quel client a été appelé ?","Quel closer a confirmé ?","Quel produit a été remis ?","Quel livreur l'a reçu ?","Livré, échoué ou reprogrammé ?"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div><div className="rvx-card dark"><h3>Tu veux comprendre ton argent ?</h3><p>Relie commandes, paiements, coûts, commissions, dépôts et bénéfices au même endroit.</p><div className="rvx-list">{["Montant encaissé","À récupérer","Dépôt attendu","Coût produit","Bénéfice réel"].map((x) => <div key={x}><b style={{color:"#ff7a00"}}>→</b>{x}</div>)}</div></div></div></div></section>
+        <section className="rv-section rv-white">
+          <div className="rv-wrap rv-split">
+            <div><div className="rv-eyebrow">Une équipe mieux organisée</div><h2 className="rv-title">Chacun travaille dans son rôle. La direction garde la vision.</h2><p className="rv-sub">RecuVente structure les responsabilités et évite que l’information reste dispersée entre plusieurs personnes, applications ou conversations.</p><div className="rv-list"><div className="rv-li"><div className="rv-check">✓</div><div><b>Des espaces adaptés aux rôles</b><p>Donnez à chaque collaborateur les informations dont il a besoin.</p></div></div><div className="rv-li"><div className="rv-check">✓</div><div><b>Un suivi opérationnel centralisé</b><p>Commandes, clients, opérations et statuts restent visibles au même endroit.</p></div></div><div className="rv-li"><div className="rv-check">✓</div><div><b>Une meilleure visibilité pour la direction</b><p>Pilotez avec des indicateurs plutôt qu’avec des suppositions.</p></div></div></div></div>
+            <div className="rv-panel"><div style={{fontSize:11,color:'#91C8A8',fontWeight:900,textTransform:'uppercase',letterSpacing:'.12em'}}>Centre de pilotage</div><h3>Votre activité, enfin lisible.</h3><p>Une vision structurée des performances et des opérations pour prendre les bonnes décisions au bon moment.</p><div className="rv-metrics"><div className="rv-metric"><strong>+24%</strong><span>Performance suivie</span></div><div className="rv-metric"><strong>360°</strong><span>Vision de l’activité</span></div><div className="rv-metric"><strong>1</strong><span>Environnement central</span></div><div className="rv-metric"><strong>∞</strong><span>Possibilités d’évolution</span></div></div></div>
+          </div>
+        </section>
 
-      <section id="metiers" className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Plus qu'un outil e-commerce</div><h2 className="rvx-title">Une plateforme qui <span>comprend ton métier.</span></h2><p className="rvx-desc">Ton activité peut évoluer. Ton système de gestion ne devrait pas t'obliger à repartir de zéro.</p></div><div className="rvx-industries">{metiers.map((m) => <div className="rvx-ind" key={m[1]}><div className="icon">{m[0]}</div><strong>{m[1]}</strong><p>{m[2]}</p></div>)}</div></div></section>
+        <section className="rv-section rv-soft">
+          <div className="rv-wrap"><div className="rv-head"><div className="rv-eyebrow">Vos collaborateurs</div><h2 className="rv-title">Une plateforme conçue pour travailler à plusieurs.</h2><p className="rv-sub">Organisez votre équipe sans perdre la maîtrise de l’ensemble.</p></div><div className="rv-team"><div className="rv-role"><div>👔</div><b>Direction</b><span>Vision globale</span></div><div className="rv-role"><div>📞</div><b>Closer</b><span>Suivi commercial</span></div><div className="rv-role"><div>🚚</div><b>Livreur</b><span>Opérations terrain</span></div><div className="rv-role"><div>🧾</div><b>Comptabilité</b><span>Flux financiers</span></div><div className="rv-role"><div>⚙️</div><b>Responsable</b><span>Organisation</span></div></div></div>
+        </section>
 
-      <section className="rvx-section"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Le vrai changement</div><h2 className="rvx-title">Avant : des outils.<br/><span>Après : un système.</span></h2></div><div className="rvx-grid2"><div className="rvx-card" style={{background:"#fff7f5",borderColor:"#f0ddd7"}}><h3>❌ Le chaos coûte cher.</h3><p>WhatsApp, cahiers, Excel, captures, appels et calculs dispersés.</p><div className="rvx-list">{["Commandes perdues","Doublons non détectés","Livreurs difficiles à contrôler","Paiements oubliés","Clients jamais relancés","Bénéfice réel inconnu"].map((x) => <div key={x}><b style={{color:"#d34a37"}}>×</b>{x}</div>)}</div></div><div className="rvx-card" style={{background:"#f1faf4",borderColor:"#d5e8da"}}><h3>✓ RecuVente relie les points.</h3><p>Une information saisie devient exploitable par les autres étapes de ton activité.</p><div className="rvx-list">{["Commandes traçables","Doublons repérables","Livreurs suivis","Paiements rapprochables","Clients réactivables","Rentabilité lisible"].map((x) => <div key={x}><b>✓</b>{x}</div>)}</div></div></div></div></section>
+        <section className="rv-section rv-white">
+          <div className="rv-wrap rv-split"><div className="rv-panel"><div style={{fontSize:11,color:'#91C8A8',fontWeight:900,textTransform:'uppercase',letterSpacing:'.12em'}}>Boutique & acquisition</div><h3>Vendez sans multiplier les outils.</h3><p>Créez votre présence commerciale, présentez vos produits, recevez des commandes et connectez votre suivi opérationnel.</p><div className="rv-metrics"><div className="rv-metric"><strong>🛍️</strong><span>Boutique & catalogue</span></div><div className="rv-metric"><strong>📲</strong><span>Canaux marketing</span></div><div className="rv-metric"><strong>💬</strong><span>WhatsApp & relation client</span></div><div className="rv-metric"><strong>📈</strong><span>Suivi de performance</span></div></div></div><div><div className="rv-eyebrow">De l’acquisition à la commande</div><h2 className="rv-title">Faites travailler ensemble votre boutique et vos opérations.</h2><p className="rv-sub">RecuVente relie les briques commerciales et opérationnelles afin que votre équipe puisse suivre le parcours d’une vente sans repartir de zéro.</p><div className="rv-list"><div className="rv-li"><div className="rv-check">✓</div><div><b>Boutique et catalogue</b><p>Présentez vos offres avec un espace commercial adapté.</p></div></div><div className="rv-li"><div className="rv-check">✓</div><div><b>Marketing et suivi</b><p>Mesurez mieux vos actions d’acquisition et leur impact.</p></div></div></div></div></div>
+        </section>
 
-      <section id="tarifs" className="rvx-section rvx-pricing"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Choisis ton niveau</div><h2 className="rvx-title">Commence maintenant.<br/><span>Structure pour grandir.</span></h2><p className="rvx-desc">Les plans disponibles sur ton compte apparaissent automatiquement ci-dessous.</p></div><div className="rvx-plans">{plans.map((p,i) => <div className={`rvx-plan ${i === 1 ? "featured" : ""}`} key={p.id}><h3>{p.nom}</h3><div className="rvx-price">{Number(p.prix).toLocaleString("fr-FR")} <small>{p.devise}/mois</small></div><ul><li>{p.max_commandes_mois ? `${p.max_commandes_mois} commandes/mois` : "Commandes selon le plan"}</li><li>{p.max_membres ? `${p.max_membres} membres max` : "Membres selon le plan"}</li><li>Commandes & clients</li><li>Produits & activités</li><li>Tableau de bord</li></ul><a href="?auth=1" onClick={trackLead}>Commencer maintenant →</a></div>)}</div></div></section>
+        <section className="rv-section rv-soft">
+          <div className="rv-wrap rv-split"><div><div className="rv-eyebrow">Rentabilité</div><h2 className="rv-title">Ne regardez pas seulement vos ventes. Comprenez votre activité.</h2><p className="rv-sub">Un dirigeant a besoin de savoir ce qui fonctionne, ce qui coûte et ce qui mérite d’être amélioré. RecuVente rapproche les données opérationnelles et financières pour vous aider à piloter.</p><div className="rv-actions" style={{marginTop:22}}><button className="rv-btn rv-primary" onClick={goSignup}>Je veux piloter mon activité →</button></div></div><div className="rv-panel"><div style={{fontSize:11,color:'#91C8A8',fontWeight:900}}>INDICATEURS</div><div style={{fontSize:34,fontWeight:950,marginTop:5}}>Vision 360°</div><div style={{height:1,background:'rgba(255,255,255,.1)',margin:'18px 0'}}/><div className="rv-metrics"><div className="rv-metric"><strong>CA</strong><span>Chiffre d’affaires</span></div><div className="rv-metric"><strong>COÛTS</strong><span>Charges suivies</span></div><div className="rv-metric"><strong>MARGE</strong><span>Rentabilité</span></div><div className="rv-metric"><strong>ÉQUIPE</strong><span>Performance</span></div></div></div></div>
+        </section>
 
-      <section className="rvx-section rvx-cream"><div className="wrap"><div className="rvx-center"><div className="rvx-kicker">Questions fréquentes</div><h2 className="rvx-title">Tu hésites encore ?<br/><span>Regarde ce que le système fait.</span></h2></div><div className="rvx-faq">{faqs.map((f,i) => <div className="rvx-faqrow" key={f[0]}><button onClick={() => setOpenFaq(openFaq === i ? null : i)}><span>{f[0]}</span><span>{openFaq === i ? "−" : "+"}</span></button>{openFaq === i && <div className="rvx-answer">{f[1]}</div>}</div>)}</div></div></section>
+        <section id="pricing" className="rv-section rv-white">
+          <div className="rv-wrap"><div className="rv-head"><div className="rv-eyebrow">Abonnements</div><h2 className="rv-title">Choisissez la puissance dont votre activité a besoin.</h2><p className="rv-sub">Des formules pensées pour accompagner votre organisation, de la petite équipe à l’entreprise structurée.</p></div>
+            {visiblePlans.length ? <div className="rv-pricing">{visiblePlans.map((p,i)=><div key={p.id||i} className={`rv-price ${i===1?'featured':''}`}>{i===1 && <div className="rv-badge">LE PLUS CHOISI</div>}<h3>{p.nom || p.name || `Plan ${i+1}`}</h3><div className="amount">{Number(p.prix||0).toLocaleString('fr-FR')} <small>FCFA / mois</small></div><ul className="rv-features"><li>Accès à votre espace RecuVente</li><li>Gestion adaptée à votre activité</li><li>Outils de suivi et de pilotage</li>{i>0 && <li>Fonctionnalités avancées selon le plan</li>}{i>1 && <li>Pour équipes et activités en croissance</li>}</ul><button className={`rv-btn ${i===1?'rv-primary':'rv-light'}`} style={{width:'100%'}} onClick={goSignup}>Choisir ce plan</button></div>)}</div> : <div className="rv-card" style={{textAlign:'center'}}><h3>Choisissez votre abonnement</h3><p>Les formules disponibles seront affichées ici.</p><button className="rv-btn rv-primary" onClick={goSignup}>Voir les abonnements →</button></div>}
+          </div>
+        </section>
 
-      <section className="rvx-final"><div className="wrap"><div className="rvx-kicker">Le prochain niveau commence ici</div><h2>Arrête de courir derrière ton activité.<br/><span>Fais-la travailler comme un système.</span></h2><p>Crée ton espace RecuVente et connecte progressivement tes ventes, tes clients, ton équipe, tes livraisons, tes paiements et ta croissance.</p><div style={{marginTop:28}}><a href="?auth=1" onClick={trackLead} className="rvx-btn rvx-primary">🚀 Créer mon espace RecuVente →</a></div></div></section>
+        <section id="faq" className="rv-section rv-soft"><div className="rv-wrap"><div className="rv-head"><div className="rv-eyebrow">Questions fréquentes</div><h2 className="rv-title">Avant de vous abonner, vous voulez être sûr.</h2></div><div className="rv-faq">{faqs.map((f,i)=><div className="rv-faqitem" key={i}><button className="rv-faqq" onClick={() => setOpenFaq(openFaq===i?null:i)}><span>{f[0]}</span><span>{openFaq===i?'−':'+'}</span></button>{openFaq===i && <div className="rv-faqa">{f[1]}</div>}</div>)}</div></div></section>
 
-      <footer className="rvx-footer">RecuVente — Un système pour vendre, convertir, livrer, encaisser, réactiver et piloter.<div style={{marginTop:8,display:"flex",gap:15,justifyContent:"center",flexWrap:"wrap"}}><a href="?page=impact" style={{color:"#8b958f",textDecoration:"underline"}}>Rapport d'impact</a><a href="?page=cgu" style={{color:"#8b958f",textDecoration:"underline"}}>Conditions</a><a href="?page=confidentialite" style={{color:"#8b958f",textDecoration:"underline"}}>Confidentialité</a></div></footer>
-      <div className="rvx-mobile"><a href="?auth=1" onClick={trackLead}>🚀 Commencer avec RecuVente</a></div>
+        <section className="rv-section" style={{paddingTop:55}}><div className="rv-wrap"><div className="rv-final"><h2>Arrêtez de gérer votre activité dans plusieurs endroits.</h2><p>Centralisez vos opérations, donnez les bons outils à votre équipe et prenez enfin vos décisions avec une vision claire.</p><button className="rv-btn" style={{background:'#fff',color:'#103D29',padding:'15px 24px'}} onClick={goSignup}>Commencer avec RecuVente →</button></div></div></section>
+      </main>
+
+      <footer className="rv-footer"><div className="rv-wrap rv-footin"><div>© {new Date().getFullYear()} RecuVente — Tous droits réservés.</div><div className="rv-footlinks"><button onClick={() => { try{window.location.href='?legal=cgu'}catch(_){} }}>CGU</button><button onClick={() => { try{window.location.href='?legal=privacy'}catch(_){} }}>Confidentialité</button><button onClick={() => { try{window.location.href='?legal=impact'}catch(_){} }}>Impact</button></div></div></footer>
+      <div className="rv-mobilecta"><button className="rv-btn rv-primary" onClick={goSignup}>S’abonner à RecuVente →</button></div>
     </div>
   );
 }
+
+>
+  );
+}
+
 function PageImpact() {
   const [stats, setStats] = useState(undefined);
 

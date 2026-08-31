@@ -1,10 +1,68 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { jsPDF } from "jspdf";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
+
+function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, montantTotal, modeLivraison) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const vert = [26, 122, 60];
+  const gris = [107, 113, 104];
+  const sombre = [22, 35, 31];
+
+  doc.setFillColor(...vert);
+  doc.rect(0, 0, 210, 30, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(entreprise.nom.toUpperCase(), 15, 17);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Reçu de commande", 15, 24);
+
+  doc.setTextColor(...sombre);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Commande du ${new Date().toLocaleDateString("fr-FR")}`, 15, 42);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...gris);
+  let y = 52;
+  doc.text(`Client : ${form.client}`, 15, y); y += 6;
+  doc.text(`Téléphone : ${form.tel}`, 15, y); y += 6;
+  doc.text(`Livraison à : ${form.zone}`, 15, y); y += 6;
+  if (modeLivraison) { doc.text(`Mode : ${modeLivraison}`, 15, y); y += 6; }
+
+  y += 6;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(15, y, 195, y);
+  y += 8;
+
+  doc.setTextColor(...sombre);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${quantite} × ${produitOuvert.produit_nom}`, 15, y);
+  doc.text(`${montantTotal.toLocaleString("fr-FR")} ${entreprise.devise}`, 195, y, { align: "right" });
+  y += 10;
+
+  doc.setDrawColor(220, 220, 220);
+  doc.line(15, y, 195, y);
+  y += 8;
+  doc.setFontSize(12);
+  doc.text("Total", 15, y);
+  doc.text(`${montantTotal.toLocaleString("fr-FR")} ${entreprise.devise}`, 195, y, { align: "right" });
+
+  y += 16;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.setTextColor(...gris);
+  doc.text("Ce reçu confirme ta commande. Le paiement se fait à la livraison.", 15, y);
+
+  doc.save(`recu-commande-${entreprise.nom.replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+}
 
 function lireCookieMeta(nom) {
   const match = document.cookie.match(new RegExp("(^| )" + nom + "=([^;]+)"));
@@ -1002,6 +1060,20 @@ export default function CataloguePublic({ workspaceId }) {
                     <div><strong style={{ color: "#16231F" }}>{t("telephone")}</strong> {form.tel}</div>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => genererRecuClientPDF(
+                    entreprise,
+                    form,
+                    produitOuvert,
+                    quantite,
+                    prixUnitaireEffectif * quantite + (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif || 0),
+                    aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale) : null
+                  )}
+                  style={{ width: "100%", background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 20 }}
+                >
+                  📄 Télécharger mon reçu
+                </button>
 
                 <div style={{ textAlign: "left", marginBottom: 20 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{t("etMaintenant")}</div>

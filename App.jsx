@@ -256,7 +256,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id)")
       .eq("user_id", userId);
     if (error) {
       const estErreurAuth = /jwt|token|expired|unauthorized|401|invalid refresh/i.test(error.message || "") || error.code === "PGRST301";
@@ -1810,7 +1810,12 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     sections:activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer'],
     bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}]
   };
-  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}});
+  const [config,setConfig]=useState(()=>{
+    if(workspace?.store_config && typeof workspace.store_config==='object'){
+      return {...defaults,...workspace.store_config};
+    }
+    try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}
+  });
   const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
   const [publishedSnapshot,setPublishedSnapshot]=useState(()=>workspace?.store_config_published||null);
   const [collections,setCollections]=useState([]);

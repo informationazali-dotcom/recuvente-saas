@@ -1933,7 +1933,19 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
         <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer'}}><input type="checkbox" checked={!!config.headerShowPanier} onChange={e=>update('headerShowPanier',e.target.checked)}/> Icône panier</label>
       </div>
       <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Liens du menu de navigation</div>
-      <div style={{display:'grid',gap:6,marginBottom:8}}>{(config.headerLinks||[]).map((l,i)=><div key={l.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:8,display:'grid',gap:6}}><div style={{display:'flex',gap:6}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienHeader(l.id,'label',e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>deplacerLienHeader(i,-1)} disabled={i===0} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={()=>deplacerLienHeader(i,1)} disabled={i===(config.headerLinks||[]).length-1} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={()=>supprimerLienHeader(l.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div><input placeholder="Lien (ex: #produits, ou un vrai lien externe)" value={l.href} onChange={e=>modifierLienHeader(l.id,'href',e.target.value)} style={fieldStyle}/></div>)}</div>
+      <div style={{display:'grid',gap:6,marginBottom:8}}>{(config.headerLinks||[]).map((l,i)=>{
+        const optionsCibles=[{v:'#',l:'Accueil (haut de page)'},{v:'#produits',l:'Produits'},{v:'#promo',l:'Promotions'},{v:'#bundles',l:'Bundles / Packs'},{v:'#avis',l:'Avis clients'},{v:'#faq',l:'Questions fréquentes'},{v:'#livraison',l:'Livraison'},{v:'#whatsapp',l:'WhatsApp'},{v:'#contact',l:'Contact'}];
+        const estExterne=l.href&&!l.href.startsWith('#');
+        return <div key={l.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:8,display:'grid',gap:6}}>
+          <div style={{display:'flex',gap:6}}><input placeholder="Libellé (ex: Nos produits)" value={l.label} onChange={e=>modifierLienHeader(l.id,'label',e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>deplacerLienHeader(i,-1)} disabled={i===0} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={()=>deplacerLienHeader(i,1)} disabled={i===(config.headerLinks||[]).length-1} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={()=>supprimerLienHeader(l.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>
+          <select value={estExterne?'externe':(l.href||'#')} onChange={e=>modifierLienHeader(l.id,'href',e.target.value==='externe'?'https://':e.target.value)} style={{...fieldStyle,background:'#fff'}}>
+            {optionsCibles.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+            <option value="externe">🔗 Lien externe (autre site)</option>
+          </select>
+          {estExterne&&<input placeholder="https://..." value={l.href} onChange={e=>modifierLienHeader(l.id,'href',e.target.value)} style={fieldStyle}/>}
+        </div>;
+      })}</div>
+      <div style={{fontSize:10,color:'#8a958e',marginTop:-2,marginBottom:8,lineHeight:1.5}}>💡 Choisis vers quelle partie de ta page ce lien doit amener — ça se relie tout seul, pas besoin de code.</div>
       <button onClick={ajouterLienHeader} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un lien au menu</button>
       {config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginTop:12}}/>}<div style={{marginTop:8}}><FileButton kind="logo" label="Télécharger / changer le logo"/></div>
     </>;

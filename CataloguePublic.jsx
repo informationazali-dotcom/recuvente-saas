@@ -690,8 +690,13 @@ export default function CataloguePublic({ workspaceId }) {
 
             {!envoye && !produitOuvert.masquer_produits_similaires && (() => {
               const idsChoisis = Array.isArray(produitOuvert.produits_similaires_ids) ? produitOuvert.produits_similaires_ids : [];
-              const similaires = idsChoisis.length > 0
-                ? idsChoisis.map((id) => produits.find((p) => p.produit_id === id)).filter(Boolean)
+              const collectionChoisie = produitOuvert.produits_similaires_collection_id
+                ? collectionsManuelles.find((c) => c.id === produitOuvert.produits_similaires_collection_id)
+                : null;
+              const idsDeCollection = collectionChoisie ? collectionChoisie.produitIds : [];
+              const idsCombines = [...new Set([...idsDeCollection, ...idsChoisis])].filter((id) => id !== produitOuvert.produit_id);
+              const similaires = idsCombines.length > 0
+                ? idsCombines.map((id) => produits.find((p) => p.produit_id === id)).filter(Boolean)
                 : produits
                     .filter((p) => p.produit_id !== produitOuvert.produit_id)
                     .sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0))

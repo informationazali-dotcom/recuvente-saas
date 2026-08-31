@@ -9473,6 +9473,17 @@ function IntegrationsModal({ workspace, onClose }) {
   const [paysListe, setPaysListe] = useState(workspace.countries_livraison || (workspace.country ? [workspace.country] : []));
   const [savingPays, setSavingPays] = useState(false);
   const [paysSaved, setPaysSaved] = useState(false);
+  const [langueBoutique, setLangueBoutique] = useState(workspace.langue || "fr");
+  const [savingLangue, setSavingLangue] = useState(false);
+  const [langueSaved, setLangueSaved] = useState(false);
+
+  async function sauvegarderLangue() {
+    setSavingLangue(true);
+    await supabase.from("workspaces").update({ langue: langueBoutique }).eq("id", workspace.id);
+    setSavingLangue(false);
+    setLangueSaved(true);
+    setTimeout(() => setLangueSaved(false), 2000);
+  }
 
   async function sauvegarderDevise() {
     setSavingDevise(true);
@@ -9975,6 +9986,28 @@ function IntegrationsModal({ workspace, onClose }) {
           >
             {paysSaved ? "✅ Enregistré" : savingPays ? "..." : "Enregistrer les pays"}
           </button>
+
+          <div style={{ height: 1, background: "#C3D4F0", margin: "16px 0" }} />
+
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
+            🌐 Langue de la boutique publique
+          </div>
+          <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
+            La boutique que voient tes clients (pas ce tableau de bord) s'affichera dans cette langue.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select value={langueBoutique} onChange={(e) => setLangueBoutique(e.target.value)} style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #C3D4F0", fontSize: 13, background: "white" }}>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+            <button
+              onClick={sauvegarderLangue}
+              disabled={savingLangue}
+              style={{ background: langueSaved ? "#1F9D6E" : "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {langueSaved ? "✅" : savingLangue ? "..." : "Enregistrer"}
+            </button>
+          </div>
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

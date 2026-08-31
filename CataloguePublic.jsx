@@ -1408,7 +1408,7 @@ export default function CataloguePublic({ workspaceId }) {
               src={entreprise.logo}
               alt={entreprise.nom}
               className="rv-shop-hero-logo"
-              style={{ width: 76, height: 76, borderRadius: 16, objectFit: "cover", border: "3px solid white", boxShadow: "0 6px 18px rgba(0,0,0,0.4)", flexShrink: 0, background: "white" }}
+              style={{ width: 76, height: 76, borderRadius: 16, objectFit: "contain", border: "3px solid white", boxShadow: "0 6px 18px rgba(0,0,0,0.4)", flexShrink: 0, background: "white" }}
               onError={(e) => { e.target.style.display = "none"; }}
             />
           )}
@@ -1726,7 +1726,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0, flexShrink: 0 }}
           >
             {entreprise.logo ? (
-              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "contain", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
             ) : null}
             <span className="rv-shop-header-nom" style={{ fontWeight: 700, fontSize: 15, color: texteHeader, whiteSpace: "nowrap" }}>{entreprise.nom}</span>
           </button>
@@ -1929,7 +1929,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             {entreprise.logo && (
-              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 40, height: 40, borderRadius: 10, objectFit: "contain", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
             )}
             <div style={{ fontWeight: 700, fontSize: 16, color: "white" }}>{entreprise.nom}</div>
           </div>
@@ -2008,7 +2008,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               {entreprise.logo && (
-                <img src={entreprise.logo} alt="" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+                <img src={entreprise.logo} alt="" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "contain", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
               )}
               <div style={{ fontWeight: 700, fontSize: 13, color: "white", textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("contact")}</div>
             </div>

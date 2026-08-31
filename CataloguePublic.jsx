@@ -457,6 +457,9 @@ export default function CataloguePublic({ workspaceId }) {
         storeConfig: data[0].store_config_published || null,
         country: data[0].country || null,
         countriesLivraison: Array.isArray(data[0].countries_livraison) ? data[0].countries_livraison : [],
+        depotRequis: data[0].depot_requis || false,
+        depotMontant: data[0].depot_montant,
+        depotMessage: data[0].depot_message || "",
         labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
         temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
@@ -1249,6 +1252,11 @@ export default function CataloguePublic({ workspaceId }) {
                     </button>
                   </div>
                   {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
+                  {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
+                    <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+                      💰 {entreprise.depotMessage || `Un dépôt de ${Number(entreprise.depotMontant || 0).toLocaleString("fr-FR")} ${entreprise.devise} par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1329,6 +1337,19 @@ export default function CataloguePublic({ workspaceId }) {
                 />
                 <span>{t("caseEngagement")}</span>
               </label>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 14, paddingTop: 10, borderTop: "1px solid #ECE8DC" }}>
+                {[
+                  { icone: "💵", texte: t("badgePaiement2") },
+                  { icone: "🚚", texte: t("badgeLivraison2") },
+                  { icone: "✅", texte: t("badgeVerifie") },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 14 }}>{item.icone}</span>
+                    <span style={{ fontSize: 10, color: "#6B7168", fontWeight: 600 }}>{item.texte}</span>
+                  </div>
+                ))}
+              </div>
 
               <button
                 onClick={envoyerCommande}

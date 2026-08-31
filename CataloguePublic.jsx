@@ -601,7 +601,7 @@ export default function CataloguePublic({ workspaceId }) {
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
@@ -1270,7 +1270,7 @@ export default function CataloguePublic({ workspaceId }) {
           @media (min-width: 1280px) { .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; } .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
@@ -1393,7 +1393,7 @@ export default function CataloguePublic({ workspaceId }) {
         }
       `}</style>
 
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
 
       <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
         {entreprise.banniere ? (

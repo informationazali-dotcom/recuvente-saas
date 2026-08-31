@@ -706,6 +706,53 @@ function LandingPage() {
   color:rgba(255,255,255,.82)!important;
 }
 
+
+/* V5.4 — ACTUAL SECTION CONTRAST OVERRIDES
+   These selectors match the landing page classes actually rendered. */
+.rva .rva-hero,
+.rva .rva-system,
+.rva .rva-money,
+.rva .rva-final,
+.rva .rva-dark,
+.rva .rva-manifesto,
+.rva .rva-markcard.dark {
+  color:#FFFFFF !important;
+}
+.rva .rva-hero h1,.rva .rva-hero h2,.rva .rva-hero h3,.rva .rva-hero p,.rva .rva-hero span,.rva .rva-hero small,
+.rva .rva-system h1,.rva .rva-system h2,.rva .rva-system h3,.rva .rva-system h4,.rva .rva-system p,.rva .rva-system span,.rva .rva-system small,.rva .rva-system li,
+.rva .rva-money h1,.rva .rva-money h2,.rva .rva-money h3,.rva .rva-money h4,.rva .rva-money p,.rva .rva-money span,.rva .rva-money small,
+.rva .rva-final h1,.rva .rva-final h2,.rva .rva-final h3,.rva .rva-final p,.rva .rva-final span,.rva .rva-final small,
+.rva .rva-dark h1,.rva .rva-dark h2,.rva .rva-dark h3,.rva .rva-dark h4,.rva .rva-dark p,.rva .rva-dark span,.rva .rva-dark small,
+.rva .rva-manifesto h1,.rva .rva-manifesto h2,.rva .rva-manifesto h3,.rva .rva-manifesto h4,.rva .rva-manifesto p,.rva .rva-manifesto span,
+.rva .rva-markcard.dark h1,.rva .rva-markcard.dark h2,.rva .rva-markcard.dark h3,.rva .rva-markcard.dark p,.rva .rva-markcard.dark span {
+  color:#FFFFFF !important;
+}
+.rva .rva-system .rva-title span,
+.rva .rva-money .rva-title span,
+.rva .rva-final h2 span,
+.rva .rva-dark .rva-title span {
+  color:#7DFFC2 !important;
+}
+.rva .rva-hero .rva-kicker,
+.rva .rva-hero .rva-label,
+.rva .rva-system .rva-label,
+.rva .rva-money .rva-label,
+.rva .rva-final .rva-label,
+.rva .rva-dark .rva-label {
+  color:#A7FFD2 !important;
+}
+.rva .rva-hero .rva-btn.primary,
+.rva .rva-final .rva-btn.primary,
+.rva .rva-system .rva-btn.primary {
+  color:#FFFFFF !important;
+  background:linear-gradient(135deg,#FF6A00,#FFB000) !important;
+}
+.rva .rva-hero .rva-btn.ghost,
+.rva .rva-final .rva-btn.ghost {
+  color:#FFFFFF !important;
+  border-color:rgba(255,255,255,.38) !important;
+}
+
 </style>
 
       <header className="rva-nav"><div className="wrap rva-navin">

@@ -1553,16 +1553,16 @@ function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLi
 
   const actions = [];
   if (jamaisRappeles > 0) {
-    actions.push({ num: "01", titre: "RAPPELER", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
+    actions.push({ num: "01", titre: "RAPPELER", cause: "Cause probable : jamais contactées depuis la commande", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
   }
   if (echouees > 0) {
-    actions.push({ num: "02", titre: "RÉCUPÉRER", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
+    actions.push({ num: "02", titre: "RÉCUPÉRER", cause: "Cause probable : client non joint ou absent à la livraison", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
   }
   if (livreurAControler && livreurAControler.aDeposer > 0) {
-    actions.push({ num: "03", titre: "CONTRÔLER", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
+    actions.push({ num: "03", titre: "CONTRÔLER", cause: "Cause probable : dépôt de caisse en retard", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
   }
   if (clientsARelancer.length > 0) {
-    actions.push({ num: "04", titre: "RELANCER", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
+    actions.push({ num: "04", titre: "RELANCER", cause: "Cause probable : rythme d'achat habituel atteint, moment idéal pour recontacter", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
   }
 
   return (
@@ -1607,6 +1607,7 @@ function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLi
               <div key={a.num} style={{ borderLeft: `3px solid ${a.couleur}`, paddingLeft: 12 }}>
                 <div style={{ fontSize: 10.5, color: a.couleur, fontWeight: 700, letterSpacing: "0.03em" }}>{a.num} — {a.titre}</div>
                 <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 2 }}>{a.desc}</div>
+                {a.cause && <div style={{ fontSize: 10.5, color: "#8A9089", fontStyle: "italic", marginTop: 2 }}>{a.cause}</div>}
                 {a.potentiel > 0 && (
                   <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>Potentiel : {a.potentiel.toLocaleString("fr-FR")} {currency}</div>
                 )}

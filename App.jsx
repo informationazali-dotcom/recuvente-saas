@@ -10592,6 +10592,9 @@ function IntegrationsModal({ workspace, onClose }) {
     frais_expedition: workspace.frais_expedition ?? 0,
     label_livraison_locale: workspace.label_livraison_locale || "Livraison locale",
     label_livraison_expedition: workspace.label_livraison_expedition || "Autre ville",
+    depot_requis: workspace.depot_requis || false,
+    depot_montant: workspace.depot_montant ?? "",
+    depot_message: workspace.depot_message || "",
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
@@ -11271,6 +11274,44 @@ function IntegrationsModal({ workspace, onClose }) {
             <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
           </div>
 
+          <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 14, marginTop: 4, marginBottom: 14 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: 10 }}>
+              <input
+                type="checkbox"
+                checked={personnalisation.depot_requis}
+                onChange={(e) => setPersonnalisation({ ...personnalisation, depot_requis: e.target.checked })}
+                style={{ width: 16, height: 16, cursor: "pointer" }}
+              />
+              <span style={{ fontWeight: 700, fontSize: 13 }}>💰 Exiger un dépôt avant expédition (livraison "{personnalisation.label_livraison_expedition || "Autre ville"}" uniquement)</span>
+            </label>
+            {personnalisation.depot_requis && (
+              <>
+                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Montant du dépôt</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                  <input
+                    type="number"
+                    value={personnalisation.depot_montant}
+                    onChange={(e) => setPersonnalisation({ ...personnalisation, depot_montant: e.target.value })}
+                    placeholder="0"
+                    style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
+                  />
+                  <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
+                </div>
+                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Message affiché au client (personnalisable)</div>
+                <textarea
+                  value={personnalisation.depot_message}
+                  onChange={(e) => setPersonnalisation({ ...personnalisation, depot_message: e.target.value })}
+                  placeholder={`Livraison hors zone : un dépôt de ${personnalisation.depot_montant || "..."} ${workspace.currency} par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                  rows={3}
+                  style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }}
+                />
+                <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 6, lineHeight: 1.5 }}>
+                  Ce dépôt n'est pas encaissé automatiquement dans l'app — c'est une information affichée au client avant qu'il commande, à toi de l'organiser par Mobile Money une fois la commande confirmée.
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={async () => {
               await supabase.from("workspaces").update({
@@ -11278,6 +11319,9 @@ function IntegrationsModal({ workspace, onClose }) {
                 frais_expedition: Number(personnalisation.frais_expedition) || 0,
                 label_livraison_locale: personnalisation.label_livraison_locale.trim() || "Livraison locale",
                 label_livraison_expedition: personnalisation.label_livraison_expedition.trim() || "Autre ville",
+                depot_requis: personnalisation.depot_requis,
+                depot_montant: personnalisation.depot_montant === "" ? null : Number(personnalisation.depot_montant),
+                depot_message: personnalisation.depot_message.trim() || null,
               }).eq("id", workspace.id);
             }}
             style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}

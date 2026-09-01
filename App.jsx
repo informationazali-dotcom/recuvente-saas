@@ -4329,6 +4329,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "echouee", label: "Échouées" },
           { key: "en_cours", label: "En cours" },
           { key: "confirmee", label: "Confirmées" },
+          { key: "retournee", label: "Retournées" },
         ].map((f) => (
           <button
             key={f.key}
@@ -5970,6 +5971,7 @@ const STATUTS = {
   en_cours: { label: "En cours", color: "#E8A93D", bg: "#FBF3E3" },
   confirmee: { label: "Confirmée", color: "#1F9D6E", bg: "#EAF7F1" },
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
+  retournee: { label: "Retournée", color: "#8A6412", bg: "#FBF3E3" },
 };
 
 function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate }) {
@@ -5979,6 +5981,9 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [showAppel, setShowAppel] = useState(false);
   const [dateRappelChoisie, setDateRappelChoisie] = useState("");
   const [showPaiement, setShowPaiement] = useState(false);
+  const [showRetourForm, setShowRetourForm] = useState(false);
+  const [motifRetour, setMotifRetour] = useState("");
+  const [montantRembourseInput, setMontantRembourseInput] = useState("");
   const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
 
@@ -6033,6 +6038,34 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
       }
       await onStatusChanged();
       if (vraimentRecuperee && onCelebrate) onCelebrate(commande.montant, commande.client);
+    }
+    setLoading(false);
+    setOpen(false);
+  }
+
+  async function marquerRetour(motif, montantRembourse) {
+    setLoading(true);
+    const { error } = await supabase.from("commandes").update({
+      statut: "retournee",
+      motif_retour: motif || null,
+      date_retour: new Date().toISOString(),
+      montant_rembourse: montantRembourse === "" || montantRembourse == null ? null : Number(montantRembourse),
+    }).eq("id", commande.id);
+    if (error) {
+      alert("Erreur: " + error.message);
+    } else {
+      await supabase.from("relances").insert([
+        { commande_id: commande.id, note: `↩️ Commande marquée comme retournée${motif ? ` — ${motif}` : ""}${montantRembourse ? ` (${Number(montantRembourse).toLocaleString("fr-FR")} ${currency} remboursés)` : ""}` },
+      ]);
+      if (workspace?.id) {
+        supabase.from("journal_audit").insert([{
+          workspace_id: workspace.id,
+          action: "Commande → retournée",
+          details: `${commande.client} — ${commande.montant} ${currency}${motif ? ` — ${motif}` : ""}`,
+          effectue_par: confirmateurNom || "Admin",
+        }]);
+      }
+      await onStatusChanged();
     }
     setLoading(false);
     setOpen(false);
@@ -6207,7 +6240,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
       {open && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0EEE6" }}>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            {Object.entries(STATUTS).map(([key, val]) => (
+            {Object.entries(STATUTS).filter(([key]) => key !== "retournee").map(([key, val]) => (
               <button
                 key={key}
                 onClick={() => changerStatut(key)}
@@ -6237,6 +6270,59 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             >
               💰 Enregistrer un paiement (solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency})
             </button>
+          )}
+
+          {commande.statut === "confirmee" && (
+            <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              {!showRetourForm ? (
+                <button
+                  onClick={() => setShowRetourForm(true)}
+                  style={{ width: "100%", background: "white", border: "1px solid #8A6412", color: "#8A6412", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                >
+                  ↩️ Marquer comme retournée
+                </button>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8A6412", marginBottom: 8 }}>↩️ Enregistrer un retour</div>
+                  <input
+                    placeholder="Motif du retour (ex: produit défectueux)"
+                    value={motifRetour}
+                    onChange={(e) => setMotifRetour(e.target.value)}
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 6, boxSizing: "border-box" }}
+                  />
+                  <input
+                    type="number"
+                    placeholder={`Montant remboursé (${currency}, optionnel)`}
+                    value={montantRembourseInput}
+                    onChange={(e) => setMontantRembourseInput(e.target.value)}
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8, boxSizing: "border-box" }}
+                  />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => marquerRetour(motifRetour, montantRembourseInput)}
+                      disabled={loading}
+                      style={{ flex: 1, background: "#8A6412", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                    >
+                      Confirmer le retour
+                    </button>
+                    <button
+                      onClick={() => setShowRetourForm(false)}
+                      style={{ background: "white", border: "1px solid #DDD8CC", color: "#6B7168", borderRadius: 7, padding: "8px 14px", fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {commande.statut === "retournee" && (
+            <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: 12, marginBottom: 10, fontSize: 12, color: "#8A6412", lineHeight: 1.6 }}>
+              ↩️ Retournée le {commande.date_retour ? new Date(commande.date_retour).toLocaleDateString("fr-FR") : "—"}
+              {commande.motif_retour && <><br/>Motif : {commande.motif_retour}</>}
+              {commande.montant_rembourse != null && <><br/>Remboursé : {Number(commande.montant_rembourse).toLocaleString("fr-FR")} {currency}</>}
+            </div>
           )}
 
           {commande.mode_vente !== "expedition" && commande.statut !== "confirmee" && (

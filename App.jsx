@@ -3005,7 +3005,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       .from("commandes")
       .select("*")
       .eq("workspace_id", workspace.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(5000); // Plafond de sécurité — au-delà, une vraie pagination sera nécessaire (chantier à part).
     if (!error) {
       const list = data || [];
       if (knownOrderIds.current !== null) {

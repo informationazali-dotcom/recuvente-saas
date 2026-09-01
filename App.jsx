@@ -2804,6 +2804,28 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return map;
   }, [commandes]);
 
+  const commandesParCloser = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      if (!c.closer) return;
+      if (!map[c.closer]) map[c.closer] = [];
+      map[c.closer].push(c);
+    });
+    Object.values(map).forEach((liste) => liste.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+    return map;
+  }, [commandes]);
+
+  const commandesParLivreur = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      if (!c.livreur) return;
+      if (!map[c.livreur]) map[c.livreur] = [];
+      map[c.livreur].push(c);
+    });
+    Object.values(map).forEach((liste) => liste.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+    return map;
+  }, [commandes]);
+
   async function assignCloser(commandeId, nom) {
     await supabase.from("commandes").update({ closer: nom || null }).eq("id", commandeId);
     await supabase.from("relances").insert([
@@ -4938,8 +4960,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           }}
         />
       )}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} currency={workspace.currency} />}
-      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={workspace.currency} />}
+      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={workspace.currency} />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
@@ -6997,7 +7019,7 @@ function HistoriqueRelances({ commandeId }) {
   );
 }
 
-function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produitsRecus, detailParProduit }) {
+function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produitsRecus, detailParProduit, commandesParMembre, currency }) {
   const [livreurDeplie, setLivreurDeplie] = useState(null);
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
@@ -7074,6 +7096,31 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produi
                         ))}
                       </tbody>
                     </table>
+
+                    {commandesParMembre && commandesParMembre[it.nom] && commandesParMembre[it.nom].length > 0 && (
+                      <div style={{ borderTop: "2px solid #DDD8CC" }}>
+                        <div style={{ padding: "8px 8px 4px", fontSize: 10.5, fontWeight: 800, color: "#6B7168", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                          Détail commande par commande ({commandesParMembre[it.nom].length})
+                        </div>
+                        <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                          {commandesParMembre[it.nom].map((c) => {
+                            const infoStatut = STATUTS[c.statut] || { label: c.statut, color: "#6B7168", bg: "#F0EEE6" };
+                            return (
+                              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, padding: "7px 8px", borderTop: "1px solid #F0EEE6" }}>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.produit}</div>
+                                  <div style={{ fontSize: 10, color: "#8A9089" }}>{c.client} · {new Date(c.created_at).toLocaleDateString("fr-FR")}</div>
+                                </div>
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700 }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: infoStatut.color, background: infoStatut.bg, borderRadius: 999, padding: "1px 7px" }}>{infoStatut.label}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

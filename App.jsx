@@ -3674,6 +3674,41 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
   const monProfilLivreur = livreurs.find((l) => l.email && l.email.toLowerCase() === session.user.email.toLowerCase());
 
+  useEffect(() => {
+    // Empêche le bouton/geste "retour" du téléphone de quitter complètement l'app.
+    // Sans historique de navigation interne, chaque "vue" (Commandes, Clients...) ou
+    // fenêtre ouverte n'a "rien à quoi revenir" dans l'historique du navigateur, donc
+    // le retour sortait carrément de l'app. On piège chaque retour : d'abord on ferme
+    // toute fenêtre ouverte, sinon on revient à l'écran principal — jamais on ne sort.
+    window.history.pushState({ rvApp: true }, "");
+    function auRetourNavigateur() {
+      const uneFenetreEstOuverte =
+        showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
+        showCollections || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showBienvenue || showAide || showIntegrations ||
+        showBatch || showAdd;
+
+      if (uneFenetreEstOuverte) {
+        setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowProduits(false);
+        setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
+        setShowBienvenue(false); setShowAide(false);
+        setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
+      } else if (vue !== "aujourdhui") {
+        setVue("aujourdhui");
+      }
+      // Repousse une entrée pour absorber le prochain retour aussi, sans jamais quitter l'app.
+      window.history.pushState({ rvApp: true }, "");
+    }
+    window.addEventListener("popstate", auRetourNavigateur);
+    return () => window.removeEventListener("popstate", auRetourNavigateur);
+  }, [
+    showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
+    showCollections, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showBienvenue, showAide, showIntegrations,
+    showBatch, showAdd, vue,
+  ]);
+
   if (workspace.role === "livreur" && monProfilLivreur) {
     return (
       <LivreurPortalSaas

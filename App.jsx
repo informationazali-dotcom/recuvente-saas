@@ -525,6 +525,51 @@ function RapportSemaineModal({ rapport, currency, workspaceName, onClose }) {
   );
 }
 
+function ReunionEquipeModal({ workspace, onClose }) {
+  const [lienCopie, setLienCopie] = useState(false);
+  const nomSalle = `RecuVente-${(workspace.name || "equipe").replace(/[^a-zA-Z0-9]+/g, "-")}-${workspace.id.slice(0, 8)}`;
+  const lienReunion = `https://meet.jit.si/${nomSalle}`;
+
+  function copierLien() {
+    navigator.clipboard.writeText(lienReunion);
+    setLienCopie(true);
+    setTimeout(() => setLienCopie(false), 2000);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.85)", display: "flex", flexDirection: "column", zIndex: 200 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#16231F", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ color: "white", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          📹 Réunion d'équipe — {workspace.name}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            onClick={copierLien}
+            style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          >
+            {lienCopie ? "✅ Copié !" : "📋 Copier le lien pour inviter"}
+          </button>
+          <button
+            onClick={onClose}
+            style={{ background: "#D64933", border: "none", color: "white", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+          >
+            ✕ Quitter la réunion
+          </button>
+        </div>
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", padding: "6px 16px", background: "#0d1712" }}>
+        💡 Toute personne de ton équipe qui clique sur "📹 Réunion d'équipe" (ou sur un lien copié) rejoint automatiquement cette même salle.
+      </div>
+      <iframe
+        src={lienReunion}
+        title="Réunion d'équipe"
+        allow="camera; microphone; fullscreen; display-capture; autoplay"
+        style={{ flex: 1, border: "none", width: "100%" }}
+      />
+    </div>
+  );
+}
+
 function LandingPage() {
   const [plans, setPlans] = useState([]);
   const [stats, setStats] = useState(null);
@@ -3033,6 +3078,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showRapportSemaine, setShowRapportSemaine] = useState(false);
+  const [showReunion, setShowReunion] = useState(false);
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -3789,6 +3835,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             {t.label}
           </button>
         ))}
+
+        <button
+          onClick={() => setShowReunion(true)}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+        >
+          📹 Réunion d'équipe
+        </button>
 
         {(workspace.role === "owner" || workspace.role === "admin") && (
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
@@ -4774,6 +4827,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onClose={() => setShowRapportSemaine(false)}
         />
       )}
+      {showReunion && <ReunionEquipeModal workspace={workspace} onClose={() => setShowReunion(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}

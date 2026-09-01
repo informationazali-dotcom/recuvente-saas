@@ -442,6 +442,51 @@ function EtatVide({ icone = "📭", titre, description, texteBouton, onAction })
   );
 }
 
+function RapportSemaineModal({ rapport, currency, workspaceName, onClose }) {
+  const cartes = [
+    { icone: "💰", label: "Ventes confirmées", valeur: `${rapport.ca.toLocaleString("fr-FR")} ${currency}`, sousTexte: `${rapport.nbVentes} commande${rapport.nbVentes > 1 ? "s" : ""}` },
+  ];
+  if (rapport.clientsRecuperes > 0) {
+    cartes.push({ icone: "🎯", label: "Clients à risque récupérés", valeur: `${rapport.clientsRecuperes}`, sousTexte: "grâce à tes relances" });
+  }
+  if (rapport.meilleurProduit) {
+    cartes.push({ icone: "🏅", label: "Produit star de la semaine", valeur: rapport.meilleurProduit, sousTexte: `${rapport.meilleurProduitVentes} vente${rapport.meilleurProduitVentes > 1 ? "s" : ""}` });
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }} onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "linear-gradient(160deg, #0d2417 0%, #1a4a2e 55%, #0d2417 100%)", borderRadius: 24, padding: "32px 26px", width: "100%", maxWidth: 380, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.4)" }}
+      >
+        <div style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />
+        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.12)", border: "none", color: "white", width: 28, height: 28, borderRadius: "50%", fontSize: 15, cursor: "pointer" }}>×</button>
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{workspaceName}</div>
+        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 22, lineHeight: 1.2 }}>Ta semaine en<br/>un coup d'œil 📊</div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+          {cartes.map((c, i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "16px 18px" }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{c.icone}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>{c.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "'IBM Plex Mono', monospace" }}>{c.valeur}</div>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{c.sousTexte}</div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={onClose}
+          style={{ width: "100%", background: "linear-gradient(135deg,#FF6A00,#FFB000)", color: "white", border: "none", borderRadius: 12, padding: "13px 0", fontWeight: 800, fontSize: 13.5, cursor: "pointer" }}
+        >
+          Continuer ma semaine →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LandingPage() {
   const [plans, setPlans] = useState([]);
   const [stats, setStats] = useState(null);
@@ -2949,6 +2994,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [datePreset, setDatePreset] = useState("aujourdhui");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [showRapportSemaine, setShowRapportSemaine] = useState(false);
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -3377,6 +3423,50 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   ];
   const palierActuel = paliersVendeur.find((p) => totalVentesConfirmeesToutesPeriodes >= p.seuil);
   const palierSuivant = [...paliersVendeur].reverse().find((p) => p.seuil > totalVentesConfirmeesToutesPeriodes);
+
+  const rapportSemaine = useMemo(() => {
+    const maintenant = new Date();
+    const il7j = new Date(maintenant.getTime() - 7 * 86400000);
+    const il14j = new Date(maintenant.getTime() - 14 * 86400000);
+
+    const commandesSemaine = commandes.filter((c) => new Date(c.created_at) >= il7j);
+    const confirmeesSemaine = commandesSemaine.filter((c) => c.statut === "confirmee");
+    const caSemaine = confirmeesSemaine.reduce((s, c) => s + Number(c.montant), 0);
+
+    const telsEchouesAvant = new Set(
+      commandes.filter((c) => c.statut === "echouee" && new Date(c.created_at) < il7j).map((c) => c.tel)
+    );
+    const clientsRecuperes = confirmeesSemaine.filter((c) => telsEchouesAvant.has(c.tel)).length;
+
+    const parProduit = {};
+    confirmeesSemaine.forEach((c) => {
+      const nom = (c.produit || "").split(" x")[0].split(",")[0].trim() || "Produit";
+      parProduit[nom] = (parProduit[nom] || 0) + 1;
+    });
+    const meilleurProduitSemaine = Object.entries(parProduit).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      nbVentes: confirmeesSemaine.length,
+      ca: caSemaine,
+      clientsRecuperes,
+      meilleurProduit: meilleurProduitSemaine ? meilleurProduitSemaine[0] : null,
+      meilleurProduitVentes: meilleurProduitSemaine ? meilleurProduitSemaine[1] : 0,
+      periodeValide: commandes.some((c) => new Date(c.created_at) < il14j),
+    };
+  }, [commandes]);
+
+  useEffect(() => {
+    if (!loaded || commandes.length === 0) return;
+    const auj = new Date();
+    const anneeSemaine = `${auj.getFullYear()}-S${Math.ceil((((auj - new Date(auj.getFullYear(), 0, 1)) / 86400000) + new Date(auj.getFullYear(), 0, 1).getDay() + 1) / 7)}`;
+    const cleVue = `rv_rapport_semaine_vu_${workspace.id}`;
+    const derniereVue = localStorage.getItem(cleVue);
+    if (derniereVue !== anneeSemaine && rapportSemaine.nbVentes > 0) {
+      setShowRapportSemaine(true);
+      localStorage.setItem(cleVue, anneeSemaine);
+    }
+  }, [loaded, commandes.length, rapportSemaine.nbVentes, workspace.id]);
+
   const aRisqueCount = echoueesInRange.length + enCoursInRange.length;
   const tauxLivraison = commandesInRange.length ? Math.round((confirmees.length / commandesInRange.length) * 100) : 0;
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
@@ -4637,6 +4727,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
       {showTeam && !accesBloque && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
+      {showRapportSemaine && (
+        <RapportSemaineModal
+          rapport={rapportSemaine}
+          currency={workspace.currency}
+          workspaceName={workspace.name}
+          onClose={() => setShowRapportSemaine(false)}
+        />
+      )}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}

@@ -2778,6 +2778,32 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return map;
   }, [commandes]);
 
+  const produitsGeresParCloser = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      if (!c.closer || c.statut === "echouee") return;
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      if (!nom) return;
+      map[c.closer] = (map[c.closer] || 0) + quantite;
+    });
+    return map;
+  }, [commandes]);
+
+  const detailParCloserEtProduit = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      if (!c.closer) return;
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      if (!nom) return;
+      if (!map[c.closer]) map[c.closer] = {};
+      if (!map[c.closer][nom]) map[c.closer][nom] = { livre: 0, nonLivre: 0, restant: 0 };
+      if (c.statut === "confirmee") map[c.closer][nom].livre += quantite;
+      else if (c.statut === "echouee") map[c.closer][nom].nonLivre += quantite;
+      else map[c.closer][nom].restant += quantite;
+    });
+    return map;
+  }, [commandes]);
+
   async function assignCloser(commandeId, nom) {
     await supabase.from("commandes").update({ closer: nom || null }).eq("id", commandeId);
     await supabase.from("relances").insert([
@@ -4913,7 +4939,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} currency={workspace.currency} />}
-      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
+      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
@@ -7023,7 +7049,7 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produi
                     onClick={() => setLivreurDeplie(livreurDeplie === it.nom ? null : it.nom)}
                     style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: "#1a7a3c", fontWeight: 700, marginTop: 3, textDecoration: "underline" }}
                   >
-                    📦 {produitsRecus?.[it.nom] || 0} produit{(produitsRecus?.[it.nom] || 0) > 1 ? "s" : ""} livré{(produitsRecus?.[it.nom] || 0) > 1 ? "s" : ""} au total — voir le détail {livreurDeplie === it.nom ? "▲" : "▼"}
+                    📦 {produitsRecus?.[it.nom] || 0} produit{(produitsRecus?.[it.nom] || 0) > 1 ? "s" : ""} {titre === "Closers" ? "confirmé" : "livré"}{(produitsRecus?.[it.nom] || 0) > 1 ? "s" : ""} au total — voir le détail {livreurDeplie === it.nom ? "▲" : "▼"}
                   </button>
                 )}
                 {livreurDeplie === it.nom && detailParProduit && detailParProduit[it.nom] && (
@@ -7032,9 +7058,9 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produi
                       <thead>
                         <tr style={{ background: "#F0EEE6" }}>
                           <th style={{ textAlign: "left", padding: "6px 8px" }}>Produit</th>
-                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#1F9D6E" }}>Livrées</th>
-                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#D64933" }}>Non livrées</th>
-                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#E8A93D" }}>Restantes</th>
+                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#1F9D6E" }}>{titre === "Closers" ? "Confirmées" : "Livrées"}</th>
+                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#D64933" }}>Échouées</th>
+                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#E8A93D" }}>En cours</th>
                         </tr>
                       </thead>
                       <tbody>

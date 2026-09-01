@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
@@ -256,7 +256,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id)")
+      .select("workspace_id, role, workspaces(id, name, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition)")
       .eq("user_id", userId);
     if (error) {
       const estErreurAuth = /jwt|token|expired|unauthorized|401|invalid refresh/i.test(error.message || "") || error.code === "PGRST301";
@@ -338,13 +338,6 @@ export default function App() {
     await supabase.from("workspace_members").insert([
       { workspace_id: ws.id, user_id: session.user.id, role: "owner" },
     ]);
-    const dansSeptJours = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { error: erreurAbonnement } = await supabase.from("subscriptions").insert([
-      { workspace_id: ws.id, status: "trial", trial_ends_at: dansSeptJours },
-    ]);
-    if (erreurAbonnement) {
-      console.error("Erreur création abonnement d'essai:", erreurAbonnement.message);
-    }
     fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -455,9 +448,6 @@ function LandingPage() {
 
   const money = (value) => value === null || value === undefined || value === '' ? '—' : Number(value).toLocaleString('fr-FR');
   const statValue = (key) => stats && stats[key] !== undefined && stats[key] !== null ? money(stats[key]) : '—';
-  // Valeur fixée manuellement pour l'affichage "Commerce confirmé" du Hero 3D, sur décision explicite du client
-  // (au lieu de la vraie statistique statValue('montant_total_confirme')). À ajuster ou retirer ici si besoin.
-  const AFFICHAGE_COMMERCE_HERO = '33 000 000';
   const activities = [
     ['🛒','E-commerce & COD','Commandes, boutique, closers, livraison, récupération et suivi.','Transformez vos ventes dispersées en une machine commerciale pilotable.'],
     ['🏪','Commerce physique','Ventes, stock, clients, paiements et performance.','Donnez à votre point de vente une vision claire de ce qui se passe vraiment.'],
@@ -489,7 +479,7 @@ function LandingPage() {
   const liveStats = [
     ['ENTREPRISES ACTIVES', statValue('nb_entreprises_actives'), 'espaces en activité'],
     ['COMMANDES CONFIRMÉES', statValue('nb_commandes_confirmees'), 'signal commercial'],
-    ['COMMERCE PILOTÉ', '3 300 000', 'FCFA · ambition de croissance'],
+    ['COMMERCE PILOTÉ', '25 MILLION+', 'FCFA · ambition de croissance'],
     ['LIVREURS ACTIFS', statValue('nb_livreurs_actifs'), 'opérations terrain'],
     ['COMMISSIONS ESTIMÉES', statValue('commissions_livreurs_estimees'), 'FCFA']
   ];
@@ -524,10 +514,7 @@ function LandingPage() {
       /* V4 — FUTURISTE 3D / CONTRASTE LISIBLE */
       .rva{background:#f3faf6;color:#061b12}
       .rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) h2,.rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) h3,.rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) strong,.rva .rva-section:not(.rva-dark):not(.rva-system):not(.rva-money):not(.rva-pricing) b{color:#061b12}
-      .rva .rva-section:not(.rva-dark) p,.rva .rva-desc,.rva .rva-path span,.rva .rva-activity p,.rva .rva-role:not(.dark):not(.gold) p,.rva .rva-markcard p,.rva .rva-compare li,.rva .rva-plan:not(.featured) li,.rva .rva-answer{color:#29463a!important}
-      .rva .rva-role.dark p{color:rgba(255,255,255,.82)!important}
-      .rva .rva-plan.featured li{color:rgba(255,255,255,.85)!important}
-      .rva .rva-plan.featured li:before{color:#7effbd!important}
+      .rva .rva-section:not(.rva-dark) p,.rva .rva-desc,.rva .rva-path span,.rva .rva-activity p,.rva .rva-role p,.rva .rva-markcard p,.rva .rva-compare li,.rva .rva-plan li,.rva .rva-answer{color:#29463a!important}
       .rva-hero{min-height:790px;background:radial-gradient(circle at 74% 28%,rgba(27,255,157,.34),transparent 22%),radial-gradient(circle at 86% 78%,rgba(247,201,91,.14),transparent 20%),linear-gradient(135deg,#010806,#04331f 52%,#06130d);overflow:hidden}
       .rva-hero:after{content:"";position:absolute;inset:-20%;background:repeating-radial-gradient(ellipse at 70% 48%,transparent 0 105px,rgba(126,255,191,.035) 107px 108px);transform:rotate(-9deg);pointer-events:none}
       .rva-h1{font-size:clamp(60px,8.5vw,112px);text-shadow:0 8px 40px rgba(0,0,0,.35)}
@@ -550,10 +537,7 @@ function LandingPage() {
       .rva-3dsection{background:radial-gradient(circle at 75% 20%,rgba(20,235,140,.13),transparent 28%),linear-gradient(180deg,#f5fcf8,#e7f6ee)}
       .rva-browser3d{transform:rotateY(-23deg) rotateX(10deg) rotateZ(2deg) translateZ(65px);box-shadow:65px 75px 120px rgba(0,45,28,.34),0 0 80px rgba(10,185,108,.13);border-width:2px}
       .rva-browser3d:after{transform:translateZ(-55px) translateX(14px);box-shadow:35px 35px 70px rgba(0,30,18,.28)}
-      .rva-plan:not(.featured) .rva-planprice,.rva-priceHead p,.rva-systemCopy p,.rva-money p{color:#183b2e!important}
-      .rva-plan.featured .rva-planprice{color:#FFFFFF!important}
-      .rva-plan.featured .rva-planprice small{color:rgba(255,255,255,.75)!important}
-      .rva-plan.featured h3{color:#FFFFFF!important}
+      .rva-planprice,.rva-priceHead p,.rva-systemCopy p,.rva-money p{color:#183b2e!important}
       .rva-final{background:radial-gradient(circle at 50% 10%,rgba(80,255,181,.25),transparent 30%),linear-gradient(135deg,#010705,#043421 55%,#06150e)}
       @keyframes rvaOrbit{to{transform:rotateX(68deg) rotateZ(342deg) translateZ(-80px)}}
       @media(max-width:900px){.rva-stage{height:510px}.rva-dashboard{transform:rotateY(-10deg) rotateX(5deg) rotateZ(-1deg) translateZ(35px)}.rva-float.one{right:-5px}.rva-float.two{left:-5px}.rva-float.three{right:0}}
@@ -578,9 +562,7 @@ function LandingPage() {
       @media(max-width:650px){.rva-holoHero{min-height:940px!important;padding-top:55px!important}.rva-holoTitle{font-size:clamp(48px,14vw,72px)!important}.rva-holoTitle small{font-size:16px}.rva-holoHero .rva-heroCopy>p{font-size:15px!important}.rva-holoStage{height:440px!important;margin-top:8px}.rva-holoDashboard{top:28px!important;transform:rotateY(-6deg) rotateX(3deg) translateZ(25px)!important}.rva-holoRings{inset:10px -55px 20px}.rva-holoFloat.one{right:-2px;top:18px}.rva-holoFloat.two{left:-2px;bottom:48px}.rva-holoFloat.three{right:0;bottom:0}.rva-holoFooter{display:none}.rva-holoTrust{font-size:9px}}
 
       @media(max-width:650px){.rva-stage{height:400px}.rva-dashboard{top:35px;transform:rotateY(-5deg) rotateX(3deg) translateZ(20px)}.rva-float.one{top:25px}.rva-float.two{bottom:55px}.rva-float.three{bottom:0}.rva-orbit{inset:15px -70px 5px}.rva-heroCopy>p{font-size:15px}}
-      `}</style>
-
-      <style>{`
+      `}
 /* V5.1 — contrast rules: white typography on green/dark premium surfaces */
 .rvp-dark, .rvp-dark * { color: #fff; }
 .rvp-dark .rvp-muted, .rvp-dark .rvp-desc, .rvp-dark small { color: rgba(255,255,255,.82); }
@@ -589,12 +571,12 @@ function LandingPage() {
 .rvp-hero, .rvp-hero * { color: #fff; }
 .rvp-hero .rvp-muted, .rvp-hero .rvp-desc, .rvp-hero small { color: rgba(255,255,255,.84); }
 
-:root{--rv-orange:#FF6A00;--rv-orange-2:#FFB000}
+:root{--rv-orange:#ff7a18;--rv-orange-2:#ffb000}
 .rva-orange{color:var(--rv-orange)!important}
-.rva-orangeGlow{box-shadow:0 0 42px rgba(255,106,0,.26)}
-.rva-orangeDot{background:linear-gradient(135deg,var(--rv-orange),var(--rv-orange-2));box-shadow:0 0 22px rgba(255,106,0,.55)}
-.rva .rva-btn.primary{background:linear-gradient(135deg,#FF6A00 0%,#FFB000 100%);color:#fff;box-shadow:0 16px 42px rgba(255,106,0,.28)}
-.rva .rva-btn.primary:hover{box-shadow:0 20px 52px rgba(255,106,0,.38)}
+.rva-orangeGlow{box-shadow:0 0 42px rgba(255,122,24,.26)}
+.rva-orangeDot{background:linear-gradient(135deg,var(--rv-orange),var(--rv-orange-2));box-shadow:0 0 22px rgba(255,122,24,.55)}
+.rva .rva-btn.primary{background:linear-gradient(135deg,#ff9b42 0%,#ff7a18 48%,#ffb000 100%);color:#fff;box-shadow:0 16px 42px rgba(255,122,24,.28)}
+.rva .rva-btn.primary:hover{box-shadow:0 20px 52px rgba(255,122,24,.38)}
 
 
 /* =========================================================
@@ -602,13 +584,13 @@ function LandingPage() {
    Emerald holographic + orange energy + premium gold + white
    ========================================================= */
 .rva{
-  --rv-ink:#03110C;
-  --rv-deep:#03110C;
+  --rv-ink:#071812;
+  --rv-deep:#04110d;
   --rv-emerald:#00D084;
   --rv-emerald-2:#00F5A0;
   --rv-orange:#FF6A00;
   --rv-orange-2:#FFB000;
-  --rv-gold:#FFB000;
+  --rv-gold:#FFD166;
   --rv-white:#FFFFFF;
   --rv-white-82:rgba(255,255,255,.82);
   --rv-white-68:rgba(255,255,255,.68);
@@ -810,42 +792,7 @@ function LandingPage() {
   color:rgba(255,255,255,.82) !important;
 }
 
-/* Plusieurs activités */
-.rva-multiVisual{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;max-width:760px;margin:0 auto}
-.rva-multiNode{display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;border:1px solid #e2ede7;border-radius:16px;padding:20px 26px;box-shadow:0 12px 30px rgba(3,25,16,.06)}
-.rva-multiNode span{font-size:26px}
-.rva-multiNode b{font-size:12px;font-weight:900;color:#06130E}
-.rva-multiPlus{font-size:20px;font-weight:900;color:#a9c0b5}
-.rva-multiArrow{width:100%;text-align:center;font-size:22px;color:#00D084;margin:6px 0}
-.rva-multiCenter{display:flex;flex-direction:column;align-items:center;gap:4px;background:linear-gradient(135deg,#00D084,#00F5A0);border-radius:16px;padding:18px 30px;box-shadow:0 16px 40px rgba(0,208,132,.28)}
-.rva-multiCenter b{font-size:16px;font-weight:950;color:#03110C;letter-spacing:.04em}
-.rva-multiCenter span{font-size:11px;color:#06281a;font-weight:700}
-
-/* Confiance */
-.rva-trustGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
-.rva-trustCard{background:#fff;border:1px solid #e2ede7;border-radius:16px;padding:22px;box-shadow:0 10px 26px rgba(3,25,16,.05)}
-.rva-trusticon{font-size:26px;margin-bottom:10px}
-.rva-trustCard h3{font-size:14px;font-weight:900;color:#06130E;margin:0 0 8px}
-.rva-trustCard p{font-size:12.5px;line-height:1.6;color:#365248;margin:0}
-
-/* Narration émotionnelle */
-.rva-emotion{text-align:center}
-.rva-emotionText{max-width:720px;margin:0 auto}
-.rva-emostep{font-size:19px;font-weight:700;color:#FFFFFF;margin:0 0 6px;opacity:.92}
-.rva-emotitle{font-size:clamp(28px,4.2vw,42px);font-weight:950;color:#FFFFFF;line-height:1.25;margin:26px 0 14px;letter-spacing:-.02em}
-.rva-emotitle span{color:#00F5A0}
-.rva-emosub{font-size:16px;color:rgba(255,255,255,.82);margin:0 0 32px}
-.rva-ambitionBadge{display:inline-flex;flex-direction:column;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,176,0,.35);border-radius:18px;padding:22px 34px;backdrop-filter:blur(8px)}
-.rva-ambitionNum{font-size:clamp(26px,4vw,38px);font-weight:950;background:linear-gradient(135deg,#FFB000,#FF6A00);-webkit-background-clip:text;background-clip:text;color:transparent}
-.rva-ambitionLabel{font-size:11.5px;color:rgba(255,255,255,.72);font-weight:700;max-width:340px;text-align:center;letter-spacing:.02em}
-
-@media(max-width:650px){
-  .rva-multiVisual{gap:10px}
-  .rva-multiNode{padding:14px 18px}
-  .rva-trustGrid{grid-template-columns:1fr}
-  .rva-emostep{font-size:15px}
-}
-`}</style>
+</style>
 
       <header className="rva-nav"><div className="wrap rva-navin">
         <a className="rva-logo" href="#top"><i>R</i>RecuVente</a>
@@ -871,11 +818,11 @@ function LandingPage() {
               <div className="rva-dashboard rva-holoDashboard">
                 <div className="rva-holoScan"/>
                 <div className="rva-dbtop"><div className="rva-dbbrand">RECUVENTE<small>COMMAND CENTER</small></div><span className="rva-live">● LIVE · DATA CORE</span></div>
-                <div className="rva-dbgrid">{[['COMMERCE CONFIRMÉ',AFFICHAGE_COMMERCE_HERO,'FCFA'],['COMMANDES',statValue('nb_commandes_confirmees'),'confirmées'],['ENTREPRISES',statValue('nb_entreprises_actives'),'actives']].map(x=><div className="rva-kpi" key={x[0]}><small>{x[0]}</small><strong>{x[1]}</strong><em>{x[2]}</em></div>)}</div>
+                <div className="rva-dbgrid">{[['COMMERCE CONFIRMÉ',statValue('montant_total_confirme'),'FCFA'],['COMMANDES',statValue('nb_commandes_confirmees'),'confirmées'],['ENTREPRISES',statValue('nb_entreprises_actives'),'actives']].map(x=><div className="rva-kpi" key={x[0]}><small>{x[0]}</small><strong>{x[1]}</strong><em>{x[2]}</em></div>)}</div>
                 <div className="rva-dbmain"><div className="rva-chart"><div className="rva-charthead"><span>TRAJECTOIRE DU COMMERCE</span><span>LIVE</span></div><svg viewBox="0 0 500 160" preserveAspectRatio="none"><defs><linearGradient id="holoArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#4dffb0" stopOpacity=".42"/><stop offset="100%" stopColor="#4dffb0" stopOpacity="0"/></linearGradient></defs><path className="area" fill="url(#holoArea)" d="M0 140 L70 118 L140 128 L205 83 L270 96 L335 55 L400 72 L500 22 L500 160 L0 160 Z"/><path d="M0 140 L70 118 L140 128 L205 83 L270 96 L335 55 L400 72 L500 22"/></svg></div><div className="rva-side"><h4>OPÉRATIONS</h4><div className="rva-mini">{[42,61,48,76,68,88].map((h,i)=><i key={i} style={{height:`${h}%`}}/>)}</div></div></div>
                 <div className="rva-holoFooter"><span>VENTE</span><span>ÉQUIPE</span><span>BOUTIQUE</span><span>FINANCE</span><span>PERFORMANCE</span></div>
               </div>
-              <div className="rva-float one rva-holoFloat"><small>COMMERCE CONFIRMÉ</small><strong>{AFFICHAGE_COMMERCE_HERO} <b>FCFA</b></strong><em>signal réel</em></div>
+              <div className="rva-float one rva-holoFloat"><small>COMMERCE CONFIRMÉ</small><strong>{statValue('montant_total_confirme')} <b>FCFA</b></strong><em>signal réel</em></div>
               <div className="rva-float two rva-holoFloat"><small>ENTREPRISES ACTIVES</small><strong>{statValue('nb_entreprises_actives')}</strong><em>espaces en activité</em></div>
               <div className="rva-float three rva-holoFloat"><small>LIVREURS ACTIFS</small><strong>{statValue('nb_livreurs_actifs')}</strong><em>terrain connecté</em></div>
               <div className="rva-holoChip chipA">◈ CENTRALISATION</div><div className="rva-holoChip chipB">◉ PERFORMANCE</div><div className="rva-3dbadge">UNE VISION · UNE ÉQUIPE · UN SYSTÈME</div>
@@ -885,15 +832,11 @@ function LandingPage() {
         </section>
         <section className="rva-numbers"><div className="wrap rva-numbergrid">{liveStats.map(s=><div className="rva-number" key={s[0]}><small>{s[0]}</small><strong>{s[1]}</strong><span>{s[2]}</span></div>)}</div></section>
 
-        <section className="rva-section rva-dark rva-emotion"><div className="wrap"><div className="rva-emotionText"><p className="rva-emostep">Vous avez commencé avec un téléphone.</p><p className="rva-emostep">Puis quelques clients.</p><p className="rva-emostep">Puis une équipe.</p><p className="rva-emostep">Puis des commandes partout.</p><h2 className="rva-emotitle">Et maintenant, votre activité est devenue <span>trop importante</span> pour être pilotée avec des outils dispersés.</h2><p className="rva-emosub">Il est temps de passer au niveau supérieur.</p><div className="rva-ambitionBadge"><span className="rva-ambitionNum">25 MILLION+ FCFA</span><span className="rva-ambitionLabel">potentiel commercial piloté — l’ambition que RecuVente vous aide à atteindre</span></div></div></div></section>
-
         <section className="rva-section"><div className="wrap"><div className="rva-center"><div className="rva-label">LE PROBLÈME N'EST PAS VOTRE TRAVAIL</div><h2 className="rva-title">C’est le chaos autour de lui.<br/><span>RecuVente remet de l’ordre.</span></h2><p className="rva-desc">Quand les ventes, les clients, les équipes et les chiffres vivent dans des outils séparés, votre activité grandit plus vite que votre capacité à la piloter.</p></div><div className="rva-why"><div className="rva-manifesto"><h3>Vous avez travaillé dur pour faire grandir votre activité.</h3><p>Ne laissez pas la dispersion vous empêcher de voir ce que vous avez construit. RecuVente transforme les informations de votre activité en un environnement où chacun sait quoi faire et où la direction peut enfin regarder l’ensemble.</p><a className="rva-btn primary rva-orangeGlow" href="#tarifs">Passer à un vrai système →</a></div><div className="rva-compare"><div><h4>AVANT</h4><ul>{['Outils dispersés','Données difficiles à rapprocher','Suivi manuel','Équipe difficile à superviser','Décisions prises avec une vision incomplète'].map(x=><li key={x}><b>×</b>{x}</li>)}</ul></div><div className="good"><h4>AVEC RECUVENTE</h4><ul>{['Un environnement centralisé','Une vision globale','Des responsabilités structurées','Des opérations visibles','Des indicateurs pour décider'].map(x=><li key={x}><b>✓</b>{x}</li>)}</ul></div></div></div></div></section>
 
         <section id="boutique" className="rva-section rva-3dsection"><div className="wrap rva-boutique"><div className="rva-copy"><div className="rva-label">BOUTIQUE + SHOPIFY</div><h2>Votre boutique ne doit plus vivre <span>à côté de votre entreprise.</span></h2><p>Vous partez de zéro ? Créez votre boutique avec RecuVente. Vous avez déjà Shopify ? Utilisez l’intégration existante. Dans les deux cas, votre objectif reste le même : rapprocher le commerce de la gestion.</p><div className="rva-paths"><div className="rva-path"><div className="rva-pathnum">01</div><div><b>Créer avec RecuVente</b><span>Personnalisation, logo, couleurs, produits, collections, catalogue, commandes et partage du lien selon les fonctions du Store Builder.</span></div></div><div className="rva-path"><div className="rva-pathnum">02</div><div><b>Connecter Shopify</b><span>Utilisez les mécanismes Shopify réellement présents dans votre application pour rapprocher votre boutique existante de RecuVente.</span></div></div></div><div className="rva-actions"><a className="rva-btn primary rva-orangeGlow" href="?auth=1&signup=1" onClick={()=>trackLead('StoreBuilderCTA')}>Créer ma boutique →</a><a className="rva-btn" style={{border:'1px solid #c9ddd3',color:'#052519'}} href="?auth=1&signup=1" onClick={()=>trackLead('ShopifyCTA')}>Connecter Shopify</a></div></div><div className="rva-3dstore"><div className="rva-browser3d"><div className="rva-browserbar"><i/><i/><i/><span>votre-boutique.recuvente.com</span></div><div className="rva-shop"><div className="rva-shophead"><span>RECUVENTE STORE</span><span>CATALOGUE · COLLECTIONS · COMMANDES</span></div><div className="rva-shophero"><div><h3>Votre marque.<br/>Votre vitrine.<br/>Votre système.</h3><p>Une expérience boutique reliée à votre environnement de gestion.</p></div><div className="rva-productcard"/></div><div className="rva-shopfooter"><div className="rva-shopitem"><small>PRODUITS</small><b>Catalogue</b></div><div className="rva-shopitem"><small>VENTES</small><b>Commandes</b></div><div className="rva-shopitem"><small>CLIENTS</small><b>Suivi</b></div></div></div></div><div className="rva-connector">BOUTIQUE ↔ RECUVENTE ↔ SHOPIFY</div></div></div></section>
 
         <section id="activites" className="rva-section"><div className="wrap"><div className="rva-center"><div className="rva-label">UN SEUL SYSTÈME. PLUSIEURS MÉTIERS.</div><h2 className="rva-title">Votre activité est unique.<br/><span>Votre outil doit le comprendre.</span></h2><p className="rva-desc">RecuVente s'adapte aux activités prévues dans votre application, sans vous obliger à abandonner la logique de pilotage centralisé.</p></div><div className="rva-activities">{activities.map((a,i)=><div className="rva-activity" key={a[1]}><div className="rva-acttop"><span className="rva-actnum">0{i+1}</span></div><div className="rva-acticon">{a[0]}</div><h3>{a[1]}</h3><p>{a[2]}</p><strong>{a[3]}</strong></div>)}</div></div></section>
-
-        <section className="rva-section rva-multiwrap"><div className="wrap"><div className="rva-center"><div className="rva-label">PLUSIEURS ACTIVITÉS, PLUSIEURS ESPACES</div><h2 className="rva-title">Plusieurs activités.<br/><span>Une seule vision.</span></h2><p className="rva-desc">Votre compte peut réunir plusieurs espaces — un par activité — chacun isolé, chacun piloté depuis le même endroit.</p></div><div className="rva-multiVisual"><div className="rva-multiNode"><span>🛒</span><b>E-commerce</b></div><div className="rva-multiPlus">+</div><div className="rva-multiNode"><span>🚗</span><b>Location</b></div><div className="rva-multiPlus">+</div><div className="rva-multiNode"><span>🏪</span><b>Commerce</b></div><div className="rva-multiArrow">↓</div><div className="rva-multiCenter"><b>RECUVENTE</b><span>un espace par activité, une seule connexion</span></div></div></div></section>
 
         <section id="systeme" className="rva-section rva-system"><div className="wrap rva-systemGrid"><div className="rva-systemCopy"><div className="rva-label">LE CŒUR DU SYSTÈME</div><h2>Du premier clic<br/>au <span>pilotage.</span></h2><p>Votre activité ne se résume jamais à une commande. Il faut vendre, convertir, opérer, encaisser, réactiver et décider. RecuVente relie ces moments.</p><div className="rva-pills">{pillars.map(p=><button key={p.id} className={`rva-pill ${active===p.id?'active':''}`} onClick={()=>setActive(p.id)}>{p.id} · {p.title}</button>)}</div></div><div className="rva-systemCard"><div className="rva-systemHead"><strong>{activePillar.title}</strong><span>{activePillar.desc}</span></div><div className="rva-systemNumber">ÉTAPE {activePillar.id}<b>{activePillar.title}</b></div><div className="rva-systemdesc">{activePillar.desc}</div><div className="rva-systemlist">{activePillar.items.map(x=><div className="rva-systemitem" key={x}><small>MODULE</small><strong>{x}</strong><span>Dans votre environnement →</span></div>)}</div><div className="rva-flow">{pillars.map(p=><div key={p.id}><b>{p.id}</b>{p.title}</div>)}</div></div></div></section>
 
@@ -901,9 +844,7 @@ function LandingPage() {
 
         <section className="rva-section rva-money"><div className="wrap rva-moneygrid"><div><div className="rva-label">LES CHIFFRES DOIVENT SERVIR À DÉCIDER</div><h2>Ne vous contentez pas de savoir <span>combien vous vendez.</span></h2><p>Sachez ce que vos données permettent réellement de comprendre. RecuVente rapproche les ventes, coûts, paiements, commissions, dépôts et indicateurs selon les informations disponibles dans votre application.</p><div className="rva-statline">{[['COMMERCE CONFIRMÉ',statValue('montant_total_confirme')+' FCFA'],['COMMANDES',statValue('nb_commandes_confirmees')],['COMMISSIONS',statValue('commissions_livreurs_estimees')+' FCFA']].map(x=><div className="rva-statbox" key={x[0]}><small>{x[0]}</small><strong>{x[1]}</strong></div>)}</div></div><div className="rva-formula"><div className="rva-formrow"><span>Ventes / commerce confirmé</span><b>{statValue('montant_total_confirme')} FCFA</b></div><div className="rva-formrow"><span>Coûts produits & opérationnels</span><b>Selon vos données</b></div><div className="rva-formrow"><span>Livraisons / commissions</span><b>{statValue('commissions_livreurs_estimees')} FCFA</b></div><div className="rva-formrow total"><span>Résultat exploitable</span><b>À piloter</b></div><div className="rva-note">Les valeurs affichées sont issues des statistiques publiques disponibles dans l’application. Lorsqu’une donnée n’est pas disponible, aucun chiffre fictif n’est inventé.</div></div></div></section>
 
-        <section className="rva-section"><div className="wrap"><div className="rva-center"><div className="rva-label">ACQUISITION → CONVERSION → OPÉRATIONS</div><h2 className="rva-title">Votre marketing ne devrait pas<br/><span>vivre dans une autre planète.</span></h2><p className="rva-desc">Les intégrations présentes dans votre application permettent de rapprocher acquisition, suivi commercial, relances et réalité opérationnelle.</p></div><div className="rva-marketing"><div className="rva-markcard"><div className="rva-marktop"><b>Facebook Pixel + CAPI</b><span className="rva-tag">META</span></div><p>Le code existant prévoit le Pixel Facebook et un mécanisme Conversions API. Présentez ces outils comme un pont entre publicité et signal commercial, sans promettre plus que l’intégration réelle.</p><div className="rva-integrations"><span className="rva-integration">Pixel</span><span className="rva-integration">CAPI</span><span className="rva-integration">Événements</span></div><div className="rva-bars">{[35,50,43,68,59,80,72].map((h,i)=><i key={i} style={{height:`${h}%`}}/>)}</div></div><div className="rva-markcard dark"><div className="rva-marktop"><b>TikTok Pixel + WhatsApp</b><span className="rva-tag">ACQUISITION</span></div><p>Rapprochez les leviers marketing et les outils commerciaux présents dans RecuVente pour garder une lecture plus cohérente du parcours.</p><div className="rva-integrations"><span className="rva-integration">TikTok Pixel</span><span className="rva-integration">WhatsApp</span><span className="rva-integration">Campagnes</span></div></div></div><div className="rva-recovery"><div><div className="rva-label">MONEY RECOVERY ENGINE</div><h3>Combien d'argent votre entreprise laisse-t-elle échapper ?</h3><p>Chaque commande en cours ou échouée reçoit un score de risque sur 100. RecuVente classe automatiquement ce qui est "Risque élevé", "À surveiller" ou "Très récupérable" — et génère un message WhatsApp pré-rempli, personnalisé par client, prêt à envoyer en un clic.</p></div><div className="rva-risk">{[['🔴 Risque élevé','Score 61-100 — à contacter en priorité'],['🟠 À surveiller','Score 31-60 — relance recommandée'],['🟢 Très récupérable','Score 0-30 — message WhatsApp prêt en 1 clic'],['📊 Taux de récupération','Mesuré automatiquement, en continu']].map(x=><div className="rva-riskrow" key={x[0]}><b>{x[0]}</b><span>{x[1]}</span></div>)}</div></div></div></section>
-
-        <section className="rva-section rva-trust"><div className="wrap"><div className="rva-center"><div className="rva-label">CE QUE VOUS POUVEZ VÉRIFIER</div><h2 className="rva-title">Vos données restent<br/><span>les vôtres.</span></h2><p className="rva-desc">Pas de promesse vague : voici exactement comment votre espace est protégé.</p></div><div className="rva-trustGrid">{[['🔒','Isolation entre entreprises','Chaque entreprise cliente dispose d’un espace strictement isolé au niveau technique. Aucune entreprise ne peut accéder aux données d’une autre.'],['👥','Accès par rôle','Chaque membre de votre équipe (Admin, Comptable, Closer, Livreur, RH...) voit uniquement ce qui correspond à son rôle.'],['☁️','Hébergement sécurisé','Vos données sont hébergées via Supabase et Vercel, deux infrastructures cloud utilisées par des milliers d’entreprises.'],['📤','Vos droits sur vos données','Export ou suppression complète de vos données possible à tout moment, sur simple demande.']].map(x=><div className="rva-trustCard" key={x[1]}><div className="rva-trusticon">{x[0]}</div><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></div></section>
+        <section className="rva-section"><div className="wrap"><div className="rva-center"><div className="rva-label">ACQUISITION → CONVERSION → OPÉRATIONS</div><h2 className="rva-title">Votre marketing ne devrait pas<br/><span>vivre dans une autre planète.</span></h2><p className="rva-desc">Les intégrations présentes dans votre application permettent de rapprocher acquisition, suivi commercial, relances et réalité opérationnelle.</p></div><div className="rva-marketing"><div className="rva-markcard"><div className="rva-marktop"><b>Facebook Pixel + CAPI</b><span className="rva-tag">META</span></div><p>Le code existant prévoit le Pixel Facebook et un mécanisme Conversions API. Présentez ces outils comme un pont entre publicité et signal commercial, sans promettre plus que l’intégration réelle.</p><div className="rva-integrations"><span className="rva-integration">Pixel</span><span className="rva-integration">CAPI</span><span className="rva-integration">Événements</span></div><div className="rva-bars">{[35,50,43,68,59,80,72].map((h,i)=><i key={i} style={{height:`${h}%`}}/>)}</div></div><div className="rva-markcard dark"><div className="rva-marktop"><b>TikTok Pixel + WhatsApp</b><span className="rva-tag">ACQUISITION</span></div><p>Rapprochez les leviers marketing et les outils commerciaux présents dans RecuVente pour garder une lecture plus cohérente du parcours.</p><div className="rva-integrations"><span className="rva-integration">TikTok Pixel</span><span className="rva-integration">WhatsApp</span><span className="rva-integration">Campagnes</span></div></div></div><div className="rva-recovery"><div><div className="rva-label">RECOVERY</div><h3>Certaines ventes ne sont pas perdues.<br/>Elles sont simplement mal suivies.</h3><p>La fonctionnalité Recovery existante permet d'organiser le suivi des commandes à risque, la priorisation et les relances. Ce n'est pas tout RecuVente : c'est un levier à l'intérieur du système.</p></div><div className="rva-risk">{[['Commande à risque','À relancer'],['Client historique','Opportunité'],['Relance','Priorisée'],['Récupération','Suivie']].map(x=><div className="rva-riskrow" key={x[0]}><b>{x[0]}</b><span>{x[1]}</span></div>)}</div></div></div></section>
 
         <section id="tarifs" className="rva-section rva-pricing"><div className="wrap"><div className="rva-priceHead"><div><div className="rva-label">CHOISIR LE NIVEAU QUI CORRESPOND À VOTRE ACTIVITÉ</div><h2 className="rva-title">Vous n’achetez pas<br/><span>des fonctionnalités.</span></h2></div><p>Vous investissez dans un environnement capable de centraliser votre activité. Les plans ci-dessous viennent directement de <b>subscription_plans</b> et seuls les plans payants sont affichés.</p></div>{plans.length?<div className="rva-plans">{plans.map((p,i)=><div key={p.id} className={`rva-plan ${i===Math.min(1,plans.length-1)?'featured':''}`}>{i===Math.min(1,plans.length-1)&&<div className="rva-badge">RECOMMANDÉ POUR GRANDIR</div>}<h3>{p.nom}</h3><div className="sub">Une formule adaptée à votre niveau d’activité.</div><div className="rva-planprice">{Number(p.prix).toLocaleString('fr-FR')} <small>{p.devise}/mois</small></div><ul><li>{p.max_commandes_mois?`${Number(p.max_commandes_mois).toLocaleString('fr-FR')} commandes/mois`:'Commandes selon le plan'}</li><li>{p.max_membres?`${p.max_membres} membres maximum`:'Équipe selon le plan'}</li><li>Ventes, clients & opérations</li><li>Tableau de bord & pilotage</li><li>Fonctionnalités prévues par votre formule</li></ul><button onClick={()=>goSignup(p)}>Choisir ce plan →</button></div>)}</div>:<div className="rva-empty">Chargement des offres… <a href="?auth=1&signup=1" onClick={()=>trackLead('Lead')}>Continuer vers l’abonnement →</a></div>}</div></section>
 
@@ -939,205 +880,7 @@ function PageImpact() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", color: "#16231F" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-/* ============================================================
-   RECUVENTE — CORRECTION FINALE DEMANDÉE
-   FOND VERT PARTOUT + ÉCRITURES BLANCHES
-   3 300 000 FCFA
-   Cette surcharge est placée en DERNIER pour écraser les
-   anciennes couleurs de la LandingPage.
-   ============================================================ */
-
-.rva.rva-premium-africa{
-  --rv-green-bg:#063B26;
-  --rv-green-dark:#03110C;
-  --rv-green-card:#0A4A31;
-  --rv-green-light:#087A4D;
-  --rv-orange:#FF6A00;
-  --rv-gold:#FFB000;
-  --rv-white:#FFFFFF;
-  background:#03110C!important;
-  color:#FFFFFF!important;
-}
-
-/* TOUS les grands fonds de la LandingPage deviennent verts */
-.rva.rva-premium-africa .rva-numbers,
-.rva.rva-premium-africa .rva-section,
-.rva.rva-premium-africa .rva-3dsection,
-.rva.rva-premium-africa .rva-system,
-.rva.rva-premium-africa .rva-money,
-.rva.rva-premium-africa .rva-pricing,
-.rva.rva-premium-africa .rva-final{
-  background:
-    radial-gradient(circle at 80% 10%,rgba(0,245,160,.12),transparent 30%),
-    linear-gradient(145deg,#03110C 0%,#063B26 52%,#052719 100%)!important;
-  color:#FFFFFF!important;
-}
-
-/* Texte : BLANC ABSOLU sur la LandingPage */
-.rva.rva-premium-africa .rva-numbers *,
-.rva.rva-premium-africa .rva-section *,
-.rva.rva-premium-africa .rva-system *,
-.rva.rva-premium-africa .rva-money *,
-.rva.rva-premium-africa .rva-pricing *,
-.rva.rva-premium-africa .rva-final *{
-  color:#FFFFFF!important;
-}
-
-/* Cartes vertes */
-.rva.rva-premium-africa .rva-activity,
-.rva.rva-premium-africa .rva-role,
-.rva.rva-premium-africa .rva-markcard,
-.rva.rva-premium-africa .rva-recovery,
-.rva.rva-premium-africa .rva-compare>div,
-.rva.rva-premium-africa .rva-plan,
-.rva.rva-premium-africa .rva-formula,
-.rva.rva-premium-africa .rva-path,
-.rva.rva-premium-africa .rva-systemCard{
-  background:linear-gradient(145deg,#0A4A31,#06321F)!important;
-  border-color:rgba(255,255,255,.18)!important;
-  color:#FFFFFF!important;
-}
-
-.rva.rva-premium-africa .rva-activity *,
-.rva.rva-premium-africa .rva-role *,
-.rva.rva-premium-africa .rva-markcard *,
-.rva.rva-premium-africa .rva-recovery *,
-.rva.rva-premium-africa .rva-compare>div *,
-.rva.rva-premium-africa .rva-plan *,
-.rva.rva-premium-africa .rva-formula *,
-.rva.rva-premium-africa .rva-path *,
-.rva.rva-premium-africa .rva-systemCard *{
-  color:#FFFFFF!important;
-}
-
-/* Numéros/statistiques */
-.rva.rva-premium-africa .rva-number{
-  background:#063B26!important;
-  border-color:rgba(255,255,255,.15)!important;
-}
-.rva.rva-premium-africa .rva-number small,
-.rva.rva-premium-africa .rva-number strong,
-.rva.rva-premium-africa .rva-number span{
-  color:#FFFFFF!important;
-}
-
-/* Titres et textes secondaires : blanc, pas gris */
-.rva.rva-premium-africa .rva-title,
-.rva.rva-premium-africa .rva-title span,
-.rva.rva-premium-africa .rva-copy h2,
-.rva.rva-premium-africa .rva-copy h2 span,
-.rva.rva-premium-africa .rva-center p,
-.rva.rva-premium-africa .rva-desc,
-.rva.rva-premium-africa .rva-copy p,
-.rva.rva-premium-africa .rva-label{
-  color:#FFFFFF!important;
-}
-
-/* Navigation verte + texte blanc */
-.rva.rva-premium-africa .rva-nav{
-  background:rgba(3,17,12,.98)!important;
-}
-.rva.rva-premium-africa .rva-links a,
-.rva.rva-premium-africa .rva-logo,
-.rva.rva-premium-africa .rva-menu{
-  color:#FFFFFF!important;
-}
-
-/* CTA ORANGE + texte BLANC */
-.rva.rva-premium-africa .rva-btn.primary,
-.rva.rva-premium-africa .rva-navcta,
-.rva.rva-premium-africa .rva-holoCTA,
-.rva.rva-premium-africa .rva-plan button,
-.rva.rva-premium-africa .mobileCta{
-  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
-  color:#FFFFFF!important;
-  border:0!important;
-}
-.rva.rva-premium-africa .rva-btn.primary *,
-.rva.rva-premium-africa .rva-navcta *,
-.rva.rva-premium-africa .rva-holoCTA *,
-.rva.rva-premium-africa .rva-plan button *,
-.rva.rva-premium-africa .mobileCta *{
-  color:#FFFFFF!important;
-}
-
-/* Boutons secondaires : fond vert, texte blanc */
-.rva.rva-premium-africa .rva-btn.ghost,
-.rva.rva-premium-africa .rva-copy .rva-btn:not(.primary){
-  background:rgba(255,255,255,.08)!important;
-  border:1px solid rgba(255,255,255,.35)!important;
-  color:#FFFFFF!important;
-}
-.rva.rva-premium-africa .rva-btn.ghost *{
-  color:#FFFFFF!important;
-}
-
-/* Pills */
-.rva.rva-premium-africa .rva-pill{
-  background:rgba(255,255,255,.08)!important;
-  border-color:rgba(255,255,255,.2)!important;
-  color:#FFFFFF!important;
-}
-.rva.rva-premium-africa .rva-pill.active{
-  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
-  color:#FFFFFF!important;
-}
-
-/* FAQ : vert + blanc */
-.rva.rva-premium-africa .rva-faqrow{
-  background:rgba(6,59,38,.7)!important;
-  border-color:rgba(255,255,255,.2)!important;
-}
-.rva.rva-premium-africa .rva-faqrow button,
-.rva.rva-premium-africa .rva-answer,
-.rva.rva-premium-africa .rva-faqrow button *{
-  color:#FFFFFF!important;
-}
-
-/* Badges / accents */
-.rva.rva-premium-africa .rva-badge,
-.rva.rva-premium-africa .rva-plus{
-  background:linear-gradient(135deg,#FF6A00,#FFB000)!important;
-  color:#FFFFFF!important;
-}
-
-/* Le mockup boutique reste une interface, mais son cadre extérieur est vert. */
-.rva.rva-premium-africa .rva-3dstore,
-.rva.rva-premium-africa .rva-browser3d{
-  background:transparent!important;
-}
-
-/* Sécurité : aucune couleur de texte gris/noir héritée sur la Landing */
-.rva.rva-premium-africa .rva-section p,
-.rva.rva-premium-africa .rva-section li,
-.rva.rva-premium-africa .rva-section small,
-.rva.rva-premium-africa .rva-section strong,
-.rva.rva-premium-africa .rva-section b,
-.rva.rva-premium-africa .rva-section h1,
-.rva.rva-premium-africa .rva-section h2,
-.rva.rva-premium-africa .rva-section h3,
-.rva.rva-premium-africa .rva-section h4{
-  color:#FFFFFF!important;
-}
-
-/* Exception technique : le contenu d'un écran de boutique peut garder
-   son contraste interne pour ressembler à une vraie boutique. */
-.rva.rva-premium-africa .rva-shop{
-  background:#FFFFFF!important;
-  color:#082519!important;
-}
-.rva.rva-premium-africa .rva-shop *{
-  color:#082519!important;
-}
-
-@media(max-width:650px){
-  .rva.rva-premium-africa .rva-numbergrid{
-    background:#063B26!important;
-  }
-}
-
-`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');`}</style>
 
       <div style={{ background: "linear-gradient(170deg, #0F1B16 0%, #16231F 60%, #1a7a3c 200%)", color: "white", padding: "40px 24px 50px", textAlign: "center" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, marginBottom: 20 }}>
@@ -1537,7 +1280,7 @@ function LivreurCarteEcartCaisse({ l, workspaceId, currency }) {
   );
 }
 
-function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, produitsEnProgression = [], currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
+function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLivreur, currency, onVoirRecovery, onVoirCompta, onVoirClients }) {
   const nonTraitees = todoAujourdhui.total;
   const jamaisRappeles = todoAujourdhui.jamaisContactees.length;
   const aRisque = todoAujourdhui.sansNouvelles.length;
@@ -1560,16 +1303,16 @@ function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLi
 
   const actions = [];
   if (jamaisRappeles > 0) {
-    actions.push({ num: "01", titre: "RAPPELER", cause: "Cause probable : jamais contactées depuis la commande", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
+    actions.push({ num: "01", titre: "RAPPELER", desc: `${jamaisRappeles} client${jamaisRappeles > 1 ? "s n'ont" : " n'a"} jamais répondu`, potentiel: todoAujourdhui.jamaisContactees.reduce((s, c) => s + Number(c.montant), 0), bouton: "RAPPELER", action: onVoirRecovery, couleur: "#D64933" });
   }
   if (echouees > 0) {
-    actions.push({ num: "02", titre: "RÉCUPÉRER", cause: "Cause probable : client non joint ou absent à la livraison", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
+    actions.push({ num: "02", titre: "RÉCUPÉRER", desc: `${echouees} commande${echouees > 1 ? "s" : ""} échouée${echouees > 1 ? "s" : ""} peuvent être reprogrammées`, potentiel: todoAujourdhui.argentRecuperable, bouton: "RÉCUPÉRER", action: onVoirRecovery, couleur: "#8A6412" });
   }
   if (livreurAControler && livreurAControler.aDeposer > 0) {
-    actions.push({ num: "03", titre: "CONTRÔLER", cause: "Cause probable : dépôt de caisse en retard", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
+    actions.push({ num: "03", titre: "CONTRÔLER", desc: `${livreurAControler.nom} doit déposer ${livreurAControler.aDeposer.toLocaleString("fr-FR")} ${currency}`, potentiel: null, bouton: "VÉRIFIER", action: onVoirCompta, couleur: "#1E4B8C" });
   }
   if (clientsARelancer.length > 0) {
-    actions.push({ num: "04", titre: "RELANCER", cause: "Cause probable : rythme d'achat habituel atteint, moment idéal pour recontacter", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
+    actions.push({ num: "04", titre: "RELANCER", desc: `${clientsARelancer.length} ancien${clientsARelancer.length > 1 ? "s clients correspondent" : " client correspond"} à leur rythme d'achat habituel`, potentiel: null, bouton: "RELANCER", action: onVoirClients, couleur: "#1a7a3c" });
   }
 
   return (
@@ -1614,29 +1357,12 @@ function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLi
               <div key={a.num} style={{ borderLeft: `3px solid ${a.couleur}`, paddingLeft: 12 }}>
                 <div style={{ fontSize: 10.5, color: a.couleur, fontWeight: 700, letterSpacing: "0.03em" }}>{a.num} — {a.titre}</div>
                 <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 2 }}>{a.desc}</div>
-                {a.cause && <div style={{ fontSize: 10.5, color: "#8A9089", fontStyle: "italic", marginTop: 2 }}>{a.cause}</div>}
                 {a.potentiel > 0 && (
                   <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>Potentiel : {a.potentiel.toLocaleString("fr-FR")} {currency}</div>
                 )}
                 <button onClick={a.action} style={{ marginTop: 6, background: a.couleur, color: "white", border: "none", borderRadius: 7, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
                   {a.bouton}
                 </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {produitsEnProgression.length > 0 && (
-        <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 16, padding: "16px 20px", marginTop: 14 }}>
-          <div style={{ fontSize: 11, color: "#3B6D11", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>
-            📈 Ça progresse fort en ce moment
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {produitsEnProgression.map((p) => (
-              <div key={p.nom} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: "#16231F" }}>{p.nom}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#1F9D6E" }}>+{p.croissance}% cette semaine</span>
               </div>
             ))}
           </div>
@@ -1717,6 +1443,162 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
   );
 }
 
+function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livreursCount, equipeCount, boutiquesCount, evolutionData = [], commandes = [] }) {
+  const [pointer, setPointer] = useState({ x: 0, y: 0 });
+  const [hover, setHover] = useState(false);
+
+  const money = (value) => Number(value || 0).toLocaleString("fr-FR");
+  const safeEvolution = evolutionData.length ? evolutionData.slice(-8) : [{ label: "—", commandes: 0 }];
+  const maxOrders = Math.max(...safeEvolution.map((d) => Number(d.commandes || 0)), 1);
+  const recent = commandes.slice(0, 4);
+
+  function handleMove(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width - 0.5) * 2;
+    const y = ((e.clientY - r.top) / r.height - 0.5) * 2;
+    setPointer({ x, y });
+  }
+
+  const stageTransform = hover
+    ? `rotateX(${(-pointer.y * 4).toFixed(2)}deg) rotateY(${(pointer.x * 5).toFixed(2)}deg) translateZ(8px)`
+    : "rotateX(0deg) rotateY(0deg) translateZ(0)";
+
+  const cardBase = {
+    position: "relative",
+    borderRadius: 18,
+    padding: "15px 16px",
+    background: "linear-gradient(145deg, rgba(12,87,57,.96), rgba(3,28,19,.98))",
+    border: "1px solid rgba(255,255,255,.16)",
+    color: "#fff",
+    boxShadow: "0 22px 55px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.16)",
+    transformStyle: "preserve-3d",
+  };
+
+  return (
+    <section className="rv-dashboard-3d-wrap" style={{ margin: "18px 0 20px", perspective: "1500px" }}>
+      <style>{`
+        .rv-dashboard-3d-wrap{position:relative;overflow:visible}
+        .rv-dashboard-3d-scene{position:relative;min-height:420px;border-radius:28px;overflow:hidden;background:radial-gradient(circle at 50% 30%,rgba(0,245,160,.18),transparent 30%),linear-gradient(145deg,#02110b 0%,#063b26 48%,#021a10 100%);border:1px solid rgba(0,245,160,.22);box-shadow:0 35px 90px rgba(0,30,18,.32),inset 0 1px 0 rgba(255,255,255,.12);transform-style:preserve-3d}
+        .rv-dashboard-3d-grid{position:absolute;inset:0;opacity:.22;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:42px 42px;transform:perspective(500px) rotateX(62deg) translateY(150px) scale(1.7);transform-origin:center bottom;pointer-events:none}
+        .rv-dashboard-3d-orbit{position:absolute;border:1px solid rgba(0,245,160,.28);border-radius:50%;transform-style:preserve-3d;pointer-events:none}
+        .rv-dashboard-3d-orbit.one{width:520px;height:190px;left:50%;top:52%;transform:translate(-50%,-50%) rotateX(68deg) rotateZ(-10deg);animation:rv3DOrbit 16s linear infinite}
+        .rv-dashboard-3d-orbit.two{width:390px;height:150px;left:50%;top:52%;transform:translate(-50%,-50%) rotateX(68deg) rotateZ(25deg);animation:rv3DOrbit 11s linear infinite reverse}
+        .rv-dashboard-3d-orb{position:absolute;width:9px;height:9px;border-radius:50%;background:#00f5a0;box-shadow:0 0 22px #00f5a0;left:50%;top:50%;transform:translate(-50%,-50%) translateZ(90px);animation:rv3DOrb 5s ease-in-out infinite}
+        @keyframes rv3DOrbit{to{rotate:360deg}}
+        @keyframes rv3DOrb{0%,100%{translate:0 0;opacity:.65}50%{translate:18px -8px;opacity:1}}
+        .rv-dashboard-3d-panel{transition:transform .18s ease-out,box-shadow .3s ease;will-change:transform}
+        .rv-dashboard-3d-panel:hover{box-shadow:0 42px 90px rgba(0,0,0,.4),0 0 55px rgba(0,245,160,.12),inset 0 1px 0 rgba(255,255,255,.18)}
+        .rv-dashboard-3d-stat{transition:transform .25s ease,box-shadow .25s ease}
+        .rv-dashboard-3d-stat:hover{transform:translateY(-8px) translateZ(22px)!important;box-shadow:0 25px 50px rgba(0,0,0,.3)!important}
+        .rv-dashboard-3d-bar{transform-origin:bottom;animation:rv3DBarIn .9s cubic-bezier(.2,.8,.2,1) both}
+        @keyframes rv3DBarIn{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+        .rv-dashboard-3d-pulse{animation:rv3DPulse 2.2s ease-in-out infinite}
+        @keyframes rv3DPulse{0%,100%{opacity:.65;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
+        @media(max-width:800px){.rv-dashboard-3d-scene{min-height:620px;border-radius:20px}.rv-dashboard-3d-panel{margin:80px 14px 40px!important;transform:none!important}.rv-dashboard-3d-orbit{opacity:.35}.rv-dashboard-3d-stat{padding:12px!important}.rv-dashboard-3d-stat strong{font-size:17px!important}.rv-dashboard-3d-grid{background-size:28px 28px}}
+        @media(prefers-reduced-motion:reduce){.rv-dashboard-3d-orbit,.rv-dashboard-3d-orb,.rv-dashboard-3d-bar,.rv-dashboard-3d-pulse{animation:none!important}.rv-dashboard-3d-panel{transition:none!important}}
+      `}</style>
+
+      <div
+        className="rv-dashboard-3d-scene"
+        onMouseMove={handleMove}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => { setHover(false); setPointer({ x: 0, y: 0 }); }}
+      >
+        <div className="rv-dashboard-3d-grid" />
+        <div className="rv-dashboard-3d-orbit one"><div className="rv-dashboard-3d-orb rv-dashboard-3d-pulse" /></div>
+        <div className="rv-dashboard-3d-orbit two" />
+
+        <div style={{ position:"absolute", top:18, left:20, zIndex:2, color:"rgba(255,255,255,.76)", fontSize:10.5, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase" }}>
+          RecuVente · Command Center 3D
+        </div>
+        <div style={{ position:"absolute", top:18, right:20, zIndex:2, display:"flex", alignItems:"center", gap:6, color:"rgba(255,255,255,.78)", fontSize:10.5 }}>
+          <span className="rv-dashboard-3d-pulse" style={{ width:7, height:7, borderRadius:"50%", background:"#00f5a0", display:"inline-block" }} />
+          Données en direct
+        </div>
+
+        <div
+          className="rv-dashboard-3d-panel"
+          style={{
+            position:"relative", zIndex:3, width:"min(1040px, calc(100% - 34px))", margin:"72px auto 44px",
+            transform:`${stageTransform} translateZ(55px)`, transformStyle:"preserve-3d",
+            background:"linear-gradient(145deg,rgba(9,55,37,.94),rgba(2,19,13,.97))",
+            border:"1px solid rgba(255,255,255,.18)", borderRadius:24, padding:18,
+            boxShadow:"0 35px 80px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.15)", backdropFilter:"blur(18px)"
+          }}
+        >
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:14, transform:"translateZ(28px)" }}>
+            <div>
+              <div style={{ color:"#fff", fontSize:18, fontWeight:900 }}>{workspace?.name || "Mon entreprise"}</div>
+              <div style={{ color:"rgba(255,255,255,.58)", fontSize:10.5, marginTop:3 }}>Vue stratégique · activité actuelle</div>
+            </div>
+            <div style={{ background:"rgba(255,255,255,.08)", border:"1px solid rgba(255,255,255,.14)", color:"#fff", borderRadius:999, padding:"7px 10px", fontSize:10.5, fontWeight:800 }}>
+              ⚡ LIVE
+            </div>
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:10, transform:"translateZ(42px)" }}>
+            {[
+              { icon:"💰", label:"CA confirmé", value:`${money(caConfirme)} ${workspace?.currency || "XOF"}`, accent:"#00f5a0" },
+              { icon:"📦", label:"Commandes", value:money(commandesCount), accent:"#fff" },
+              { icon:"📈", label:"Bénéfice réel", value:`${money(beneficeReel)} ${workspace?.currency || "XOF"}`, accent:beneficeReel >= 0 ? "#7dffbd" : "#ff9c9c" },
+              { icon:"🚚", label:"Livreurs actifs", value:money(livreursCount), accent:"#ffb000" },
+            ].map((s,i)=>(
+              <div key={i} className="rv-dashboard-3d-stat" style={{ ...cardBase, transform:`translateZ(${20+i*5}px)` }}>
+                <div style={{ fontSize:16 }}>{s.icon}</div>
+                <div style={{ color:"rgba(255,255,255,.6)", fontSize:9.5, marginTop:7, textTransform:"uppercase", letterSpacing:".04em" }}>{s.label}</div>
+                <strong style={{ display:"block", color:s.accent, fontFamily:"'IBM Plex Mono',monospace", fontSize:18, marginTop:4, lineHeight:1.2 }}>{s.value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1.4fr .8fr", gap:10, marginTop:10, transform:"translateZ(30px)" }}>
+            <div style={{ ...cardBase, minHeight:150 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                <div><div style={{ fontSize:11, fontWeight:800 }}>📊 Activité commerciale</div><div style={{ color:"rgba(255,255,255,.5)", fontSize:9.5, marginTop:3 }}>Commandes par jour</div></div>
+                <div style={{ color:"#00f5a0", fontSize:10, fontWeight:900 }}>LIVE</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"flex-end", gap:7, height:92 }}>
+                {safeEvolution.map((d,i)=>{
+                  const h=Math.max(8,(Number(d.commandes||0)/maxOrders)*76);
+                  return <div key={`${d.label}-${i}`} style={{ flex:1, height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", alignItems:"center", gap:4 }}>
+                    <div className="rv-dashboard-3d-bar" style={{ width:"100%", maxWidth:38, height:h, borderRadius:"7px 7px 3px 3px", background:"linear-gradient(180deg,#00f5a0,#087a4d)", boxShadow:"0 0 18px rgba(0,245,160,.18)", animationDelay:`${i*70}ms` }} />
+                    <span style={{ color:"rgba(255,255,255,.42)", fontSize:8, whiteSpace:"nowrap", overflow:"hidden", maxWidth:42 }}>{d.label}</span>
+                  </div>;
+                })}
+              </div>
+            </div>
+
+            <div style={{ ...cardBase, minHeight:150 }}>
+              <div style={{ fontSize:11, fontWeight:800 }}>👥 Équipe & infrastructure</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:12 }}>
+                <div style={{ background:"rgba(255,255,255,.07)", borderRadius:11, padding:10 }}><div style={{fontSize:9,color:"rgba(255,255,255,.52)"}}>Équipe</div><strong style={{fontSize:20}}>{money(equipeCount)}</strong></div>
+                <div style={{ background:"rgba(255,255,255,.07)", borderRadius:11, padding:10 }}><div style={{fontSize:9,color:"rgba(255,255,255,.52)"}}>Boutique</div><strong style={{fontSize:20}}>{money(boutiquesCount)}</strong></div>
+              </div>
+              <div style={{ marginTop:11, padding:"8px 10px", borderRadius:10, background:"rgba(0,245,160,.08)", border:"1px solid rgba(0,245,160,.14)", color:"rgba(255,255,255,.76)", fontSize:9.5 }}>
+                🛡️ Données synchronisées avec ton espace RecuVente
+              </div>
+            </div>
+          </div>
+
+          <div style={{ ...cardBase, marginTop:10, transform:"translateZ(24px)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <div style={{ fontSize:11, fontWeight:800 }}>⚡ Activité récente</div>
+              <div style={{ color:"rgba(255,255,255,.45)", fontSize:9 }}>Dernières commandes</div>
+            </div>
+            {recent.length ? recent.map((c,i)=>(
+              <div key={c.id || i} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderTop:i?"1px solid rgba(255,255,255,.07)":"none" }}>
+                <div style={{ width:7, height:7, borderRadius:"50%", background:c.statut === "confirmee" ? "#00f5a0" : c.statut === "echouee" ? "#ff7070" : "#ffb000", flexShrink:0 }} />
+                <div style={{ flex:1, minWidth:0, color:"rgba(255,255,255,.76)", fontSize:9.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.client || "Client"} · {c.produit || "Commande"}</div>
+                <strong style={{ color:"#fff", fontFamily:"'IBM Plex Mono',monospace", fontSize:9.5, whiteSpace:"nowrap" }}>{money(c.montant)} {workspace?.currency || "XOF"}</strong>
+              </div>
+            )) : <div style={{ color:"rgba(255,255,255,.48)", fontSize:10, padding:"8px 0" }}>Aucune activité récente.</div>}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
   const [ouvert, setOuvert] = useState(false);
   const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
@@ -1768,7 +1650,6 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   const activityType = workspace?.activity_type || 'cod_ecommerce';
   const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
   const sectionCatalog = {
-    header:{icon:'🧭',label:'En-tête (fixe)',description:'Logo, recherche, compte, panier et menu — toujours affiché en haut de la boutique, comme sur Amazon/Shopify.'},
     announcement:{icon:'📣',label:'Barre d’annonce',description:'Message promotionnel ou information importante.'},
     hero:{icon:'✨',label:'Hero / couverture',description:'Grande image, titre, sous-titre et bouton.'},
     collections:{icon:'🗂️',label:'Collections',description:'Sélectionne exactement les collections à afficher.'},
@@ -1796,27 +1677,10 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     heroTitle:activityType==='restaurant'?'Découvrez notre menu':activityType==='location_immobiliere'?'Trouvez votre prochain séjour':activityType==='location_vehicule'?'Louez le véhicule qui vous correspond':'Votre boutique. Votre marque. Votre business.',
     heroSubtitle:'Une expérience moderne, rapide et pensée pour transformer les visiteurs en clients.', promoTitle:'Une offre à ne pas manquer', promoText:'Profitez de nos offres du moment.', whatsapp:'Bonjour, je souhaite avoir plus d’informations.',
     selectedProductIds:[], selectedCollectionIds:[], gallery:[],
-    headerBgColor:'#131921', headerTextColor:'#ffffff', headerBarreTop:'Livraison rapide • Paiement à la livraison',
-    headerShowSearch:true, headerShowCompte:true, headerShowPanier:true,
-    headerLinks:[{id:'hl1',label:'Accueil',href:'#'},{id:'hl2',label:'Catalogue',href:'#produits'},{id:'hl3',label:'Promotions',href:'#promo'},{id:'hl4',label:'Contact',href:'#contact'}],
-    footerBgColor:'#131921', footerTextColor:'#ffffff', footerBackToTop:true,
-    footerNewsletterActif:true, footerNewsletterTexte:'Reçois nos offres et nouveautés en avant-première.',
-    footerPaiements:['💵 Paiement à la livraison','📱 Mobile Money','💳 Carte bancaire'],
-    footerColonnes:[
-      {id:'fc1',titre:'À propos',liens:[{label:'Qui sommes-nous',href:'#'},{label:'Nos engagements',href:'#'}]},
-      {id:'fc2',titre:'Service client',liens:[{label:'Nous contacter',href:'#contact'},{label:'FAQ',href:'#faq'},{label:'Suivi de commande',href:'#'}]},
-      {id:'fc3',titre:'Paiement & Livraison',liens:[{label:'Paiement à la livraison',href:'#'},{label:'Zones de livraison',href:'#'}]}
-    ],
     sections:activityType==='restaurant'?['announcement','hero','collections','products','bestsellers','bundles','benefits','testimonials','gallery','faq','cod_form','whatsapp','contact','footer']:['announcement','hero','collections','bestsellers','products','bundles','benefits','promo','testimonials','gallery','faq','delivery','cod_form','whatsapp','contact','footer'],
-    bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}],
-    sectionColors:{}
+    bundles:[{id:'b1',qty:1,label:'1 unité',discount:0,badge:'Prix normal'},{id:'b2',qty:2,label:'Pack x2',discount:10,badge:'Économise 10%'},{id:'b3',qty:3,label:'Pack x3',discount:15,badge:'Meilleure offre'}]
   };
-  const [config,setConfig]=useState(()=>{
-    if(workspace?.store_config && typeof workspace.store_config==='object'){
-      return {...defaults,...workspace.store_config};
-    }
-    try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}
-  });
+  const [config,setConfig]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}});
   const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
   const [publishedSnapshot,setPublishedSnapshot]=useState(()=>workspace?.store_config_published||null);
   const [collections,setCollections]=useState([]);
@@ -1829,42 +1693,6 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   function update(k,v){setConfig(c=>({...c,[k]:v}));}
   function toggleArray(key,id){setConfig(c=>{const a=new Set(c[key]||[]);a.has(id)?a.delete(id):a.add(id);return {...c,[key]:[...a]}})}
   function move(i,d){setConfig(c=>{const a=[...c.sections],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,sections:a}})}
-  function ajouterLienHeader(){setConfig(c=>({...c,headerLinks:[...(c.headerLinks||[]),{id:'hl'+Date.now(),label:'Nouveau lien',href:'#'}]}))}
-  function modifierLienHeader(id,champ,val){setConfig(c=>({...c,headerLinks:(c.headerLinks||[]).map(l=>l.id===id?{...l,[champ]:val}:l)}))}
-  function supprimerLienHeader(id){setConfig(c=>({...c,headerLinks:(c.headerLinks||[]).filter(l=>l.id!==id)}))}
-  function deplacerLienHeader(i,d){setConfig(c=>{const a=[...(c.headerLinks||[])],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,headerLinks:a}})}
-  function ajouterColonneFooter(){setConfig(c=>({...c,footerColonnes:[...(c.footerColonnes||[]),{id:'fc'+Date.now(),titre:'Nouvelle colonne',liens:[]}]}))}
-  function supprimerColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).filter(col=>col.id!==id)}))}
-  function renommerColonneFooter(id,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,titre:val}:col)}))}
-  function ajouterLienColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:[...(col.liens||[]),{label:'Nouveau lien',href:'#'}]}:col)}))}
-  function modifierLienColonneFooter(id,idx,champ,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.map((l,j)=>j===idx?{...l,[champ]:val}:l)}:col)}))}
-  function supprimerLienColonneFooter(id,idx){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.filter((_,j)=>j!==idx)}:col)}))}
-  function ajouterPaiementFooter(){setConfig(c=>({...c,footerPaiements:[...(c.footerPaiements||[]),'Nouveau moyen']}))}
-  function modifierPaiementFooter(i,val){setConfig(c=>({...c,footerPaiements:(c.footerPaiements||[]).map((p,j)=>j===i?val:p)}))}
-  function supprimerPaiementFooter(i){setConfig(c=>({...c,footerPaiements:(c.footerPaiements||[]).filter((_,j)=>j!==i)}))}
-  const rowRefs=useRef([]); const dragInfo=useRef({active:false,from:null,current:null}); const [dragIndex,setDragIndex]=useState(null);
-  const handlePointerMoveDrag=useCallback((e)=>{
-    if(!dragInfo.current.active)return;
-    const y=e.clientY;
-    let idx=-1;
-    rowRefs.current.forEach((node,i)=>{if(!node)return;const r=node.getBoundingClientRect();if(y>=r.top&&y<=r.bottom)idx=i;});
-    if(idx!==-1&&idx!==dragInfo.current.current){
-      const from=dragInfo.current.current;
-      setConfig(c=>{const a=[...c.sections];const [moved]=a.splice(from,1);a.splice(idx,0,moved);return {...c,sections:a}});
-      dragInfo.current.current=idx; setDragIndex(idx);
-    }
-  },[]);
-  const handlePointerUpDrag=useCallback(()=>{
-    dragInfo.current={active:false,from:null,current:null}; setDragIndex(null);
-    document.removeEventListener('pointermove',handlePointerMoveDrag);
-    document.removeEventListener('pointerup',handlePointerUpDrag);
-  },[handlePointerMoveDrag]);
-  function handlePointerDownDrag(e,i){
-    e.preventDefault();
-    dragInfo.current={active:true,from:i,current:i}; setDragIndex(i);
-    document.addEventListener('pointermove',handlePointerMoveDrag);
-    document.addEventListener('pointerup',handlePointerUpDrag);
-  }
   function remove(i){setConfig(c=>({...c,sections:c.sections.filter((_,j)=>j!==i)}))}
   function addSection(type){setConfig(c=>({...c,sections:[...c.sections,type]}));setSelected(type);setShowAdd(false)}
   async function uploadImage(kind,file){
@@ -1903,87 +1731,26 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   const labelStyle={display:'block',fontSize:10.5,color:'#647168',fontWeight:750,marginBottom:10}; const cardStyle={background:'#fff',border:'1px solid #e4ebe5',borderRadius:16,boxShadow:'0 8px 24px rgba(17,38,26,.045)'};
   const FileButton=({kind,label})=><label style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,border:'1px solid #cfdad2',background:'#f8fbf8',color:'#1a7a3c',borderRadius:10,padding:'9px 12px',fontSize:11,fontWeight:900,cursor:'pointer',width:'100%',boxSizing:'border-box'}}>{uploading===kind?'⏳ Envoi...':`📤 ${label}`}<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>uploadImage(kind,e.target.files?.[0])}/></label>;
   function PreviewSection({type}){
-    const coul=config.sectionColors?.[type]||config.couleur;
     const common={padding:'28px 22px',borderBottom:'1px solid #edf1ee'};
-    if(type==='announcement')return <div style={{...common,padding:'9px 14px',background:coul,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
-    if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${coul},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div><div style={{padding:'22px 20px 28px'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div>{config.buttonText&&config.buttonText.trim()&&<button style={{border:0,borderRadius:10,padding:'12px 19px',background:coul,color:'#fff',fontWeight:900}}>{config.buttonText}</button>}</div></div>;
+    if(type==='announcement')return <div style={{...common,padding:'9px 14px',background:config.couleur,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
+    if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${config.couleur},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div><div style={{padding:'22px 20px 28px'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div><button style={{border:0,borderRadius:10,padding:'12px 19px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div></div>;
     if(type==='collections')return <div style={common}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:3},1fr)`,gap:10}}>{derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id)).slice(0,6).map(c=><div key={c.id} style={{padding:'18px 10px',borderRadius:12,background:'#f5f8f5',textAlign:'center'}}><div style={{fontSize:20}}>🗂️</div><div style={{fontWeight:850,fontSize:11.5,marginTop:6}}>{c.nom||c.name}</div><div style={{fontSize:10,color:'#7c877f',marginTop:3}}>{c.count||0} article(s)</div></div>)}</div></div>;
-    if(type==='bestsellers'||type==='products')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:fallbackProducts).slice(0,8).map((p,i)=><div key={p.id||i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:coul,marginTop:4}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:coul,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
-    if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const total=base*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+coul:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}><div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:coul,marginTop:10}}>{base?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:coul,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
+    if(type==='bestsellers'||type==='products')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:fallbackProducts).slice(0,8).map((p,i)=><div key={p.id||i} style={{border:'1px solid #e7ece8',borderRadius:12,overflow:'hidden',background:'#fff'}}>{p.image?<img src={p.image} alt="" style={{width:'100%',height:device==='mobile'?115:150,objectFit:'cover'}}/>:<div style={{height:device==='mobile'?115:150,background:'#eef3ee',display:'flex',alignItems:'center',justifyContent:'center',fontSize:30}}>🛍️</div>}<div style={{padding:9,textAlign:'left'}}><div style={{fontWeight:850,fontSize:11.5,color:'#17241d'}}>{p.name}</div><div style={{fontWeight:900,fontSize:12.5,color:config.couleur,marginTop:4}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}</div><button style={{marginTop:8,width:'100%',border:0,borderRadius:8,padding:'7px 6px',background:config.couleur,color:'#fff',fontSize:10,fontWeight:900}}>{activityType==='restaurant'?'Commander':activityType.includes('location')?'Réserver':'Ajouter'}</button></div></div>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
+    if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const total=base*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+config.couleur:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}><div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:config.couleur,marginTop:10}}>{base?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:config.couleur,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
     if(type==='gallery')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Notre univers</h3>{config.gallery?.length?<div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8}}>{config.gallery.map((u,i)=><img key={i} src={u} alt="" style={{width:'100%',height:device==='mobile'?100:130,objectFit:'cover',borderRadius:10}}/>)}</div>:<div style={{padding:30,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#7a857e',fontSize:11}}>Ajoute tes images depuis le panneau de droite.</div>}</div>;
-    if(type==='cod_form')return <div style={{...common,background:'#f7faf7'}}><div style={{maxWidth:520,margin:'0 auto'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:coul}}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>📝 Bon de commande — Paiement à la livraison</h3></div><div style={{background:'#fff',border:'1px solid #e1e8e2',borderRadius:14,padding:14}}><div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':'1fr 1fr',gap:8}}>{['Nom complet','Téléphone WhatsApp','Ville / commune','Adresse de livraison'].map(x=><div key={x} style={{border:'1px solid #e0e6e1',borderRadius:9,padding:11,fontSize:10.5,color:'#8a948d'}}>{x}</div>)}</div><div style={{marginTop:10,padding:11,borderRadius:10,background:'#f5f8f5',fontSize:11.5,color:'#435047'}}>🚚 Livraison : <b>{Number(config.fraisLivraison||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b> · 🚛 Expédition : <b>{Number(config.fraisExpedition||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b></div><button style={{marginTop:10,width:'100%',border:0,borderRadius:10,padding:12,background:coul,color:'#fff',fontWeight:950}}>Confirmer ma commande — paiement à la livraison</button></div></div></div>;
+    if(type==='cod_form')return <div style={{...common,background:'#f7faf7'}}><div style={{maxWidth:520,margin:'0 auto'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:config.couleur}}>COMMANDE SIMPLE & RAPIDE</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>📝 Bon de commande — Paiement à la livraison</h3></div><div style={{background:'#fff',border:'1px solid #e1e8e2',borderRadius:14,padding:14}}><div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':'1fr 1fr',gap:8}}>{['Nom complet','Téléphone WhatsApp','Ville / commune','Adresse de livraison'].map(x=><div key={x} style={{border:'1px solid #e0e6e1',borderRadius:9,padding:11,fontSize:10.5,color:'#8a948d'}}>{x}</div>)}</div><div style={{marginTop:10,padding:11,borderRadius:10,background:'#f5f8f5',fontSize:11.5,color:'#435047'}}>🚚 Livraison : <b>{Number(config.fraisLivraison||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b> · 🚛 Expédition : <b>{Number(config.fraisExpedition||0).toLocaleString('fr-FR')} {workspace?.currency||'XOF'}</b></div><button style={{marginTop:10,width:'100%',border:0,borderRadius:10,padding:12,background:config.couleur,color:'#fff',fontWeight:950}}>Confirmer ma commande — paiement à la livraison</button></div></div></div>;
     if(type==='benefits')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Pourquoi acheter chez nous ?</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{[['🛡️','Paiement à la livraison'],['🚚','Livraison suivie'],['💬','Support rapide']].map(x=><div key={x[1]} style={{padding:14,borderRadius:11,background:'#f6f9f6'}}><div style={{fontSize:20}}>{x[0]}</div><div style={{fontWeight:850,fontSize:11.5,marginTop:7}}>{x[1]}</div></div>)}</div></div>;
-    if(type==='promo')return <div style={{...common,background:'#f7f2e7',textAlign:'center'}}><div style={{fontSize:10,fontWeight:900,color:'#b16b00'}}>OFFRE LIMITÉE</div><h3 style={{fontSize:24,margin:'7px 0',color:'#162119'}}>{config.promoTitle}</h3><p style={{fontSize:12,color:'#6f776f'}}>{config.promoText}</p><button style={{border:0,borderRadius:9,padding:'10px 18px',background:coul,color:'#fff',fontWeight:900}}>Profiter de l'offre</button></div>;
-    if(type==='testimonials')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>⭐ Ils nous font confiance</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:10}}>{['Une expérience simple et rapide.','La commande a été parfaitement suivie.','Je recommande sans hésiter.'].map((t,i)=><div key={i} style={{padding:15,border:'1px solid #e6ece7',borderRadius:12}}><div style={{color:coul}}>★★★★★</div><div style={{fontSize:11.5,lineHeight:1.55,color:'#435047',marginTop:7}}>“{t}”</div><div style={{fontSize:10,fontWeight:800,marginTop:9}}>Client</div></div>)}</div></div>;
+    if(type==='promo')return <div style={{...common,background:'#f7f2e7',textAlign:'center'}}><div style={{fontSize:10,fontWeight:900,color:'#b16b00'}}>OFFRE LIMITÉE</div><h3 style={{fontSize:24,margin:'7px 0',color:'#162119'}}>{config.promoTitle}</h3><p style={{fontSize:12,color:'#6f776f'}}>{config.promoText}</p><button style={{border:0,borderRadius:9,padding:'10px 18px',background:'#e8920a',fontWeight:900}}>Profiter de l'offre</button></div>;
+    if(type==='testimonials')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>⭐ Ils nous font confiance</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:10}}>{['Une expérience simple et rapide.','La commande a été parfaitement suivie.','Je recommande sans hésiter.'].map((t,i)=><div key={i} style={{padding:15,border:'1px solid #e6ece7',borderRadius:12}}><div style={{color:'#e8920a'}}>★★★★★</div><div style={{fontSize:11.5,lineHeight:1.55,color:'#435047',marginTop:7}}>“{t}”</div><div style={{fontSize:10,fontWeight:800,marginTop:9}}>Client</div></div>)}</div></div>;
     if(type==='faq')return <div style={common}><h3 style={{margin:'0 0 12px',fontSize:19,color:'#14221b'}}>Questions fréquentes</h3>{['Comment commander ?','Quels sont les délais ?','Comment suivre ma commande ?'].map(q=><div key={q} style={{padding:'12px 2px',borderBottom:'1px solid #e7ece8',fontSize:11.5,fontWeight:800,display:'flex',justifyContent:'space-between'}}>{q}<span>＋</span></div>)}</div>;
     if(type==='whatsapp')return <div style={{...common,textAlign:'center',background:'#f4faf5'}}><div style={{fontSize:26}}>💬</div><h3 style={{margin:'7px 0',fontSize:19,color:'#14221b'}}>Besoin d'aide ?</h3><p style={{fontSize:11.5,color:'#68756d'}}>Écris-nous directement sur WhatsApp.</p><button style={{border:0,borderRadius:10,padding:'10px 18px',background:'#168a45',color:'#fff',fontWeight:900}}>Ouvrir WhatsApp</button></div>;
     if(type==='delivery')return <div style={common}><h3 style={{margin:'0 0 9px',fontSize:19,color:'#14221b'}}>🚚 Livraison</h3><p style={{fontSize:11.5,color:'#68756d',lineHeight:1.6}}>{config.livraison}</p></div>;
-    if(type==='contact')return <div style={{...common,textAlign:'center',background:'#0d2417',color:'#fff'}}><h3 style={{margin:'0 0 8px',fontSize:24}}>Prêt à passer à l'action ?</h3><p style={{fontSize:11.5,color:'rgba(255,255,255,.68)'}}>Commandez, réservez ou contactez-nous maintenant.</p>{config.buttonText&&config.buttonText.trim()&&<button style={{border:0,borderRadius:10,padding:'11px 20px',background:coul,color:'#fff',fontWeight:900}}>{config.buttonText}</button>}</div>;
-    if(type==='footer')return <div style={{background:config.footerBgColor,color:config.footerTextColor}}>
-      {config.footerBackToTop&&<div style={{textAlign:'center',padding:'10px 0',background:'rgba(255,255,255,.06)',fontSize:10.5,fontWeight:800,cursor:'pointer'}}>⬆ Retour en haut</div>}
-      {config.footerNewsletterActif&&<div style={{textAlign:'center',padding:'20px 16px',borderBottom:'1px solid rgba(255,255,255,.12)'}}><div style={{fontWeight:900,fontSize:13}}>📩 Reste informé(e)</div><div style={{fontSize:10.5,opacity:.75,margin:'6px 0 10px'}}>{config.footerNewsletterTexte}</div><div style={{display:'flex',justifyContent:'center',gap:6,maxWidth:320,margin:'0 auto'}}><input placeholder="Ton email" disabled style={{flex:1,border:0,borderRadius:8,padding:'8px 10px',fontSize:10.5}}/><span style={{background:coul,color:'#fff',borderRadius:8,padding:'8px 12px',fontSize:10.5,fontWeight:800}}>S'inscrire</span></div></div>}
-      <div style={{padding:'22px 20px',display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:Math.min((config.footerColonnes||[]).length||1,4)},1fr)`,gap:18}}>{(config.footerColonnes||[]).map(col=><div key={col.id}><div style={{fontWeight:900,fontSize:11.5,marginBottom:9}}>{col.titre}</div>{(col.liens||[]).map((l,i)=><div key={i} style={{fontSize:10.5,opacity:.75,marginBottom:6}}>{l.label}</div>)}</div>)}</div>
-      {(config.footerPaiements||[]).length>0&&<div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap',padding:'0 20px 18px'}}>{config.footerPaiements.map((p,i)=><span key={i} style={{background:'rgba(255,255,255,.08)',borderRadius:7,padding:'5px 9px',fontSize:9.5,fontWeight:700}}>{p}</span>)}</div>}
-      <div style={{padding:'16px 20px',borderTop:'1px solid rgba(255,255,255,.12)',textAlign:'center',fontSize:10}}><div style={{fontWeight:900,fontSize:13,marginBottom:4}}>{config.nom}</div><div style={{opacity:.6,marginBottom:6}}>{config.description}</div><div style={{opacity:.45}}>© {new Date().getFullYear()} {config.nom} • Tous droits réservés</div></div>
-    </div>;
+    if(type==='contact')return <div style={{...common,textAlign:'center',background:'#0d2417',color:'#fff'}}><h3 style={{margin:'0 0 8px',fontSize:24}}>Prêt à passer à l'action ?</h3><p style={{fontSize:11.5,color:'rgba(255,255,255,.68)'}}>Commandez, réservez ou contactez-nous maintenant.</p><button style={{border:0,borderRadius:10,padding:'11px 20px',background:config.couleur,color:'#fff',fontWeight:900}}>{config.buttonText}</button></div>;
+    if(type==='footer')return <div style={{padding:'24px 20px',background:'#101b15',color:'#fff',fontSize:10.5}}><div style={{fontWeight:900,fontSize:14}}>{config.nom}</div><div style={{opacity:.65,marginTop:6}}>{config.description}</div><div style={{opacity:.45,marginTop:14}}>© {new Date().getFullYear()} • Tous droits réservés</div></div>;
     return <div style={common}/>;
   }
   function Editor(){
     const type=selected;
-    const supporteCouleur=type&&type!=='header'&&type!=='footer';
-    return <>
-      {supporteCouleur&&<label style={labelStyle}>Couleur de cette section<div style={{display:'flex',gap:7}}><input type="color" value={config.sectionColors?.[type]||config.couleur} onChange={e=>setConfig(c=>({...c,sectionColors:{...(c.sectionColors||{}),[type]:e.target.value}}))} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.sectionColors?.[type]||config.couleur} onChange={e=>setConfig(c=>({...c,sectionColors:{...(c.sectionColors||{}),[type]:e.target.value}}))}/><button onClick={()=>setConfig(c=>{const sc={...(c.sectionColors||{})};delete sc[type];return {...c,sectionColors:sc}})} title="Revenir à la couleur globale" style={{fontSize:10,border:'1px solid #DDD8CC',borderRadius:8,padding:'0 10px',background:'#fff',cursor:'pointer'}}>↺</button></div></label>}
-      <EditorInterne/>
-    </>;
-  }
-  function EditorInterne(){
-    const type=selected;
-    if(type==='header')return <>
-      <label style={labelStyle}>Texte de la barre du haut<input style={fieldStyle} value={config.headerBarreTop} onChange={e=>update('headerBarreTop',e.target.value)}/></label>
-      <label style={labelStyle}>Couleur de fond<div style={{display:'flex',gap:7}}><input type="color" value={config.headerBgColor} onChange={e=>update('headerBgColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.headerBgColor} onChange={e=>update('headerBgColor',e.target.value)}/></div></label>
-      <label style={labelStyle}>Couleur du texte<div style={{display:'flex',gap:7}}><input type="color" value={config.headerTextColor} onChange={e=>update('headerTextColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.headerTextColor} onChange={e=>update('headerTextColor',e.target.value)}/></div></label>
-      <div style={{display:'flex',gap:10,margin:'4px 0 12px',flexWrap:'wrap'}}>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer'}}><input type="checkbox" checked={!!config.headerShowSearch} onChange={e=>update('headerShowSearch',e.target.checked)}/> Barre de recherche</label>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer'}}><input type="checkbox" checked={!!config.headerShowPanier} onChange={e=>update('headerShowPanier',e.target.checked)}/> Icône panier</label>
-      </div>
-      <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Liens du menu de navigation</div>
-      <div style={{display:'grid',gap:6,marginBottom:8}}>{(config.headerLinks||[]).map((l,i)=>{
-        const optionsCibles=[{v:'#',l:'Accueil (haut de page)'},{v:'#produits',l:'Produits'},{v:'#promo',l:'Promotions'},{v:'#bundles',l:'Bundles / Packs'},{v:'#avis',l:'Avis clients'},{v:'#faq',l:'Questions fréquentes'},{v:'#livraison',l:'Livraison'},{v:'#whatsapp',l:'WhatsApp'},{v:'#contact',l:'Contact'}];
-        const estExterne=l.href&&!l.href.startsWith('#');
-        return <div key={l.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:8,display:'grid',gap:6}}>
-          <div style={{display:'flex',gap:6}}><input placeholder="Libellé (ex: Nos produits)" value={l.label} onChange={e=>modifierLienHeader(l.id,'label',e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>deplacerLienHeader(i,-1)} disabled={i===0} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={()=>deplacerLienHeader(i,1)} disabled={i===(config.headerLinks||[]).length-1} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={()=>supprimerLienHeader(l.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>
-          <select value={estExterne?'externe':(l.href||'#')} onChange={e=>modifierLienHeader(l.id,'href',e.target.value==='externe'?'https://':e.target.value)} style={{...fieldStyle,background:'#fff'}}>
-            {optionsCibles.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
-            <option value="externe">🔗 Lien externe (autre site)</option>
-          </select>
-          {estExterne&&<input placeholder="https://..." value={l.href} onChange={e=>modifierLienHeader(l.id,'href',e.target.value)} style={fieldStyle}/>}
-        </div>;
-      })}</div>
-      <div style={{fontSize:10,color:'#8a958e',marginTop:-2,marginBottom:8,lineHeight:1.5}}>💡 Choisis vers quelle partie de ta page ce lien doit amener — ça se relie tout seul, pas besoin de code.</div>
-      <button onClick={ajouterLienHeader} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un lien au menu</button>
-      {config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginTop:12}}/>}<div style={{marginTop:8}}><FileButton kind="logo" label="Télécharger / changer le logo"/></div>
-    </>;
-    if(type==='footer')return <>
-      <label style={labelStyle}>Couleur de fond<div style={{display:'flex',gap:7}}><input type="color" value={config.footerBgColor} onChange={e=>update('footerBgColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.footerBgColor} onChange={e=>update('footerBgColor',e.target.value)}/></div></label>
-      <label style={labelStyle}>Couleur du texte<div style={{display:'flex',gap:7}}><input type="color" value={config.footerTextColor} onChange={e=>update('footerTextColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.footerTextColor} onChange={e=>update('footerTextColor',e.target.value)}/></div></label>
-      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',margin:'2px 0 14px'}}><input type="checkbox" checked={!!config.footerBackToTop} onChange={e=>update('footerBackToTop',e.target.checked)}/> Bouton "Retour en haut"</label>
-      <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Colonnes de liens</div>
-      <div style={{display:'grid',gap:8,marginBottom:8}}>{(config.footerColonnes||[]).map(col=><div key={col.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:9}}>
-        <div style={{display:'flex',gap:6,marginBottom:7}}><input value={col.titre} onChange={e=>renommerColonneFooter(col.id,e.target.value)} style={{...fieldStyle,flex:1,fontWeight:800}}/><button onClick={()=>supprimerColonneFooter(col.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>× colonne</button></div>
-        <div style={{display:'grid',gap:5}}>{(col.liens||[]).map((l,idx)=><div key={idx} style={{display:'flex',gap:5}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienColonneFooter(col.id,idx,'label',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><input placeholder="Lien" value={l.href} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><button onClick={()=>supprimerLienColonneFooter(col.id,idx)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}</div>
-        <button onClick={()=>ajouterLienColonneFooter(col.id)} style={{marginTop:6,width:'100%',border:'1px dashed #cdd8d0',background:'#fafcfa',borderRadius:7,padding:6,fontSize:10,fontWeight:800,color:'#1a7a3c',cursor:'pointer'}}>＋ Lien</button>
-      </div>)}</div>
-      <button onClick={ajouterColonneFooter} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:14}}>＋ Ajouter une colonne</button>
-      <div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginBottom:14}}>
-        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',marginBottom:8}}><input type="checkbox" checked={!!config.footerNewsletterActif} onChange={e=>update('footerNewsletterActif',e.target.checked)}/> Bloc newsletter</label>
-        {config.footerNewsletterActif&&<label style={labelStyle}>Texte de la newsletter<textarea style={{...fieldStyle,resize:'vertical'}} rows={2} value={config.footerNewsletterTexte} onChange={e=>update('footerNewsletterTexte',e.target.value)}/></label>}
-      </div>
-      <div style={{borderTop:'1px solid #edf1ee',paddingTop:12}}>
-        <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Moyens de paiement affichés</div>
-        <div style={{display:'grid',gap:5,marginBottom:8}}>{(config.footerPaiements||[]).map((p,i)=><div key={i} style={{display:'flex',gap:5}}><input value={p} onChange={e=>modifierPaiementFooter(i,e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>supprimerPaiementFooter(i)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}</div>
-        <button onClick={ajouterPaiementFooter} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un moyen de paiement</button>
-      </div>
-    </>;
     if(type==='hero')return <><label style={labelStyle}>Titre principal<input style={fieldStyle} value={config.heroTitle} onChange={e=>update('heroTitle',e.target.value)}/></label><label style={labelStyle}>Sous-titre<textarea style={{...fieldStyle,resize:'vertical'}} rows={4} value={config.heroSubtitle} onChange={e=>update('heroSubtitle',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.buttonText} onChange={e=>update('buttonText',e.target.value)}/></label>{config.banniere&&<img src={config.banniere} alt="" style={{width:'100%',height:80,objectFit:'cover',borderRadius:10,marginBottom:8}}/>}<FileButton kind="hero" label="Télécharger / changer la couverture"/><label style={{...labelStyle,marginTop:8}}>Ou URL de couverture<input style={fieldStyle} placeholder="https://..." value={config.banniere} onChange={e=>update('banniere',e.target.value)}/></label></>;
     if(type==='announcement')return <label style={labelStyle}>Message<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.announcement} onChange={e=>update('announcement',e.target.value)}/></label>;
     if(type==='collections')return <div><div style={{fontSize:11,color:'#6b776f',marginBottom:10}}>Clique sur les collections à afficher. Si aucune n’est sélectionnée, toutes les collections seront affichées.</div>{derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{const id=c.id;const on=config.selectedCollectionIds?.includes(id);return <button key={id} onClick={()=>toggleArray('selectedCollectionIds',id)} style={{textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:'9px 10px',cursor:'pointer',fontSize:11,fontWeight:800,color:'#233128'}}>{on?'☑':'□'} {c.nom||c.name} <span style={{float:'right',color:'#87928a'}}>{c.count||0}</span></button>})}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucune collection. Crée d’abord une collection dans « Produits → Collections ».</div>}</div>;
@@ -2011,10 +1778,8 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     {published && workspace?.id && <div style={{background:'#eaf5eb',border:'1px solid #c7dda3',borderRadius:10,padding:'10px 14px',marginBottom:13,display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><span style={{fontSize:12,fontWeight:800,color:'#3B6D11'}}>✅ Ta boutique est en ligne !</span><a href={`${window.location.origin}/?catalogue=${workspace.id}`} target="_blank" rel="noopener noreferrer" style={{background:'#1a7a3c',color:'#fff',borderRadius:8,padding:'7px 14px',fontSize:11.5,fontWeight:800,textDecoration:'none'}}>👁️ Voir ma boutique →</a></div>}
     <div className="rv-builder-mobile-tabs">{[['structure','📋 Structure'],['apercu','👁️ Aperçu'],['reglages','⚙️ Réglages']].map(([k,l])=><button key={k} onClick={()=>setOngletBuilder(k)} style={{flex:1,border:0,borderRadius:9,padding:'9px 4px',fontSize:11,fontWeight:850,cursor:'pointer',background:ongletBuilder===k?config.couleur:'#eef2ee',color:ongletBuilder===k?'#fff':'#435047'}}>{l}</button>)}</div>
     <div className="rv-builder-grid" style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':device==='tablet'?'190px minmax(0,1fr)':'220px minmax(0,1fr) 290px',gap:12,alignItems:'start'}}>
-      <div className={`rv-builder-panel ${ongletBuilder==='structure'?'active':''}`} style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>
-      <div onClick={()=>setSelected('header')} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 5px',marginBottom:6,background:selected==='header'?'#f0f7f1':'#fafbfa',border:'1px dashed #cdd8d0',borderRadius:8,cursor:'pointer'}}><span>🧭</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>En-tête</span><span style={{fontSize:9,color:'#93a097'}}>🔒 fixe</span></div>
-      {config.sections.map((s,i)=><div key={`${s}-${i}`} ref={el=>{rowRefs.current[i]=el}} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:dragIndex===i?'#eaf3ec':selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer',boxShadow:dragIndex===i?'0 6px 16px rgba(17,38,26,.18)':'none',opacity:dragIndex===i?0.85:1,transition:dragIndex===i?'none':'background .12s'}}><span onPointerDown={e=>handlePointerDownDrag(e,i)} title="Glisser pour réordonner" style={{cursor:dragIndex===i?'grabbing':'grab',touchAction:'none',padding:'2px 4px',color:'#9aa79f',fontSize:12,userSelect:'none'}}>⠿</span><span>{sectionCatalog[s]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} title="Monter" style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} title="Descendre" style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} title="Supprimer" style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).filter(([k])=>k!=='header').map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
-      <div className={`rv-builder-panel ${ongletBuilder==='apercu'?'active':''}`} style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div onClick={()=>setSelected('header')} style={{cursor:'pointer',outline:selected==='header'?'2px solid '+config.couleur:'none',outlineOffset:'-2px',background:config.headerBgColor}}><div style={{background:'rgba(0,0,0,.12)',color:config.headerTextColor,padding:'5px 14px',fontSize:9.5,textAlign:'center',opacity:.85}}>{config.headerBarreTop?config.headerBarreTop:'🚚 Livraison rapide  ·  💵 Paiement à la livraison  ·  🛡️ Achat sécurisé'}</div><div style={{background:config.headerBgColor,color:config.headerTextColor,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:null}{config.nom}</div>{config.headerShowSearch&&<div style={{flex:1,minWidth:90,display:'flex',background:'#fff',borderRadius:999,overflow:'hidden'}}><span style={{padding:'8px 0 8px 10px',fontSize:11,color:'#8A9089'}}>🔍</span><input placeholder="Rechercher..." disabled style={{flex:1,border:0,padding:'8px 10px 8px 4px',fontSize:10.5,outline:'none'}}/></div>}{workspace.whatsapp_number&&<span style={{background:'#EAF3DE',color:'#3B6D11',padding:'6px 10px',borderRadius:999,fontSize:9.5,fontWeight:700,whiteSpace:'nowrap'}}>💬 Nous contacter</span>}{config.headerShowPanier&&<span style={{background:'rgba(255,255,255,.2)',borderRadius:8,padding:'7px 9px',fontSize:12}}>🛒</span>}</div><div style={{background:config.headerBgColor,filter:'brightness(0.85)',padding:'8px 16px',display:'flex',gap:14,fontSize:10,color:config.headerTextColor,flexWrap:'wrap'}}>{(config.headerLinks||[]).length===0?<span style={{opacity:.6,fontStyle:'italic'}}>Aucun lien ajouté</span>:(config.headerLinks||[]).map(l=><span key={l.id} style={{opacity:.85}}>{l.label}</span>)}</div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
+      <div className={`rv-builder-panel ${ongletBuilder==='structure'?'active':''}`} style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer'}}><span>{sectionCatalog[s]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
+      <div className={`rv-builder-panel ${ongletBuilder==='apercu'?'active':''}`} style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,borderBottom:'1px solid #edf1ee'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950,color:'#14221b'}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:<span style={{width:30,height:30,borderRadius:8,background:config.couleur,color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>R</span>}{config.nom}</div><div style={{display:'flex',gap:12,fontSize:10,color:'#68756d'}}><span>Accueil</span><span>Catalogue</span><span>Contact</span><span>🛒</span></div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
       <div className={`rv-builder-panel ${ongletBuilder==='reglages'?'active':''}`} style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
     </div>
   </div>;
@@ -2410,8 +2175,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }, []);
 
   const accesBloque = (() => {
-    if (subscription === undefined) return false; // encore en cours de chargement, ne pas bloquer par erreur
-    if (subscription === null) return true; // aucun abonnement enregistré du tout = accès bloqué (sécurité)
+    if (subscription === undefined || subscription === null) return false;
     if (subscription.status === "active") return false;
     if (subscription.status === "trial") {
       const finEssai = new Date(subscription.trial_ends_at);
@@ -2678,33 +2442,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
     return { aRelivrer, jamaisContactees, sansNouvelles, total, argentARisque, argentRecuperable };
   }, [commandes, relanceCountByOrder]);
-
-  const produitsEnProgression = useMemo(() => {
-    const maintenant = Date.now();
-    const il7j = maintenant - 7 * 86400000;
-    const il14j = maintenant - 14 * 86400000;
-    const recentes = {};
-    const precedentes = {};
-    commandes.filter((c) => c.statut === "confirmee").forEach((c) => {
-      const t = new Date(c.created_at).getTime();
-      const { nom, quantite } = parseProduitTexte(c.produit);
-      if (t >= il7j) {
-        recentes[nom] = (recentes[nom] || 0) + quantite;
-      } else if (t >= il14j && t < il7j) {
-        precedentes[nom] = (precedentes[nom] || 0) + quantite;
-      }
-    });
-    return Object.keys(recentes)
-      .map((nom) => {
-        const avant = precedentes[nom] || 0;
-        const apres = recentes[nom];
-        const croissance = avant > 0 ? Math.round(((apres - avant) / avant) * 100) : (apres >= 3 ? 100 : 0);
-        return { nom, avant, apres, croissance };
-      })
-      .filter((p) => p.apres >= 3 && p.croissance >= 30)
-      .sort((a, b) => b.croissance - a.croissance)
-      .slice(0, 3);
-  }, [commandes]);
 
   const [vue, setVue] = useState("commandes");
   const [datePreset, setDatePreset] = useState("aujourdhui");
@@ -3154,53 +2891,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
   const beneficeReel = caConfirme - coutLivraisons - coutProduitsInfo.coutTotal;
 
-  const rentabiliteParCloser = useMemo(() => {
-    const map = {};
-    confirmees.forEach((c) => {
-      const closer = c.closer || "Sans closer";
-      const { nom, quantite } = parseProduitTexte(c.produit);
-      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
-      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      if (!map[closer]) map[closer] = { nom: closer, ca: 0, cout: 0, nbCommandes: 0 };
-      map[closer].ca += Number(c.montant);
-      map[closer].cout += cout;
-      map[closer].nbCommandes += 1;
-    });
-    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
-  }, [confirmees, produits]);
-
-  const rentabiliteParZone = useMemo(() => {
-    const map = {};
-    confirmees.forEach((c) => {
-      const zone = (c.zone || "").trim() || "Sans zone";
-      const { nom, quantite } = parseProduitTexte(c.produit);
-      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
-      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      if (!map[zone]) map[zone] = { nom: zone, ca: 0, cout: 0, nbCommandes: 0 };
-      map[zone].ca += Number(c.montant);
-      map[zone].cout += cout;
-      map[zone].nbCommandes += 1;
-    });
-    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
-  }, [confirmees, produits]);
-
-  const rentabiliteParCampagne = useMemo(() => {
-    const avecSource = confirmees.filter((c) => c.source_campagne);
-    if (avecSource.length === 0) return [];
-    const map = {};
-    avecSource.forEach((c) => {
-      const source = c.source_campagne;
-      const { nom, quantite } = parseProduitTexte(c.produit);
-      const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
-      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      if (!map[source]) map[source] = { nom: source, ca: 0, cout: 0, nbCommandes: 0 };
-      map[source].ca += Number(c.montant);
-      map[source].cout += cout;
-      map[source].nbCommandes += 1;
-    });
-    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
-  }, [confirmees, produits]);
-
   const depotsParLivreur = useMemo(() => {
     return livreurs
       .map((l) => {
@@ -3511,6 +3201,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
       <div className="rv-saas-content">
 
+      {vue === "commandes" && workspace.role !== "secretaire" && (
+        <Dashboard3D
+          workspace={workspace}
+          caConfirme={caConfirme}
+          commandesCount={commandesInRange.length}
+          beneficeReel={beneficeReel}
+          livreursCount={livreurs.filter((l) => l.en_tournee || l.position_lat || l.position_lng).length || livreurs.length}
+          equipeCount={livreurs.length + closers.length}
+          boutiquesCount={workspacesDisponibles.length || 1}
+          evolutionData={evolutionData}
+          commandes={commandes}
+        />
+      )}
+
       <div style={{ background: "linear-gradient(160deg, #050807 0%, #0A130F 35%, #0F1B16 70%, #1a7a3c 160%)", color: "white", padding: "20px 20px 34px", position: "relative", overflow: "hidden" }}>
         <div className="rv-mesh-blob rv-mesh-1" />
         <div className="rv-mesh-blob rv-mesh-2" />
@@ -3533,30 +3237,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             <span style={{ fontSize: 13, opacity: 0.8 }}>Espace de</span>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block", marginLeft: 4 }} />
             <span style={{ fontSize: 9.5, fontWeight: 500, opacity: 0.65 }}>EN DIRECT</span>
-          </div>
-
-          {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-              <button
-                onClick={() => setShowStoreBuilder(true)}
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "#e8920a", border: "none", color: "#16231F", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
-              >
-                🛍️ {workspace.store_is_published ? "Personnaliser ma boutique" : "Créer ma boutique"}
-              </button>
-              {workspace.id && (
-                <a
-                  href={`${window.location.origin}/?catalogue=${workspace.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.25)", color: "white", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}
-                >
-                  👁️ Voir ma boutique
-                </a>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {workspace.role === "owner" && (
                 <>
@@ -3566,6 +3246,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   <button onClick={() => setShowAbonnement(true)} className="rv-saas-tabs-mobile" aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
                     💳
                   </button>
+                  {estEcommerce && (
+                    <button onClick={() => setShowStoreBuilder(true)} className="rv-saas-tabs-mobile" aria-label="Ma Boutique" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>
+                      🛍️
+                    </button>
+                  )}
                 </>
               )}
               {(workspace.role === "owner" || workspace.role === "admin") && (
@@ -3711,23 +3396,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {accesBloque && (
-        <div style={{ background: "white", border: "1.5px solid #F0DDA8", borderRadius: 16, padding: "40px 24px", textAlign: "center", maxWidth: 480, margin: "40px auto" }}>
-          <div style={{ fontSize: 44, marginBottom: 14 }}>🔒</div>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: "#16231F" }}>Ton essai gratuit est terminé</div>
-          <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.6, marginBottom: 22 }}>
-            Passe à un plan payant pour retrouver l'accès à tout ton espace — commandes, clients, produits, équipe, et le reste.
-          </div>
-          <button
-            onClick={() => setShowAbonnement(true)}
-            style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
-          >
-            💳 Voir les plans d'abonnement
-          </button>
-        </div>
-      )}
-
-      {(vue === "commandes" || vue === "compta") && !accesBloque && (
+      {(vue === "commandes" || vue === "compta") && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 2 }}>
           {[
             { key: "aujourdhui", label: "Aujourd'hui" },
@@ -3755,7 +3424,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {vue === "aujourdhui" && !accesBloque && (
+      {vue === "aujourdhui" && (
         <div>
           {commandes.length === 0 && (
             <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 16, padding: "20px 18px", marginBottom: 20 }}>
@@ -3784,12 +3453,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             </div>
           )}
 
-          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0) || produitsEnProgression.length > 0) && (
+          {(todoAujourdhui.total > 0 || clientsARelancer.length > 0 || depotsParLivreur.some((l) => l.aDeposer > 0)) && (
             <RadarDesFuitesEtActions
               todoAujourdhui={todoAujourdhui}
               clientsARelancer={clientsARelancer}
               depotsParLivreur={depotsParLivreur}
-              produitsEnProgression={produitsEnProgression}
               currency={workspace.currency}
               onVoirRecovery={() => setVue("recovery")}
               onVoirCompta={() => setVue("compta")}
@@ -4064,11 +3732,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       </>
       )}
 
-      {vue === "validations" && !accesBloque && (
+      {vue === "validations" && (
         <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
       )}
 
-      {vue === "biens_location" && !accesBloque && (
+      {vue === "biens_location" && (
         <BiensLocationView
           biensLocation={biensLocation}
           currency={workspace.currency}
@@ -4078,7 +3746,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "logements" && !accesBloque && (
+      {vue === "logements" && (
         <LogementsView
           logements={logements}
           currency={workspace.currency}
@@ -4088,7 +3756,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "menu_restaurant" && !accesBloque && (
+      {vue === "menu_restaurant" && (
         <MenuRestaurantView
           plats={plats}
           currency={workspace.currency}
@@ -4101,7 +3769,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "cuisine" && !accesBloque && (
+      {vue === "cuisine" && (
         <CuisineView
           commandes={commandes.filter((c) => c.statut !== "annulee" && c.statut !== "echouee")}
           onChangerStatutCuisine={changerStatutCuisine}
@@ -4109,7 +3777,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "produits_vue" && !accesBloque && (
+      {vue === "produits_vue" && (
         <ProduitsViewSaas
           produitsAvecBenefice={produitsAvecBenefice}
           currency={workspace.currency}
@@ -4117,7 +3785,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "clients" && !accesBloque && (
+      {vue === "clients" && (
         <div>
           {clientsARelancer.length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -4184,7 +3852,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {vue === "recovery" && !accesBloque && (
+      {vue === "recovery" && (
         <RecoveryCenterView
           commandes={commandesRecuperables}
           toutesCommandes={commandes}
@@ -4193,25 +3861,21 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         />
       )}
 
-      {vue === "score_business" && !accesBloque && (
+      {vue === "score_business" && (
         <ScoreBusinessView
           toutesCommandes={commandes}
           beneficeReel={beneficeReel}
           caConfirme={caConfirme}
           currency={workspace.currency}
           depotsParLivreur={depotsParLivreur}
-          rentabiliteParCloser={rentabiliteParCloser}
-          rentabiliteParZone={rentabiliteParZone}
-          rentabiliteParCampagne={rentabiliteParCampagne}
-          workspaceId={workspace.id}
         />
       )}
 
-      {vue === "simulateur" && !accesBloque && (
+      {vue === "simulateur" && (
         <SimulateurCampagneView currency={workspace.currency} />
       )}
 
-      {vue === "rapprochement" && !accesBloque && (
+      {vue === "rapprochement" && (
         <RapprochementView workspace={workspace} commandes={commandes} onValide={loadCommandes} />
       )}
 
@@ -4439,11 +4103,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
       {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
-      {showTeam && !accesBloque && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
+      {showTeam && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
-      {showStoreBuilder && !accesBloque && (
+      {showStoreBuilder && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
           <div style={{ width: "100%", maxWidth: 1200, maxHeight: "94vh", overflowY: "auto" }}>
             <RVStoreBuilder
@@ -4471,60 +4135,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
-      {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
-      {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
-      {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
+      {showProduits && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showAvis && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
+      {showTemoignages && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
+      {showCollections && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
     </div>
-  );
-}
-
-function BoutonMicro({ onResultat, langue = "fr-FR" }) {
-  const [ecoute, setEcoute] = useState(false);
-  const reconnaissanceRef = useRef(null);
-
-  function demarrer() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("La saisie vocale n'est pas disponible sur ce navigateur. Utilise plutôt Chrome.");
-      return;
-    }
-    const reco = new SpeechRecognition();
-    reco.lang = langue;
-    reco.interimResults = false;
-    reco.maxAlternatives = 1;
-    reco.onresult = (e) => {
-      const texte = e.results?.[0]?.[0]?.transcript;
-      if (texte) onResultat(texte);
-    };
-    reco.onerror = () => setEcoute(false);
-    reco.onend = () => setEcoute(false);
-    reconnaissanceRef.current = reco;
-    try { reco.start(); setEcoute(true); } catch (_) {}
-  }
-
-  function arreter() {
-    try { reconnaissanceRef.current?.stop(); } catch (_) {}
-    setEcoute(false);
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={ecoute ? arreter : demarrer}
-      title={ecoute ? "Arrêter l'écoute" : "Dicter avec la voix"}
-      style={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        width: 40, height: "auto", alignSelf: "stretch", borderRadius: 8,
-        border: `1px solid ${ecoute ? "#D64933" : "#DDD8CC"}`,
-        background: ecoute ? "#FBEAE6" : "white", color: ecoute ? "#D64933" : "#526057",
-        cursor: "pointer", fontSize: 16, flexShrink: 0,
-        animation: ecoute ? "rvMicPulse 1s ease-in-out infinite" : "none",
-      }}
-    >
-      🎙️
-      <style>{`@keyframes rvMicPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
-    </button>
   );
 }
 
@@ -4870,24 +4485,17 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
           </>
         )}
 
-        {champs.map((f) => {
-          const champTexteDictable = f === "client" || f === "produit" || f === "zone";
-          return (
-            <div key={f} style={champTexteDictable ? { display: "flex", gap: 6, marginBottom: 10 } : undefined}>
-              <input
-                placeholder={f === "montant" ? (estLocation ? `Loyer mensuel (${currency})` : `Montant total (${currency})`) : f === "produit" ? (estLocation ? "Logement (ex: Appartement 2)" : estRetail ? "Produit vendu" : "Produit") : f === "zone" ? (estLocation ? "Adresse du logement" : f) : f === "client" ? (estLocation ? "Nom du locataire" : "Nom du client") : f}
-                value={form[f]}
-                onChange={(e) => setForm({ ...form, [f]: e.target.value })}
-                type={f === "montant" ? "number" : "text"}
-                min={f === "montant" ? "1" : undefined}
-                style={champTexteDictable ? { ...inputStyle, marginBottom: 0, flex: 1 } : inputStyle}
-              />
-              {champTexteDictable && (
-                <BoutonMicro onResultat={(texte) => setForm((prev) => ({ ...prev, [f]: prev[f] ? prev[f] + " " + texte : texte }))} />
-              )}
-            </div>
-          );
-        })}
+        {champs.map((f) => (
+          <input
+            key={f}
+            placeholder={f === "montant" ? (estLocation ? `Loyer mensuel (${currency})` : `Montant total (${currency})`) : f === "produit" ? (estLocation ? "Logement (ex: Appartement 2)" : estRetail ? "Produit vendu" : "Produit") : f === "zone" ? (estLocation ? "Adresse du logement" : f) : f === "client" ? (estLocation ? "Nom du locataire" : "Nom du client") : f}
+            value={form[f]}
+            onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+            type={f === "montant" ? "number" : "text"}
+            min={f === "montant" ? "1" : undefined}
+            style={inputStyle}
+          />
+        ))}
         {form.montant && !montantValide && (
           <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
         )}
@@ -5341,15 +4949,6 @@ function AdminPanel({ session }) {
                       style={{ background: suspendu ? "#1a7a3c" : "#FBEAE6", color: suspendu ? "white" : "#D64933", border: suspendu ? "none" : "1px solid #F0B8AC", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
                     >
                       {actionEnCours === ws.id ? "..." : suspendu ? "✅ Réactiver" : "🔒 Suspendre"}
-                    </button>
-                  )}
-                  {ws.subscription && essaiExpire && (
-                    <button
-                      onClick={() => toggleStatus(ws.id, "reactiver")}
-                      disabled={actionEnCours === ws.id}
-                      style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      {actionEnCours === ws.id ? "..." : "✅ Activer l'accès"}
                     </button>
                   )}
                   <button
@@ -6389,7 +5988,6 @@ function HistoriqueRelances({ commandeId }) {
           placeholder="Ex: Appelé, pas de réponse"
           style={{ flex: 1, padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12 }}
         />
-        <BoutonMicro onResultat={(texte) => setNote((n) => (n ? n + " " + texte : texte))} />
         <button onClick={ajouter} disabled={adding || !note.trim()} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "0 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           +
         </button>
@@ -6469,11 +6067,8 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
 function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
   const editeurRef = useRef(null);
   const [envoiImage, setEnvoiImage] = useState(false);
-  const [envoiVideo, setEnvoiVideo] = useState(false);
   const [initialise, setInitialise] = useState(false);
   const positionCurseurRef = useRef(null);
-  const [modeHTML, setModeHTML] = useState(false);
-  const [htmlBrut, setHtmlBrut] = useState("");
 
   useEffect(() => {
     if (editeurRef.current && !initialise) {
@@ -6560,144 +6155,29 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     setEnvoiImage(false);
   }
 
-  function insererVideoParUrl() {
-    const url = prompt("Colle le lien de la vidéo (YouTube, Vimeo, ou lien direct .mp4) :");
-    if (!url || !url.trim()) return;
-    const lien = url.trim();
-    const ytMatch = lien.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-    const vimeoMatch = lien.match(/vimeo\.com\/(\d+)/);
-    let html;
-    if (ytMatch) {
-      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
-    } else if (vimeoMatch) {
-      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
-    } else {
-      html = `<video controls style="max-width:100%;border-radius:8px;margin:12px 0;display:block;"><source src="${lien}" /></video>`;
-    }
-    appliquer("insertHTML", html);
-  }
-
-  async function insererVideoFichier(fichier) {
-    if (!fichier) return;
-    if (fichier.size > 30 * 1024 * 1024) {
-      alert("La vidéo est trop lourde (max 30 Mo). Pour une vidéo plus longue, mets-la sur YouTube et colle le lien à la place.");
-      return;
-    }
-    const plageAuMomentDuClic = positionCurseurRef.current ? positionCurseurRef.current.cloneRange() : null;
-    setEnvoiVideo(true);
-    const extension = fichier.name.split(".").pop();
-    const chemin = `${workspaceId}-desc-video-${Date.now()}.${extension}`;
-    const { error } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true, contentType: fichier.type || undefined });
-    if (error) {
-      alert("Erreur lors de l'envoi de la vidéo : " + error.message);
-      setEnvoiVideo(false);
-      return;
-    }
-    const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
-    const video = document.createElement("video");
-    video.controls = true;
-    video.src = data.publicUrl;
-    video.style.cssText = "max-width:100%;border-radius:8px;margin:12px 0;display:block;";
-
-    const editeur = editeurRef.current;
-    const plageValide = plageAuMomentDuClic && editeur && editeur.contains(plageAuMomentDuClic.commonAncestorContainer);
-    if (plageValide) {
-      plageAuMomentDuClic.deleteContents();
-      plageAuMomentDuClic.insertNode(video);
-      plageAuMomentDuClic.setStartAfter(video);
-      plageAuMomentDuClic.collapse(true);
-      positionCurseurRef.current = plageAuMomentDuClic.cloneRange();
-    } else {
-      editeur.appendChild(video);
-      const plageFin = document.createRange();
-      plageFin.selectNodeContents(editeur);
-      plageFin.collapse(false);
-      positionCurseurRef.current = plageFin;
-    }
-    editeur.focus();
-    restaurerPositionCurseur();
-    onChange(editeur.innerHTML);
-    setEnvoiVideo(false);
-  }
-
-  function basculerModeHTML() {
-    if (!modeHTML) {
-      setHtmlBrut(editeurRef.current ? editeurRef.current.innerHTML : valeur || "");
-      setModeHTML(true);
-    } else {
-      onChange(htmlBrut);
-      setInitialise(false);
-      setModeHTML(false);
-    }
-  }
-
   return (
     <div style={{ border: "1px solid #DDD8CC", borderRadius: 8, overflow: "hidden" }}>
-      <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap", alignItems: "center" }}>
-        <select
-          disabled={modeHTML}
-          onMouseDown={sauvegarderPositionCurseur}
-          onChange={(e) => { if (e.target.value) appliquer("formatBlock", e.target.value); e.target.value = ""; }}
-          defaultValue=""
-          style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }}
-        >
-          <option value="" disabled>Style</option>
-          <option value="P">Normal</option>
-          <option value="H2">Titre</option>
-          <option value="H3">Sous-titre</option>
-        </select>
-        <select
-          disabled={modeHTML}
-          onMouseDown={sauvegarderPositionCurseur}
-          onChange={(e) => { if (e.target.value) appliquer("fontName", e.target.value); e.target.value = ""; }}
-          defaultValue=""
-          style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1, fontStyle: "normal" }}
-        >
-          <option value="" disabled>Police</option>
-          <option value="Arial, sans-serif" style={{ fontFamily: "Arial, sans-serif" }}>Normale</option>
-          <option value="Georgia, serif" style={{ fontFamily: "Georgia, serif" }}>Classique</option>
-          <option value="'Courier New', monospace" style={{ fontFamily: "'Courier New', monospace" }}>Machine à écrire</option>
-          <option value="'Brush Script MT', cursive" style={{ fontFamily: "'Brush Script MT', cursive" }}>Manuscrite</option>
-          <option value="Impact, sans-serif" style={{ fontFamily: "Impact, sans-serif" }}>Impact</option>
-        </select>
-        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("bold")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><b>G</b></button>
-        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("italic")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><i>I</i></button>
-        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("underline")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><u>S</u></button>
-        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("insertUnorderedList")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}>• Liste</button>
-        <label style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }} onMouseDown={sauvegarderPositionCurseur}>
+      <div style={{ display: "flex", gap: 4, padding: "6px 8px", background: "#FAFAF7", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap" }}>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("bold")} style={boutonEditeurStyle}><b>G</b></button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("italic")} style={boutonEditeurStyle}><i>I</i></button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("insertUnorderedList")} style={boutonEditeurStyle}>• Liste</button>
+        <label style={{ ...boutonEditeurStyle, cursor: "pointer" }} onMouseDown={sauvegarderPositionCurseur}>
           {envoiImage ? "Envoi..." : "🖼️ Image"}
-          <input type="file" accept="image/*" disabled={modeHTML} style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
         </label>
-        <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={insererVideoParUrl} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}>🎥 Lien vidéo</button>
-        <label style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }} onMouseDown={sauvegarderPositionCurseur}>
-          {envoiVideo ? "Envoi..." : "📤 Vidéo"}
-          <input type="file" accept="video/*" disabled={modeHTML} style={{ display: "none" }} onChange={(e) => insererVideoFichier(e.target.files?.[0])} />
-        </label>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={basculerModeHTML} style={{ ...boutonEditeurStyle, marginLeft: "auto", background: modeHTML ? "#1a7a3c" : "white", color: modeHTML ? "white" : "#16231F" }}>
-          {modeHTML ? "✓ Terminer HTML" : "</> HTML"}
-        </button>
       </div>
-      {modeHTML ? (
-        <textarea
-          value={htmlBrut}
-          onChange={(e) => setHtmlBrut(e.target.value)}
-          placeholder="<p>Colle ou écris ton code HTML ici...</p>"
-          style={{ width: "100%", minHeight: 220, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.6, outline: "none", border: "none", fontFamily: "'IBM Plex Mono', monospace", boxSizing: "border-box", resize: "vertical" }}
-        />
-      ) : (
-        <div
-          ref={editeurRef}
-          contentEditable
-          onInput={(e) => onChange(e.currentTarget.innerHTML)}
-          onBlur={sauvegarderPositionCurseur}
-          onKeyUp={sauvegarderPositionCurseur}
-          onMouseUp={sauvegarderPositionCurseur}
-          data-placeholder={placeholder}
-          style={{ minHeight: 220, padding: "12px 14px", fontSize: 14, lineHeight: 1.6, outline: "none" }}
-          className="rv-editeur-riche"
-        />
-      )}
-      <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; } .rv-editeur-riche h2 { font-size: 19px; font-weight: 700; margin: 14px 0 8px; } .rv-editeur-riche h3 { font-size: 16px; font-weight: 700; margin: 12px 0 6px; }`}</style>
+      <div
+        ref={editeurRef}
+        contentEditable
+        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        onBlur={sauvegarderPositionCurseur}
+        onKeyUp={sauvegarderPositionCurseur}
+        onMouseUp={sauvegarderPositionCurseur}
+        data-placeholder={placeholder}
+        style={{ minHeight: 220, padding: "12px 14px", fontSize: 14, lineHeight: 1.6, outline: "none" }}
+        className="rv-editeur-riche"
+      />
+      <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; }`}</style>
     </div>
   );
 }
@@ -9294,50 +8774,6 @@ function RapprochementView({ workspace, commandes, onValide }) {
   const [enCours, setEnCours] = useState(false);
   const [historique, setHistorique] = useState(null);
   const [afficherHistorique, setAfficherHistorique] = useState(false);
-  const [scanEnCours, setScanEnCours] = useState(false);
-  const [dernierScan, setDernierScan] = useState(null);
-
-  async function scannerRecu(fichier) {
-    if (!fichier) return;
-    if (!window.Tesseract) {
-      alert("Le lecteur de reçu n'est pas encore chargé, réessaie dans quelques secondes.");
-      return;
-    }
-    setScanEnCours(true);
-    setDernierScan(null);
-    try {
-      const { data } = await window.Tesseract.recognize(fichier, "fra");
-      const texteOCR = data.text || "";
-
-      // Cherche le plus gros montant (souvent le montant de la transaction),
-      // en ignorant les nombres trop courts (probablement une date/heure).
-      const montantsTrouves = (texteOCR.match(/\d[\d\s.,]{3,}/g) || [])
-        .map((m) => Number(m.replace(/[\s.,](?=\d{3}\b)/g, "").replace(",", ".")))
-        .filter((n) => !isNaN(n) && n >= 100 && n <= 100000000);
-      const montant = montantsTrouves.length ? Math.max(...montantsTrouves) : null;
-
-      // Cherche un numéro de téléphone ivoirien (10 chiffres, ou +225/00225 suivi de 10 chiffres)
-      const telMatch = texteOCR.match(/(?:\+?225|00225)?[\s.]?0?[0-9]{1,2}(?:[\s.]?[0-9]{2}){4,5}/);
-      const telephone = telMatch ? telMatch[0].replace(/\s/g, "") : "";
-
-      // Cherche une référence de transaction (souvent après "Réf", "ID", ou une suite alphanumérique)
-      const refMatch = texteOCR.match(/(?:réf|ref|id|transaction)[\s:.]*([A-Z0-9]{5,})/i);
-      const reference = refMatch ? refMatch[1] : "";
-
-      if (!montant) {
-        setDernierScan({ succes: false, message: "Aucun montant clair détecté sur cette image. Ajoute la ligne manuellement." });
-        setScanEnCours(false);
-        return;
-      }
-
-      const nouvelleLigne = `${montant},${telephone},${reference}`;
-      setTexteColle((t) => (t.trim() ? t.trim() + "\n" + nouvelleLigne : nouvelleLigne));
-      setDernierScan({ succes: true, montant, telephone, reference });
-    } catch (e) {
-      setDernierScan({ succes: false, message: "Erreur de lecture : " + e.message });
-    }
-    setScanEnCours(false);
-  }
 
   function normaliserTel(tel) {
     return String(tel || "").replace(/\D/g, "").replace(/^225/, "").replace(/^0/, "");
@@ -9444,17 +8880,6 @@ function RapprochementView({ workspace, commandes, onValide }) {
 
       {!propositions && (
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13, color: "#3B6D11", cursor: scanEnCours ? "default" : "pointer", marginBottom: 12, boxSizing: "border-box" }}>
-            {scanEnCours ? "🔍 Lecture du reçu en cours..." : "📸 Scanner un reçu (photo)"}
-            <input type="file" accept="image/*" capture="environment" disabled={scanEnCours} style={{ display: "none" }} onChange={(e) => scannerRecu(e.target.files?.[0])} />
-          </label>
-          {dernierScan && (
-            <div style={{ background: dernierScan.succes ? "#EAF3DE" : "#FBEAE6", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 11.5, color: dernierScan.succes ? "#3B6D11" : "#D64933" }}>
-              {dernierScan.succes
-                ? `✅ Détecté : ${Number(dernierScan.montant).toLocaleString("fr-FR")} FCFA${dernierScan.telephone ? " · " + dernierScan.telephone : ""}${dernierScan.reference ? " · " + dernierScan.reference : ""} — vérifie la ligne ajoutée ci-dessous avant d'analyser.`
-                : "⚠️ " + dernierScan.message}
-            </div>
-          )}
           <textarea
             value={texteColle}
             onChange={(e) => setTexteColle(e.target.value)}
@@ -9697,31 +9122,7 @@ function SimulateurCampagneView({ currency }) {
   );
 }
 
-function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur, rentabiliteParCloser = [], rentabiliteParZone = [], rentabiliteParCampagne = [], workspaceId }) {
-  const [depensesParCampagne, setDepensesParCampagne] = useState({});
-  const [saisieDepense, setSaisieDepense] = useState({});
-  const [enregistrementCampagne, setEnregistrementCampagne] = useState(null);
-
-  useEffect(() => {
-    if (!workspaceId) return;
-    supabase.from("depenses_publicitaires").select("nom_campagne, montant").eq("workspace_id", workspaceId).then(({ data }) => {
-      if (!data) return;
-      const totaux = {};
-      data.forEach((d) => { totaux[d.nom_campagne] = (totaux[d.nom_campagne] || 0) + Number(d.montant); });
-      setDepensesParCampagne(totaux);
-    });
-  }, [workspaceId]);
-
-  async function ajouterDepenseCampagne(nomCampagne) {
-    const montant = Number(saisieDepense[nomCampagne]);
-    if (!montant || montant <= 0) return;
-    setEnregistrementCampagne(nomCampagne);
-    await supabase.from("depenses_publicitaires").insert([{ workspace_id: workspaceId, nom_campagne: nomCampagne, montant }]);
-    setDepensesParCampagne((v) => ({ ...v, [nomCampagne]: (v[nomCampagne] || 0) + montant }));
-    setSaisieDepense((v) => ({ ...v, [nomCampagne]: "" }));
-    setEnregistrementCampagne(null);
-  }
-
+function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency, depotsParLivreur }) {
   const composantes = useMemo(() => {
     const now = new Date();
     const debutMoisActuel = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -9850,105 +9251,6 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
       <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.6 }}>
         Calculé à partir de tes 30 derniers jours de commandes, ton bénéfice réel, et la fiabilité de ton équipe. Un score qui remonte reflète une activité qui se solidifie.
       </div>
-
-      {rentabiliteParCloser.length > 0 && (
-        <div style={{ marginTop: 28 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>💼 Rentabilité par closer</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Bénéfice réel généré, pas juste le nombre de ventes.</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {rentabiliteParCloser.map((r) => (
-              <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{r.nom}</div>
-                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: r.benefice >= 0 ? "#1F9D6E" : "#D64933" }}>
-                    {r.benefice.toLocaleString("fr-FR")} {currency}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#8A9089" }}>bénéfice réel</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {rentabiliteParZone.length > 0 && (
-        <div style={{ marginTop: 28 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>📍 Rentabilité par zone</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Certaines zones coûtent plus cher à livrer qu'elles ne rapportent.</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {rentabiliteParZone.slice(0, 10).map((r) => (
-              <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
-                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: r.benefice >= 0 ? "#1F9D6E" : "#D64933" }}>
-                    {r.benefice.toLocaleString("fr-FR")} {currency}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#8A9089" }}>bénéfice réel</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {rentabiliteParZone.length > 10 && (
-            <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, textAlign: "center" }}>+ {rentabiliteParZone.length - 10} autre{rentabiliteParZone.length - 10 > 1 ? "s" : ""} zone{rentabiliteParZone.length - 10 > 1 ? "s" : ""}</div>
-          )}
-        </div>
-      )}
-
-      {rentabiliteParCampagne.length > 0 && (
-        <div style={{ marginTop: 28 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>🎯 Rentabilité par campagne publicitaire</div>
-          <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12 }}>Uniquement les commandes arrivées via un lien avec suivi (utm_source/utm_campaign, ou pub Facebook/TikTok détectée). Ajoute ce que tu as réellement dépensé pour voir ton vrai ROAS.</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {rentabiliteParCampagne.map((r) => {
-              const depensePub = depensesParCampagne[r.nom] || 0;
-              const beneficeApresPub = r.benefice - depensePub;
-              return (
-                <div key={r.nom} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "12px 16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: depensePub > 0 ? 10 : 0 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
-                      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: beneficeApresPub >= 0 ? "#1F9D6E" : "#D64933" }}>
-                        {beneficeApresPub.toLocaleString("fr-FR")} {currency}
-                      </div>
-                      <div style={{ fontSize: 10, color: "#8A9089" }}>{depensePub > 0 ? "bénéfice après pub" : "bénéfice (sans dépense pub renseignée)"}</div>
-                    </div>
-                  </div>
-                  {depensePub > 0 && (
-                    <div style={{ fontSize: 10.5, color: "#8A9089", borderTop: "1px solid #F0EEE6", paddingTop: 8, marginBottom: 8 }}>
-                      {r.benefice.toLocaleString("fr-FR")} {currency} de bénéfice avant pub − {depensePub.toLocaleString("fr-FR")} {currency} dépensés = ROAS {depensePub > 0 ? (r.ca / depensePub).toFixed(1) : "—"}x
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input
-                      type="number"
-                      placeholder={`Ajouter une dépense pub (${currency})`}
-                      value={saisieDepense[r.nom] || ""}
-                      onChange={(e) => setSaisieDepense((v) => ({ ...v, [r.nom]: e.target.value }))}
-                      style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12 }}
-                    />
-                    <button
-                      onClick={() => ajouterDepenseCampagne(r.nom)}
-                      disabled={enregistrementCampagne === r.nom}
-                      style={{ background: "#1E4B8C", color: "white", border: "none", borderRadius: 7, padding: "0 12px", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}
-                    >
-                      {enregistrementCampagne === r.nom ? "..." : "＋ Ajouter"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -10670,9 +9972,6 @@ function IntegrationsModal({ workspace, onClose }) {
     frais_expedition: workspace.frais_expedition ?? 0,
     label_livraison_locale: workspace.label_livraison_locale || "Livraison locale",
     label_livraison_expedition: workspace.label_livraison_expedition || "Autre ville",
-    depot_requis: workspace.depot_requis || false,
-    depot_montant: workspace.depot_montant ?? "",
-    depot_message: workspace.depot_message || "",
   });
   const [envoiEnCoursType, setEnvoiEnCoursType] = useState(null);
   const [pixelId, setPixelId] = useState(workspace.facebook_pixel_id || "");
@@ -10695,48 +9994,19 @@ function IntegrationsModal({ workspace, onClose }) {
   const [savingDomainePerso, setSavingDomainePerso] = useState(false);
   const [domainePersoSaved, setDomainePersoSaved] = useState(false);
   const [erreurDomainePerso, setErreurDomainePerso] = useState("");
-  const [instructionsDomaine, setInstructionsDomaine] = useState(null);
 
   async function sauvegarderDomainePerso() {
     setSavingDomainePerso(true);
     setErreurDomainePerso("");
-    setInstructionsDomaine(null);
     const valeur = domainePerso.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "") || null;
-
-    if (!valeur) {
-      await supabase.from("workspaces").update({ domaine_personnalise: null }).eq("id", workspace.id);
-      setSavingDomainePerso(false);
-      setDomainePersoSaved(true);
-      setTimeout(() => setDomainePersoSaved(false), 2000);
+    const { error } = await supabase.from("workspaces").update({ domaine_personnalise: valeur }).eq("id", workspace.id);
+    setSavingDomainePerso(false);
+    if (error) {
+      setErreurDomainePerso(error.message.includes("duplicate") || error.message.includes("unique") ? "Ce domaine est déjà utilisé par une autre boutique." : "Erreur : " + error.message);
       return;
     }
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const resp = await fetch("/api/domains", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ workspaceId: workspace.id, domaine: valeur, action: "add" }),
-      });
-      const result = await resp.json();
-      if (!resp.ok) {
-        setErreurDomainePerso(result.error || "Erreur lors de la connexion à Vercel.");
-        setSavingDomainePerso(false);
-        return;
-      }
-      const { error } = await supabase.from("workspaces").update({ domaine_personnalise: valeur }).eq("id", workspace.id);
-      if (error) {
-        setErreurDomainePerso(error.message.includes("duplicate") || error.message.includes("unique") ? "Ce domaine est déjà utilisé par une autre boutique." : "Erreur : " + error.message);
-        setSavingDomainePerso(false);
-        return;
-      }
-      setInstructionsDomaine(result.instructions);
-      setDomainePersoSaved(true);
-      setTimeout(() => setDomainePersoSaved(false), 2000);
-    } catch (e) {
-      setErreurDomainePerso("Erreur de connexion : " + e.message);
-    }
-    setSavingDomainePerso(false);
+    setDomainePersoSaved(true);
+    setTimeout(() => setDomainePersoSaved(false), 2000);
   }
   const [savingDomaineMeta, setSavingDomaineMeta] = useState(false);
   const [domaineMetaSaved, setDomaineMetaSaved] = useState(false);
@@ -11352,44 +10622,6 @@ function IntegrationsModal({ workspace, onClose }) {
             <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
           </div>
 
-          <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 14, marginTop: 4, marginBottom: 14 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: 10 }}>
-              <input
-                type="checkbox"
-                checked={personnalisation.depot_requis}
-                onChange={(e) => setPersonnalisation({ ...personnalisation, depot_requis: e.target.checked })}
-                style={{ width: 16, height: 16, cursor: "pointer" }}
-              />
-              <span style={{ fontWeight: 700, fontSize: 13 }}>💰 Exiger un dépôt avant expédition (livraison "{personnalisation.label_livraison_expedition || "Autre ville"}" uniquement)</span>
-            </label>
-            {personnalisation.depot_requis && (
-              <>
-                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Montant du dépôt</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                  <input
-                    type="number"
-                    value={personnalisation.depot_montant}
-                    onChange={(e) => setPersonnalisation({ ...personnalisation, depot_montant: e.target.value })}
-                    placeholder="0"
-                    style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
-                  />
-                  <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
-                </div>
-                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Message affiché au client (personnalisable)</div>
-                <textarea
-                  value={personnalisation.depot_message}
-                  onChange={(e) => setPersonnalisation({ ...personnalisation, depot_message: e.target.value })}
-                  placeholder={`Livraison hors zone : un dépôt de ${personnalisation.depot_montant || "..."} ${workspace.currency} par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
-                  rows={3}
-                  style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }}
-                />
-                <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 6, lineHeight: 1.5 }}>
-                  Ce dépôt n'est pas encaissé automatiquement dans l'app — c'est une information affichée au client avant qu'il commande, à toi de l'organiser par Mobile Money une fois la commande confirmée.
-                </div>
-              </>
-            )}
-          </div>
-
           <button
             onClick={async () => {
               await supabase.from("workspaces").update({
@@ -11397,9 +10629,6 @@ function IntegrationsModal({ workspace, onClose }) {
                 frais_expedition: Number(personnalisation.frais_expedition) || 0,
                 label_livraison_locale: personnalisation.label_livraison_locale.trim() || "Livraison locale",
                 label_livraison_expedition: personnalisation.label_livraison_expedition.trim() || "Autre ville",
-                depot_requis: personnalisation.depot_requis,
-                depot_montant: personnalisation.depot_montant === "" ? null : Number(personnalisation.depot_montant),
-                depot_message: personnalisation.depot_message.trim() || null,
               }).eq("id", workspace.id);
             }}
             style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
@@ -11454,23 +10683,8 @@ function IntegrationsModal({ workspace, onClose }) {
             </button>
           </div>
           {erreurDomainePerso && <div style={{ color: "#D64933", fontSize: 11.5, marginTop: 6 }}>{erreurDomainePerso}</div>}
-          {instructionsDomaine && (
-            <div style={{ background: "#FFF8E7", border: "1px solid #F0DDA8", borderRadius: 10, padding: 12, marginTop: 10, fontSize: 11.5, lineHeight: 1.7 }}>
-              <div style={{ fontWeight: 700, color: "#8A6412", marginBottom: 4 }}>✅ Domaine enregistré côté Vercel — dernière étape pour ton client</div>
-              <div>Ton client doit ajouter cet enregistrement chez <b>son</b> registrar (là où il a acheté le domaine) :</div>
-              {instructionsDomaine.a && (
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", borderRadius: 6, padding: "4px 8px", marginTop: 4 }}>
-                  Type: A — Nom: @ — Valeur: {instructionsDomaine.a.value}
-                </div>
-              )}
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", borderRadius: 6, padding: "4px 8px", marginTop: 4 }}>
-                Type: CNAME — Nom: {instructionsDomaine.cname.name} — Valeur: {instructionsDomaine.cname.value}
-              </div>
-              <div style={{ marginTop: 6, opacity: 0.8 }}>Le certificat SSL se met en place automatiquement une fois ces enregistrements détectés (quelques minutes à quelques heures selon son registrar).</div>
-            </div>
-          )}
           <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8, lineHeight: 1.5 }}>
-            Écris juste le domaine (sans https://). L'ajout côté Vercel se fait automatiquement en cliquant "Enregistrer".
+            Écris juste le domaine (sans https://). Il faut aussi le connecter sur Vercel — demande le guide à ton support si besoin.
           </div>
         </div>
 

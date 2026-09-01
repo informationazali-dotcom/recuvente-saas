@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
@@ -3836,13 +3836,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </button>
         ))}
 
-        <button
-          onClick={() => setShowReunion(true)}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-        >
-          📹 Réunion d'équipe
-        </button>
-
         {(workspace.role === "owner" || workspace.role === "admin") && (
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
             Pilotage financier
@@ -3959,10 +3952,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             (workspace.role === "owner" || workspace.role === "admin") && (
               <div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Actions équipe</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                   <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", color: "white", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>🚚 Livreurs</button>
                   <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", color: "white", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>🎧 Closers</button>
                   <button onClick={() => setShowCampagne(true)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", color: "white", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>📣 Campagne</button>
+                  <button onClick={() => setShowReunion(true)} style={{ background: "linear-gradient(135deg,#00D084,#00F5A0)", border: "none", color: "#03110C", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(0,208,132,0.35)" }}>📹 Réunion</button>
                 </div>
               </div>
             )
@@ -4741,7 +4735,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients", icon: Users },
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
-          { key: "reunion", label: "Réunion", icon: Headset, action: () => setShowReunion(true) },
         ].map((t) => {
           const Icon = t.icon;
           const active = vue === t.key;

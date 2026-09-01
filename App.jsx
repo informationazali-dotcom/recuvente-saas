@@ -2020,7 +2020,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   </div>;
 }
 
-function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livreursCount, equipeCount, boutiquesCount, evolutionData = [], commandes = [] }) {
+function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, beneficeReel, livreursCount, equipeCount, boutiquesCount, aRisqueCount, tauxLivraison, evolutionData = [], commandes = [] }) {
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState(false);
 
@@ -2028,6 +2028,15 @@ function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livr
   const safeEvolution = evolutionData.length ? evolutionData.slice(-8) : [{ label: "—", commandes: 0 }];
   const maxOrders = Math.max(...safeEvolution.map((d) => Number(d.commandes || 0)), 1);
   const recent = commandes.slice(0, 4);
+
+  const libellesParActivite = {
+    cod_ecommerce: { ca: "CA confirmé", commandes: "Commandes", quatrieme: { icon: "🚚", label: "Livreurs actifs", value: money(livreursCount), accent: "#ffb000" } },
+    retail: { ca: "CA confirmé", commandes: "Ventes", quatrieme: { icon: "🚚", label: "Livreurs actifs", value: money(livreursCount), accent: "#ffb000" } },
+    restaurant: { ca: "CA confirmé", commandes: "Commandes", quatrieme: { icon: "🍽️", label: "Livreurs actifs", value: money(livreursCount), accent: "#ffb000" } },
+    location_immobiliere: { ca: "Loyers encaissés", commandes: "Loyers", quatrieme: { icon: "🏠", label: "Livreurs actifs", value: money(livreursCount), accent: "#ffb000" } },
+    location_vehicule: { ca: "CA confirmé", commandes: "Réservations", quatrieme: { icon: "🚗", label: "Livreurs actifs", value: money(livreursCount), accent: "#ffb000" } },
+  };
+  const libelles = libellesParActivite[activityType] || libellesParActivite.cod_ecommerce;
 
   function handleMove(e) {
     const r = e.currentTarget.getBoundingClientRect();
@@ -2051,6 +2060,18 @@ function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livr
     transformStyle: "preserve-3d",
   };
 
+  const statsRow1 = [
+    { icon: "💰", label: libelles.ca, value: `${money(caConfirme)} ${workspace?.currency || "XOF"}`, accent: "#00f5a0" },
+    { icon: "📦", label: libelles.commandes, value: money(commandesCount), accent: "#fff" },
+    { icon: "📈", label: "Bénéfice réel", value: `${money(beneficeReel)} ${workspace?.currency || "XOF"}`, accent: beneficeReel >= 0 ? "#7dffbd" : "#ff9c9c" },
+    libelles.quatrieme,
+  ];
+  const statsRow2 = [
+    { icon: "⚠️", label: "À risque", value: money(aRisqueCount), accent: "#ff9c9c" },
+    { icon: "✅", label: "Taux de réussite", value: `${tauxLivraison || 0}%`, accent: "#7dffbd" },
+    { icon: "👥", label: "Équipe", value: money(equipeCount), accent: "#fff" },
+  ];
+
   return (
     <section className="rv-dashboard-3d-wrap" style={{ margin: "18px 0 20px", perspective: "1500px" }}>
       <style>{`
@@ -2071,7 +2092,9 @@ function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livr
         @keyframes rv3DBarIn{from{transform:scaleY(0)}to{transform:scaleY(1)}}
         .rv-dashboard-3d-pulse{animation:rv3DPulse 2.2s ease-in-out infinite}
         @keyframes rv3DPulse{0%,100%{opacity:.65;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
-        @media(max-width:800px){.rv-dashboard-3d-scene{min-height:620px;border-radius:20px}.rv-dashboard-3d-panel{margin:80px 14px 40px!important;transform:none!important}.rv-dashboard-3d-orbit{opacity:.35}.rv-dashboard-3d-stat{padding:12px!important}.rv-dashboard-3d-stat strong{font-size:17px!important}.rv-dashboard-3d-grid{background-size:28px 28px}}
+        .rv-dashboard-3d-statsgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+        .rv-dashboard-3d-statsgrid2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+        @media(max-width:800px){.rv-dashboard-3d-scene{min-height:620px;border-radius:20px}.rv-dashboard-3d-panel{margin:80px 14px 40px!important;transform:none!important}.rv-dashboard-3d-orbit{opacity:.35}.rv-dashboard-3d-stat{padding:12px!important}.rv-dashboard-3d-stat strong{font-size:17px!important}.rv-dashboard-3d-grid{background-size:28px 28px}.rv-dashboard-3d-statsgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.rv-dashboard-3d-statsgrid2{grid-template-columns:repeat(3,minmax(0,1fr))}}
         @media(prefers-reduced-motion:reduce){.rv-dashboard-3d-orbit,.rv-dashboard-3d-orb,.rv-dashboard-3d-bar,.rv-dashboard-3d-pulse{animation:none!important}.rv-dashboard-3d-panel{transition:none!important}}
       `}</style>
 
@@ -2113,17 +2136,24 @@ function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livr
             </div>
           </div>
 
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:10, transform:"translateZ(42px)" }}>
-            {[
-              { icon:"💰", label:"CA confirmé", value:`${money(caConfirme)} ${workspace?.currency || "XOF"}`, accent:"#00f5a0" },
-              { icon:"📦", label:"Commandes", value:money(commandesCount), accent:"#fff" },
-              { icon:"📈", label:"Bénéfice réel", value:`${money(beneficeReel)} ${workspace?.currency || "XOF"}`, accent:beneficeReel >= 0 ? "#7dffbd" : "#ff9c9c" },
-              { icon:"🚚", label:"Livreurs actifs", value:money(livreursCount), accent:"#ffb000" },
-            ].map((s,i)=>(
+          <div className="rv-dashboard-3d-statsgrid" style={{ transform:"translateZ(42px)" }}>
+            {statsRow1.map((s,i)=>(
               <div key={i} className="rv-dashboard-3d-stat" style={{ ...cardBase, transform:`translateZ(${20+i*5}px)` }}>
                 <div style={{ fontSize:16 }}>{s.icon}</div>
                 <div style={{ color:"rgba(255,255,255,.6)", fontSize:9.5, marginTop:7, textTransform:"uppercase", letterSpacing:".04em" }}>{s.label}</div>
                 <strong style={{ display:"block", color:s.accent, fontFamily:"'IBM Plex Mono',monospace", fontSize:18, marginTop:4, lineHeight:1.2 }}>{s.value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="rv-dashboard-3d-statsgrid2" style={{ transform:"translateZ(34px)" }}>
+            {statsRow2.map((s,i)=>(
+              <div key={i} className="rv-dashboard-3d-stat" style={{ ...cardBase, padding:"11px 13px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                  <span style={{ fontSize:13 }}>{s.icon}</span>
+                  <span style={{ color:"rgba(255,255,255,.6)", fontSize:9, textTransform:"uppercase", letterSpacing:".03em" }}>{s.label}</span>
+                </div>
+                <strong style={{ display:"block", color:s.accent, fontFamily:"'IBM Plex Mono',monospace", fontSize:15, marginTop:5 }}>{s.value}</strong>
               </div>
             ))}
           </div>
@@ -2146,10 +2176,10 @@ function Dashboard3D({ workspace, caConfirme, commandesCount, beneficeReel, livr
             </div>
 
             <div style={{ ...cardBase, minHeight:150 }}>
-              <div style={{ fontSize:11, fontWeight:800 }}>👥 Équipe & infrastructure</div>
+              <div style={{ fontSize:11, fontWeight:800 }}>🏢 Infrastructure</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:12 }}>
+                <div style={{ background:"rgba(255,255,255,.07)", borderRadius:11, padding:10 }}><div style={{fontSize:9,color:"rgba(255,255,255,.52)"}}>Espaces</div><strong style={{fontSize:20}}>{money(boutiquesCount)}</strong></div>
                 <div style={{ background:"rgba(255,255,255,.07)", borderRadius:11, padding:10 }}><div style={{fontSize:9,color:"rgba(255,255,255,.52)"}}>Équipe</div><strong style={{fontSize:20}}>{money(equipeCount)}</strong></div>
-                <div style={{ background:"rgba(255,255,255,.07)", borderRadius:11, padding:10 }}><div style={{fontSize:9,color:"rgba(255,255,255,.52)"}}>Boutique</div><strong style={{fontSize:20}}>{money(boutiquesCount)}</strong></div>
               </div>
               <div style={{ marginTop:11, padding:"8px 10px", borderRadius:10, background:"rgba(0,245,160,.08)", border:"1px solid rgba(0,245,160,.14)", color:"rgba(255,255,255,.76)", fontSize:9.5 }}>
                 🛡️ Données synchronisées avec ton espace RecuVente
@@ -3670,12 +3700,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "commandes" && (
         <Dashboard3D
           workspace={workspace}
+          activityType={workspace.activity_type}
           caConfirme={caConfirme}
           commandesCount={commandesInRange.length}
           beneficeReel={beneficeReel}
           livreursCount={livreurs.filter((l) => l.en_tournee || l.position_lat || l.position_lng).length || livreurs.length}
           equipeCount={livreurs.length + closers.length}
           boutiquesCount={workspacesDisponibles.length || 1}
+          aRisqueCount={aRisqueCount}
+          tauxLivraison={tauxLivraison}
           evolutionData={evolutionData}
           commandes={commandes}
         />
@@ -3807,34 +3840,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               ))}
             </div>
           )}
-
-          {workspace.role !== "secretaire" && (
-            <div style={{ marginTop: 16, perspective: "800px" }}>
-              <div className="rv-3d-card" style={{ position: "relative", padding: "14px 16px", borderRadius: 14, background: "linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 70%)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 10px 24px rgba(0,0,0,0.2)" }}>
-                <div className="rv-glow" style={{ position: "absolute", top: -16, left: -16, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,146,10,0.35) 0%, rgba(232,146,10,0) 70%)", pointerEvents: "none" }} />
-                <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: "0.04em", position: "relative" }}>Argent récupéré</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 32, fontWeight: 700, color: "#e8920a", marginTop: 4, position: "relative" }}>{caConfirme.toLocaleString("fr-FR")} {workspace.currency}</div>
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>
-              <div className="rv-glass-shine" />
-              <div style={{ fontSize: 10.5, opacity: 0.75, position: "relative", minHeight: 28, display: "flex", alignItems: "center" }}>À risque</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, position: "relative" }}>{aRisqueCount}</div>
-            </div>
-            <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>
-              <div className="rv-glass-shine" />
-              <div style={{ fontSize: 10.5, opacity: 0.75, position: "relative", minHeight: 28, display: "flex", alignItems: "center" }}>Taux livraison</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, position: "relative" }}>{tauxLivraison}%</div>
-            </div>
-            <div className="rv-glass-card" style={{ flex: 1, minWidth: 0 }}>
-              <div className="rv-glass-shine" />
-              <div style={{ fontSize: 10.5, opacity: 0.75, position: "relative", minHeight: 28, display: "flex", alignItems: "center" }}>Total</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18, position: "relative" }}>{commandesInRange.length}</div>
-            </div>
-          </div>
 
           {(workspace.role === "owner" || workspace.role === "admin") && (
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { jsPDF } from "jspdf";
 
@@ -62,6 +62,35 @@ function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, montant
   doc.text("Ce reçu confirme ta commande. Le paiement se fait à la livraison.", 15, y);
 
   doc.save(`recu-commande-${entreprise.nom.replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+}
+
+// Nettoie le HTML des descriptions produit avant affichage publique — retire tout ce qui
+// pourrait exécuter du code (scripts, gestionnaires d'événements, liens javascript:),
+// sans dépendance externe, en gardant la mise en forme normale (gras, listes, images, liens).
+function nettoyerHTML(html) {
+  if (!html) return "";
+  const div = document.createElement("div");
+  div.innerHTML = html;
+
+  const balisesInterdites = ["script", "iframe", "object", "embed", "link", "style", "meta", "base", "form"];
+  balisesInterdites.forEach((tag) => {
+    div.querySelectorAll(tag).forEach((el) => el.remove());
+  });
+
+  const tousLesElements = div.querySelectorAll("*");
+  tousLesElements.forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      const nom = attr.name.toLowerCase();
+      const valeur = attr.value.trim().toLowerCase();
+      if (nom.startsWith("on")) {
+        el.removeAttribute(attr.name);
+      } else if ((nom === "href" || nom === "src") && (valeur.startsWith("javascript:") || valeur.startsWith("data:text/html"))) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+
+  return div.innerHTML;
 }
 
 function lireCookieMeta(nom) {
@@ -396,7 +425,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
   }, [entreprise, produitOuvert]);
 
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
-  const [form, setForm] = useState({ client: "", tel: "", zone: "" });
+  const [form, setForm] = useState({ client: "", tel: "", zone: "", champPiege: "" });
+  const momentOuvertureFormulaireRef = useRef(null);
   const [quantite, setQuantite] = useState(1);
   const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
   const [photoActive, setPhotoActive] = useState(0);
@@ -634,6 +664,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
   }
 
   async function envoyerCommande() {
+    if (form.champPiege) return; // Champ piège rempli = probablement un robot, on ignore silencieusement.
+    if (momentOuvertureFormulaireRef.current && Date.now() - momentOuvertureFormulaireRef.current < 2500) {
+      setErreurEnvoi("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
+      return;
+    }
     if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
       return;
@@ -967,7 +1002,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                 <div
                   className="rv-description-riche"
                   style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
-                  dangerouslySetInnerHTML={{ __html: produitOuvert.produit_description }}
+                  dangerouslySetInnerHTML={{ __html: nettoyerHTML(produitOuvert.produit_description) }}
                 />
               </>
             ) : (
@@ -1201,6 +1236,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                           currency: entreprise?.devise || "XOF",
                         });
                         setAfficherFormulaire(true);
+                        momentOuvertureFormulaireRef.current = Date.now();
                       }}
                       style={{ flex: 1, background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                     >
@@ -1229,6 +1265,17 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
               <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
                 {t("pourTeContacter")}
               </div>
+
+              <input
+                type="text"
+                name="site_web"
+                autoComplete="off"
+                tabIndex={-1}
+                value={form.champPiege}
+                onChange={(e) => setForm({ ...form, champPiege: e.target.value })}
+                style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+                aria-hidden="true"
+              />
 
               <input
                 placeholder={t("tonNom")}
@@ -1790,7 +1837,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
 
 function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onModifierQuantite, onRetirer, onViderPanier }) {
   const [etape, setEtape] = useState("liste"); // liste | form | envoye
-  const [form, setForm] = useState({ client: "", tel: "", zone: "" });
+  const [form, setForm] = useState({ client: "", tel: "", zone: "", champPiege: "" });
+  const momentOuvertureRef = useRef(Date.now());
   const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
@@ -1804,6 +1852,11 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   const totalAvecLivraison = total + (typeLivraisonChoisi || !aChoixLivraison ? fraisLivraisonActuel : 0);
 
   async function envoyerCommandePanier() {
+    if (form.champPiege) return; // Champ piège rempli = probablement un robot, on ignore silencieusement.
+    if (Date.now() - momentOuvertureRef.current < 2500) {
+      setErreur("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
+      return;
+    }
     if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreur("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
       return;
@@ -1906,6 +1959,16 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
         {etape === "form" && (
           <>
             <button onClick={() => setEtape("liste")} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 12.5, textAlign: "left", padding: 0, marginBottom: 14, cursor: "pointer" }}>← Retour au panier</button>
+            <input
+              type="text"
+              name="site_web"
+              autoComplete="off"
+              tabIndex={-1}
+              value={form.champPiege}
+              onChange={(e) => setForm({ ...form, champPiege: e.target.value })}
+              style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+              aria-hidden="true"
+            />
             <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
             <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
             <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />

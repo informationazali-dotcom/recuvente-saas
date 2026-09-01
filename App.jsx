@@ -2744,13 +2744,24 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadClosers();
   }
 
-  async function assignLivreur(commandeId, nom) {
-    await supabase.from("commandes").update({ livreur: nom || null }).eq("id", commandeId);
+  async function assignLivreur(commandeId, nom, parQui) {
+    await supabase.from("commandes").update({ livreur: nom || null, livreur_assigne_par: nom ? (parQui || null) : null }).eq("id", commandeId);
     await supabase.from("relances").insert([
-      { commande_id: commandeId, note: nom ? `🚚 Livreur assigné : ${nom}` : "🚚 Livreur retiré" },
+      { commande_id: commandeId, note: nom ? `🚚 Livreur assigné : ${nom}${parQui ? ` (par ${parQui})` : ""}` : "🚚 Livreur retiré" },
     ]);
     await loadCommandes();
   }
+
+  const produitsRecusParLivreur = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      if (!c.livreur || c.statut === "echouee") return;
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      if (!nom) return;
+      map[c.livreur] = (map[c.livreur] || 0) + quantite;
+    });
+    return map;
+  }, [commandes]);
 
   async function assignCloser(commandeId, nom) {
     await supabase.from("commandes").update({ closer: nom || null }).eq("id", commandeId);
@@ -4886,7 +4897,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           }}
         />
       )}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
@@ -6491,7 +6502,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                   <label style={{ fontSize: 10.5, color: "#8A9089", display: "block", marginBottom: 3 }}>Livreur</label>
                   <select
                     value={commande.livreur || ""}
-                    onChange={(e) => onAssignLivreur(commande.id, e.target.value)}
+                    onChange={(e) => onAssignLivreur(commande.id, e.target.value, confirmateurNom)}
                     style={{ width: "100%", padding: "7px 8px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, background: "white" }}
                   >
                     <option value="">Non assigné</option>
@@ -6499,6 +6510,9 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                       <option key={l.id} value={l.nom}>{l.nom}</option>
                     ))}
                   </select>
+                  {commande.livreur && commande.livreur_assigne_par && (
+                    <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3 }}>Attribué par {commande.livreur_assigne_par}</div>
+                  )}
                 </div>
               )}
               {closers.length > 0 && (
@@ -6942,7 +6956,7 @@ function HistoriqueRelances({ commandeId }) {
   );
 }
 
-function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
+function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produitsRecus }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
@@ -6988,6 +7002,9 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail }) {
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
                 {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
                 {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
+                {produitsRecus && produitsRecus[it.nom] > 0 && (
+                  <div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 700, marginTop: 3 }}>📦 {produitsRecus[it.nom]} produit{produitsRecus[it.nom] > 1 ? "s" : ""} reçu{produitsRecus[it.nom] > 1 ? "s" : ""} au total</div>
+                )}
               </div>
               <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
             </div>

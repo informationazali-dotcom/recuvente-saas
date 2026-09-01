@@ -2020,7 +2020,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   </div>;
 }
 
-function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, beneficeReel, livreursCount, equipeCount, boutiquesCount, aRisqueCount, tauxLivraison, evolutionData = [], commandes = [], children }) {
+function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, beneficeReel, livreursCount, equipeCount, boutiquesCount, aRisqueCount, tauxLivraison, evolutionData = [], commandes = [], children, actionsFinales }) {
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState(false);
 
@@ -2202,6 +2202,8 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
               </div>
             )) : <div style={{ color:"rgba(255,255,255,.48)", fontSize:10, padding:"8px 0" }}>Aucune activité récente.</div>}
           </div>
+
+          {actionsFinales && <div style={{ marginTop:10, transform:"translateZ(20px)" }}>{actionsFinales}</div>}
         </div>
       </div>
     </section>
@@ -3713,6 +3715,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           tauxLivraison={tauxLivraison}
           evolutionData={evolutionData}
           commandes={commandes}
+          actionsFinales={
+            (workspace.role === "owner" || workspace.role === "admin") && (
+              <div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Actions équipe</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", color: "white", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>🚚 Livreurs</button>
+                  <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", color: "white", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>🎧 Closers</button>
+                  <button onClick={() => setShowCampagne(true)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", color: "white", borderRadius: 10, padding: "10px 6px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>📣 Campagne</button>
+                </div>
+              </div>
+            )
+          }
         >
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
             <span className="rv-livedot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#7fd6a3", display: "inline-block" }} />
@@ -3740,58 +3754,54 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {workspace.role === "owner" && (
-              <>
-                <button onClick={() => setShowTeam(true)} aria-label="Gérer l'équipe" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>👥</button>
-                <button onClick={() => setShowAbonnement(true)} aria-label="Mon abonnement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>💳</button>
-              </>
-            )}
-            {(workspace.role === "owner" || workspace.role === "admin") && (
-              <>
-                {estEcommerce && <button onClick={() => setShowProduits(true)} aria-label="Catalogue" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📦</button>}
-                <button onClick={() => setVue("rapprochement")} aria-label="Rapprochement" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🔗</button>
-                <button onClick={() => setVue("score_business")} aria-label="Score business" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>
-                {estEcommerce && <button onClick={() => setVue("simulateur")} aria-label="Simulateur pub" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>}
-                <button onClick={() => setVue("validations")} aria-label="Validations" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
-                {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 8px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
-              </>
-            )}
-            <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>⏻ Déconnexion</button>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {workspace.role === "owner" && (
-              <button onClick={onDemanderAjoutEspace} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px dashed rgba(255,255,255,0.4)", borderRadius: 999, padding: "6px 12px", color: "white", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
-                + Ajouter un autre espace
-              </button>
-            )}
-            <button onClick={() => setShowAide(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(31,157,110,0.22)", border: "1px solid rgba(154,230,180,0.4)", borderRadius: 999, padding: "6px 12px", color: "#7fd6a3", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
-              📖 Comment utiliser RecuVente
-            </button>
-          </div>
+          {(workspace.role === "owner" || workspace.role === "admin") && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Accès rapide</div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+                {workspace.role === "owner" && (
+                  <>
+                    <button onClick={() => setShowTeam(true)} aria-label="Gérer l'équipe" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>👥</button>
+                    <button onClick={() => setShowAbonnement(true)} aria-label="Mon abonnement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>💳</button>
+                  </>
+                )}
+                {estEcommerce && <button onClick={() => setShowProduits(true)} aria-label="Catalogue" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📦</button>}
+                <button onClick={() => setVue("rapprochement")} aria-label="Rapprochement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🔗</button>
+                <button onClick={() => setVue("score_business")} aria-label="Score business" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>
+                {estEcommerce && <button onClick={() => setVue("simulateur")} aria-label="Simulateur pub" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>}
+                <button onClick={() => setVue("validations")} aria-label="Validations" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
+                {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
+              </div>
+            </div>
+          )}
 
           {workspace.role === "owner" && workspacesDisponibles.length > 1 && (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-              {workspacesDisponibles.map((w) => (
-                <button
-                  key={w.id}
-                  onClick={() => onChangerEspace(w.id)}
-                  style={{ background: w.id === workspace.id ? "white" : "rgba(255,255,255,0.14)", color: w.id === workspace.id ? "#16231F" : "white", border: "none", borderRadius: 999, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-                >
-                  {{ cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" }[w.activity_type] || "🏢"} {w.name}
-                </button>
-              ))}
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Tes espaces</div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+                {workspacesDisponibles.map((w) => (
+                  <button
+                    key={w.id}
+                    onClick={() => onChangerEspace(w.id)}
+                    style={{ flexShrink: 0, background: w.id === workspace.id ? "white" : "rgba(255,255,255,0.14)", color: w.id === workspace.id ? "#16231F" : "white", border: "none", borderRadius: 999, padding: "6px 13px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {{ cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" }[w.activity_type] || "🏢"} {w.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {(workspace.role === "owner" || workspace.role === "admin") && (
-            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-              <button onClick={() => setShowLivreurs(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>🚚 Livreurs</button>
-              <button onClick={() => setShowClosers(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>🎧 Closers</button>
-              <button onClick={() => setShowCampagne(true)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>📣 Campagne</button>
-            </div>
-          )}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            {workspace.role === "owner" && (
+              <button onClick={onDemanderAjoutEspace} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px dashed rgba(255,255,255,0.4)", borderRadius: 999, padding: "6px 12px", color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                + Ajouter un espace
+              </button>
+            )}
+            <button onClick={() => setShowAide(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(31,157,110,0.22)", border: "1px solid rgba(154,230,180,0.4)", borderRadius: 999, padding: "6px 12px", color: "#7fd6a3", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              📖 Aide
+            </button>
+            <button onClick={() => supabase.auth.signOut()} aria-label="Déconnexion" style={{ marginLeft: "auto", background: "rgba(255,255,255,0.1)", border: "none", color: "rgba(255,255,255,0.7)", padding: "6px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>⏻ Déconnexion</button>
+          </div>
         </Dashboard3D>
       )}
 

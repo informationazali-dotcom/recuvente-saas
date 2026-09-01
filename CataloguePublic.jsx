@@ -830,6 +830,89 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
     const stockVarianteActive = varianteActive ? Number(varianteActive.stock ?? 0) : null;
     const varianteEnRupture = varianteActive && stockVarianteActive <= 0;
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
+
+    if (envoye) {
+      return (
+        <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif", display: "flex", justifyContent: "center", padding: "20px 16px" }}>
+          <div style={{ width: "100%", maxWidth: 420, textAlign: "center", padding: "24px 0" }}>
+            <div style={{ fontSize: 52, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: "#16231F" }}>{t("commandeEnvoyee")}</div>
+            <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 24, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
+              {t("merciMerci")} {form.client.split(" ")[0]} 🙏 {t("vaTeContacter")} <strong>{form.tel}</strong> {t("pourConfirmer")}
+            </div>
+
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, textAlign: "left", marginBottom: 18 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid #ECE8DC" }}>
+                {produitOuvert.photo_url ? (
+                  <img src={produitOuvert.photo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 48, height: 48, borderRadius: 8, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📦</div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{quantite} × {produitOuvert.produit_nom}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} {entreprise.devise}</div>
+                  {(fraisLivraisonEffectif > 0 || fraisExpeditionEffectif > 0) && (
+                    <div style={{ fontSize: 11, color: "#8A9089" }}>
+                      dont {fraisLivraisonActuel.toLocaleString("fr-FR")} {entreprise.devise} de {typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ fontSize: 12.5, color: "#6B7168", lineHeight: 1.7 }}>
+                <div><strong style={{ color: "#16231F" }}>{t("livraisonA")}</strong> {form.zone}</div>
+                <div><strong style={{ color: "#16231F" }}>{t("telephone")}</strong> {form.tel}</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => genererRecuClientPDF(
+                entreprise,
+                form,
+                produitOuvert,
+                quantite,
+                prixUnitaireEffectif * quantite + fraisLivraisonActuel,
+                aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale) : null
+              )}
+              style={{ width: "100%", background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 20 }}
+            >
+              📄 Télécharger mon reçu
+            </button>
+
+            <div style={{ textAlign: "left", marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{t("etMaintenant")}</div>
+              {[
+                { n: "1", texte: t("etape1") },
+                { n: "2", texte: t("etape2") },
+                { n: "3", texte: t("etape3") },
+              ].map((etape) => (
+                <div key={etape.n} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#EAF3DE", color: "#3B6D11", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{etape.n}</div>
+                  <div style={{ fontSize: 12.5, color: "#16231F" }}>{etape.texte}</div>
+                </div>
+              ))}
+            </div>
+
+            {entreprise.whatsapp && (
+              <a
+                href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(`Bonjour, j'ai une question sur ma commande de "${produitOuvert.produit_nom}".`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "block", background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, textDecoration: "none", marginBottom: 10 }}
+              >
+                {t("uneQuestion")}
+              </a>
+            )}
+            <button
+              onClick={fermerProduit}
+              style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            >
+              {t("continuerAchats")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
@@ -1082,83 +1165,6 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
               )}
             </div>
 
-            {envoye && (
-              <div style={{ textAlign: "center", padding: "10px 0 30px" }}>
-                <div style={{ fontSize: 52, marginBottom: 10 }}>🎉</div>
-                <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: "#16231F" }}>{t("commandeEnvoyee")}</div>
-                <div style={{ fontSize: 13.5, color: "#6B7168", marginBottom: 24, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
-                  {t("merciMerci")} {form.client.split(" ")[0]} 🙏 {t("vaTeContacter")} <strong>{form.tel}</strong> {t("pourConfirmer")}
-                </div>
-
-                <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, textAlign: "left", marginBottom: 18 }}>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid #ECE8DC" }}>
-                    {produitOuvert.photo_url ? (
-                      <img src={produitOuvert.photo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: 48, height: 48, borderRadius: 8, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📦</div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{quantite} × {produitOuvert.produit_nom}</div>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{(prixUnitaireEffectif * quantite + (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif || 0)).toLocaleString("fr-FR")} {entreprise.devise}</div>
-                      {(fraisLivraisonEffectif > 0 || fraisExpeditionEffectif > 0) && (
-                        <div style={{ fontSize: 11, color: "#8A9089" }}>
-                          dont {(aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif).toLocaleString("fr-FR")} {entreprise.devise} de {typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 12.5, color: "#6B7168", lineHeight: 1.7 }}>
-                    <div><strong style={{ color: "#16231F" }}>{t("livraisonA")}</strong> {form.zone}</div>
-                    <div><strong style={{ color: "#16231F" }}>{t("telephone")}</strong> {form.tel}</div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => genererRecuClientPDF(
-                    entreprise,
-                    form,
-                    produitOuvert,
-                    quantite,
-                    prixUnitaireEffectif * quantite + (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif || 0),
-                    aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale) : null
-                  )}
-                  style={{ width: "100%", background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 20 }}
-                >
-                  📄 Télécharger mon reçu
-                </button>
-
-                <div style={{ textAlign: "left", marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{t("etMaintenant")}</div>
-                  {[
-                    { n: "1", texte: t("etape1") },
-                    { n: "2", texte: t("etape2") },
-                    { n: "3", texte: t("etape3") },
-                  ].map((etape) => (
-                    <div key={etape.n} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#EAF3DE", color: "#3B6D11", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{etape.n}</div>
-                      <div style={{ fontSize: 12.5, color: "#16231F" }}>{etape.texte}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {entreprise.whatsapp && (
-                  <a
-                    href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(`Bonjour, j'ai une question sur ma commande de "${produitOuvert.produit_nom}".`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: "block", background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, textDecoration: "none", marginBottom: 10 }}
-                  >
-                    {t("uneQuestion")}
-                  </a>
-                )}
-                <button
-                  onClick={fermerProduit}
-                  style={{ width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-                >
-                  {t("continuerAchats")}
-                </button>
-              </div>
-            )}
 
             {!envoye && !produitOuvert.masquer_produits_similaires && (() => {
               const idsChoisis = Array.isArray(produitOuvert.produits_similaires_ids) ? produitOuvert.produits_similaires_ids : [];

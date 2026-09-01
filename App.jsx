@@ -338,6 +338,11 @@ export default function App() {
     await supabase.from("workspace_members").insert([
       { workspace_id: ws.id, user_id: session.user.id, role: "owner" },
     ]);
+    // Génère un identifiant lisible (ex: azali-express) pour les liens de boutique
+    const { data: slugGenere } = await supabase.rpc("generer_slug_boutique", { p_nom: nom, p_workspace_id: ws.id });
+    if (slugGenere) {
+      await supabase.from("workspaces").update({ slug: slugGenere }).eq("id", ws.id);
+    }
     const dansSeptJours = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error: erreurAbonnement } = await supabase.from("subscriptions").insert([
       { workspace_id: ws.id, status: "trial", trial_ends_at: dansSeptJours },
@@ -358,6 +363,9 @@ export default function App() {
 
   const catalogueId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("catalogue") : null;
   if (catalogueId) return <CataloguePublic workspaceId={catalogueId} />;
+
+  const boutiqueSlug = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("boutique") : null;
+  if (boutiqueSlug) return <CataloguePublic slug={boutiqueSlug} />;
 
   if (!domaineVerifie) return <Centered>Chargement…</Centered>;
   if (domaineWorkspaceId) return <CataloguePublic workspaceId={domaineWorkspaceId} />;
@@ -412,6 +420,24 @@ function Centered({ children }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
       {children}
+    </div>
+  );
+}
+
+function EtatVide({ icone = "📭", titre, description, texteBouton, onAction }) {
+  return (
+    <div style={{ textAlign: "center", padding: "44px 20px", color: "#6B7168" }}>
+      <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.85 }}>{icone}</div>
+      <div style={{ fontWeight: 700, fontSize: 14.5, color: "#16231F", marginBottom: 6 }}>{titre}</div>
+      {description && <div style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 320, margin: "0 auto 18px" }}>{description}</div>}
+      {texteBouton && onAction && (
+        <button
+          onClick={onAction}
+          style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "10px 20px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+        >
+          {texteBouton}
+        </button>
+      )}
     </div>
   );
 }
@@ -1646,7 +1672,7 @@ function RadarDesFuitesEtActions({ todoAujourdhui, clientsARelancer, depotsParLi
   );
 }
 
-function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCritique, meilleurLivreur, beneficeReel, currency, onVoirAujourdhui }) {
+function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCritique, meilleurLivreur, beneficeReel, currency, onVoirAujourdhui, palierActuel, palierSuivant, totalVentesConfirmees }) {
   const lignes = [];
 
   if (todoAujourdhui.sansNouvelles.length > 0) {
@@ -1690,21 +1716,44 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
     });
   }
 
-  if (lignes.length === 0) return null;
+  if (lignes.length === 0 && !palierActuel) return null;
 
   return (
     <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 18px", margin: "14px 20px 0" }}>
-      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-        🧠 Ce matin chez vous
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        {lignes.map((l, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: l.couleur, fontWeight: 600, lineHeight: 1.4 }}>
-            <span style={{ flexShrink: 0 }}>{l.icone}</span>
-            <span>{l.texte}</span>
+      {palierActuel && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, paddingBottom: 14, marginBottom: 14, borderBottom: "1px solid #F0EEE6", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 42, height: 42, borderRadius: "50%", background: `${palierActuel.couleur}22`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+              {palierActuel.icone}
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: palierActuel.couleur }}>Vendeur {palierActuel.nom}</div>
+              <div style={{ fontSize: 11, color: "#8A9089" }}>{totalVentesConfirmees} vente{totalVentesConfirmees > 1 ? "s" : ""} confirmée{totalVentesConfirmees > 1 ? "s" : ""} au total</div>
+            </div>
           </div>
-        ))}
-      </div>
+          {palierSuivant && (
+            <div style={{ fontSize: 11, color: "#8A9089", textAlign: "right" }}>
+              Plus que <b style={{ color: "#16231F" }}>{palierSuivant.seuil - totalVentesConfirmees}</b> vente{(palierSuivant.seuil - totalVentesConfirmees) > 1 ? "s" : ""}<br/>
+              pour {palierSuivant.icone} {palierSuivant.nom}
+            </div>
+          )}
+        </div>
+      )}
+      {lignes.length > 0 && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+            🧠 Ce matin chez vous
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            {lignes.map((l, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: l.couleur, fontWeight: 600, lineHeight: 1.4 }}>
+                <span style={{ flexShrink: 0 }}>{l.icone}</span>
+                <span>{l.texte}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {todoAujourdhui.total > 0 && (
         <button
           onClick={onVoirAujourdhui}
@@ -3318,6 +3367,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
   const echoueesInRange = commandesInRange.filter((c) => c.statut === "echouee");
   const enCoursInRange = commandesInRange.filter((c) => c.statut === "en_cours");
+
+  const totalVentesConfirmeesToutesPeriodes = useMemo(() => commandes.filter((c) => c.statut === "confirmee").length, [commandes]);
+  const paliersVendeur = [
+    { seuil: 500, nom: "Diamant", icone: "💎", couleur: "#4FC3F7" },
+    { seuil: 100, nom: "Or", icone: "🏆", couleur: "#e8920a" },
+    { seuil: 20, nom: "Argent", icone: "🥈", couleur: "#9CA3AF" },
+    { seuil: 0, nom: "Bronze", icone: "🥉", couleur: "#B87333" },
+  ];
+  const palierActuel = paliersVendeur.find((p) => totalVentesConfirmeesToutesPeriodes >= p.seuil);
+  const palierSuivant = [...paliersVendeur].reverse().find((p) => p.seuil > totalVentesConfirmeesToutesPeriodes);
   const aRisqueCount = echoueesInRange.length + enCoursInRange.length;
   const tauxLivraison = commandesInRange.length ? Math.round((confirmees.length / commandesInRange.length) * 100) : 0;
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
@@ -3814,6 +3873,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           beneficeReel={beneficeReel}
           currency={workspace.currency}
           onVoirAujourdhui={() => setVue("aujourdhui")}
+          palierActuel={palierActuel}
+          palierSuivant={palierSuivant}
+          totalVentesConfirmees={totalVentesConfirmeesToutesPeriodes}
         />
       )}
 
@@ -4163,9 +4225,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
       {!loaded && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
       {loaded && commandes.length === 0 && (
-        <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 20, textAlign: "center", color: "#8A9089", fontSize: 13 }}>
-          Aucune commande. Ajoute la première pour tester.
-        </div>
+        <EtatVide
+          icone="📦"
+          titre="Aucune commande pour l'instant"
+          description="Ajoute ta première commande pour commencer à suivre tes ventes, ou partage le lien de ta boutique pour recevoir tes premières commandes automatiquement."
+          texteBouton="➕ Ajouter ma première commande"
+          onAction={() => !accesBloque && !quotaAtteint && setShowAdd(true)}
+        />
       )}
 
       {commandesAffichees.length === 0 && commandes.length > 0 && (
@@ -4264,7 +4330,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {clients.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "30px 0" }}>Aucun client pour l'instant.</div>}
+            {clients.length === 0 && (
+              <EtatVide
+                icone="👤"
+                titre="Aucun client pour l'instant"
+                description="Tes clients apparaissent ici automatiquement dès ta première commande confirmée."
+                texteBouton="➕ Créer ma première commande"
+                onAction={() => { setVue("commandes"); setShowAdd(true); }}
+              />
+            )}
             {clients.map((cl, i) => (
               <div key={i} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

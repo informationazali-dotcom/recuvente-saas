@@ -4741,13 +4741,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients", icon: Users },
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
+          { key: "reunion", label: "Réunion", icon: Headset, action: () => setShowReunion(true) },
         ].map((t) => {
           const Icon = t.icon;
           const active = vue === t.key;
           return (
             <button
               key={t.key}
-              onClick={() => setVue(t.key)}
+              onClick={() => (t.action ? t.action() : setVue(t.key))}
               style={{
                 flex: 1,
                 background: "none",

@@ -1,68 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { jsPDF } from "jspdf";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
-
-function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, montantTotal, modeLivraison) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const vert = [26, 122, 60];
-  const gris = [107, 113, 104];
-  const sombre = [22, 35, 31];
-
-  doc.setFillColor(...vert);
-  doc.rect(0, 0, 210, 30, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(entreprise.nom.toUpperCase(), 15, 17);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("Reçu de commande", 15, 24);
-
-  doc.setTextColor(...sombre);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(`Commande du ${new Date().toLocaleDateString("fr-FR")}`, 15, 42);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...gris);
-  let y = 52;
-  doc.text(`Client : ${form.client}`, 15, y); y += 6;
-  doc.text(`Téléphone : ${form.tel}`, 15, y); y += 6;
-  doc.text(`Livraison à : ${form.zone}`, 15, y); y += 6;
-  if (modeLivraison) { doc.text(`Mode : ${modeLivraison}`, 15, y); y += 6; }
-
-  y += 6;
-  doc.setDrawColor(220, 220, 220);
-  doc.line(15, y, 195, y);
-  y += 8;
-
-  doc.setTextColor(...sombre);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${quantite} × ${produitOuvert.produit_nom}`, 15, y);
-  doc.text(`${montantTotal.toLocaleString("fr-FR")} ${entreprise.devise}`, 195, y, { align: "right" });
-  y += 10;
-
-  doc.setDrawColor(220, 220, 220);
-  doc.line(15, y, 195, y);
-  y += 8;
-  doc.setFontSize(12);
-  doc.text("Total", 15, y);
-  doc.text(`${montantTotal.toLocaleString("fr-FR")} ${entreprise.devise}`, 195, y, { align: "right" });
-
-  y += 16;
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.setTextColor(...gris);
-  doc.text("Ce reçu confirme ta commande. Le paiement se fait à la livraison.", 15, y);
-
-  doc.save(`recu-commande-${entreprise.nom.replace(/[^a-z0-9]+/gi, "-")}.pdf`);
-}
 
 function lireCookieMeta(nom) {
   const match = document.cookie.match(new RegExp("(^| )" + nom + "=([^;]+)"));
@@ -1060,20 +1002,6 @@ export default function CataloguePublic({ workspaceId }) {
                     <div><strong style={{ color: "#16231F" }}>{t("telephone")}</strong> {form.tel}</div>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => genererRecuClientPDF(
-                    entreprise,
-                    form,
-                    produitOuvert,
-                    quantite,
-                    prixUnitaireEffectif * quantite + (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : fraisLivraisonEffectif || 0),
-                    aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale) : null
-                  )}
-                  style={{ width: "100%", background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 20 }}
-                >
-                  📄 Télécharger mon reçu
-                </button>
 
                 <div style={{ textAlign: "left", marginBottom: 20 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{t("etMaintenant")}</div>
@@ -2375,14 +2303,15 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
   function Section({ s }) {
     const type = s.type;
-    if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleur, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
+    const coul = config.sectionColors?.[type] || couleur;
+    if (type === "announcement") return <div style={{ padding: "10px 14px", background: coul, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
 
     if (type === "hero") return (
       <div style={{ textAlign: "center" }}>
         {entreprise.banniere ? (
           <img src={entreprise.banniere} alt="" style={{ width: "100%", maxHeight: 340, objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
-          <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleur},#0b2416)`, color: "#fff" }}>
+          <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${coul},#0b2416)`, color: "#fff" }}>
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
           </div>
         )}
@@ -2390,7 +2319,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
           <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
           {config.buttonText && config.buttonText.trim() && (
-            <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+            <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: coul, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
               {config.buttonText}
             </button>
           )}
@@ -2428,7 +2357,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : "Nos produits"}</h3>
             {troncature && (
-              <button onClick={() => setCollectionOuverte(type === "bestsellers" ? "bestseller" : "tous")} style={{ background: "none", border: "none", color: couleur, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <button onClick={() => setCollectionOuverte(type === "bestsellers" ? "bestseller" : "tous")} style={{ background: "none", border: "none", color: coul, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
                 Voir tout ({liste.length}) →
               </button>
             )}
@@ -2450,11 +2379,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             {(config.bundles || []).map((b, i) => {
               const total = Number(base) * b.qty * (1 - (Number(b.discount) || 0) / 100);
               return (
-                <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleur : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
+                <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + coul : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
                   <div style={{ fontSize: 13, fontWeight: 950, color: "#16231c" }}>{b.label}</div>
                   <div style={{ fontSize: 11, color: "#7b857e", marginTop: 4 }}>{b.qty} produit(s) · {b.discount || 0}% de remise</div>
-                  <div style={{ fontSize: 21, fontWeight: 950, color: couleur, marginTop: 10 }}>{base ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
-                  <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleur, color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>
+                  <div style={{ fontSize: 21, fontWeight: 950, color: coul, marginTop: 10 }}>{base ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
+                  <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: coul, color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>
                     Choisir un produit →
                   </button>
                 </div>
@@ -2536,9 +2465,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "cod_form") return (
       <div style={{ ...commonPad, background: "#f7faf7", textAlign: "center" }}>
-        <div style={{ fontSize: 10, fontWeight: 950, color: couleur }}>COMMANDE SIMPLE & RAPIDE</div>
+        <div style={{ fontSize: 10, fontWeight: 950, color: coul }}>COMMANDE SIMPLE & RAPIDE</div>
         <h3 style={{ margin: "5px 0 10px", fontSize: 21, color: "#14221b" }}>📝 Choisis un produit pour commander</h3>
-        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleur, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: coul, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
           Voir les produits
         </button>
       </div>
@@ -2562,7 +2491,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         <h3 style={{ margin: "0 0 9px", fontSize: 25 }}>Prêt à passer à l'action ?</h3>
         <p style={{ fontSize: 12, color: "rgba(255,255,255,.68)" }}>Commandez, ou contactez-nous maintenant.</p>
         {config.buttonText && config.buttonText.trim() && (
-          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: couleur, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button>
+          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "12px 21px", background: coul, color: "#fff", fontWeight: 900, cursor: "pointer" }}>{config.buttonText}</button>
         )}
       </div>
     );

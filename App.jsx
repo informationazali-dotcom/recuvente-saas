@@ -2532,7 +2532,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function addLogement(form) {
-    await supabase.from("logements").insert([{ ...form, workspace_id: workspace.id, loyer_mensuel: Number(form.loyer_mensuel) || 0 }]);
+    await supabase.from("logements").insert([{ ...form, workspace_id: workspace.id, loyer_mensuel: Number(form.loyer_mensuel) || 0, caution_suggeree: Number(form.caution_suggeree) || 0 }]);
     await loadLogements();
   }
 
@@ -3478,7 +3478,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     const payeEnEntier = workspace.activity_type === "retail" ? montantDejaPaye >= montantTotal : false;
     const statutInitial = workspace.activity_type === "retail" ? (payeEnEntier ? "confirmee" : "en_cours") : "en_cours";
     const { error } = await supabase.from("commandes").insert([
-      { ...form, montant: montantTotal, montant_paye: montantDejaPaye, workspace_id: workspace.id, statut: statutInitial, confirmed_at: statutInitial === "confirmee" ? new Date().toISOString() : null, confirmed_by: statutInitial === "confirmee" ? session.user.email.split("@")[0] : null },
+      { ...form, montant: montantTotal, montant_paye: montantDejaPaye, caution: form.caution === "" || form.caution == null ? null : Number(form.caution), workspace_id: workspace.id, statut: statutInitial, confirmed_at: statutInitial === "confirmee" ? new Date().toISOString() : null, confirmed_by: statutInitial === "confirmee" ? session.user.email.split("@")[0] : null },
     ]);
     if (error) {
       alert("Erreur: " + error.message);
@@ -4427,7 +4427,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} />
+              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} />
             ))}
           </div>
         </div>
@@ -5117,13 +5117,13 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   }
 
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
-  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "" });
+  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "", caution: "" });
   const [modeRapide, setModeRapide] = useState(false);
   const [logementId, setLogementId] = useState("");
   function selectionnerLogement(id) {
     setLogementId(id);
     const l = logements.find((x) => x.id === id);
-    if (l) setForm((f) => ({ ...f, produit: l.nom, zone: l.adresse || "", montant: String(l.loyer_mensuel) }));
+    if (l) setForm((f) => ({ ...f, produit: l.nom, zone: l.adresse || "", montant: String(l.loyer_mensuel), caution: l.caution_suggeree ? String(l.caution_suggeree) : f.caution }));
   }
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
@@ -5279,6 +5279,19 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
         })}
         {form.montant && !montantValide && (
           <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
+        )}
+
+        {estLocation && (
+          <div>
+            <label style={{ fontSize: 12, color: "#6B7168", display: "block", marginBottom: 4 }}>Caution ({currency}, optionnel)</label>
+            <input
+              value={form.caution}
+              onChange={(e) => setForm({ ...form, caution: e.target.value })}
+              type="number"
+              placeholder="0"
+              style={inputStyle}
+            />
+          </div>
         )}
 
         {estRetail && (
@@ -6029,7 +6042,7 @@ const STATUTS = {
   retournee: { label: "Retournée", color: "#8A6412", bg: "#FBF3E3" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -6377,6 +6390,23 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               ↩️ Retournée le {commande.date_retour ? new Date(commande.date_retour).toLocaleDateString("fr-FR") : "—"}
               {commande.motif_retour && <><br/>Motif : {commande.motif_retour}</>}
               {commande.montant_rembourse != null && <><br/>Remboursé : {Number(commande.montant_rembourse).toLocaleString("fr-FR")} {currency}</>}
+            </div>
+          )}
+
+          {(workspace?.activity_type === "location_vehicule" || workspace?.activity_type === "location_immobiliere") && commande.caution > 0 && (
+            <div style={{ background: commande.caution_rendue ? "#EAF7F1" : "#FBF3E3", border: `1px solid ${commande.caution_rendue ? "#B9E3CE" : "#F0DDA8"}`, borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: commande.caution_rendue ? "#1F9D6E" : "#8A6412", marginBottom: commande.caution_rendue ? 0 : 8 }}>
+                🔒 Caution : {Number(commande.caution).toLocaleString("fr-FR")} {currency} {commande.caution_rendue ? "— ✅ Rendue au client" : "— retenue par toi pour l'instant"}
+              </div>
+              {!commande.caution_rendue && (
+                <button
+                  onClick={() => onRendreCaution && onRendreCaution(commande.id)}
+                  disabled={loading}
+                  style={{ width: "100%", background: "white", border: "1px solid #8A6412", color: "#8A6412", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                >
+                  ✅ Marquer la caution comme rendue
+                </button>
+              )}
             </div>
           )}
 
@@ -9574,7 +9604,7 @@ function BiensLocationView({ biensLocation, currency, onAdd, onToggleDisponibili
 }
 
 function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDelete }) {
-  const [form, setForm] = useState({ nom: "", adresse: "", loyer_mensuel: "", description: "" });
+  const [form, setForm] = useState({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "" });
 
   const nbDisponibles = logements.filter((l) => l.disponible).length;
   const nbLoues = logements.length - nbDisponibles;
@@ -9590,9 +9620,10 @@ function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDe
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>+ Ajouter un logement</div>
         <input placeholder="Nom (ex: Appartement 2, Villa Cocody)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
         <input placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
-        <input placeholder={`Loyer mensuel (${currency})`} type="number" value={form.loyer_mensuel} onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }} />
+        <input placeholder={`Loyer mensuel (${currency})`} type="number" value={form.loyer_mensuel} onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <input placeholder={`Caution suggérée (${currency}, optionnel)`} type="number" value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }} />
         <button
-          onClick={() => { if (!form.nom.trim() || !form.loyer_mensuel) return; onAdd(form); setForm({ nom: "", adresse: "", loyer_mensuel: "", description: "" }); }}
+          onClick={() => { if (!form.nom.trim() || !form.loyer_mensuel) return; onAdd(form); setForm({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "" }); }}
           style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
         >
           Ajouter à mes logements

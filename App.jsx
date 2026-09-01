@@ -424,6 +424,44 @@ function Centered({ children }) {
   );
 }
 
+function SkeletonLigne({ hauteur = 14, largeur = "100%", radius = 6, style = {} }) {
+  return (
+    <div
+      style={{
+        height: hauteur,
+        width: largeur,
+        borderRadius: radius,
+        background: "linear-gradient(90deg, #ECE8DC 25%, #F5F2E8 37%, #ECE8DC 63%)",
+        backgroundSize: "400% 100%",
+        animation: "rvSkeletonPulse 1.4s ease-in-out infinite",
+        ...style,
+      }}
+    />
+  );
+}
+
+function SkeletonCarteCommande() {
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
+      <style>{`@keyframes rvSkeletonPulse { 0% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }`}</style>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+        <SkeletonLigne largeur="45%" hauteur={15} />
+        <SkeletonLigne largeur="20%" hauteur={15} />
+      </div>
+      <SkeletonLigne largeur="65%" hauteur={11} style={{ marginBottom: 8 }} />
+      <SkeletonLigne largeur="30%" hauteur={11} />
+    </div>
+  );
+}
+
+function SkeletonListe({ nombre = 4 }) {
+  return (
+    <div>
+      {Array.from({ length: nombre }).map((_, i) => <SkeletonCarteCommande key={i} />)}
+    </div>
+  );
+}
+
 function EtatVide({ icone = "📭", titre, description, texteBouton, onAction }) {
   return (
     <div style={{ textAlign: "center", padding: "44px 20px", color: "#6B7168" }}>
@@ -4313,7 +4351,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </button>
       </div>
 
-      {!loaded && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+      {!loaded && <SkeletonListe nombre={5} />}
       {loaded && commandes.length === 0 && (
         <EtatVide
           icone="📦"
@@ -5268,7 +5306,7 @@ function TeamModal({ workspace, onClose, pleinePage }) {
         </button>
 
         {error && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
-        {members === null && !error && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+        {members === null && !error && <SkeletonListe nombre={3} />}
 
         {members && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -7139,7 +7177,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
               <button onClick={creerCollection} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 18, cursor: "pointer" }}>+</button>
             </div>
 
-            {collections === null && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+            {collections === null && <SkeletonListe nombre={3} />}
             {collections !== null && collections.length === 0 && (
               <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Aucune collection pour l'instant.</div>
             )}
@@ -7277,7 +7315,7 @@ function AvisModal({ workspaceId, onClose }) {
           </div>
         )}
 
-        {avis === null && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+        {avis === null && <SkeletonListe nombre={3} />}
 
         {avis !== null && enAttente.length > 0 && (
           <div style={{ marginBottom: 20 }}>
@@ -11220,7 +11258,7 @@ function IntegrationsModal({ workspace, onClose }) {
           {afficherJournalAudit && (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
               {erreurJournalAudit && <div style={{ fontSize: 12, color: "#D64933", background: "#FBEAE6", borderRadius: 8, padding: "8px 12px" }}>Erreur : {erreurJournalAudit}</div>}
-              {journalAudit === null && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
+              {journalAudit === null && <SkeletonListe nombre={4} />}
               {journalAudit && journalAudit.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucune action enregistrée pour l'instant.</div>}
               {journalAudit && journalAudit.map((entree) => (
                 <div key={entree.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 12px" }}>

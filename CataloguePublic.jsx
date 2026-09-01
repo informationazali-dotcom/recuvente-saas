@@ -331,6 +331,10 @@ function prixUnitairePourBundle(prixVente, bundle) {
     const total = Number(bundle.prix_fixe);
     return total > 0 && bundle.qty > 0 ? total / bundle.qty : Number(prixVente);
   }
+  if (bundle.mode === "offert") {
+    const nbOfferts = Math.min(Number(bundle.nb_offerts) || 0, bundle.qty - 1);
+    return bundle.qty > 0 ? (Number(prixVente) * (bundle.qty - nbOfferts)) / bundle.qty : Number(prixVente);
+  }
   return Number(prixVente) * (1 - (Number(bundle.discount) || 0) / 100);
 }
 
@@ -1364,8 +1368,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                           style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", borderRadius: 10, padding: "8px 9px", cursor: "pointer" }}
                         >
                           <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
-                          {!estPrixFixe && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
-                          {estPrixFixe && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}
+                          {b.mode === "prix_fixe" && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}
+                          {b.mode === "offert" && <div style={{ fontSize: 9.5, color: "#8A6412", fontWeight: 800 }}>🎁 {b.nb_offerts} offert{b.nb_offerts > 1 ? "s" : ""}</div>}
+                          {(!b.mode || b.mode === "pourcentage") && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
                           <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{totalBundle.toLocaleString("fr-FR")} {entreprise.devise}</div>
                         </button>
                       );
@@ -2474,6 +2479,19 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         </div>
       </div>
     );
+
+    if (type === "image_texte") {
+      const inverse = config.imageTextePosition === "droite";
+      return (
+        <div style={{ display: "flex", flexDirection: inverse ? "row-reverse" : "row", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 280px", minHeight: 240, background: config.imageTexteImage ? `url(${config.imageTexteImage}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)` }} />
+          <div style={{ flex: "1 1 280px", padding: "30px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.imageTexteTitre}</div>
+            <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7 }}>{config.imageTexteTexte}</div>
+          </div>
+        </div>
+      );
+    }
 
     if (type === "collections") {
       if (!derivedCollections.length) return null;

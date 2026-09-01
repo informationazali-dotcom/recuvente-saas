@@ -2763,6 +2763,21 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return map;
   }, [commandes]);
 
+  const detailParLivreurEtProduit = useMemo(() => {
+    const map = {};
+    commandes.forEach((c) => {
+      if (!c.livreur) return;
+      const { nom, quantite } = parseProduitTexte(c.produit);
+      if (!nom) return;
+      if (!map[c.livreur]) map[c.livreur] = {};
+      if (!map[c.livreur][nom]) map[c.livreur][nom] = { livre: 0, nonLivre: 0, restant: 0 };
+      if (c.statut === "confirmee") map[c.livreur][nom].livre += quantite;
+      else if (c.statut === "echouee") map[c.livreur][nom].nonLivre += quantite;
+      else map[c.livreur][nom].restant += quantite;
+    });
+    return map;
+  }, [commandes]);
+
   async function assignCloser(commandeId, nom) {
     await supabase.from("commandes").update({ closer: nom || null }).eq("id", commandeId);
     await supabase.from("relances").insert([
@@ -4897,7 +4912,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           }}
         />
       )}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} currency={workspace.currency} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
@@ -6956,7 +6971,8 @@ function HistoriqueRelances({ commandeId }) {
   );
 }
 
-function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produitsRecus }) {
+function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produitsRecus, detailParProduit }) {
+  const [livreurDeplie, setLivreurDeplie] = useState(null);
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
@@ -7002,8 +7018,37 @@ function EquipeModal({ titre, items, onAdd, onDelete, onClose, avecEmail, produi
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.nom}</div>
                 {it.telephone && <div style={{ fontSize: 11.5, color: "#6B7168" }}>{it.telephone}</div>}
                 {it.email && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{it.email}</div>}
-                {produitsRecus && produitsRecus[it.nom] > 0 && (
-                  <div style={{ fontSize: 11, color: "#1a7a3c", fontWeight: 700, marginTop: 3 }}>📦 {produitsRecus[it.nom]} produit{produitsRecus[it.nom] > 1 ? "s" : ""} reçu{produitsRecus[it.nom] > 1 ? "s" : ""} au total</div>
+                {detailParProduit && detailParProduit[it.nom] && Object.keys(detailParProduit[it.nom]).length > 0 && (
+                  <button
+                    onClick={() => setLivreurDeplie(livreurDeplie === it.nom ? null : it.nom)}
+                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: "#1a7a3c", fontWeight: 700, marginTop: 3, textDecoration: "underline" }}
+                  >
+                    📦 {produitsRecus?.[it.nom] || 0} produit{(produitsRecus?.[it.nom] || 0) > 1 ? "s" : ""} livré{(produitsRecus?.[it.nom] || 0) > 1 ? "s" : ""} au total — voir le détail {livreurDeplie === it.nom ? "▲" : "▼"}
+                  </button>
+                )}
+                {livreurDeplie === it.nom && detailParProduit && detailParProduit[it.nom] && (
+                  <div style={{ marginTop: 8, background: "white", border: "1px solid #ECE8DC", borderRadius: 8, overflow: "hidden" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                      <thead>
+                        <tr style={{ background: "#F0EEE6" }}>
+                          <th style={{ textAlign: "left", padding: "6px 8px" }}>Produit</th>
+                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#1F9D6E" }}>Livrées</th>
+                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#D64933" }}>Non livrées</th>
+                          <th style={{ textAlign: "center", padding: "6px 6px", color: "#E8A93D" }}>Restantes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(detailParProduit[it.nom]).map(([nomProduit, d]) => (
+                          <tr key={nomProduit} style={{ borderTop: "1px solid #F0EEE6" }}>
+                            <td style={{ padding: "6px 8px", fontWeight: 600 }}>{nomProduit}</td>
+                            <td style={{ textAlign: "center", padding: "6px 6px", color: "#1F9D6E", fontWeight: 700 }}>{d.livre}</td>
+                            <td style={{ textAlign: "center", padding: "6px 6px", color: "#D64933", fontWeight: 700 }}>{d.nonLivre}</td>
+                            <td style={{ textAlign: "center", padding: "6px 6px", color: "#E8A93D", fontWeight: 700 }}>{d.restant}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
               <button onClick={() => onDelete(it.id, it.nom)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>

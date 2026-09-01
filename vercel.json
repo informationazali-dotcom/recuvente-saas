@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron-trial-reminder",
+      "path": "/api/cron-daily",
       "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron-stock-alert",
-      "schedule": "0 9 * * *"
     }
   ],
   "rewrites": [

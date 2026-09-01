@@ -2116,6 +2116,11 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:config};
       const {error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id);
       if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return false;}
+      // Le nom a changé : on régénère le lien de la boutique (slug) pour qu'il reste cohérent avec le nouveau nom.
+      if(config.nom && config.nom !== workspace.name){
+        const {data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});
+        if(nouveauSlug) await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);
+      }
     }
     setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
     return true;

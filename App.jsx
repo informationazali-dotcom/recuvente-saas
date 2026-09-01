@@ -203,6 +203,59 @@ async function genererFacturePDF(commande, workspace) {
 
 export default function App() {
   const [session, setSession] = useState(undefined);
+  const [nouvelleVersionDisponible, setNouvelleVersionDisponible] = useState(false);
+  const versionActuelleRef = useRef(null);
+
+  useEffect(() => {
+    async function verifierVersion() {
+      try {
+        const resp = await fetch("/", { method: "HEAD", cache: "no-store" });
+        const empreinte = resp.headers.get("etag") || resp.headers.get("last-modified");
+        if (!empreinte) return;
+        if (versionActuelleRef.current === null) {
+          versionActuelleRef.current = empreinte;
+        } else if (empreinte !== versionActuelleRef.current) {
+          setNouvelleVersionDisponible(true);
+        }
+      } catch (_) {
+        // Pas grave si ça échoue (hors ligne, etc.) — on réessaiera au prochain cycle.
+      }
+    }
+    verifierVersion();
+    const intervalle = setInterval(verifierVersion, 5 * 60 * 1000);
+    function auRetourSurOnglet() {
+      if (document.visibilityState === "visible") verifierVersion();
+    }
+    document.addEventListener("visibilitychange", auRetourSurOnglet);
+
+    // Force aussi la mise à jour du service worker existant, au cas où un utilisateur
+    // aurait une ancienne version qui intercepterait les requêtes et fausserait la détection.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((reg) => reg.update());
+      });
+    }
+
+    return () => {
+      clearInterval(intervalle);
+      document.removeEventListener("visibilitychange", auRetourSurOnglet);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!nouvelleVersionDisponible) return;
+    const bandeau = document.createElement("div");
+    bandeau.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a7a3c;color:white;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-family:sans-serif;font-size:13px;font-weight:600;flex-wrap:wrap;box-shadow:0 2px 10px rgba(0,0,0,0.2);";
+    bandeau.innerHTML = `<span>🔄 Une nouvelle version de RecuVente est disponible.</span>`;
+    const bouton = document.createElement("button");
+    bouton.textContent = "Actualiser maintenant";
+    bouton.style.cssText = "background:white;color:#1a7a3c;border:none;border-radius:8px;padding:6px 14px;font-weight:700;font-size:12.5px;cursor:pointer;";
+    bouton.onclick = () => window.location.reload();
+    bandeau.appendChild(bouton);
+    document.body.appendChild(bandeau);
+    return () => { document.body.removeChild(bandeau); };
+  }, [nouvelleVersionDisponible]);
+
   const [workspace, setWorkspace] = useState(undefined);
   const [workspacesDisponibles, setWorkspacesDisponibles] = useState([]);
   const [workspaceActifId, setWorkspaceActifId] = useState(() => {

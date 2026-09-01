@@ -4064,6 +4064,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             >
               👥 Gérer l'équipe
             </button>
+            <button
+              onClick={() => setShowIntegrations(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              ⚙️ Paramètres avancés
+            </button>
             {estEcommerce && (
               <button
                 onClick={() => setShowStoreBuilder(true)}
@@ -4897,6 +4903,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients", icon: Users },
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
+          ...(workspace.role === "owner" ? [{ key: "parametres", label: "Réglages", icon: Compass, action: () => setShowIntegrations(true) }] : []),
         ].map((t) => {
           const Icon = t.icon;
           const active = vue === t.key;

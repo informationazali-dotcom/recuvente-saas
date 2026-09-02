@@ -1,9 +1,9 @@
-// Sert les bonnes balises meta (titre, image, description) aux robots qui génèrent les
-// aperçus de lien (WhatsApp, Facebook, Twitter/X, LinkedIn...) quand ils visitent un lien
-// de boutique ou de produit. Ces robots ne lisent jamais le JavaScript, donc les balises
-// posées côté client (dans CataloguePublic.jsx) ne leur sont jamais visibles — cette
-// fonction leur sert directement le bon HTML. Le routage vers cette fonction (uniquement
-// pour ces robots, jamais pour un vrai visiteur) se fait via vercel.json.
+// Sert les bonnes balises meta (titre, image, description) pour un lien de produit ou de
+// boutique — à tout le monde, robots ET vrais visiteurs. On récupère la vraie page de
+// l'app (index.html), on y injecte les bonnes balises meta dans le <head>, et on la
+// renvoie telle quelle : les robots (WhatsApp/Facebook) voient enfin les bonnes balises
+// (ils ne lisent jamais le JavaScript), et les vrais visiteurs reçoivent la même page
+// fonctionnelle qu'avant (le contenu et les scripts ne sont jamais touchés).
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -21,10 +21,18 @@ function echapperHTML(texte) {
 }
 
 export default async function handler(req, res) {
-  const url = new URL(req.url, `https://${req.headers.host}`);
+  const hote = req.headers.host;
+  const url = new URL(req.url, `https://${hote}`);
   const slug = url.searchParams.get("boutique");
   const catalogueIdDirect = url.searchParams.get("catalogue");
   const produitId = url.searchParams.get("produit");
+
+  // Récupère la vraie page de l'app (le vrai fichier construit par Vite), jamais celle
+  // réécrite par ce middleware — on demande explicitement /index.html, pas "/".
+  async function recupererPageOriginale() {
+    const resp = await fetch(`https://${hote}/index.html`);
+    return await resp.text();
+  }
 
   try {
     let workspaceId = catalogueIdDirect;
@@ -33,10 +41,19 @@ export default async function handler(req, res) {
       const { data: idTrouve } = await supabaseAdmin.rpc("workspace_id_par_slug", { p_slug: slug });
       workspaceId = idTrouve;
     }
-    if (!workspaceId) return res.redirect(302, "/");
+    if (!workspaceId) {
+      const page = await recupererPageOriginale();
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(page);
+    }
 
     const { data: lignes } = await supabaseAdmin.rpc("catalogue_public", { p_workspace_id: workspaceId });
-    if (!Array.isArray(lignes) || lignes.length === 0) return res.redirect(302, "/");
+    const page = await recupererPageOriginale();
+
+    if (!Array.isArray(lignes) || lignes.length === 0) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(page);
+    }
 
     const entreprise = lignes[0];
     let titre, description, image, type;
@@ -58,10 +75,7 @@ export default async function handler(req, res) {
     }
 
     const lienActuel = url.toString();
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
+    const balisesMeta = `
 <title>${echapperHTML(titre)}</title>
 <meta name="description" content="${echapperHTML(description)}">
 <meta property="og:title" content="${echapperHTML(titre)}">
@@ -70,14 +84,18 @@ ${image ? `<meta property="og:image" content="${echapperHTML(image)}">` : ""}
 <meta property="og:type" content="${type}">
 <meta property="og:url" content="${echapperHTML(lienActuel)}">
 <meta name="twitter:card" content="summary_large_image">
-</head>
-<body>${echapperHTML(titre)}</body>
-</html>`;
+</head>`;
+
+    // Remplace la balise </head> de la page originale par nos balises + la fermeture,
+    // pour insérer nos infos sans toucher au reste de la page (scripts, styles, etc.).
+    const pageModifiee = page.replace("</head>", balisesMeta);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=600");
-    return res.status(200).send(html);
+    return res.status(200).send(pageModifiee);
   } catch (e) {
-    return res.redirect(302, "/");
+    const page = await recupererPageOriginale().catch(() => "");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(page);
   }
 }

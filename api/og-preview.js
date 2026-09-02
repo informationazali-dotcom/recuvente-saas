@@ -1,10 +1,10 @@
 // Sert les bonnes balises meta (titre, image, description) pour un lien de produit ou de
-// boutique — à tout le monde, robots ET vrais visiteurs. On récupère la vraie page de
-// l'app (index.html), on REMPLACE ses balises meta existantes (title, description, og:*)
-// par les bonnes, et on la renvoie telle quelle : les robots (WhatsApp/Facebook) voient
-// enfin les bonnes balises (ils ne lisent jamais le JavaScript), et les vrais visiteurs
-// reçoivent la même page fonctionnelle qu'avant (le contenu et les scripts ne sont jamais
-// touchés).
+// boutique partagé sur WhatsApp/Facebook/etc. Contrairement à une tentative précédente basée
+// sur des règles de réécriture d'URL (peu fiables selon la configuration du projet), cette
+// fonction est appelée directement via son propre chemin (/api/og-preview), donc toujours
+// atteignable sans configuration supplémentaire. Un vrai visiteur qui clique sur ce lien est
+// redirigé automatiquement (en une fraction de seconde) vers la vraie boutique — les robots
+// de partage ne suivent jamais cette redirection et lisent directement les bonnes balises.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -21,49 +21,45 @@ function echapperHTML(texte) {
     .replace(/"/g, "&quot;");
 }
 
-// Retire toute balise <title> et toute balise <meta> liée au partage (description, og:*,
-// twitter:*) déjà présente dans la page d'origine, pour ne jamais avoir de doublon qui
-// sème la confusion chez les robots — puis insère les nôtres, propres, juste avant </head>.
-function remplacerBalisesMeta(html, balisesNouvelles) {
-  let resultat = html.replace(/<title>[\s\S]*?<\/title>/i, "");
-  resultat = resultat.replace(/<meta[^>]+name=["']description["'][^>]*>/gi, "");
-  resultat = resultat.replace(/<meta[^>]+property=["']og:[^"']+["'][^>]*>/gi, "");
-  resultat = resultat.replace(/<meta[^>]+name=["']twitter:[^"']+["'][^>]*>/gi, "");
-  return resultat.replace("</head>", `${balisesNouvelles}\n</head>`);
-}
-
 export default async function handler(req, res) {
-  const hote = req.headers.host;
-  const url = new URL(req.url, `https://${hote}`);
-  const slug = url.searchParams.get("boutique");
-  const catalogueIdDirect = url.searchParams.get("catalogue");
-  const produitId = url.searchParams.get("produit");
+  const slug = req.query.boutique;
+  const catalogueIdDirect = req.query.catalogue;
+  const produitId = req.query.produit;
 
-  async function recupererPageOriginale() {
-    const resp = await fetch(`https://${hote}/index.html`);
-    return await resp.text();
+  const lienReel = slug
+    ? `https://${req.headers.host}/?boutique=${encodeURIComponent(slug)}${produitId ? `&produit=${encodeURIComponent(produitId)}` : ""}`
+    : `https://${req.headers.host}/?catalogue=${encodeURIComponent(catalogueIdDirect || "")}${produitId ? `&produit=${encodeURIComponent(produitId)}` : ""}`;
+
+  function pageAvecRedirection(titre, description, image, type) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${echapperHTML(titre)}</title>
+<meta name="description" content="${echapperHTML(description)}">
+<meta property="og:title" content="${echapperHTML(titre)}">
+<meta property="og:description" content="${echapperHTML(description)}">
+<meta property="og:image" content="${echapperHTML(image)}">
+<meta property="og:type" content="${type}">
+<meta property="og:url" content="${echapperHTML(lienReel)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="refresh" content="0;url=${echapperHTML(lienReel)}">
+<script>window.location.replace(${JSON.stringify(lienReel)});</script>
+</head>
+<body>Redirection vers <a href="${echapperHTML(lienReel)}">${echapperHTML(titre)}</a>...</body>
+</html>`;
   }
 
   try {
     let workspaceId = catalogueIdDirect;
-
     if (!workspaceId && slug) {
       const { data: idTrouve } = await supabaseAdmin.rpc("workspace_id_par_slug", { p_slug: slug });
       workspaceId = idTrouve;
     }
-    if (!workspaceId) {
-      const page = await recupererPageOriginale();
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(page);
-    }
+    if (!workspaceId) return res.redirect(302, "/");
 
     const { data: lignes } = await supabaseAdmin.rpc("catalogue_public", { p_workspace_id: workspaceId });
-    const page = await recupererPageOriginale();
-
-    if (!Array.isArray(lignes) || lignes.length === 0) {
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(page);
-    }
+    if (!Array.isArray(lignes) || lignes.length === 0) return res.redirect(302, "/");
 
     const entreprise = lignes[0];
     let titre, description, image, type;
@@ -83,29 +79,12 @@ export default async function handler(req, res) {
       image = entreprise.logo_url;
       type = "website";
     }
-    if (!image) {
-      // og:image doit toujours être présent explicitement, sinon Facebook affiche une alerte.
-      image = "https://recuvente-saas.vercel.app/favicon.png";
-    }
-
-    const lienActuel = url.toString();
-    const balisesNouvelles = `<title>${echapperHTML(titre)}</title>
-<meta name="description" content="${echapperHTML(description)}">
-<meta property="og:title" content="${echapperHTML(titre)}">
-<meta property="og:description" content="${echapperHTML(description)}">
-<meta property="og:image" content="${echapperHTML(image)}">
-<meta property="og:type" content="${type}">
-<meta property="og:url" content="${echapperHTML(lienActuel)}">
-<meta name="twitter:card" content="summary_large_image">`;
-
-    const pageModifiee = remplacerBalisesMeta(page, balisesNouvelles);
+    if (!image) image = `https://${req.headers.host}/favicon.png`;
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=600");
-    return res.status(200).send(pageModifiee);
+    return res.status(200).send(pageAvecRedirection(titre, description, image, type));
   } catch (e) {
-    const page = await recupererPageOriginale().catch(() => "");
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.status(200).send(page);
+    return res.redirect(302, "/");
   }
 }

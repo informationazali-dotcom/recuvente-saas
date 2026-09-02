@@ -8335,6 +8335,13 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                         ) : (
                           <input type="number" min="0" max="90" placeholder="Remise %" value={b.discount ?? ""} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, discount: Math.min(90, Math.max(0, Number(e.target.value) || 0)) } : x)) }))} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box" }} />
                         )}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                          <label style={{ fontSize: 10.5, color: "#8A9089" }}>Couleur de fond</label>
+                          <input type="color" value={b.couleur_fond || "#FFFFFF"} onChange={(e) => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, couleur_fond: e.target.value } : x)) }))} style={{ width: 30, height: 26, border: "1px solid #DDD8CC", borderRadius: 5, padding: 0, cursor: "pointer" }} />
+                          {b.couleur_fond && (
+                            <button onClick={() => setLivraison((v) => ({ ...v, bundles: v.bundles.map((x, j) => (j === i ? { ...x, couleur_fond: null } : x)) }))} style={{ background: "none", border: "none", color: "#8A9089", fontSize: 10.5, cursor: "pointer", textDecoration: "underline" }}>Réinitialiser</button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

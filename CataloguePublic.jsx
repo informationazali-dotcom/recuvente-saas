@@ -1371,7 +1371,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                             if (actif) { setBundleChoisiId(null); setQuantite(1); }
                             else { setBundleChoisiId(b.id); setQuantite(b.qty); }
                           }}
-                          style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", borderRadius: 10, padding: "8px 9px", cursor: "pointer" }}
+                          style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : (b.couleur_fond || "white"), borderRadius: 10, padding: "8px 9px", cursor: "pointer" }}
                         >
                           <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
                           {b.mode === "prix_fixe" && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}

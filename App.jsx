@@ -2496,6 +2496,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
   const [showTeam, setShowTeam] = useState(false);
   const [showAbonnement, setShowAbonnement] = useState(false);
+  const [showRapportHebdo, setShowRapportHebdo] = useState(false);
   const [showLivreurs, setShowLivreurs] = useState(false);
   const [showClosers, setShowClosers] = useState(false);
   const [showCampagne, setShowCampagne] = useState(false);
@@ -4219,6 +4220,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                     <button onClick={() => setShowAbonnement(true)} aria-label="Mon abonnement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>💳</button>
                   </>
                 )}
+                <button onClick={() => setShowRapportHebdo(true)} aria-label="Ma semaine" style={{ flexShrink: 0, background: "rgba(232,146,10,0.25)", border: "1px solid rgba(232,146,10,0.4)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>
                 {estEcommerce && <button onClick={() => setShowProduits(true)} aria-label="Catalogue" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📦</button>}
                 <button onClick={() => setVue("rapprochement")} aria-label="Rapprochement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🔗</button>
                 <button onClick={() => setVue("score_business")} aria-label="Score business" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>
@@ -5045,6 +5047,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showReunion && <ReunionEquipeModal workspace={workspace} onClose={() => setShowReunion(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
+      {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={workspace.currency} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showStoreBuilder && !accesBloque && (
@@ -10586,11 +10589,41 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
       .map((c) => ({ ...c, conseil: conseils[c.label] }));
   }, [composantes]);
 
+  const totalVentesConfirmees = useMemo(() => toutesCommandes.filter((c) => c.statut === "confirmee").reduce((s, c) => s + Number(c.montant), 0), [toutesCommandes]);
+  function calculerBadgeVendeur(total) {
+    if (total >= 10000000) return { nom: "Diamant", icone: "💎", couleur: "#5EC8F2", seuilSuivant: null };
+    if (total >= 3000000) return { nom: "Or", icone: "🥇", couleur: "#e8920a", seuilSuivant: 10000000 };
+    if (total >= 500000) return { nom: "Argent", icone: "🥈", couleur: "#B0B8BE", seuilSuivant: 3000000 };
+    return { nom: "Bronze", icone: "🥉", couleur: "#C08552", seuilSuivant: 500000 };
+  }
+  const badgeVendeur = calculerBadgeVendeur(totalVentesConfirmees);
+  const progressionBadge = badgeVendeur.seuilSuivant ? Math.min(100, Math.round((totalVentesConfirmees / badgeVendeur.seuilSuivant) * 100)) : 100;
+
   return (
     <div style={{ padding: "20px 20px 8px" }}>
       <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>🧭 Score Business</div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 20 }}>
         Le résumé exécutif de ton activité — 6 indicateurs combinés en un seul chiffre.
+      </div>
+
+      <div style={{ background: "white", border: `1.5px solid ${badgeVendeur.couleur}`, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ fontSize: 36, flexShrink: 0 }}>{badgeVendeur.icone}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, color: "#8A9089", textTransform: "uppercase", letterSpacing: "0.04em" }}>Statut vendeur</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: badgeVendeur.couleur }}>{badgeVendeur.nom}</div>
+          {badgeVendeur.seuilSuivant ? (
+            <>
+              <div style={{ background: "#ECE8DC", borderRadius: 999, height: 6, overflow: "hidden", marginTop: 6 }}>
+                <div style={{ width: `${progressionBadge}%`, background: badgeVendeur.couleur, height: "100%", borderRadius: 999 }} />
+              </div>
+              <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 4 }}>
+                {(badgeVendeur.seuilSuivant - totalVentesConfirmees).toLocaleString("fr-FR")} {currency} avant le niveau suivant
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 4 }}>Niveau maximum atteint 🎉</div>
+          )}
+        </div>
       </div>
 
       <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 18, padding: "28px 24px", marginBottom: 24, textAlign: "center" }}>
@@ -11259,6 +11292,89 @@ function CarteLivreursSaas({ livreurs }) {
     </div>
   );
 }
+function RapportHebdomadaireModal({ commandes, currency, workspaceName, onFermer }) {
+  const rapport = useMemo(() => {
+    const maintenant = new Date();
+    const debutSemaine = new Date(maintenant);
+    debutSemaine.setDate(maintenant.getDate() - 7);
+    const debutSemainePrecedente = new Date(maintenant);
+    debutSemainePrecedente.setDate(maintenant.getDate() - 14);
+
+    const semaineActuelle = commandes.filter((c) => new Date(c.created_at) >= debutSemaine);
+    const semainePrecedente = commandes.filter((c) => new Date(c.created_at) >= debutSemainePrecedente && new Date(c.created_at) < debutSemaine);
+
+    const confirmeesActuelle = semaineActuelle.filter((c) => c.statut === "confirmee");
+    const confirmeesPrecedente = semainePrecedente.filter((c) => c.statut === "confirmee");
+
+    const caActuel = confirmeesActuelle.reduce((s, c) => s + Number(c.montant), 0);
+    const caPrecedent = confirmeesPrecedente.reduce((s, c) => s + Number(c.montant), 0);
+    const evolutionCA = caPrecedent > 0 ? Math.round(((caActuel - caPrecedent) / caPrecedent) * 100) : (caActuel > 0 ? 100 : 0);
+
+    const recuperees = semaineActuelle.filter((c) => c.statut === "confirmee" && c.confirmed_by).length;
+
+    const parProduit = {};
+    confirmeesActuelle.forEach((c) => {
+      const nom = (c.produit || "Autre").split(" x")[0].trim();
+      parProduit[nom] = (parProduit[nom] || 0) + 1;
+    });
+    const meilleurProduit = Object.entries(parProduit).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      caActuel, evolutionCA,
+      nbConfirmees: confirmeesActuelle.length,
+      nbTotal: semaineActuelle.length,
+      recuperees,
+      meilleurProduit: meilleurProduit ? meilleurProduit[0] : null,
+    };
+  }, [commandes]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 90 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(160deg, #0F1B16 0%, #16231F 50%, #1a7a3c 200%)", borderRadius: 22, padding: "30px 26px", width: "100%", maxWidth: 380, color: "white", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <button onClick={onFermer} style={{ position: "absolute", top: 14, right: 16, background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 20, cursor: "pointer" }}>×</button>
+
+        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.65, marginBottom: 4 }}>Ta semaine</div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 22 }}>{workspaceName}</div>
+
+        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>Chiffre d'affaires encaissé</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 34, color: "#e8920a" }}>
+          {rapport.caActuel.toLocaleString("fr-FR")} {currency}
+        </div>
+        {rapport.evolutionCA !== 0 && (
+          <div style={{ fontSize: 12, fontWeight: 700, color: rapport.evolutionCA > 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 4 }}>
+            {rapport.evolutionCA > 0 ? "▲" : "▼"} {Math.abs(rapport.evolutionCA)}% vs semaine dernière
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "24px 0" }}>
+          <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "14px 10px" }}>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{rapport.nbConfirmees}</div>
+            <div style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>commandes confirmées</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "14px 10px" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#7fd6a3" }}>{rapport.recuperees}</div>
+            <div style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>clients récupérés</div>
+          </div>
+        </div>
+
+        {rapport.meilleurProduit && (
+          <div style={{ background: "rgba(232,146,10,0.15)", border: "1px solid rgba(232,146,10,0.3)", borderRadius: 12, padding: "12px 14px", marginBottom: 20, fontSize: 12.5 }}>
+            🏆 Ton produit vedette cette semaine : <strong>{rapport.meilleurProduit}</strong>
+          </div>
+        )}
+
+        {rapport.nbTotal === 0 && (
+          <div style={{ fontSize: 12.5, opacity: 0.7, marginBottom: 20 }}>Aucune commande cette semaine — c'est le moment de relancer tes clients 👀</div>
+        )}
+
+        <button onClick={onFermer} style={{ width: "100%", background: "white", color: "#16231F", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          Continuer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function BienvenueModal({ workspace, onFermer, onOuvrirAide }) {
   const [etape, setEtape] = useState(0);
 

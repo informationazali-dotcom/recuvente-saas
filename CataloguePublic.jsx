@@ -975,8 +975,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
             <button
               onClick={() => {
                 const lienAvecApercu = entreprise.slug
-                  ? `${window.location.origin}/?boutique=${entreprise.slug}&produit=${produitOuvert.produit_id}`
-                  : `${window.location.origin}/?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
+                  ? `${window.location.origin}/api/og-preview?boutique=${entreprise.slug}&produit=${produitOuvert.produit_id}`
+                  : `${window.location.origin}/api/og-preview?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
                 navigator.clipboard.writeText(lienAvecApercu);
                 setLienCopie(true);
                 setTimeout(() => setLienCopie(false), 2000);

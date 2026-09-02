@@ -2027,8 +2027,10 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   );
 }
 
-function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier }) {
+function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier }) {
   const t = creerTraducteur(entreprise.langue);
+  const [topbarVisible, setTopbarVisible] = useState(true);
+  const [estFixe, setEstFixe] = useState(false);
   const messagesAnnonce = [
     { icone: "🚚", texte: "Livraison gratuite à Abidjan dès 50 000 FCFA" },
     { icone: "💸", texte: "Wave · Orange Money · MTN MoMo acceptés" },
@@ -2036,84 +2038,124 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
     { icone: "📦", texte: "Livraison partout en Côte d'Ivoire" },
   ];
 
+  useEffect(() => {
+    function onScroll() {
+      setEstFixe(window.scrollY > (topbarVisible ? 34 : 0));
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [topbarVisible]);
+
+  const styleFixe = estFixe ? { position: "fixed", top: 0, left: 0, right: 0, width: "100%", zIndex: 40, boxShadow: "0 2px 10px rgba(0,0,0,0.15)" } : {};
+
   return (
-    <div style={{ position: "sticky", top: 0, zIndex: 30, fontFamily: "sans-serif" }}>
-      <div style={{ background: "#16231F", color: "white", padding: "7px 12px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
-          {messagesAnnonce.map((m, i) => (
-            <span key={i} style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{m.icone} {m.texte}</span>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", padding: "10px 16px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}>
-            {entreprise.logo ? (
-              <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 40, objectFit: "contain" }} />
-            ) : (
-              <span style={{ fontWeight: 800, fontSize: 18, color: couleur }}>{entreprise.nom}</span>
-            )}
-          </div>
-
-          {entreprise.country === "CI" && (
-            <div style={{ fontSize: 11, color: "#6B7168", flexShrink: 0, lineHeight: 1.3 }}>
-              📍 Livrer à<br /><span style={{ fontWeight: 700, color: "#16231F" }}>Abidjan ▾</span>
-            </div>
-          )}
-
-          <div style={{ flex: 1, minWidth: 160, display: "flex", background: "#F5F2E8", borderRadius: 999, overflow: "hidden", border: "1px solid #ECE8DC" }}>
-            <span style={{ padding: "9px 0 9px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
-            <input
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              placeholder={t("rechercherProduit") || "Rechercher un produit, une marque..."}
-              style={{ flex: 1, border: "none", background: "transparent", padding: "9px 10px", fontSize: 13, outline: "none" }}
-            />
-          </div>
-
-          <button
-            onClick={onOuvrirPanier}
-            style={{ position: "relative", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
-          >
-            🛒 {t("panier") || "Panier"}
-            {nbArticlesPanier > 0 && (
-              <span style={{ position: "absolute", top: -6, right: -6, background: "#D64933", color: "white", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {nbArticlesPanier}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {collectionsManuelles.length > 0 && (
-        <div style={{ background: "#16231F", padding: "0 16px", overflowX: "auto" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 18, padding: "9px 0", whiteSpace: "nowrap", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 18 }}>
-              <span onClick={() => onNaviguerVersCollection(null)} style={{ color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: 0.9 }}>
-                ☰ {t("toutesCollections") || "Toutes catégories"}
-              </span>
-              {collectionsManuelles.map((c) => (
-                <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: 0.85 }}>
-                  {c.nom}
-                </span>
+    <div style={{ fontFamily: "sans-serif" }}>
+      {estFixe && <div style={{ height: 96 }} />}
+      <div style={styleFixe}>
+        {topbarVisible && (
+          <div style={{ background: "#145c2e", color: "rgba(255,255,255,0.92)", padding: "7px 30px", position: "relative" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
+              {messagesAnnonce.map((m, i) => (
+                <span key={i} style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{m.icone} {m.texte}</span>
               ))}
             </div>
-            {entreprise.whatsapp && (
-              <span style={{ color: "#4ADE80", fontSize: 12, fontWeight: 700 }}>📞 {entreprise.whatsapp}</span>
+            <button onClick={() => setTopbarVisible(false)} aria-label="Fermer" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 13 }}>✕</button>
+          </div>
+        )}
+
+        <div style={{ background: couleur, padding: "10px 16px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}>
+              {entreprise.logo ? (
+                <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 40, objectFit: "contain" }} />
+              ) : (
+                <span style={{ fontWeight: 800, fontSize: 18, color: "white" }}>{entreprise.nom}</span>
+              )}
+            </div>
+
+            {entreprise.country === "CI" && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.8)", flexShrink: 0, lineHeight: 1.3 }}>
+                📍 Livrer à<br /><span style={{ fontWeight: 700, color: "white" }}>Abidjan ▾</span>
+              </div>
             )}
+
+            <div style={{ flex: 1, minWidth: 160, display: "flex", background: "white", borderRadius: 8, overflow: "hidden" }}>
+              <span style={{ padding: "10px 0 10px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
+              <input
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder={t("rechercherProduit") || "Rechercher un produit, une marque..."}
+                style={{ flex: 1, border: "none", background: "transparent", padding: "10px 10px", fontSize: 13, outline: "none" }}
+              />
+            </div>
+
+            {entreprise.whatsapp && (
+              <a
+                href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "4px 10px", borderRadius: 6, textDecoration: "none", flexShrink: 0 }}
+              >
+                <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.75)" }}>Besoin d'aide ?</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "white" }}>💬 WhatsApp</span>
+              </a>
+            )}
+
+            <button
+              onClick={onOuvrirPanier}
+              style={{ position: "relative", background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+            >
+              🛒 {t("panier") || "Panier"}
+              {nbArticlesPanier > 0 && (
+                <span style={{ position: "absolute", top: -6, right: -6, background: "#D64933", color: "white", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {nbArticlesPanier}
+                </span>
+              )}
+            </button>
           </div>
         </div>
-      )}
+
+        <div style={{ background: "#145c2e", padding: "0 16px", overflowX: "auto" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}>
+            <span
+              onClick={() => onNaviguerVersCollection(null)}
+              style={{ color: "white", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "10px 14px 10px 0", borderRight: "1px solid rgba(255,255,255,0.2)", marginRight: 6 }}
+            >
+              ☰ {t("toutesCollections") || "Toutes catégories"}
+            </span>
+            {collectionsManuelles.map((c) => (
+              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "rgba(255,255,255,0.88)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
+                {c.nom}
+              </span>
+            ))}
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+              {aDesBestSellers && (
+                <span onClick={() => onNaviguerVersCollection("bestseller")} style={{ color: "#e8920a", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "10px 10px" }}>
+                  🔥 Promotions Flash
+                </span>
+              )}
+              {aDesNouveautes && (
+                <span onClick={() => onNaviguerVersCollection("nouveautes")} style={{ color: "#e8920a", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "10px 10px", display: "flex", alignItems: "center", gap: 5 }}>
+                  ✨ Nouveautés <span style={{ background: "#e8920a", color: "white", fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>NEW</span>
+                </span>
+              )}
+              {entreprise.whatsapp && (
+                <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, fontWeight: 600, padding: "10px 0 10px 10px" }}>📞 {entreprise.whatsapp}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {entreprise.whatsapp && (
-        <div style={{ background: "#EAF3DE", color: "#3B6D11", textAlign: "center", padding: "7px 12px", fontSize: 11, fontWeight: 600 }}>
-          💬 {t("besoinAide") || "Besoin d'aide ? Contactez-nous"} —{" "}
+        <div style={{ background: "#25d366", color: "white", textAlign: "center", padding: "8px 12px", fontSize: 12, fontWeight: 600 }}>
+          💬 {t("besoinAide") || "Besoin d'aide ? Contactez-nous"} — réponse en moins de 30 min !{" "}
           <a
             href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: "#3B6D11", textDecoration: "underline" }}
+            style={{ color: "white", fontWeight: 700, textDecoration: "none", background: "rgba(255,255,255,0.22)", padding: "3px 10px", borderRadius: 4, marginLeft: 6 }}
           >
             {t("ecrireWhatsapp") || "Écrire sur WhatsApp"}
           </a>
@@ -2133,6 +2175,8 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         setRecherche={setRecherche}
         onLogoClick={onLogoClick}
         collectionsManuelles={collectionsManuelles}
+        aDesBestSellers={aDesBestSellers}
+        aDesNouveautes={aDesNouveautes}
         onNaviguerVersCollection={onNaviguerVersCollection}
         nbArticlesPanier={nbArticlesPanier}
         onOuvrirPanier={onOuvrirPanier}

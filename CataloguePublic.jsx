@@ -2400,6 +2400,13 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
 
   return (
     <div style={{ fontFamily: "sans-serif" }}>
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        style={{ background: "#3d3d3d", color: "white", textAlign: "center", padding: 13, fontSize: 13, cursor: "pointer", border: "none", width: "100%", display: "block", letterSpacing: "0.3px" }}
+      >
+        ▲ &nbsp; Retour en haut de page
+      </button>
+
       <div style={{ background: "#1a7a3c", padding: "16px 20px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div>
@@ -2419,30 +2426,54 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
         </div>
       </div>
 
-    <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", fontFamily: "sans-serif" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "30px 20px 20px", display: "grid", gridTemplateColumns: "1.3fr repeat(3, 1fr)", gap: 26, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+    <div style={{ background: "#131a22", color: "#9aa0a6", fontFamily: "sans-serif" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "30px 20px 20px", display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr 1.1fr", gap: 26, borderBottom: "1px solid #3a3a3a" }}>
         <div>
           {entreprise.logo ? (
             <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 40, objectFit: "contain", marginBottom: 12, filter: "brightness(0) invert(1)" }} />
           ) : (
             <div style={{ fontWeight: 800, fontSize: 17, color: "white", marginBottom: 12 }}>{entreprise.nom}</div>
           )}
-          <div style={{ fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
-            {entreprise.description || `${entreprise.nom} — votre boutique en ligne, paiement à la livraison, livraison rapide.`}
+          <div style={{ fontSize: 12, lineHeight: 1.75, marginBottom: 16, maxWidth: 280 }}>
+            {entreprise.description || "La première grande plateforme e-commerce de Côte d'Ivoire. Des milliers de produits de qualité importés directement pour vous, livrés rapidement partout en Côte d'Ivoire — et bientôt dans toute l'Afrique de l'Ouest."}
           </div>
-          {entreprise.whatsapp && <div style={{ fontSize: 12, marginBottom: 4 }}>💬 {entreprise.whatsapp}</div>}
-          {reseaux.length > 0 && (
-            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              {reseaux.map((r, i) => (
-                <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: "white", fontSize: 16, textDecoration: "none" }}>{r.icone}</a>
-              ))}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, lineHeight: 1.5 }}>
+              <span style={{ fontSize: 14, color: "#e8920a", flexShrink: 0 }}>📍</span>
+              <span>Cocody Angré Travail, Abidjan<br />Côte d'Ivoire</span>
             </div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12 }}>
+              <span style={{ fontSize: 14, color: "#e8920a", flexShrink: 0 }}>✉️</span>
+              <a href="mailto:info@azaliexpress.com" style={{ color: "#9aa0a6", textDecoration: "none" }}>info@azaliexpress.com</a>
+            </div>
+            {entreprise.whatsapp && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12 }}>
+                <span style={{ fontSize: 14, color: "#e8920a", flexShrink: 0 }}>📞</span>
+                <a href={`tel:${String(entreprise.whatsapp).replace(/\D/g, "")}`} style={{ color: "#9aa0a6", textDecoration: "none" }}>{entreprise.whatsapp}</a>
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, lineHeight: 1.5 }}>
+              <span style={{ fontSize: 14, color: "#e8920a", flexShrink: 0 }}>⏰</span>
+              <span>Lun–Sam : 8h–20h<br />Dim : 9h–17h</span>
+            </div>
+          </div>
+
+          {reseaux.length > 0 && (
+            <>
+              <div style={{ fontSize: 11, color: "white", fontWeight: 700, marginBottom: 10, letterSpacing: "0.5px" }}>SUIVEZ-NOUS</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {reseaux.map((r, i) => (
+                  <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #3a3a3a", display: "flex", alignItems: "center", justifyContent: "center", color: "#9aa0a6", fontSize: 15, textDecoration: "none" }}>{r.icone}</a>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>🛍️ {t("boutique") || "Boutique"}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "white", marginBottom: 14, paddingBottom: 8, borderBottom: "1px solid #3a3a3a" }}>🛍️ {t("boutique") || "Boutique"}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             <span onClick={() => onNaviguerVersCollection(null)} style={{ fontSize: 12, cursor: "pointer" }}>{t("toutesCollections") || "Tous les produits"}</span>
             {collectionsManuelles.slice(0, 6).map((c) => (
               <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ fontSize: 12, cursor: "pointer" }}>{c.nom}</span>
@@ -2451,8 +2482,8 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>🎧 {t("serviceClient") || "Service Client"}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "white", marginBottom: 14, paddingBottom: 8, borderBottom: "1px solid #3a3a3a" }}>🎧 {t("serviceClient") || "Service Client"}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {entreprise.whatsapp && (
               <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "inherit", textDecoration: "none" }}>
                 {t("supportWhatsapp") || "Support WhatsApp"}
@@ -2460,34 +2491,59 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
             )}
             {entreprise.politiqueLivraison && <span onClick={() => onOuvrirPolitique("livraison")} style={{ fontSize: 12, cursor: "pointer" }}>{t("politiqueLivraison") || "Politique de livraison"}</span>}
             {entreprise.politiqueRetours && <span onClick={() => onOuvrirPolitique("retours")} style={{ fontSize: 12, cursor: "pointer" }}>{t("politiqueRetours") || "Retours & remboursements"}</span>}
+            <span style={{ fontSize: 12, cursor: "pointer" }}>FAQ — Questions fréquentes</span>
           </div>
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>💳 {t("paiementsAcceptes") || "Paiements acceptés"}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "white", marginBottom: 14, paddingBottom: 8, borderBottom: "1px solid #3a3a3a" }}>🏢 À propos</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Qui sommes-nous ?</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Notre mission</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Vendez avec nous</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Livraison Afrique de l'Ouest</span>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "white", marginBottom: 10, letterSpacing: "0.3px" }}>💳 Paiements acceptés</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 18 }}>
             {["💸 Wave", "📱 Orange Money", "📱 MTN MoMo", "💳 Visa", "💳 Mastercard", "💵 Cash COD"].map((moyen, i) => (
-              <div key={i} style={{ border: "1px solid rgba(255,255,255,0.18)", borderRadius: 8, padding: "7px 8px", fontSize: 10.5, textAlign: "center" }}>{moyen}</div>
+              <div key={i} style={{ background: "#1e2a1e", border: "1px solid #2a4a2a", borderRadius: 5, padding: "6px 8px", fontSize: 11 }}>{moyen}</div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 16, borderTop: "1px solid #3a3a3a" }}>
+            {[
+              { icone: "🚚", titre: "Livraison 24–72h", texte: "Partout en Côte d'Ivoire" },
+              { icone: "🔄", titre: "Retour sous 7 jours", texte: "Sans frais sur Abidjan" },
+              { icone: "🛡️", titre: "Achat 100% sécurisé", texte: "Paiement à la livraison" },
+              { icone: "⭐", titre: "+5 000 produits", texte: "Qualité vérifiée" },
+            ].map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#1a7a3c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "white", flexShrink: 0 }}>{s.icone}</div>
+                <div style={{ fontSize: 11, lineHeight: 1.4 }}><strong style={{ color: "white", display: "block", fontSize: 12 }}>{s.titre}</strong>{s.texte}</div>
+              </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-        {[
-          { icone: "🚚", texte: t("livraisonRapide") || "Livraison rapide" },
-          { icone: "🔄", texte: t("retourFacile") || "Retour sous 7 jours" },
-          { icone: "🛡️", texte: t("achatSecurise") || "Achat 100% sécurisé" },
-        ].map((b, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
-            <span style={{ fontSize: 18 }}>{b.icone}</span>
-            <span>{b.texte}</span>
-          </div>
+      <div style={{ background: "#0f1519", padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap" }}>
+        {["Politique de confidentialité", "Conditions d'utilisation", "Politique de remboursement", "Politique de livraison", "Mentions légales", "FAQ", "Contact"].map((lien, i, arr) => (
+          <span key={lien} style={{ fontSize: 11, color: "#9aa0a6", padding: "3px 8px", borderRight: i < arr.length - 1 ? "1px solid #3a3a3a" : "none", whiteSpace: "nowrap", cursor: "pointer" }}>{lien}</span>
         ))}
       </div>
 
-      <div style={{ textAlign: "center", padding: "14px 20px", fontSize: 11, opacity: 0.6 }}>
-        © {anneeEnCours} {entreprise.nom.toUpperCase()} — {t("tousDroitsReserves") || "Tous droits réservés"}.
+      <div style={{ background: "#0f1519", padding: "14px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #1e2a22", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ fontSize: 11, color: "#9aa0a6", lineHeight: 1.5 }}>
+          © {anneeEnCours} <strong style={{ color: "#e8920a" }}>{entreprise.nom.toUpperCase()}</strong> — {t("tousDroitsReserves") || "Tous droits réservés"}.<br />
+          Abidjan, Cocody Angré Travail, Côte d'Ivoire · <a href="mailto:info@azaliexpress.com" style={{ color: "#e8920a", textDecoration: "none" }}>info@azaliexpress.com</a>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9aa0a6" }}>
+          <span style={{ fontSize: 16 }}>🇨🇮</span>
+          <span>Fièrement ivoirien · Livraison toute l'Afrique de l'Ouest</span>
+        </div>
       </div>
     </div>
     </div>

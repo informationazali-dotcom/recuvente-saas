@@ -30,6 +30,12 @@ export default async function handler(req, res) {
     ? `https://${req.headers.host}/?boutique=${encodeURIComponent(slug)}${produitId ? `&produit=${encodeURIComponent(produitId)}` : ""}`
     : `https://${req.headers.host}/?catalogue=${encodeURIComponent(catalogueIdDirect || "")}${produitId ? `&produit=${encodeURIComponent(produitId)}` : ""}`;
 
+  // L'URL "officielle" de ce contenu partagé doit être CETTE page elle-même (celle que
+  // Facebook vient de lire), jamais la destination de la redirection — sinon Facebook
+  // va chercher les informations sur l'autre page (qui n'en a pas) au lieu d'utiliser
+  // celles qu'on vient de lui donner ici.
+  const lienDeCettePage = `https://${req.headers.host}${req.url}`;
+
   function pageAvecRedirection(titre, description, image, type) {
     return `<!DOCTYPE html>
 <html>
@@ -41,7 +47,7 @@ export default async function handler(req, res) {
 <meta property="og:description" content="${echapperHTML(description)}">
 <meta property="og:image" content="${echapperHTML(image)}">
 <meta property="og:type" content="${type}">
-<meta property="og:url" content="${echapperHTML(lienReel)}">
+<meta property="og:url" content="${echapperHTML(lienDeCettePage)}">
 <meta name="twitter:card" content="summary_large_image">
 <script>window.location.replace(${JSON.stringify(lienReel)});</script>
 </head>

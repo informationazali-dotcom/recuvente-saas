@@ -2779,7 +2779,41 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleurSection, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
 
     if (type === "hero") {
-      if (entreprise.slug === "azaliexpress") return null; // Design épuré, sans grande bannière, comme sur le vrai site.
+      if (entreprise.slug === "azaliexpress") {
+        const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);
+        if (collectionsAvecProduits.length === 0) return null;
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: collectionsAvecProduits.length > 1 ? "repeat(2, 1fr)" : "1fr", gap: 12, padding: "16px" }}>
+            {collectionsAvecProduits.slice(0, 2).map(({ collection: c, produits: cp }) => {
+              const moinsCher = cp.reduce((min, p) => (Number(p.prix_vente) < Number(min.prix_vente) ? p : min), cp[0]);
+              const image = cp.find((p) => p.photo_url)?.photo_url;
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    position: "relative", borderRadius: 14, overflow: "hidden", minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end",
+                    background: image ? `linear-gradient(180deg, rgba(22,35,31,0.05) 40%, rgba(22,35,31,0.85) 100%), url(${image}) center/cover` : `linear-gradient(135deg,${couleur},#0b2416)`,
+                  }}
+                >
+                  <div style={{ padding: 18, color: "white" }}>
+                    <div style={{ fontSize: 17, fontWeight: 900, marginBottom: 4 }}>{c.nom}</div>
+                    <div style={{ fontSize: 11.5, opacity: 0.9, marginBottom: 10 }}>{cp.length} produit{cp.length > 1 ? "s" : ""} disponible{cp.length > 1 ? "s" : ""}</div>
+                    <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 10 }}>
+                      Dès <span style={{ fontWeight: 900, fontSize: 15 }}>{Number(moinsCher.prix_vente).toLocaleString("fr-FR")} {devise}</span>
+                    </div>
+                    <button
+                      onClick={() => setCollectionOuverte(`manuelle-${c.id}`)}
+                      style={{ background: "white", color: "#16231F", border: "none", borderRadius: 8, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
+                    >
+                      Découvrir →
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       return (
       <div style={{ textAlign: "center" }}>
         {entreprise.banniere ? (

@@ -2827,6 +2827,109 @@ function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit }) 
   );
 }
 
+function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), 6000);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  if (slides.length === 0) return null;
+
+  return (
+    <div style={{ position: "relative", background: "#0c2415", padding: "18px 16px", overflow: "hidden" }}>
+      <style>{`
+        @keyframes rvAzFloat { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-20px) scale(1.06); } }
+        @keyframes rvAzZoom { from { transform: scale(1.1); } to { transform: scale(1); } }
+        @keyframes rvAzPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes rvAzShine { 0% { left: -60%; } 100% { left: 140%; } }
+        @keyframes rvAzBob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
+        .rv-az-orb1 { position:absolute; top:-100px; right:-100px; width:340px; height:340px; border-radius:50%; background:radial-gradient(circle, rgba(232,146,10,.32), transparent 70%); animation: rvAzFloat 8s ease-in-out infinite; pointer-events:none; }
+        .rv-az-orb2 { position:absolute; bottom:-120px; left:5%; width:300px; height:300px; border-radius:50%; background:radial-gradient(circle, rgba(26,122,60,.5), transparent 70%); animation: rvAzFloat 9s ease-in-out infinite reverse; pointer-events:none; }
+        .rv-az-cta { position:relative; overflow:hidden; }
+        .rv-az-cta::after { content:''; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(120deg,transparent,rgba(255,255,255,.45),transparent); transform:skewX(-20deg); animation: rvAzShine 3.2s infinite; }
+        .rv-az-slide-img { animation: rvAzZoom 8s ease-out forwards; }
+        .rv-az-eyebrow::before { content:'⚡'; display:inline-block; animation: rvAzPulse 1.4s infinite; margin-right:4px; }
+        .rv-az-sticker { animation: rvAzBob 3.6s ease-in-out infinite; }
+        @media(max-width:1000px){ .rv-az-wrap{ grid-template-columns:1fr !important; } .rv-az-side{ flex-direction:row !important; } .rv-az-sticker{ display:none !important; } }
+        @media(max-width:600px){ .rv-az-title{ font-size:24px !important; } .rv-az-side{ flex-direction:column !important; } .rv-az-arrow,.rv-az-dots{ display:none !important; } }
+      `}</style>
+      <div className="rv-az-orb1" />
+      <div className="rv-az-orb2" />
+
+      <div className="rv-az-wrap" style={{ position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: "2.3fr 1fr", gap: 14, maxWidth: 1440, margin: "0 auto" }}>
+        <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", minHeight: 340, boxShadow: "0 30px 60px -20px rgba(0,0,0,.5)", border: "1px solid rgba(255,255,255,.08)" }}>
+          {slides.map((s, i) => (
+            <div key={i} style={{ position: i === index ? "relative" : "absolute", inset: 0, opacity: i === index ? 1 : 0, transition: "opacity .7s ease", display: i === index ? "flex" : "none", alignItems: "center", minHeight: 340 }}>
+              {s.image ? (
+                <img src={s.image} alt={s.titre} className="rv-az-slide-img" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,#1a7a3c,#0c2415)" }} />
+              )}
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(100deg, rgba(8,30,16,.92) 0%, rgba(8,30,16,.55) 45%, rgba(8,30,16,.05) 85%)" }} />
+
+              <div style={{ position: "relative", zIndex: 3, padding: "0 36px", maxWidth: 560 }}>
+                <span className="rv-az-eyebrow" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.08)", border: "1px solid rgba(232,146,10,.5)", color: "#ffb84d", fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", padding: "6px 14px", borderRadius: 30, marginBottom: 14 }}>
+                  {s.eyebrow}
+                </span>
+                <div className="rv-az-title" style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 900, lineHeight: 1.08, marginBottom: 12, color: "white", letterSpacing: "-0.5px" }}>
+                  {s.titre} <span style={{ background: "linear-gradient(90deg,#e8920a,#ffd27a)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{s.titreAccent}</span>
+                </div>
+                <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.82)", lineHeight: 1.6, marginBottom: 20, maxWidth: 420 }}>{s.texte}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <button className="rv-az-cta" onClick={() => onOuvrirCollection(s.collectionId)} style={{ background: "linear-gradient(120deg,#e8920a,#ff9f0f)", color: "white", fontWeight: 800, fontSize: 13.5, padding: "13px 26px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 14px 30px -8px rgba(232,146,10,.65)" }}>
+                    Découvrir →
+                  </button>
+                  <span onClick={() => onOuvrirCollection(null)} style={{ color: "white", fontSize: 12.5, fontWeight: 700, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,.4)", paddingBottom: 2 }}>
+                    Voir tous les produits
+                  </span>
+                </div>
+              </div>
+
+              {s.prix != null && (
+                <div className="rv-az-sticker" style={{ position: "absolute", zIndex: 4, top: "12%", right: "6%", background: "white", color: "#1a1a1a", borderRadius: 14, padding: "9px 15px", textAlign: "center", boxShadow: "0 14px 30px rgba(0,0,0,.25)" }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "#888", textTransform: "uppercase" }}>Dès</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#1a7a3c" }}>{Number(s.prix).toLocaleString("fr-FR")} {devise}</div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {slides.length > 1 && (
+            <div className="rv-az-dots" style={{ position: "absolute", bottom: 16, left: 36, zIndex: 5, display: "flex", gap: 7 }}>
+              {slides.map((_, i) => (
+                <button key={i} onClick={() => setIndex(i)} style={{ width: i === index ? 34 : 22, height: 5, borderRadius: 4, background: i === index ? "#e8920a" : "rgba(255,255,255,.3)", border: "none", cursor: "pointer", padding: 0, transition: "all .2s" }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {sideCards.length > 0 && (
+          <div className="rv-az-side" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {sideCards.map((c, i) => (
+              <div key={i} onClick={() => onOuvrirCollection(c.collectionId)} style={{ position: "relative", borderRadius: 16, overflow: "hidden", flex: 1, minHeight: 150, cursor: "pointer", boxShadow: "0 18px 36px -14px rgba(0,0,0,.45)", border: "1px solid rgba(255,255,255,.06)" }}>
+                {c.image ? (
+                  <img src={c.image} alt={c.titre} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ position: "absolute", inset: 0, background: "#16231F" }} />
+                )}
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0) 20%, rgba(0,0,0,.82) 100%)" }} />
+                <div style={{ position: "relative", zIndex: 2, padding: 16, color: "white", height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                  <span style={{ display: "inline-block", background: "#e8920a", fontSize: 9.5, fontWeight: 800, letterSpacing: "0.5px", textTransform: "uppercase", padding: "3px 9px", borderRadius: 6, marginBottom: 6, alignSelf: "flex-start" }}>Nouveau</span>
+                  <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{c.titre}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ffd27a", marginTop: 6 }}>Découvrir →</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur, ouvrirProduit, avisBoutique }) {
   function produitsDeCollection(col) {
     return produits.filter((p) => col.produitIds.includes(p.produit_id));
@@ -2909,37 +3012,26 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       if (entreprise.slug === "azaliexpress") {
         const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);
         if (collectionsAvecProduits.length === 0) return null;
-        return (
-          <div style={{ display: "grid", gridTemplateColumns: collectionsAvecProduits.length > 1 ? "repeat(2, 1fr)" : "1fr", gap: 12, padding: "16px" }}>
-            {collectionsAvecProduits.slice(0, 2).map(({ collection: c, produits: cp }) => {
-              const moinsCher = cp.reduce((min, p) => (Number(p.prix_vente) < Number(min.prix_vente) ? p : min), cp[0]);
-              const image = cp.find((p) => p.photo_url)?.photo_url;
-              return (
-                <div
-                  key={c.id}
-                  style={{
-                    position: "relative", borderRadius: 14, overflow: "hidden", minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end",
-                    background: image ? `linear-gradient(180deg, rgba(22,35,31,0.05) 40%, rgba(22,35,31,0.85) 100%), url(${image}) center/cover` : `linear-gradient(135deg,${couleur},#0b2416)`,
-                  }}
-                >
-                  <div style={{ padding: 18, color: "white" }}>
-                    <div style={{ fontSize: 17, fontWeight: 900, marginBottom: 4 }}>{c.nom}</div>
-                    <div style={{ fontSize: 11.5, opacity: 0.9, marginBottom: 10 }}>{cp.length} produit{cp.length > 1 ? "s" : ""} disponible{cp.length > 1 ? "s" : ""}</div>
-                    <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 10 }}>
-                      Dès <span style={{ fontWeight: 900, fontSize: 15 }}>{Number(moinsCher.prix_vente).toLocaleString("fr-FR")} {devise}</span>
-                    </div>
-                    <button
-                      onClick={() => setCollectionOuverte(`manuelle-${c.id}`)}
-                      style={{ background: "white", color: "#16231F", border: "none", borderRadius: 8, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
-                    >
-                      Découvrir →
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
+        const slides = collectionsAvecProduits.slice(0, 2).map(({ collection: c, produits: cp }, i) => {
+          const moinsCher = cp.reduce((min, p) => (Number(p.prix_vente) < Number(min.prix_vente) ? p : min), cp[0]);
+          const image = cp.find((p) => p.photo_url)?.photo_url;
+          const mots = c.nom.split(" ");
+          return {
+            collectionId: `manuelle-${c.id}`,
+            image,
+            eyebrow: i === 0 ? "Offre limitée" : "Nouveauté",
+            titre: mots.slice(0, -1).join(" ") || "Découvrez",
+            titreAccent: mots.slice(-1).join(" ") || c.nom,
+            texte: `Découvrez notre sélection ${c.nom.toLowerCase()}, qualité garantie et livrée rapidement.`,
+            prix: moinsCher ? moinsCher.prix_vente : null,
+          };
+        });
+        const sideCards = collectionsAvecProduits.slice(2, 4).map(({ collection: c, produits: cp }) => ({
+          collectionId: `manuelle-${c.id}`,
+          image: cp.find((p) => p.photo_url)?.photo_url,
+          titre: c.nom,
+        }));
+        return <HeroAzaliExpress slides={slides} sideCards={sideCards} onOuvrirCollection={setCollectionOuverte} devise={devise} />;
       }
       return (
       <div style={{ textAlign: "center" }}>

@@ -2639,6 +2639,109 @@ function BulleWhatsApp({ whatsapp, messageDefaut, surCtaBar }) {
   );
 }
 
+function CompteARebours() {
+  const [tempsRestant, setTempsRestant] = useState(() => {
+    const minuit = new Date();
+    minuit.setHours(24, 0, 0, 0);
+    return minuit - new Date();
+  });
+
+  useEffect(() => {
+    const intervalle = setInterval(() => {
+      const minuit = new Date();
+      minuit.setHours(24, 0, 0, 0);
+      setTempsRestant(minuit - new Date());
+    }, 1000);
+    return () => clearInterval(intervalle);
+  }, []);
+
+  const h = Math.floor(tempsRestant / 3600000);
+  const m = Math.floor((tempsRestant % 3600000) / 60000);
+  const s = Math.floor((tempsRestant % 60000) / 1000);
+  const deuxChiffres = (n) => String(n).padStart(2, "0");
+
+  return (
+    <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+      {[["Hr", h], ["Min", m], ["Sec", s]].map(([label, val]) => (
+        <div key={label} style={{ background: "white", borderRadius: 10, padding: "10px 14px", minWidth: 56, textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#D64933", fontFamily: "'IBM Plex Mono', monospace" }}>{deuxChiffres(val)}</div>
+          <div style={{ fontSize: 9, color: "#8A9089", fontWeight: 700 }}>{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit }) {
+  if (!produits || produits.length === 0) return null;
+  return (
+    <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
+      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 14, color: "#16231F" }}>{titre}</div>
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
+        {produits.slice(0, 10).map((p) => (
+          <button
+            key={p.produit_id}
+            onClick={() => ouvrirProduit(p)}
+            style={{ flexShrink: 0, width: 140, textAlign: "left", background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: 0, cursor: "pointer", overflow: "hidden" }}
+          >
+            {p.photo_url ? (
+              <img src={p.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+            ) : (
+              <div style={{ width: "100%", height: 120, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</div>
+            )}
+            <div style={{ padding: "8px 9px" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 3 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {devise}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur, ouvrirProduit, avisBoutique }) {
+  function produitsDeCollection(col) {
+    return produits.filter((p) => col.produitIds.includes(p.produit_id));
+  }
+
+  return (
+    <div>
+      <div style={{ background: "linear-gradient(135deg,#D64933,#e8920a)", padding: "24px 16px", textAlign: "center" }}>
+        <div style={{ color: "white", fontWeight: 800, fontSize: 20, marginBottom: 4 }}>🔥 Vente Flash — jusqu'à -50%</div>
+        <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginBottom: 16 }}>Offre valable sur une sélection de produits, stock limité</div>
+        <CompteARebours />
+      </div>
+
+      {collectionsManuelles.slice(0, 5).map((c) => (
+        <CarrouselProduits
+          key={c.id}
+          titre={c.nom}
+          produits={produitsDeCollection(c)}
+          devise={devise}
+          couleur={couleur}
+          ouvrirProduit={ouvrirProduit}
+        />
+      ))}
+
+      {avisBoutique && avisBoutique.length > 0 && (
+        <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 14, color: "#16231F", textAlign: "center" }}>Ce que disent nos clients</div>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
+            {avisBoutique.slice(0, 10).map((a, i) => (
+              <div key={i} style={{ flexShrink: 0, width: 220, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: 14 }}>
+                <div style={{ color: "#e8920a", fontSize: 13, marginBottom: 6 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</div>
+                {a.commentaire && <div style={{ fontSize: 12, color: "#16231F", lineHeight: 1.5, marginBottom: 8 }}>{a.commentaire}</div>}
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168" }}>{a.client_nom}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier }) {
   const devise = entreprise.devise;
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
@@ -2918,6 +3021,16 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         );
       })}
+      {entreprise.slug === "azaliexpress" && (
+        <SectionsAzaliExpress
+          collectionsManuelles={collectionsManuelles}
+          produits={produits}
+          devise={devise}
+          couleur={couleur}
+          ouvrirProduit={ouvrirProduit}
+          avisBoutique={avisBoutique}
+        />
+      )}
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>

@@ -2842,7 +2842,6 @@ function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
     <div style={{ position: "relative", background: "#0c2415", padding: "18px 16px", overflow: "hidden" }}>
       <style>{`
         @keyframes rvAzFloat { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-20px) scale(1.06); } }
-        @keyframes rvAzZoom { from { transform: scale(1.1); } to { transform: scale(1); } }
         @keyframes rvAzPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes rvAzShine { 0% { left: -60%; } 100% { left: 140%; } }
         @keyframes rvAzBob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
@@ -2850,7 +2849,6 @@ function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
         .rv-az-orb2 { position:absolute; bottom:-120px; left:5%; width:300px; height:300px; border-radius:50%; background:radial-gradient(circle, rgba(26,122,60,.5), transparent 70%); animation: rvAzFloat 9s ease-in-out infinite reverse; pointer-events:none; }
         .rv-az-cta { position:relative; overflow:hidden; }
         .rv-az-cta::after { content:''; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(120deg,transparent,rgba(255,255,255,.45),transparent); transform:skewX(-20deg); animation: rvAzShine 3.2s infinite; }
-        .rv-az-slide-img { animation: rvAzZoom 8s ease-out forwards; }
         .rv-az-eyebrow::before { content:'⚡'; display:inline-block; animation: rvAzPulse 1.4s infinite; margin-right:4px; }
         .rv-az-sticker { animation: rvAzBob 3.6s ease-in-out infinite; }
         @media(max-width:1000px){ .rv-az-wrap{ grid-template-columns:1fr !important; } .rv-az-side{ flex-direction:row !important; } .rv-az-sticker{ display:none !important; } }
@@ -2860,14 +2858,9 @@ function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
       <div className="rv-az-orb2" />
 
       <div className="rv-az-wrap" style={{ position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: "2.3fr 1fr", gap: 14, maxWidth: 1440, margin: "0 auto" }}>
-        <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", minHeight: 340, boxShadow: "0 30px 60px -20px rgba(0,0,0,.5)", border: "1px solid rgba(255,255,255,.08)" }}>
+        <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", minHeight: 340, boxShadow: "0 30px 60px -20px rgba(0,0,0,.5)", border: "1px solid rgba(255,255,255,.08)", background: "#0c2415" }}>
           {slides.map((s, i) => (
             <div key={i} style={{ position: i === index ? "relative" : "absolute", inset: 0, opacity: i === index ? 1 : 0, transition: "opacity .7s ease", display: i === index ? "flex" : "none", alignItems: "center", minHeight: 340 }}>
-              {s.image ? (
-                <img src={s.image} alt={s.titre} className="rv-az-slide-img" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,#1a7a3c,#0c2415)" }} />
-              )}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(100deg, rgba(8,30,16,.92) 0%, rgba(8,30,16,.55) 45%, rgba(8,30,16,.05) 85%)" }} />
 
               <div style={{ position: "relative", zIndex: 3, padding: "0 36px", maxWidth: 560 }}>

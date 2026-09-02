@@ -6,6 +6,22 @@
     }
   ],
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" }
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    {
+      "source": "/",
+      "has": [
+        { "type": "query", "key": "boutique" },
+        { "type": "header", "key": "user-agent", "value": "(.*facebookexternalhit.*|.*WhatsApp.*|.*Twitterbot.*|.*LinkedInBot.*|.*Slackbot.*|.*TelegramBot.*|.*Discordbot.*|.*Pinterest.*)" }
+      ],
+      "destination": "/api/og-preview"
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "query", "key": "catalogue" },
+        { "type": "header", "key": "user-agent", "value": "(.*facebookexternalhit.*|.*WhatsApp.*|.*Twitterbot.*|.*LinkedInBot.*|.*Slackbot.*|.*TelegramBot.*|.*Discordbot.*|.*Pinterest.*)" }
+      ],
+      "destination": "/api/og-preview"
+    }
   ]
 }

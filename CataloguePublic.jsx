@@ -2027,7 +2027,112 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   );
 }
 
+function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier }) {
+  const t = creerTraducteur(entreprise.langue);
+  const messagesAnnonce = [
+    "🚚 Livraison gratuite à Abidjan dès 50 000 FCFA",
+    "💸 Wave · Orange Money · MTN MoMo acceptés",
+    "🔄 Retour facile sous 7 jours",
+    "📦 Livraison partout en Côte d'Ivoire",
+  ];
+  const [indexAnnonce, setIndexAnnonce] = useState(0);
+
+  useEffect(() => {
+    const intervalle = setInterval(() => {
+      setIndexAnnonce((i) => (i + 1) % messagesAnnonce.length);
+    }, 3500);
+    return () => clearInterval(intervalle);
+  }, []);
+
+  return (
+    <div style={{ position: "sticky", top: 0, zIndex: 30, fontFamily: "sans-serif" }}>
+      <div style={{ background: "#16231F", color: "white", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 600, overflow: "hidden" }}>
+        {messagesAnnonce[indexAnnonce]}
+      </div>
+
+      <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", padding: "10px 16px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}>
+            {entreprise.logo ? (
+              <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 40, objectFit: "contain" }} />
+            ) : (
+              <span style={{ fontWeight: 800, fontSize: 18, color: couleur }}>{entreprise.nom}</span>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 160, display: "flex", background: "#F5F2E8", borderRadius: 999, overflow: "hidden", border: "1px solid #ECE8DC" }}>
+            <span style={{ padding: "9px 0 9px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
+            <input
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder={t("rechercherProduit") || "Rechercher un produit..."}
+              style={{ flex: 1, border: "none", background: "transparent", padding: "9px 10px", fontSize: 13, outline: "none" }}
+            />
+          </div>
+
+          <button
+            onClick={onOuvrirPanier}
+            style={{ position: "relative", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+          >
+            🛒 {t("panier") || "Panier"}
+            {nbArticlesPanier > 0 && (
+              <span style={{ position: "absolute", top: -6, right: -6, background: "#D64933", color: "white", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {nbArticlesPanier}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {collectionsManuelles.length > 0 && (
+        <div style={{ background: "#16231F", padding: "0 16px", overflowX: "auto" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 18, padding: "9px 0", whiteSpace: "nowrap" }}>
+            <span onClick={() => onNaviguerVersCollection(null)} style={{ color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: 0.9 }}>
+              ☰ {t("toutesCollections") || "Toutes catégories"}
+            </span>
+            {collectionsManuelles.map((c) => (
+              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: 0.85 }}>
+                {c.nom}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {entreprise.whatsapp && (
+        <div style={{ background: "#EAF3DE", color: "#3B6D11", textAlign: "center", padding: "7px 12px", fontSize: 11, fontWeight: 600 }}>
+          💬 {t("besoinAide") || "Besoin d'aide ? Contactez-nous"} —{" "}
+          <a
+            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#3B6D11", textDecoration: "underline" }}
+          >
+            {t("ecrireWhatsapp") || "Écrire sur WhatsApp"}
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig, nbArticlesPanier = 0, onOuvrirPanier }) {
+  if (entreprise.slug === "azaliexpress") {
+    return (
+      <EnteteAzaliExpress
+        entreprise={entreprise}
+        couleur={couleur}
+        recherche={recherche}
+        setRecherche={setRecherche}
+        onLogoClick={onLogoClick}
+        collectionsManuelles={collectionsManuelles}
+        onNaviguerVersCollection={onNaviguerVersCollection}
+        nbArticlesPanier={nbArticlesPanier}
+        onOuvrirPanier={onOuvrirPanier}
+      />
+    );
+  }
+
   const aDesLiensPersonnalises = Array.isArray(headerConfig?.liens) && headerConfig.liens.length > 0;
   const aDesLiensNav = aDesLiensPersonnalises || aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
   const t = creerTraducteur(entreprise.langue);
@@ -2233,7 +2338,103 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier })
   );
 }
 
+function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuelles = [], onNaviguerVersCollection }) {
+  const anneeEnCours = new Date().getFullYear();
+  const t = creerTraducteur(entreprise.langue);
+  const reseaux = [
+    { url: entreprise.facebookUrl, icone: "📘" },
+    { url: entreprise.instagramUrl, icone: "📷" },
+    { url: entreprise.tiktokUrl, icone: "🎵" },
+  ].filter((r) => r.url);
+
+  return (
+    <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30, fontFamily: "sans-serif" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "30px 20px 20px", display: "grid", gridTemplateColumns: "1.3fr repeat(3, 1fr)", gap: 26, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+        <div>
+          {entreprise.logo ? (
+            <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 40, objectFit: "contain", marginBottom: 12, filter: "brightness(0) invert(1)" }} />
+          ) : (
+            <div style={{ fontWeight: 800, fontSize: 17, color: "white", marginBottom: 12 }}>{entreprise.nom}</div>
+          )}
+          <div style={{ fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
+            {entreprise.description || `${entreprise.nom} — votre boutique en ligne, paiement à la livraison, livraison rapide.`}
+          </div>
+          {entreprise.whatsapp && <div style={{ fontSize: 12, marginBottom: 4 }}>💬 {entreprise.whatsapp}</div>}
+          {reseaux.length > 0 && (
+            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              {reseaux.map((r, i) => (
+                <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: "white", fontSize: 16, textDecoration: "none" }}>{r.icone}</a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>🛍️ {t("boutique") || "Boutique"}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <span onClick={() => onNaviguerVersCollection(null)} style={{ fontSize: 12, cursor: "pointer" }}>{t("toutesCollections") || "Tous les produits"}</span>
+            {collectionsManuelles.slice(0, 6).map((c) => (
+              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ fontSize: 12, cursor: "pointer" }}>{c.nom}</span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>🎧 {t("serviceClient") || "Service Client"}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {entreprise.whatsapp && (
+              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "inherit", textDecoration: "none" }}>
+                {t("supportWhatsapp") || "Support WhatsApp"}
+              </a>
+            )}
+            {entreprise.politiqueLivraison && <span onClick={() => onOuvrirPolitique("livraison")} style={{ fontSize: 12, cursor: "pointer" }}>{t("politiqueLivraison") || "Politique de livraison"}</span>}
+            {entreprise.politiqueRetours && <span onClick={() => onOuvrirPolitique("retours")} style={{ fontSize: 12, cursor: "pointer" }}>{t("politiqueRetours") || "Retours & remboursements"}</span>}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>💳 {t("paiementsAcceptes") || "Paiements acceptés"}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
+            <span>💸 Wave</span>
+            <span>📱 Orange Money</span>
+            <span>📱 MTN MoMo</span>
+            <span>💵 {t("paiementLivraison") || "Paiement à la livraison"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+        {[
+          { icone: "🚚", texte: t("livraisonRapide") || "Livraison rapide" },
+          { icone: "🔄", texte: t("retourFacile") || "Retour sous 7 jours" },
+          { icone: "🛡️", texte: t("achatSecurise") || "Achat 100% sécurisé" },
+        ].map((b, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+            <span style={{ fontSize: 18 }}>{b.icone}</span>
+            <span>{b.texte}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ textAlign: "center", padding: "14px 20px", fontSize: 11, opacity: 0.6 }}>
+        © {anneeEnCours} {entreprise.nom.toUpperCase()} — {t("tousDroitsReserves") || "Tous droits réservés"}.
+      </div>
+    </div>
+  );
+}
+
 function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, footerConfig }) {
+  if (entreprise.slug === "azaliexpress") {
+    return (
+      <PiedPageAzaliExpress
+        entreprise={entreprise}
+        onOuvrirPolitique={onOuvrirPolitique}
+        collectionsManuelles={collectionsManuelles}
+        onNaviguerVersCollection={onNaviguerVersCollection}
+      />
+    );
+  }
+
   const anneeEnCours = new Date().getFullYear();
   const t = creerTraducteur(entreprise.langue);
   const reseaux = [

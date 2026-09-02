@@ -5772,7 +5772,7 @@ function AdminPanel({ session }) {
 
   async function load() {
     const { data: sessionData } = await supabase.auth.getSession();
-    const res = await fetch("/api/admin-workspaces", {
+    const res = await fetch("/api/admin-panel", {
       headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
     });
     const json = await res.json();
@@ -5785,7 +5785,7 @@ function AdminPanel({ session }) {
   async function toggleStatus(workspaceId, action) {
     setActionEnCours(workspaceId);
     const { data: sessionData } = await supabase.auth.getSession();
-    const res = await fetch("/api/toggle-workspace-status", {
+    const res = await fetch("/api/admin-panel", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
       body: JSON.stringify({ workspaceId, action }),

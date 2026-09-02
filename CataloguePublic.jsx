@@ -2030,24 +2030,20 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
 function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier }) {
   const t = creerTraducteur(entreprise.langue);
   const messagesAnnonce = [
-    "🚚 Livraison gratuite à Abidjan dès 50 000 FCFA",
-    "💸 Wave · Orange Money · MTN MoMo acceptés",
-    "🔄 Retour facile sous 7 jours",
-    "📦 Livraison partout en Côte d'Ivoire",
+    { icone: "🚚", texte: "Livraison gratuite à Abidjan dès 50 000 FCFA" },
+    { icone: "💸", texte: "Wave · Orange Money · MTN MoMo acceptés" },
+    { icone: "🔄", texte: "Retour facile sous 7 jours" },
+    { icone: "📦", texte: "Livraison partout en Côte d'Ivoire" },
   ];
-  const [indexAnnonce, setIndexAnnonce] = useState(0);
-
-  useEffect(() => {
-    const intervalle = setInterval(() => {
-      setIndexAnnonce((i) => (i + 1) % messagesAnnonce.length);
-    }, 3500);
-    return () => clearInterval(intervalle);
-  }, []);
 
   return (
     <div style={{ position: "sticky", top: 0, zIndex: 30, fontFamily: "sans-serif" }}>
-      <div style={{ background: "#16231F", color: "white", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 600, overflow: "hidden" }}>
-        {messagesAnnonce[indexAnnonce]}
+      <div style={{ background: "#16231F", color: "white", padding: "7px 12px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
+          {messagesAnnonce.map((m, i) => (
+            <span key={i} style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{m.icone} {m.texte}</span>
+          ))}
+        </div>
       </div>
 
       <div style={{ background: "white", borderBottom: "1px solid #ECE8DC", padding: "10px 16px" }}>
@@ -2060,12 +2056,18 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
             )}
           </div>
 
+          {entreprise.country === "CI" && (
+            <div style={{ fontSize: 11, color: "#6B7168", flexShrink: 0, lineHeight: 1.3 }}>
+              📍 Livrer à<br /><span style={{ fontWeight: 700, color: "#16231F" }}>Abidjan ▾</span>
+            </div>
+          )}
+
           <div style={{ flex: 1, minWidth: 160, display: "flex", background: "#F5F2E8", borderRadius: 999, overflow: "hidden", border: "1px solid #ECE8DC" }}>
             <span style={{ padding: "9px 0 9px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
             <input
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
-              placeholder={t("rechercherProduit") || "Rechercher un produit..."}
+              placeholder={t("rechercherProduit") || "Rechercher un produit, une marque..."}
               style={{ flex: 1, border: "none", background: "transparent", padding: "9px 10px", fontSize: 13, outline: "none" }}
             />
           </div>
@@ -2086,15 +2088,20 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
       {collectionsManuelles.length > 0 && (
         <div style={{ background: "#16231F", padding: "0 16px", overflowX: "auto" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 18, padding: "9px 0", whiteSpace: "nowrap" }}>
-            <span onClick={() => onNaviguerVersCollection(null)} style={{ color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: 0.9 }}>
-              ☰ {t("toutesCollections") || "Toutes catégories"}
-            </span>
-            {collectionsManuelles.map((c) => (
-              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: 0.85 }}>
-                {c.nom}
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 18, padding: "9px 0", whiteSpace: "nowrap", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 18 }}>
+              <span onClick={() => onNaviguerVersCollection(null)} style={{ color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: 0.9 }}>
+                ☰ {t("toutesCollections") || "Toutes catégories"}
               </span>
-            ))}
+              {collectionsManuelles.map((c) => (
+                <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: 0.85 }}>
+                  {c.nom}
+                </span>
+              ))}
+            </div>
+            {entreprise.whatsapp && (
+              <span style={{ color: "#4ADE80", fontSize: 12, fontWeight: 700 }}>📞 {entreprise.whatsapp}</span>
+            )}
           </div>
         </div>
       )}
@@ -2348,7 +2355,27 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
   ].filter((r) => r.url);
 
   return (
-    <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", marginTop: 30, fontFamily: "sans-serif" }}>
+    <div style={{ fontFamily: "sans-serif" }}>
+      <div style={{ background: "#1a7a3c", padding: "16px 20px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ color: "white", fontWeight: 800, fontSize: 14 }}>📬 {t("recevoirOffres") || "Recevez nos meilleures offres en exclusivité"}</div>
+            <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 11.5, marginTop: 2 }}>{t("newsletterTexte") || "Promotions flash · Nouveaux produits · Bons plans réservés aux abonnés"}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="email"
+              placeholder={t("votreEmail") || "Votre adresse email..."}
+              style={{ padding: "10px 14px", borderRadius: 8, border: "none", fontSize: 12.5, minWidth: 220 }}
+            />
+            <button style={{ background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
+              {t("sabonner") || "S'abonner"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+    <div style={{ background: "#16231F", color: "rgba(255,255,255,0.75)", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "30px 20px 20px", display: "grid", gridTemplateColumns: "1.3fr repeat(3, 1fr)", gap: 26, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
         <div>
           {entreprise.logo ? (
@@ -2394,11 +2421,10 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
 
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 12 }}>💳 {t("paiementsAcceptes") || "Paiements acceptés"}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
-            <span>💸 Wave</span>
-            <span>📱 Orange Money</span>
-            <span>📱 MTN MoMo</span>
-            <span>💵 {t("paiementLivraison") || "Paiement à la livraison"}</span>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {["💸 Wave", "📱 Orange Money", "📱 MTN MoMo", "💳 Visa", "💳 Mastercard", "💵 Cash COD"].map((moyen, i) => (
+              <div key={i} style={{ border: "1px solid rgba(255,255,255,0.18)", borderRadius: 8, padding: "7px 8px", fontSize: 10.5, textAlign: "center" }}>{moyen}</div>
+            ))}
           </div>
         </div>
       </div>
@@ -2419,6 +2445,7 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
       <div style={{ textAlign: "center", padding: "14px 20px", fontSize: 11, opacity: 0.6 }}>
         © {anneeEnCours} {entreprise.nom.toUpperCase()} — {t("tousDroitsReserves") || "Tous droits réservés"}.
       </div>
+    </div>
     </div>
   );
 }

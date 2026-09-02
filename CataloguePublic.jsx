@@ -979,12 +979,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                   : `${window.location.origin}/api/og-preview?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
                 navigator.clipboard.writeText(lienAvecApercu);
                 setLienCopie(true);
-                setTimeout(() => setLienCopie(false), 2000);
+                setTimeout(() => setLienCopie(false), 2500);
               }}
+              title="Copier le lien de partage (avec aperçu photo pour WhatsApp/Facebook)"
               style={{ position: "absolute", top: 16, right: 16, background: "white", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 16, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
             >
               {lienCopie ? "✅" : "🔗"}
             </button>
+            {lienCopie && (
+              <div style={{ position: "absolute", top: 58, right: 16, background: "#16231F", color: "white", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 8, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.25)" }}>
+                Lien de partage copié 👍
+              </div>
+            )}
           </div>
 
           <div className="rv-shop-produit-info" style={{ padding: "22px 18px 140px" }}>

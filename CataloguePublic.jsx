@@ -2778,7 +2778,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     const couleurSection = (config.sectionColors && config.sectionColors[type]) || couleur;
     if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleurSection, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
 
-    if (type === "hero") return (
+    if (type === "hero") {
+      if (entreprise.slug === "azaliexpress") return null; // Design épuré, sans grande bannière, comme sur le vrai site.
+      return (
       <div style={{ textAlign: "center" }}>
         {entreprise.banniere ? (
           <img src={entreprise.banniere} alt="" style={{ width: "100%", maxHeight: 340, objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
@@ -2797,7 +2799,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           )}
         </div>
       </div>
-    );
+      );
+    }
 
     if (type === "image_texte") {
       const inverse = config.imageTextePosition === "droite";

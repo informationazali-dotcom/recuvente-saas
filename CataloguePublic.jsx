@@ -566,6 +566,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
         depotMontant: data[0].depot_montant,
         depotMessage: data[0].depot_message || "",
         boutiqueActive: data[0].boutique_active !== false,
+        slug: data[0].slug || null,
         labelLivraisonLocale: data[0].label_livraison_locale || "Livraison locale",
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
         temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
@@ -973,7 +974,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
             </button>
             <button
               onClick={() => {
-                const lienAvecApercu = `${window.location.origin}/?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
+                const lienAvecApercu = entreprise.slug
+                  ? `${window.location.origin}/?boutique=${entreprise.slug}&produit=${produitOuvert.produit_id}`
+                  : `${window.location.origin}/?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
                 navigator.clipboard.writeText(lienAvecApercu);
                 setLienCopie(true);
                 setTimeout(() => setLienCopie(false), 2000);

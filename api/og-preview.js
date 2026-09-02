@@ -43,7 +43,6 @@ export default async function handler(req, res) {
 <meta property="og:type" content="${type}">
 <meta property="og:url" content="${echapperHTML(lienReel)}">
 <meta name="twitter:card" content="summary_large_image">
-<meta http-equiv="refresh" content="0;url=${echapperHTML(lienReel)}">
 <script>window.location.replace(${JSON.stringify(lienReel)});</script>
 </head>
 <body>Redirection vers <a href="${echapperHTML(lienReel)}">${echapperHTML(titre)}</a>...</body>

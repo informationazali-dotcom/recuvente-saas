@@ -2694,6 +2694,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         prix_vente: l.prix_vente ? Number(l.prix_vente) : null,
         photo_url: l.photo_url || null,
         cout_achat: 0,
+        _type: (l.type || "").trim() || null, // gardé temporairement pour recréer les collections, retiré avant l'insertion
       });
     }
 
@@ -2701,14 +2702,54 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       return { succes: false, importes: 0, ignores, message: "Aucun nouveau produit à importer — tous existent déjà dans ton catalogue." };
     }
 
-    const { error } = await supabase
+    const aInserer = produitsAImporter.map(({ _type, ...p }) => p);
+    const { data: inseres, error } = await supabase
       .from("produits")
-      .upsert(produitsAImporter, { onConflict: "workspace_id,nom", ignoreDuplicates: true });
+      .upsert(aInserer, { onConflict: "workspace_id,nom", ignoreDuplicates: true })
+      .select("id, nom");
     if (error) {
       return { succes: false, importes: 0, ignores: 0, message: "Erreur : " + error.message };
     }
+
+    // Recrée automatiquement les collections à partir de la colonne "Type" de Shopify,
+    // et y range chaque produit importé — pour retrouver la même disposition par catégorie.
+    let collectionsCreees = 0;
+    const typesPresents = [...new Set(produitsAImporter.map((p) => p._type).filter(Boolean))];
+    if (typesPresents.length > 0 && inseres && inseres.length > 0) {
+      const { data: collectionsExistantes } = await supabase.from("collections").select("id, nom").eq("workspace_id", workspace.id);
+      const collectionParNom = {};
+      (collectionsExistantes || []).forEach((c) => { collectionParNom[c.nom.toLowerCase().trim()] = c.id; });
+
+      let ordreSuivant = (collectionsExistantes || []).length;
+      for (const type of typesPresents) {
+        const cle = type.toLowerCase().trim();
+        if (!collectionParNom[cle]) {
+          const { data: nouvelle } = await supabase.from("collections").insert([{ workspace_id: workspace.id, nom: type, ordre: ordreSuivant }]).select("id").single();
+          if (nouvelle) {
+            collectionParNom[cle] = nouvelle.id;
+            ordreSuivant += 1;
+            collectionsCreees += 1;
+          }
+        }
+      }
+
+      const nomVersId = {};
+      inseres.forEach((p) => { nomVersId[p.nom.toLowerCase().trim()] = p.id; });
+
+      const liaisons = [];
+      produitsAImporter.forEach((p) => {
+        if (!p._type) return;
+        const produitId = nomVersId[p.nom.toLowerCase().trim()];
+        const collectionId = collectionParNom[p._type.toLowerCase().trim()];
+        if (produitId && collectionId) liaisons.push({ collection_id: collectionId, produit_id: produitId });
+      });
+      if (liaisons.length > 0) {
+        await supabase.from("collection_produits").upsert(liaisons, { onConflict: "collection_id,produit_id", ignoreDuplicates: true });
+      }
+    }
+
     await loadProduits();
-    return { succes: true, importes: produitsAImporter.length, ignores };
+    return { succes: true, importes: produitsAImporter.length, ignores, collectionsCreees };
   }
 
   async function updateProduitCout(id, cout) {
@@ -7487,6 +7528,7 @@ function mapperColonnesShopify(lignesBrutes) {
       description: (l["Body (HTML)"] || l["description"] || l["Description"] || "").trim(),
       prix_vente: l["Variant Price"] || l["prix_vente"] || l["Prix"] || l["price"] || "",
       photo_url: l["Image Src"] || l["photo_url"] || l["Photo"] || l["image"] || "",
+      type: (l["Type"] || l["Product Type"] || l["type"] || "").trim(),
     });
   }
   return resultat;
@@ -8074,7 +8116,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     } else {
                       const resultat = await onImportCSV(mappe);
                       if (resultat.succes) {
-                        setResultatImport({ succes: true, message: `${resultat.importes} produit(s) importé(s).${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré(s).` : ""}` });
+                        setResultatImport({ succes: true, message: `${resultat.importes} produit(s) importé(s).${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré(s).` : ""}${resultat.collectionsCreees > 0 ? ` ${resultat.collectionsCreees} collection(s) recréée(s) automatiquement.` : ""}` });
                       } else {
                         setResultatImport({ succes: false, message: resultat.message || "Erreur lors de l'import." });
                       }

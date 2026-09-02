@@ -1,9 +1,10 @@
 // Sert les bonnes balises meta (titre, image, description) pour un lien de produit ou de
 // boutique — à tout le monde, robots ET vrais visiteurs. On récupère la vraie page de
-// l'app (index.html), on y injecte les bonnes balises meta dans le <head>, et on la
-// renvoie telle quelle : les robots (WhatsApp/Facebook) voient enfin les bonnes balises
-// (ils ne lisent jamais le JavaScript), et les vrais visiteurs reçoivent la même page
-// fonctionnelle qu'avant (le contenu et les scripts ne sont jamais touchés).
+// l'app (index.html), on REMPLACE ses balises meta existantes (title, description, og:*)
+// par les bonnes, et on la renvoie telle quelle : les robots (WhatsApp/Facebook) voient
+// enfin les bonnes balises (ils ne lisent jamais le JavaScript), et les vrais visiteurs
+// reçoivent la même page fonctionnelle qu'avant (le contenu et les scripts ne sont jamais
+// touchés).
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -20,6 +21,17 @@ function echapperHTML(texte) {
     .replace(/"/g, "&quot;");
 }
 
+// Retire toute balise <title> et toute balise <meta> liée au partage (description, og:*,
+// twitter:*) déjà présente dans la page d'origine, pour ne jamais avoir de doublon qui
+// sème la confusion chez les robots — puis insère les nôtres, propres, juste avant </head>.
+function remplacerBalisesMeta(html, balisesNouvelles) {
+  let resultat = html.replace(/<title>[\s\S]*?<\/title>/i, "");
+  resultat = resultat.replace(/<meta[^>]+name=["']description["'][^>]*>/gi, "");
+  resultat = resultat.replace(/<meta[^>]+property=["']og:[^"']+["'][^>]*>/gi, "");
+  resultat = resultat.replace(/<meta[^>]+name=["']twitter:[^"']+["'][^>]*>/gi, "");
+  return resultat.replace("</head>", `${balisesNouvelles}\n</head>`);
+}
+
 export default async function handler(req, res) {
   const hote = req.headers.host;
   const url = new URL(req.url, `https://${hote}`);
@@ -27,8 +39,6 @@ export default async function handler(req, res) {
   const catalogueIdDirect = url.searchParams.get("catalogue");
   const produitId = url.searchParams.get("produit");
 
-  // Récupère la vraie page de l'app (le vrai fichier construit par Vite), jamais celle
-  // réécrite par ce middleware — on demande explicitement /index.html, pas "/".
   async function recupererPageOriginale() {
     const resp = await fetch(`https://${hote}/index.html`);
     return await resp.text();
@@ -73,22 +83,22 @@ export default async function handler(req, res) {
       image = entreprise.logo_url;
       type = "website";
     }
+    if (!image) {
+      // og:image doit toujours être présent explicitement, sinon Facebook affiche une alerte.
+      image = "https://recuvente-saas.vercel.app/favicon.png";
+    }
 
     const lienActuel = url.toString();
-    const balisesMeta = `
-<title>${echapperHTML(titre)}</title>
+    const balisesNouvelles = `<title>${echapperHTML(titre)}</title>
 <meta name="description" content="${echapperHTML(description)}">
 <meta property="og:title" content="${echapperHTML(titre)}">
 <meta property="og:description" content="${echapperHTML(description)}">
-${image ? `<meta property="og:image" content="${echapperHTML(image)}">` : ""}
+<meta property="og:image" content="${echapperHTML(image)}">
 <meta property="og:type" content="${type}">
 <meta property="og:url" content="${echapperHTML(lienActuel)}">
-<meta name="twitter:card" content="summary_large_image">
-</head>`;
+<meta name="twitter:card" content="summary_large_image">`;
 
-    // Remplace la balise </head> de la page originale par nos balises + la fermeture,
-    // pour insérer nos infos sans toucher au reste de la page (scripts, styles, etc.).
-    const pageModifiee = page.replace("</head>", balisesMeta);
+    const pageModifiee = remplacerBalisesMeta(page, balisesNouvelles);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=600");

@@ -2474,9 +2474,8 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "white", marginBottom: 14, paddingBottom: 8, borderBottom: "1px solid #3a3a3a" }}>🛍️ {t("boutique") || "Boutique"}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            <span onClick={() => onNaviguerVersCollection(null)} style={{ fontSize: 12, cursor: "pointer" }}>{t("toutesCollections") || "Tous les produits"}</span>
-            {collectionsManuelles.slice(0, 6).map((c) => (
-              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ fontSize: 12, cursor: "pointer" }}>{c.nom}</span>
+            {["Électronique & High-Tech", "Beauté & Soins", "Maison & Électroménager", "Mode & Accessoires", "Auto & Moto", "Sport & Loisirs", "Enfants & Bébés", "🔥 Promotions Flash", "✨ Nouveautés", "Tous les produits"].map((nom) => (
+              <span key={nom} onClick={() => onNaviguerVersCollection(null)} style={{ fontSize: 12, cursor: "pointer" }}>{nom}</span>
             ))}
           </div>
         </div>
@@ -2484,14 +2483,17 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "white", marginBottom: 14, paddingBottom: 8, borderBottom: "1px solid #3a3a3a" }}>🎧 {t("serviceClient") || "Service Client"}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {entreprise.whatsapp && (
-              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "inherit", textDecoration: "none" }}>
-                {t("supportWhatsapp") || "Support WhatsApp"}
-              </a>
-            )}
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Suivre ma commande</span>
             {entreprise.politiqueLivraison && <span onClick={() => onOuvrirPolitique("livraison")} style={{ fontSize: 12, cursor: "pointer" }}>{t("politiqueLivraison") || "Politique de livraison"}</span>}
             {entreprise.politiqueRetours && <span onClick={() => onOuvrirPolitique("retours")} style={{ fontSize: 12, cursor: "pointer" }}>{t("politiqueRetours") || "Retours & remboursements"}</span>}
             <span style={{ fontSize: 12, cursor: "pointer" }}>FAQ — Questions fréquentes</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Garantie produits</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Faire une réclamation</span>
+            {entreprise.whatsapp && (
+              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "inherit", textDecoration: "none" }}>
+                {t("supportWhatsapp") || "WhatsApp Support"}
+              </a>
+            )}
           </div>
         </div>
 
@@ -2502,6 +2504,8 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
             <span style={{ fontSize: 12, cursor: "pointer" }}>Notre mission</span>
             <span style={{ fontSize: 12, cursor: "pointer" }}>Vendez avec nous</span>
             <span style={{ fontSize: 12, cursor: "pointer" }}>Livraison Afrique de l'Ouest</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Engagement qualité</span>
+            <span style={{ fontSize: 12, cursor: "pointer" }}>Nos partenaires</span>
           </div>
         </div>
 
@@ -2923,13 +2927,32 @@ function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
   );
 }
 
-function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur, ouvrirProduit, avisBoutique }) {
+function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur, ouvrirProduit, avisBoutique, entreprise }) {
   function produitsDeCollection(col) {
     return produits.filter((p) => col.produitIds.includes(p.produit_id));
   }
 
   return (
     <div>
+      <div style={{ background: "white", padding: "20px 16px", borderBottom: "1px solid #ECE8DC" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+          {[
+            { icone: "🚚", titre: "Livraison rapide", texte: "24–72h partout en Côte d'Ivoire" },
+            { icone: "💸", titre: "Paiement flexible", texte: "Wave, OM, MoMo & cash à la livraison" },
+            { icone: "🔄", titre: "Retours faciles", texte: "7 jours pour changer d'avis" },
+            { icone: "🛡️", titre: "Achat sécurisé", texte: "Produits vérifiés & garantis" },
+          ].map((f, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 26, flexShrink: 0 }}>{f.icone}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 12.5, color: "#16231F" }}>{f.titre}</div>
+                <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 1 }}>{f.texte}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div style={{ background: "linear-gradient(135deg,#D64933,#e8920a)", padding: "24px 16px", textAlign: "center" }}>
         <div style={{ color: "white", fontWeight: 800, fontSize: 20, marginBottom: 4 }}>🔥 Vente Flash — jusqu'à -50%</div>
         <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginBottom: 16 }}>Offre valable sur une sélection de produits, stock limité</div>
@@ -2947,6 +2970,23 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
         />
       ))}
 
+      <div style={{ background: "#FAFAF7", padding: "26px 16px", textAlign: "center", borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC" }}>
+        <div style={{ fontSize: 11, color: "#8A9089", fontWeight: 700, marginBottom: 16, letterSpacing: "0.4px" }}>NOS CHIFFRES</div>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+          {[
+            { valeur: `${produits.length || 90}+`, label: "Produits disponibles" },
+            { valeur: `${collectionsManuelles.length || 5}`, label: "Catégories de produits" },
+            { valeur: "48h", label: "Délai de livraison moyen" },
+            { valeur: "100%", label: "Paiement à la livraison" },
+          ].map((s, i) => (
+            <div key={i}>
+              <div style={{ fontSize: "clamp(20px,3.5vw,30px)", fontWeight: 900, color: "#1a7a3c" }}>{s.valeur}</div>
+              <div style={{ fontSize: 10.5, color: "#6B7168", marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {avisBoutique && avisBoutique.length > 0 && (
         <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 14, color: "#16231F", textAlign: "center" }}>Ce que disent nos clients</div>
@@ -2961,6 +3001,45 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
           </div>
         </div>
       )}
+
+      <div style={{ background: "#16231F", padding: "32px 20px", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 14, letterSpacing: "0.4px" }}>NOS MARQUES PARTENAIRES</div>
+        <div style={{ display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap", opacity: 0.6, marginBottom: 30 }}>
+          {["🏭", "⚙️", "🏢", "📦"].map((icone, i) => (
+            <span key={i} style={{ fontSize: 28 }}>{icone}</span>
+          ))}
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 18, color: "white", marginBottom: 8, maxWidth: 480, margin: "0 auto 8px" }}>Une question ? Notre équipe est là pour vous.</div>
+        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)", maxWidth: 460, margin: "0 auto 20px", lineHeight: 1.6 }}>
+          Contactez-nous sur WhatsApp pour un suivi de commande, des conseils produits ou toute autre question. Réponse rapide garantie.
+        </div>
+        {entreprise?.whatsapp && (
+          <a
+            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
+          >
+            💬 Nous contacter
+          </a>
+        )}
+      </div>
+
+      <div style={{ background: "white", padding: "20px 16px", borderTop: "1px solid #ECE8DC" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          {[
+            { icone: "💸", nom: "Wave" },
+            { icone: "📱", nom: "Orange Money" },
+            { icone: "📱", nom: "MTN MoMo" },
+            { icone: "💳", nom: "Visa / Mastercard" },
+            { icone: "💵", nom: "Paiement à la livraison" },
+          ].map((m, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 14px", fontSize: 11.5, fontWeight: 600, color: "#16231F" }}>
+              <span style={{ fontSize: 14 }}>{m.icone}</span> {m.nom}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3278,6 +3357,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           couleur={couleur}
           ouvrirProduit={ouvrirProduit}
           avisBoutique={avisBoutique}
+          entreprise={entreprise}
         />
       )}
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />

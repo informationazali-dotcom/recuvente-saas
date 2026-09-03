@@ -4313,20 +4313,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
 
-      {/* Panneau de diagnostic — toujours visible pour tout le monde, tant que les notifications
-          sont en cours de mise au point. À retirer une fois que tout fonctionne de manière fiable. */}
-      <div style={{ background: "#16231F", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
-        <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
-          🔧 Diagnostic notifications — état actuel du navigateur : <strong style={{ color: "white" }}>{notifPermission}</strong>
-        </div>
-        {statutNotifDebug && (
-          <div style={{ fontSize: 12, color: "#e8920a", marginBottom: 8, lineHeight: 1.5 }}>{statutNotifDebug}</div>
-        )}
-        <button onClick={activerNotificationsPush} style={{ background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-          🔔 (Re)configurer les notifications maintenant
-        </button>
-      </div>
-
       {accesBloque && (
         <div style={{ background: "white", border: "1.5px solid #F0DDA8", borderRadius: 16, padding: "40px 24px", textAlign: "center", maxWidth: 480, margin: "40px auto" }}>
           <div style={{ fontSize: 44, marginBottom: 14 }}>🔒</div>

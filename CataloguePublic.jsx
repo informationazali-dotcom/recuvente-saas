@@ -2043,12 +2043,16 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
   useEffect(() => {
     function onScroll() {
-      setEstFixe(window.scrollY > (topbarVisible ? 34 : 0));
+      const doitEtreFixe = window.scrollY > 34;
+      setEstFixe(doitEtreFixe);
+      // Le bandeau d'annonces disparaît tout seul dès qu'on commence à faire défiler la page,
+      // pour laisser toute la place au contenu — plus besoin de le fermer à la main.
+      if (doitEtreFixe) setTopbarVisible(false);
     }
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, [topbarVisible]);
+  }, []);
 
   const styleFixe = estFixe ? { position: "fixed", top: 0, left: 0, right: 0, width: "100%", zIndex: 40, boxShadow: "0 2px 10px rgba(0,0,0,0.15)" } : {};
 

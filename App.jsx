@@ -12294,22 +12294,14 @@ function IntegrationsModal({ workspace, onClose }) {
             </label>
             {personnalisation.depot_requis && (
               <>
-                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Montant du dépôt</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                  <input
-                    type="number"
-                    value={personnalisation.depot_montant}
-                    onChange={(e) => setPersonnalisation({ ...personnalisation, depot_montant: e.target.value })}
-                    placeholder="0"
-                    style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
-                  />
-                  <span style={{ fontSize: 12.5, color: "#8A9089" }}>{workspace.currency}</span>
+                <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
+                  💡 Le montant du dépôt se calcule maintenant automatiquement pour chaque commande (prix du produit + frais d'expédition) — plus besoin de le fixer toi-même, ça s'adapte à chaque produit.
                 </div>
-                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Message affiché au client (personnalisable)</div>
+                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Message affiché au client (personnalisable — utilise {"{montant}"} pour insérer la somme exacte calculée)</div>
                 <textarea
                   value={personnalisation.depot_message}
                   onChange={(e) => setPersonnalisation({ ...personnalisation, depot_message: e.target.value })}
-                  placeholder={`Livraison hors zone : un dépôt de ${personnalisation.depot_montant || "..."} ${workspace.currency} par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                  placeholder={`Livraison hors zone : un dépôt de {montant} par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
                   rows={3}
                   style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }}
                 />

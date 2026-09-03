@@ -2855,7 +2855,7 @@ function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit, on
   if (!produits || produits.length === 0) return null;
   const peuDeProduits = produits.length <= 6;
   return (
-    <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ padding: "24px 16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div style={{ fontWeight: 800, fontSize: 18, color: "#16231F" }}>{titre}</div>
         {onVoirTout && (
@@ -2869,11 +2869,9 @@ function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit, on
           ))}
         </div>
       ) : (
-      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
-        {produits.slice(0, 10).map((p) => (
-          <div key={p.produit_id} style={{ flexShrink: 0, width: 160 }}>
-            <CarteProduitAzali p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
-          </div>
+      <div style={{ display: "grid", gridAutoFlow: "column", gridAutoColumns: "minmax(150px, 1fr)", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
+        {produits.slice(0, 14).map((p) => (
+          <CarteProduitAzali key={p.produit_id} p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
         ))}
       </div>
       )}

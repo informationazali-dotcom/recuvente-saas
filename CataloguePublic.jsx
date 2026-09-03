@@ -1763,15 +1763,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 18 }}>{titreCollection} ({listeCollection.length})</div>
 
           <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
-            {listeCollection.map((p, i) =>
-              entreprise.slug === "azaliexpress" ? (
-                <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
-                  <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={true} />
-                </RevealOnScroll>
-              ) : (
-                <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={false} />
-              )
-            )}
+            {listeCollection.map((p, i) => (
+              <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+                <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
+              </RevealOnScroll>
+            ))}
           </div>
         </div>
 
@@ -1985,15 +1981,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         )}
 
         <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
-          {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p, i) =>
-            entreprise.slug === "azaliexpress" ? (
-              <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
-                <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={true} />
-              </RevealOnScroll>
-            ) : (
-              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={false} />
-            )
-          )}
+          {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p, i) => (
+            <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+              <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
+            </RevealOnScroll>
+          ))}
         </div>
 
         {!recherche.trim() && produitsFiltres.length > NOMBRE_MAX_ACCUEIL && (
@@ -2508,19 +2500,13 @@ function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, v
         )}
       </div>
       <div className="rv-shop-collection-scroll">
-        {produits.map((p, i) =>
-          estAzali ? (
-            <div key={p.produit_id} className="rv-shop-collection-card">
-              <RevealOnScroll delai={(i % 6) * 50}>
-                <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzali} />
-              </RevealOnScroll>
-            </div>
-          ) : (
-            <div key={p.produit_id} className="rv-shop-collection-card">
+        {produits.map((p, i) => (
+          <div key={p.produit_id} className="rv-shop-collection-card">
+            <RevealOnScroll delai={(i % 6) * 50}>
               <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzali} />
-            </div>
-          )
-        )}
+            </RevealOnScroll>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -3368,15 +3354,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     const estAzaliIci = entreprise.slug === "azaliexpress";
     return (
       <div className="rv-builder-grid-produits">
-        {liste.slice(0, max || 12).map((p, i) =>
-          estAzaliIci ? (
-            <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
-              <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzaliIci} />
-            </RevealOnScroll>
-          ) : (
-            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzaliIci} />
-          )
-        )}
+        {liste.slice(0, max || 12).map((p, i) => (
+          <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzaliIci} />
+          </RevealOnScroll>
+        ))}
       </div>
     );
   }

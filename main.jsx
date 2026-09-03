@@ -18,6 +18,13 @@ const suiviId = new URLSearchParams(window.location.search).get("suivi");
 const commanderId = new URLSearchParams(window.location.search).get("commander");
 const catalogueId = new URLSearchParams(window.location.search).get("catalogue");
 
+// Domaines internes de l'application (jamais traités comme domaine personnalisé d'un client)
+const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
+const hostname = window.location.hostname;
+const estDomainePersonnalise =
+  !DOMAINES_INTERNES.includes(hostname) &&
+  !hostname.endsWith(".vercel.app");
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
@@ -27,6 +34,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <CommanderPublic workspaceId={commanderId} />
       ) : catalogueId ? (
         <CataloguePublic workspaceId={catalogueId} />
+      ) : estDomainePersonnalise ? (
+        <CataloguePublic domaine={hostname} />
       ) : (
         <App />
       )}

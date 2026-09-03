@@ -2317,7 +2317,8 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
     <section className="rv-dashboard-3d-wrap" style={{ margin: "18px 0 20px", perspective: "1500px" }}>
       <style>{`
         .rv-dashboard-3d-wrap{position:relative;overflow:visible}
-        .rv-dashboard-3d-scene{position:relative;min-height:420px;border-radius:28px;overflow:hidden;background:radial-gradient(circle at 50% 30%,rgba(0,245,160,.18),transparent 30%),linear-gradient(145deg,#02110b 0%,#063b26 48%,#021a10 100%);border:1px solid rgba(0,245,160,.22);box-shadow:0 35px 90px rgba(0,30,18,.32),inset 0 1px 0 rgba(255,255,255,.12);transform-style:preserve-3d}
+        @media(max-width:800px){.rv-dashboard-3d-wrap{overflow-x:clip}}
+        .rv-dashboard-3d-scene{position:relative;min-height:420px;border-radius:28px;overflow:hidden;overflow-x:clip;background:radial-gradient(circle at 50% 30%,rgba(0,245,160,.18),transparent 30%),linear-gradient(145deg,#02110b 0%,#063b26 48%,#021a10 100%);border:1px solid rgba(0,245,160,.22);box-shadow:0 35px 90px rgba(0,30,18,.32),inset 0 1px 0 rgba(255,255,255,.12);transform-style:preserve-3d}
         .rv-dashboard-3d-grid{position:absolute;inset:0;opacity:.22;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:42px 42px;transform:perspective(500px) rotateX(62deg) translateY(150px) scale(1.7);transform-origin:center bottom;pointer-events:none}
         .rv-dashboard-3d-orbit{position:absolute;border:1px solid rgba(0,245,160,.28);border-radius:50%;transform-style:preserve-3d;pointer-events:none}
         .rv-dashboard-3d-orbit.one{width:520px;height:190px;left:50%;top:52%;transform:translate(-50%,-50%) rotateX(68deg) rotateZ(-10deg);animation:rv3DOrbit 16s linear infinite}
@@ -3944,6 +3945,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", width: "100%", maxWidth: "100vw", overflowX: "hidden", boxSizing: "border-box" }}>
+      <style>{`@media(max-width:800px){body,html,#root{overflow-x:clip!important}}`}</style>
       <style>{`
         .rv-mesh-blob { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
         .rv-mesh-1 { width: 180px; height: 180px; background: radial-gradient(circle, rgba(232,146,10,0.45) 0%, rgba(232,146,10,0) 70%); top: -60px; right: -40px; animation: rvMeshFloat1 9s ease-in-out infinite; }

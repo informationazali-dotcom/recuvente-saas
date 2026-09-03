@@ -2046,10 +2046,20 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     sectionColors:{}
   };
   const [config,setConfig]=useState(()=>{
+    // Le logo, la bannière, la couleur, le nom et la description sont aussi modifiables
+    // depuis "Paramètres avancés" — ces champs-là doivent toujours refléter la version
+    // la plus récente du workspace, jamais une ancienne sauvegarde figée du Store Builder.
+    const champsToujoursFrais = {
+      logo: workspace?.logo_url || '',
+      banniere: workspace?.banniere_url || '',
+      couleur: workspace?.couleur_marque || defaults.couleur,
+      nom: workspace?.name || defaults.nom,
+      description: workspace?.description_boutique || defaults.description,
+    };
     if(workspace?.store_config && typeof workspace.store_config==='object'){
-      return {...defaults,...workspace.store_config};
+      return {...defaults,...workspace.store_config,...champsToujoursFrais};
     }
-    try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved}:defaults}catch(_){return defaults}
+    try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved,...champsToujoursFrais}:{...defaults,...champsToujoursFrais}}catch(_){return {...defaults,...champsToujoursFrais}}
   });
   const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
   const [publishedSnapshot,setPublishedSnapshot]=useState(()=>workspace?.store_config_published||null);

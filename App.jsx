@@ -7594,6 +7594,76 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
   const [nouveauNom, setNouveauNom] = useState("");
   const [collectionOuverte, setCollectionOuverte] = useState(null);
   const [produitsDeLaCollection, setProduitsDeLaCollection] = useState(new Set());
+  const [classementEnCours, setClassementEnCours] = useState(false);
+  const [resultatClassement, setResultatClassement] = useState(null);
+
+  // Dictionnaire de mots-clés pour deviner la catégorie d'un produit à partir de son nom —
+  // classement "au mieux", à vérifier ensuite, pas une science exacte.
+  const CATEGORIES_MOTS_CLES = {
+    "Électronique": ["lampe", "led", "chargeur", "câble", "cable", "écouteur", "casque", "bluetooth", "batterie", "power bank", "montre connectée", "smartwatch", "caméra", "camera", "haut-parleur", "enceinte", "usb", "adaptateur", "télécommande", "projecteur", "ventilateur usb", "veilleuse", "moustique", "anti-moustique"],
+    "Beauté & Soins": ["crème", "creme", "masque", "mask", "soin", "peau", "visage", "cheveux", "shampoing", "shampooing", "maquillage", "rouge à lèvres", "vernis", "parfum", "savon", "gel douche", "sérum", "serum", "acné", "anti-âge", "blanchissant", "épilateur", "rasoir", "brosse", "coiffure", "faciale", "corporel", "hydratant"],
+    "Maison": ["cuisine", "casserole", "poêle", "rangement", "panier", "linge", "tapis", "coussin", "rideaux", "décoration", "vaisselle", "verre", "assiette", "nettoyage", "balai", "organisateur", "boîte", "seau", "torchon"],
+    "Mode": ["robe", "chemise", "pantalon", "sac à main", "sac", "chaussure", "sandale", "montre", "bijou", "collier", "bracelet", "boucle d'oreille", "bague", "lunette de soleil", "ceinture", "portefeuille", "écharpe", "bonnet"],
+    "Auto & Moto": ["voiture", "moto", "pneu", "rétroviseur", "auto", "véhicule", "casque moto", "gps voiture", "support téléphone voiture"],
+    "Enfants": ["bébé", "bebe", "enfant", "jouet", "peluche", "biberon", "couche", "poussette", "puériculture"],
+  };
+
+  function deviner_categorie(nomProduit) {
+    const nomMinuscule = nomProduit.toLowerCase();
+    for (const [categorie, motsClefs] of Object.entries(CATEGORIES_MOTS_CLES)) {
+      if (motsClefs.some((mot) => nomMinuscule.includes(mot))) return categorie;
+    }
+    return null;
+  }
+
+  async function classerAutomatiquement() {
+    if (!window.confirm("Ceci va créer des collections manquantes et y ranger tes produits selon leur nom. Les produits déjà dans une collection ne seront pas déplacés. Continuer ?")) return;
+    setClassementEnCours(true);
+    setResultatClassement(null);
+
+    // Regarde quels produits sont déjà dans au moins une collection, pour ne jamais les déplacer.
+    const { data: dejaClasses } = await supabase.from("collection_produits").select("produit_id");
+    const idsDejaClasses = new Set((dejaClasses || []).map((r) => r.produit_id));
+
+    const collectionsExistantes = collections || [];
+    const collectionParNom = {};
+    collectionsExistantes.forEach((c) => { collectionParNom[c.nom.toLowerCase().trim()] = c.id; });
+    let ordreSuivant = collectionsExistantes.length;
+
+    const liaisons = [];
+    let nbClasses = 0;
+    let nbIgnores = 0;
+    const categoriesUtilisees = new Set();
+
+    for (const p of produits) {
+      if (idsDejaClasses.has(p.id)) { nbIgnores += 1; continue; }
+      const categorie = deviner_categorie(p.nom);
+      if (!categorie) { nbIgnores += 1; continue; }
+      categoriesUtilisees.add(categorie);
+
+      let collectionId = collectionParNom[categorie.toLowerCase()];
+      if (!collectionId) {
+        const { data: nouvelle } = await supabase.from("collections").insert([{ workspace_id: workspaceId, nom: categorie, ordre: ordreSuivant }]).select("id").single();
+        if (nouvelle) {
+          collectionId = nouvelle.id;
+          collectionParNom[categorie.toLowerCase()] = collectionId;
+          ordreSuivant += 1;
+        }
+      }
+      if (collectionId) {
+        liaisons.push({ collection_id: collectionId, produit_id: p.id });
+        nbClasses += 1;
+      }
+    }
+
+    if (liaisons.length > 0) {
+      await supabase.from("collection_produits").upsert(liaisons, { onConflict: "collection_id,produit_id", ignoreDuplicates: true });
+    }
+
+    setClassementEnCours(false);
+    setResultatClassement(`${nbClasses} produit(s) classé(s) dans ${categoriesUtilisees.size} catégorie(s) (${[...categoriesUtilisees].join(", ") || "aucune"}). ${nbIgnores} produit(s) ignoré(s) — soit déjà classés, soit leur nom ne correspond à aucune catégorie connue.`);
+    await charger();
+  }
 
   async function charger() {
     const { data } = await supabase.from("collections").select("*").eq("workspace_id", workspaceId).order("ordre");
@@ -7668,6 +7738,19 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14 }}>
               Regroupe tes produits par thème (Promo, Rentrée...) — visible sur ta boutique publique, en plus des collections automatiques.
             </div>
+
+            <button
+              onClick={classerAutomatiquement}
+              disabled={classementEnCours}
+              style={{ width: "100%", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+            >
+              {classementEnCours ? "Classement en cours..." : "🗂️ Classer mes produits automatiquement"}
+            </button>
+            {resultatClassement && (
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+                ✅ {resultatClassement}
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
               <input

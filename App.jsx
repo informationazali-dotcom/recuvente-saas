@@ -309,7 +309,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, slug, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id)")
+      .select("workspace_id, role, workspaces(id, name, slug, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id, azali_config)")
       .eq("user_id", userId);
     if (error) {
       const estErreurAuth = /jwt|token|expired|unauthorized|401|invalid refresh/i.test(error.message || "") || error.code === "PGRST301";
@@ -2533,6 +2533,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
   const [showPaniersAbandonnes, setShowPaniersAbandonnes] = useState(false);
+  const [showAzaliDesign, setShowAzaliDesign] = useState(false);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
   useEffect(() => {
@@ -3887,13 +3888,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -3907,7 +3908,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4130,6 +4131,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             📁 Collections
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && workspace.slug === "azaliexpress" && (
+          <button
+            onClick={() => setShowAzaliDesign(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🎨 Personnaliser ma boutique
           </button>
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
@@ -5122,6 +5131,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
+      {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
       {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowCodesPromo(false)} />}
       {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowPaniersAbandonnes(false)} />}
     </div>
@@ -7791,6 +7801,82 @@ function PaniersAbandonnesModal({ workspaceId, currency, onClose }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AzaliDesignModal({ workspace, onClose }) {
+  const configInitiale = workspace.azali_config || {};
+  const [messages, setMessages] = useState(
+    Array.isArray(configInitiale.messagesAnnonce) && configInitiale.messagesAnnonce.length > 0
+      ? configInitiale.messagesAnnonce
+      : [
+          { icone: "🚚", texte: "Livraison gratuite à Abidjan dès 50 000 FCFA" },
+          { icone: "💸", texte: "Wave · Orange Money · MTN MoMo acceptés" },
+          { icone: "🔄", texte: "Retour facile sous 7 jours" },
+          { icone: "📦", texte: "Livraison partout en Côte d'Ivoire" },
+        ]
+  );
+  const [venteFlashActive, setVenteFlashActive] = useState(configInitiale.venteFlashActive !== false);
+  const [venteFlashTitre, setVenteFlashTitre] = useState(configInitiale.venteFlashTitre || "🔥 Vente Flash — jusqu'à -50%");
+  const [venteFlashSousTitre, setVenteFlashSousTitre] = useState(configInitiale.venteFlashSousTitre || "Offre valable sur une sélection de produits, stock limité");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function modifierMessage(i, champ, val) {
+    setMessages((liste) => liste.map((m, j) => (j === i ? { ...m, [champ]: val } : m)));
+  }
+
+  async function sauvegarder() {
+    setSaving(true);
+    await supabase.from("workspaces").update({
+      azali_config: { messagesAnnonce: messages, venteFlashActive, venteFlashTitre, venteFlashSousTitre },
+    }).eq("id", workspace.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 460, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🎨 Personnaliser ma boutique</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
+          Les textes propres au design de ta boutique — pour le reste (logo, description, WhatsApp, réseaux), utilise "⚙️ Paramètres avancés".
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Bandeau du haut (4 messages)</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: "flex", gap: 6 }}>
+              <input value={m.icone} onChange={(e) => modifierMessage(i, "icone", e.target.value)} style={{ width: 44, padding: "8px 6px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 14, textAlign: "center", boxSizing: "border-box" }} />
+              <input value={m.texte} onChange={(e) => modifierMessage(i, "texte", e.target.value)} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: 10 }}>
+            <input type="checkbox" checked={venteFlashActive} onChange={(e) => setVenteFlashActive(e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} />
+            <span style={{ fontWeight: 700, fontSize: 13 }}>🔥 Afficher la section Vente Flash</span>
+          </label>
+          {venteFlashActive && (
+            <>
+              <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Titre</div>
+              <input value={venteFlashTitre} onChange={(e) => setVenteFlashTitre(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+              <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Sous-titre</div>
+              <input value={venteFlashSousTitre} onChange={(e) => setVenteFlashSousTitre(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </>
+          )}
+        </div>
+
+        <button onClick={sauvegarder} disabled={saving} style={{ width: "100%", marginTop: 18, background: saved ? "#1F9D6E" : "#16231F", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          {saved ? "✅ Enregistré" : saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
       </div>
     </div>
   );

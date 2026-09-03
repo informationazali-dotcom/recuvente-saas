@@ -3014,14 +3014,24 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
           Contactez-nous sur WhatsApp pour un suivi de commande, des conseils produits ou toute autre question. Réponse rapide garantie.
         </div>
         {entreprise?.whatsapp && (
-          <a
-            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
-          >
-            💬 Nous contacter
-          </a>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <a
+              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
+            >
+              💬 Écrire sur WhatsApp
+            </a>
+            <a
+              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-block", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 10, padding: "12px 26px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
+            >
+              Nous contacter
+            </a>
+          </div>
         )}
       </div>
 

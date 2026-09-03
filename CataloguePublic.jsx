@@ -338,7 +338,7 @@ function prixUnitairePourBundle(prixVente, bundle) {
   return Number(prixVente) * (1 - (Number(bundle.discount) || 0) / 100);
 }
 
-export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) {
+export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, domaine }) {
   const [workspaceId, setWorkspaceId] = useState(workspaceIdProp || null);
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
@@ -541,6 +541,17 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
       setWorkspaceId(data);
     });
   }, [slug, workspaceIdProp]);
+
+  useEffect(() => {
+    if (workspaceIdProp || slug || !domaine) return;
+    supabase.rpc("workspace_id_par_domaine", { p_domaine: domaine }).then(({ data, error }) => {
+      if (error || !data) {
+        setErreur("Cette boutique est introuvable.");
+        return;
+      }
+      setWorkspaceId(data);
+    });
+  }, [domaine, slug, workspaceIdProp]);
 
   useEffect(() => {
     if (!workspaceId) return;

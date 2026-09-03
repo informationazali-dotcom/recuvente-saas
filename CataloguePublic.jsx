@@ -437,12 +437,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
   const [avisListe, setAvisListe] = useState([]);
   const [afficherFormAvis, setAfficherFormAvis] = useState(false);
   const [formAvis, setFormAvis] = useState({ nom: "", note: 5, commentaire: "" });
+  const [photoAvis, setPhotoAvis] = useState(null);
+  const [photoAvisApercu, setPhotoAvisApercu] = useState("");
+  const [envoiPhotoAvisEnCours, setEnvoiPhotoAvisEnCours] = useState(false);
   const [envoiAvis, setEnvoiAvis] = useState(false);
   const [avisEnvoye, setAvisEnvoye] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
   const [engagementCoche, setEngagementCoche] = useState(false);
+  const [codePromoInput, setCodePromoInput] = useState("");
+  const [codePromoApplique, setCodePromoApplique] = useState(null);
+  const [codePromoMessage, setCodePromoMessage] = useState("");
+  const [verificationCodePromoEnCours, setVerificationCodePromoEnCours] = useState(false);
   const [lienCopie, setLienCopie] = useState(false);
   const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
   const [recherche, setRecherche] = useState("");
@@ -639,12 +646,25 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
   async function soumettreAvis() {
     if (!formAvis.nom.trim()) return;
     setEnvoiAvis(true);
-    const { data, error } = await supabase.rpc("soumettre_avis_public", {
+    let photoUrlEnvoi = null;
+    if (photoAvis) {
+      setEnvoiPhotoAvisEnCours(true);
+      const extension = (photoAvis.name.split(".").pop() || "jpg").toLowerCase();
+      const chemin = `avis-${produitOuvert.produit_id}-${Date.now()}.${extension}`;
+      const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, photoAvis, { upsert: true, contentType: photoAvis.type || undefined });
+      if (!erreurUpload) {
+        const { data: dataUrl } = supabase.storage.from("produits").getPublicUrl(chemin);
+        photoUrlEnvoi = dataUrl.publicUrl;
+      }
+      setEnvoiPhotoAvisEnCours(false);
+    }
+    const { data, error } = await supabase.rpc("soumettre_avis_public_avec_photo", {
       p_workspace_id: workspaceId,
       p_produit_id: produitOuvert.produit_id,
       p_client_nom: formAvis.nom,
       p_note: formAvis.note,
       p_commentaire: formAvis.commentaire,
+      p_photo_url: photoUrlEnvoi,
     });
     setEnvoiAvis(false);
     if (!error && data?.[0]?.succes) {
@@ -666,6 +686,26 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
     window.history.pushState({}, "", url);
     setCollectionOuverte(id);
     window.scrollTo(0, 0);
+  }
+
+  async function verifierCodePromo(montantAvantRemise) {
+    if (!codePromoInput.trim()) return;
+    setVerificationCodePromoEnCours(true);
+    setCodePromoMessage("");
+    const { data, error } = await supabase.rpc("valider_code_promo", {
+      p_workspace_id: workspaceId,
+      p_code: codePromoInput.trim(),
+      p_montant_commande: montantAvantRemise,
+    });
+    setVerificationCodePromoEnCours(false);
+    const resultat = data && data[0];
+    if (error || !resultat?.valide) {
+      setCodePromoApplique(null);
+      setCodePromoMessage(resultat?.message || "Code promo invalide.");
+      return;
+    }
+    setCodePromoApplique({ code: codePromoInput.trim().toUpperCase(), montant_remise: Number(resultat.montant_remise) });
+    setCodePromoMessage(resultat.message);
   }
 
   async function envoyerCommande() {
@@ -743,6 +783,12 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
         prix_unitaire: produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produitBump.prix_vente),
       });
     }
+    // Applique la remise du code promo directement sur le prix du produit principal envoyé au
+    // serveur — évite de devoir changer la structure de la fonction de création de commande existante.
+    if (codePromoApplique && codePromoApplique.montant_remise > 0) {
+      const remiseParUnite = codePromoApplique.montant_remise / quantite;
+      items[0].prix_unitaire = Math.max(0, items[0].prix_unitaire - remiseParUnite);
+    }
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
@@ -771,8 +817,32 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
       value: items.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0),
       currency: entreprise?.devise || "XOF",
     });
+    if (codePromoApplique) {
+      supabase.rpc("incrementer_utilisation_code_promo", { p_workspace_id: workspaceId, p_code: codePromoApplique.code }).then(() => {});
+    }
+    supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: form.tel, p_produit_id: produitOuvert.produit_id }).then(() => {});
     setEnvoye(true);
   }
+
+  // Détecte un panier abandonné : dès que le client a tapé un numéro de téléphone valide sur
+  // une fiche produit et qu'il reste 5 secondes sans finaliser, on l'enregistre discrètement —
+  // s'il commande ensuite, ce panier est automatiquement marqué comme converti.
+  useEffect(() => {
+    if (!produitOuvert || !workspaceId) return;
+    const chiffresTel = (form.tel || "").replace(/\D/g, "");
+    if (chiffresTel.length < 8 || envoye) return;
+    const delai = setTimeout(() => {
+      supabase.rpc("enregistrer_panier_abandonne", {
+        p_workspace_id: workspaceId,
+        p_client_nom: form.client || null,
+        p_tel: form.tel,
+        p_produit_id: produitOuvert.produit_id,
+        p_produit_nom: produitOuvert.produit_nom,
+        p_montant: Number(produitOuvert.prix_vente) || null,
+      }).then(() => {});
+    }, 5000);
+    return () => clearTimeout(delai);
+  }, [form.tel, form.client, produitOuvert?.produit_id, workspaceId, envoye]);
 
   const couleur = entreprise?.couleur || "#1a7a3c";
   const t = creerTraducteur(entreprise?.langue);
@@ -1147,12 +1217,40 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                     rows={3}
                     style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }}
                   />
+                  {photoAvisApercu ? (
+                    <div style={{ position: "relative", display: "inline-block", marginBottom: 10 }}>
+                      <img src={photoAvisApercu} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: "1px solid #DDD8CC" }} />
+                      <button
+                        onClick={() => { setPhotoAvis(null); setPhotoAvisApercu(""); }}
+                        style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 12, cursor: "pointer" }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "white", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 10 }}>
+                      📷 Ajouter une photo (optionnel)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const fichier = e.target.files?.[0];
+                          if (!fichier) return;
+                          if (fichier.size > 5 * 1024 * 1024) { alert("Photo trop lourde (max 5 Mo)."); return; }
+                          setPhotoAvis(fichier);
+                          setPhotoAvisApercu(URL.createObjectURL(fichier));
+                        }}
+                      />
+                    </label>
+                  )}
                   <button
                     onClick={soumettreAvis}
                     disabled={envoiAvis || !formAvis.nom.trim()}
                     style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: (envoiAvis || !formAvis.nom.trim()) ? 0.5 : 1 }}
                   >
-                    {envoiAvis ? t("envoiEnCours") : t("envoyerAvis")}
+                    {envoiPhotoAvisEnCours ? "Envoi de la photo..." : envoiAvis ? t("envoiEnCours") : t("envoyerAvis")}
                   </button>
                 </div>
               )}
@@ -1168,6 +1266,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                         <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
                       </div>
                       {a.commentaire && <div style={{ fontSize: 13, color: "#16231F", marginTop: 4, lineHeight: 1.5 }}>{a.commentaire}</div>}
+                      {a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, marginTop: 8, border: "1px solid #ECE8DC", cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />}
                     </div>
                   ))}
                 </div>
@@ -1482,10 +1581,44 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                     <span>+ {fraisLivraisonActuel.toLocaleString("fr-FR")} {entreprise.devise}</span>
                   </div>
                 )}
+                {codePromoApplique && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
+                    <span>🏷️ Code {codePromoApplique.code}</span>
+                    <span>− {codePromoApplique.montant_remise.toLocaleString("fr-FR")} {entreprise.devise}</span>
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
                   <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} {entreprise.devise}</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} {entreprise.devise}</span>
                 </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                {codePromoApplique ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#EAF7F1", border: "1px solid #C3E8D8", borderRadius: 8, padding: "8px 12px" }}>
+                    <span style={{ fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>✅ {codePromoMessage}</span>
+                    <button onClick={() => { setCodePromoApplique(null); setCodePromoInput(""); setCodePromoMessage(""); }} style={{ background: "none", border: "none", color: "#1F9D6E", fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Retirer</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      placeholder="Code promo (optionnel)"
+                      value={codePromoInput}
+                      onChange={(e) => setCodePromoInput(e.target.value)}
+                      style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box", textTransform: "uppercase" }}
+                    />
+                    <button
+                      onClick={() => verifierCodePromo(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0))}
+                      disabled={verificationCodePromoEnCours || !codePromoInput.trim()}
+                      style={{ background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "0 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      {verificationCodePromoEnCours ? "..." : "Appliquer"}
+                    </button>
+                  </div>
+                )}
+                {!codePromoApplique && codePromoMessage && (
+                  <div style={{ fontSize: 11, color: "#D64933", marginTop: 4 }}>{codePromoMessage}</div>
+                )}
               </div>
 
               <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
@@ -1524,7 +1657,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                 disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
                 style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4 }}
               >
-                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
+                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} ${entreprise.devise}`}
               </button>
             </div>
           </div>
@@ -3045,6 +3178,7 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
               <div key={i} style={{ flexShrink: 0, width: 220, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: 14 }}>
                 <div style={{ color: "#e8920a", fontSize: 13, marginBottom: 6 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</div>
                 {a.commentaire && <div style={{ fontSize: 12, color: "#16231F", lineHeight: 1.5, marginBottom: 8 }}>{a.commentaire}</div>}
+                {a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 8, marginBottom: 8 }} />}
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168" }}>{a.client_nom}</div>
               </div>
             ))}

@@ -590,6 +590,16 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
       const listeProduits = data.filter((p) => p.produit_nom);
       setProduits(listeProduits);
 
+      // Petit chargement séparé, sans toucher à la fonction catalogue_public existante,
+      // pour récupérer les textes personnalisables du design dédié Azali Express.
+      if ((data[0].slug || "") === "azaliexpress") {
+        supabase.rpc("azali_config_public", { p_workspace_id: workspaceId }).then(({ data: dataConfig }) => {
+          if (dataConfig) {
+            setEntreprise((e) => ({ ...e, azaliConfig: dataConfig }));
+          }
+        });
+      }
+
       supabase.rpc("temoignages_publics", { p_workspace_id: workspaceId }).then(({ data: dataTemoignages }) => {
         setAvisBoutique(dataTemoignages || []);
       });
@@ -2167,7 +2177,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
   const t = creerTraducteur(entreprise.langue);
   const [topbarVisible, setTopbarVisible] = useState(true);
   const [estFixe, setEstFixe] = useState(false);
-  const messagesAnnonce = [
+  const messagesAnnonce = (entreprise.azaliConfig?.messagesAnnonce && entreprise.azaliConfig.messagesAnnonce.length > 0) ? entreprise.azaliConfig.messagesAnnonce : [
     { icone: "🚚", texte: "Livraison gratuite à Abidjan dès 50 000 FCFA" },
     { icone: "💸", texte: "Wave · Orange Money · MTN MoMo acceptés" },
     { icone: "🔄", texte: "Retour facile sous 7 jours" },
@@ -3134,11 +3144,13 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
         </div>
       </div>
 
-      <div style={{ background: "linear-gradient(135deg,#D64933,#e8920a)", padding: "24px 16px", textAlign: "center" }}>
-        <div style={{ color: "white", fontWeight: 800, fontSize: 20, marginBottom: 4 }}>🔥 Vente Flash — jusqu'à -50%</div>
-        <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginBottom: 16 }}>Offre valable sur une sélection de produits, stock limité</div>
-        <CompteARebours />
-      </div>
+      {(entreprise.azaliConfig?.venteFlashActive !== false) && (
+        <div style={{ background: "linear-gradient(135deg,#D64933,#e8920a)", padding: "24px 16px", textAlign: "center" }}>
+          <div style={{ color: "white", fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{entreprise.azaliConfig?.venteFlashTitre || "🔥 Vente Flash — jusqu'à -50%"}</div>
+          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginBottom: 16 }}>{entreprise.azaliConfig?.venteFlashSousTitre || "Offre valable sur une sélection de produits, stock limité"}</div>
+          <CompteARebours />
+        </div>
+      )}
 
       {collectionsManuelles.slice(0, 5).map((c) => (
         <CarrouselProduits

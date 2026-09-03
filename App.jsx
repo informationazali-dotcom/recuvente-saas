@@ -5128,7 +5128,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={workspace.currency} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={workspace.currency} />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
-      {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
+      {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
@@ -8032,6 +8032,11 @@ function AvisModal({ workspaceId, onClose }) {
   const [avis, setAvis] = useState(null);
   const [produitsMap, setProduitsMap] = useState({});
   const [filtreProduitId, setFiltreProduitId] = useState("");
+  const [afficherImport, setAfficherImport] = useState(false);
+  const [produitImportId, setProduitImportId] = useState("");
+  const [texteImport, setTexteImport] = useState("");
+  const [importEnCours, setImportEnCours] = useState(false);
+  const [resultatImport, setResultatImport] = useState(null);
 
   async function charger() {
     const { data: produitsData } = await supabase.from("produits").select("id, nom").eq("workspace_id", workspaceId);
@@ -8050,6 +8055,49 @@ function AvisModal({ workspaceId, onClose }) {
   useEffect(() => {
     charger();
   }, []);
+
+  async function importerAvisEnMasse() {
+    if (!produitImportId) {
+      setResultatImport({ succes: false, message: "Choisis d'abord un produit." });
+      return;
+    }
+    const lignes = texteImport.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lignes.length === 0) {
+      setResultatImport({ succes: false, message: "Colle au moins un avis." });
+      return;
+    }
+    setImportEnCours(true);
+    const avisAInserer = [];
+    let ignorees = 0;
+    for (const ligne of lignes) {
+      const parties = ligne.split("|").map((p) => p.trim());
+      if (parties.length < 2) { ignorees += 1; continue; }
+      const nom = parties[0] || "Client AliExpress";
+      const noteTrouvee = parseInt(parties[1], 10);
+      const note = (noteTrouvee >= 1 && noteTrouvee <= 5) ? noteTrouvee : 5;
+      const commentaire = parties.slice(2).join(" | ").trim() || null;
+      avisAInserer.push({
+        workspace_id: workspaceId,
+        produit_id: produitImportId,
+        client_nom: nom,
+        note,
+        commentaire,
+        approuve: true, // importés directement approuvés, puisque déjà relus par toi avant collage
+      });
+    }
+    if (avisAInserer.length > 0) {
+      const { error } = await supabase.from("avis_produits").insert(avisAInserer);
+      if (error) {
+        setResultatImport({ succes: false, message: "Erreur : " + error.message });
+        setImportEnCours(false);
+        return;
+      }
+    }
+    setImportEnCours(false);
+    setResultatImport({ succes: true, message: `${avisAInserer.length} avis importé(s).${ignorees > 0 ? ` ${ignorees} ligne(s) ignorée(s) (format incorrect).` : ""}` });
+    setTexteImport("");
+    await charger();
+  }
 
   async function approuver(id) {
     await supabase.from("avis_produits").update({ approuve: true }).eq("id", id);
@@ -8103,6 +8151,41 @@ function AvisModal({ workspaceId, onClose }) {
           <div style={{ fontWeight: 700, fontSize: 18 }}>⭐ Avis clients</div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
+
+        <button
+          onClick={() => setAfficherImport(!afficherImport)}
+          style={{ width: "100%", background: afficherImport ? "#1a7a3c" : "#FAFAF7", color: afficherImport ? "white" : "#16231F", border: "1px solid " + (afficherImport ? "#1a7a3c" : "#ECE8DC"), borderRadius: 10, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 14 }}
+        >
+          📥 {afficherImport ? "Fermer l'import" : "Importer plusieurs avis d'un coup (ex: AliExpress)"}
+        </button>
+
+        {afficherImport && (
+          <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.6 }}>
+              Va sur la page du produit sur AliExpress, copie chaque avis (nom, note, commentaire), et colle-les ici — <strong>un avis par ligne</strong>, dans ce format exact :<br />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>Nom du client | Note (1 à 5) | Le commentaire</span>
+            </div>
+            <select value={produitImportId} onChange={(e) => setProduitImportId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8, boxSizing: "border-box" }}>
+              <option value="">Choisir le produit concerné...</option>
+              {Object.entries(produitsMap).map(([id, nom]) => <option key={id} value={id}>{nom}</option>)}
+            </select>
+            <textarea
+              value={texteImport}
+              onChange={(e) => setTexteImport(e.target.value)}
+              placeholder={"Fatou K. | 5 | Très bon produit, livraison rapide !\nMoussa D. | 4 | Correspond à la description, je recommande\nAïcha B. | 5 | Excellent rapport qualité prix"}
+              rows={6}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8, boxSizing: "border-box", fontFamily: "'IBM Plex Mono', monospace", resize: "vertical" }}
+            />
+            {resultatImport && (
+              <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAE6", border: "1px solid " + (resultatImport.succes ? "#C7DDA3" : "#F0B8AC"), borderRadius: 8, padding: "8px 10px", marginBottom: 8, fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#D64933" }}>
+                {resultatImport.succes ? "✅ " : "⚠️ "}{resultatImport.message}
+              </div>
+            )}
+            <button onClick={importerAvisEnMasse} disabled={importEnCours} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+              {importEnCours ? "Import en cours..." : "Importer ces avis"}
+            </button>
+          </div>
+        )}
 
         {avis !== null && avis.length > 0 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>

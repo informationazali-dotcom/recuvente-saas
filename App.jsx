@@ -2531,6 +2531,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAvis, setShowAvis] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
+  const [showCodesPromo, setShowCodesPromo] = useState(false);
+  const [showPaniersAbandonnes, setShowPaniersAbandonnes] = useState(false);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
   useEffect(() => {
@@ -3885,13 +3887,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -3905,7 +3907,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4128,6 +4130,22 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             📁 Collections
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowCodesPromo(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🏷️ Codes promo
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowPaniersAbandonnes(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🛒 Paniers abandonnés
           </button>
         )}
         {workspace.role === "owner" && (
@@ -5104,6 +5122,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} onClose={() => setShowAvis(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
+      {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowCodesPromo(false)} />}
+      {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowPaniersAbandonnes(false)} />}
     </div>
   );
 }
@@ -7702,6 +7722,226 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
   );
 }
 
+function PaniersAbandonnesModal({ workspaceId, currency, onClose }) {
+  const [paniers, setPaniers] = useState(null);
+
+  async function charger() {
+    const { data } = await supabase
+      .from("paniers_abandonnes")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .eq("converti", false)
+      .order("updated_at", { ascending: false })
+      .limit(100);
+    setPaniers(data || []);
+  }
+
+  useEffect(() => {
+    charger();
+  }, []);
+
+  async function marquerRelance(id) {
+    await supabase.from("paniers_abandonnes").update({ relance_envoyee: true }).eq("id", id);
+    await charger();
+  }
+
+  async function ignorerPanier(id) {
+    await supabase.from("paniers_abandonnes").update({ converti: true }).eq("id", id);
+    await charger();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🛒 Paniers abandonnés</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
+          Ces personnes ont commencé à commander un produit sans finaliser. Relance-les directement sur WhatsApp.
+        </div>
+
+        {paniers === null && <SkeletonListe nombre={3} />}
+        {paniers !== null && paniers.length === 0 && (
+          <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun panier abandonné pour l'instant. 🎉</div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(paniers || []).map((p) => (
+            <div key={p.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{p.client_nom || "Client sans nom"}</div>
+                  <div style={{ fontSize: 11.5, color: "#6B7168" }}>{p.tel}</div>
+                  <div style={{ fontSize: 12, color: "#16231F", marginTop: 3 }}>{p.produit_nom}{p.montant ? ` — ${Number(p.montant).toLocaleString("fr-FR")} ${currency}` : ""}</div>
+                  <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>Il y a {Math.max(0, Math.round((Date.now() - new Date(p.updated_at).getTime()) / 60000))} min</div>
+                  {p.relance_envoyee && <div style={{ fontSize: 10.5, color: "#1F9D6E", fontWeight: 700, marginTop: 2 }}>✅ Déjà relancé</div>}
+                </div>
+                <button onClick={() => ignorerPanier(p.id)} style={{ background: "none", border: "none", color: "#8A9089", cursor: "pointer", fontSize: 11, flexShrink: 0, textDecoration: "underline" }}>Ignorer</button>
+              </div>
+              <a
+                href={`https://wa.me/${String(p.tel).replace(/\D/g, "").replace(/^0/, "225")}?text=${encodeURIComponent(`Bonjour ${(p.client_nom || "").split(" ")[0] || ""} 👋, j'ai vu que vous étiez intéressé(e) par "${p.produit_nom}". Puis-je vous aider à finaliser votre commande ?`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => marquerRelance(p.id)}
+                style={{ display: "block", textAlign: "center", marginTop: 8, background: "#1F9D6E", color: "white", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, textDecoration: "none" }}
+              >
+                💬 Relancer sur WhatsApp
+              </a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CodesPromoModal({ workspaceId, currency, onClose }) {
+  const [codes, setCodes] = useState(null);
+  const [form, setForm] = useState({ code: "", type_remise: "pourcentage", valeur: "", montant_minimum: "", date_expiration: "", utilisation_max: "" });
+  const [creation, setCreation] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  async function charger() {
+    const { data } = await supabase.from("codes_promo").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false });
+    setCodes(data || []);
+  }
+
+  useEffect(() => {
+    charger();
+  }, []);
+
+  async function creerCode() {
+    setErreur("");
+    const codeNettoye = form.code.trim().toUpperCase().replace(/\s+/g, "");
+    if (!codeNettoye) { setErreur("Donne un nom de code (ex: BIENVENUE10)."); return; }
+    if (!form.valeur || Number(form.valeur) <= 0) { setErreur("Indique une valeur de remise."); return; }
+    setCreation(true);
+    const { error } = await supabase.from("codes_promo").insert([{
+      workspace_id: workspaceId,
+      code: codeNettoye,
+      type_remise: form.type_remise,
+      valeur: Number(form.valeur),
+      montant_minimum: form.montant_minimum === "" ? null : Number(form.montant_minimum),
+      date_expiration: form.date_expiration ? new Date(form.date_expiration).toISOString() : null,
+      utilisation_max: form.utilisation_max === "" ? null : Number(form.utilisation_max),
+    }]);
+    if (error) {
+      setErreur(error.message.includes("duplicate") || error.message.includes("unique") ? "Ce code existe déjà." : "Erreur : " + error.message);
+    } else {
+      setForm({ code: "", type_remise: "pourcentage", valeur: "", montant_minimum: "", date_expiration: "", utilisation_max: "" });
+      await charger();
+    }
+    setCreation(false);
+  }
+
+  async function toggleActif(id, actuel) {
+    await supabase.from("codes_promo").update({ actif: !actuel }).eq("id", id);
+    await charger();
+  }
+
+  async function supprimerCode(id) {
+    if (!window.confirm("Supprimer ce code promo définitivement ?")) return;
+    await supabase.from("codes_promo").delete().eq("id", id);
+    await charger();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 460, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🏷️ Codes promo</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
+          Crée un code que tes clients saisissent sur ta boutique publique pour obtenir une remise (ex: pour une pub, une story WhatsApp, un client fidèle).
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>+ Créer un nouveau code</div>
+          <input
+            placeholder="Nom du code (ex: BIENVENUE10)"
+            value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value })}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box", textTransform: "uppercase" }}
+          />
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <select value={form.type_remise} onChange={(e) => setForm({ ...form, type_remise: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, background: "white" }}>
+              <option value="pourcentage">Remise en %</option>
+              <option value="montant_fixe">Montant fixe ({currency})</option>
+            </select>
+            <input
+              type="number"
+              placeholder={form.type_remise === "pourcentage" ? "Ex: 10" : `Ex: 1000`}
+              value={form.valeur}
+              onChange={(e) => setForm({ ...form, valeur: e.target.value })}
+              style={{ width: 110, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Commande minimum pour utiliser ce code (optionnel)</div>
+          <input
+            type="number"
+            placeholder={`Ex: 10000 (laisse vide si aucun minimum)`}
+            value={form.montant_minimum}
+            onChange={(e) => setForm({ ...form, montant_minimum: e.target.value })}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Expire le (optionnel)</div>
+              <input type="date" value={form.date_expiration} onChange={(e) => setForm({ ...form, date_expiration: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Utilisations max (optionnel)</div>
+              <input type="number" placeholder="Illimité" value={form.utilisation_max} onChange={(e) => setForm({ ...form, utilisation_max: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+          </div>
+          {erreur && <div style={{ color: "#D64933", fontSize: 12, marginBottom: 8, fontWeight: 600 }}>{erreur}</div>}
+          <button onClick={creerCode} disabled={creation} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            {creation ? "Création..." : "Créer le code"}
+          </button>
+        </div>
+
+        {codes === null && <SkeletonListe nombre={3} />}
+        {codes !== null && codes.length === 0 && (
+          <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "20px 0" }}>Aucun code promo pour l'instant.</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(codes || []).map((c) => {
+            const expire = c.date_expiration && new Date(c.date_expiration) < new Date();
+            const epuise = c.utilisation_max && c.utilisation_actuelle >= c.utilisation_max;
+            return (
+              <div key={c.id} style={{ background: c.actif && !expire && !epuise ? "white" : "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 14, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: "0.02em" }}>{c.code}</div>
+                    <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 2 }}>
+                      {c.type_remise === "pourcentage" ? `${c.valeur}% de remise` : `${Number(c.valeur).toLocaleString("fr-FR")} ${currency} de remise`}
+                      {c.montant_minimum ? ` · min. ${Number(c.montant_minimum).toLocaleString("fr-FR")} ${currency}` : ""}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>
+                      {c.utilisation_actuelle} utilisé{c.utilisation_actuelle > 1 ? "s" : ""}{c.utilisation_max ? ` / ${c.utilisation_max}` : ""}
+                      {c.date_expiration && ` · expire le ${new Date(c.date_expiration).toLocaleDateString("fr-FR")}`}
+                    </div>
+                    {(expire || epuise) && <div style={{ fontSize: 10.5, color: "#D64933", fontWeight: 700, marginTop: 2 }}>{expire ? "Expiré" : "Limite atteinte"}</div>}
+                  </div>
+                  <button onClick={() => supprimerCode(c.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>
+                </div>
+                <button
+                  onClick={() => toggleActif(c.id, c.actif)}
+                  style={{ width: "100%", marginTop: 8, background: c.actif ? "#EAF3DE" : "#F0EEE6", color: c.actif ? "#3B6D11" : "#8A9089", border: "none", borderRadius: 7, padding: "7px 0", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}
+                >
+                  {c.actif ? "✅ Actif — cliquer pour désactiver" : "⏸️ Désactivé — cliquer pour activer"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AvisModal({ workspaceId, onClose }) {
   const [avis, setAvis] = useState(null);
   const [produitsMap, setProduitsMap] = useState({});
@@ -7802,6 +8042,7 @@ function AvisModal({ workspaceId, onClose }) {
                     <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
                   </div>
                   {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{a.commentaire}</div>}
+                  {a.photo_url && <img src={a.photo_url} alt="Photo client" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, marginTop: 6, cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />}
                   <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                     <button onClick={() => approuver(a.id)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Approuver</button>
                     <button onClick={() => supprimer(a.id)} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#D64933", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🗑️ Rejeter</button>
@@ -7823,6 +8064,7 @@ function AvisModal({ workspaceId, onClose }) {
                 <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
               </div>
               {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{a.commentaire}</div>}
+                  {a.photo_url && <img src={a.photo_url} alt="Photo client" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, marginTop: 6, cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />}
               <button onClick={() => supprimer(a.id)} style={{ marginTop: 6, background: "none", border: "none", color: "#D64933", fontSize: 11.5, cursor: "pointer", padding: 0 }}>🗑️ Retirer</button>
             </div>
           ))}

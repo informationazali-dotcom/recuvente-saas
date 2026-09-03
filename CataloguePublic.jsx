@@ -1763,9 +1763,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 18 }}>{titreCollection} ({listeCollection.length})</div>
 
           <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
-            {listeCollection.map((p) => (
-              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
-            ))}
+            {listeCollection.map((p, i) =>
+              entreprise.slug === "azaliexpress" ? (
+                <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+                  <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={true} />
+                </RevealOnScroll>
+              ) : (
+                <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={false} />
+              )
+            )}
           </div>
         </div>
 
@@ -1979,9 +1985,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         )}
 
         <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
-          {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p) => (
-            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
-          ))}
+          {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p, i) =>
+            entreprise.slug === "azaliexpress" ? (
+              <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+                <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={true} />
+              </RevealOnScroll>
+            ) : (
+              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={false} />
+            )
+          )}
         </div>
 
         {!recherche.trim() && produitsFiltres.length > NOMBRE_MAX_ACCUEIL && (
@@ -2496,12 +2508,54 @@ function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, v
         )}
       </div>
       <div className="rv-shop-collection-scroll">
-        {produits.map((p) => (
-          <div key={p.produit_id} className="rv-shop-collection-card">
-            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzali} />
-          </div>
-        ))}
+        {produits.map((p, i) =>
+          estAzali ? (
+            <div key={p.produit_id} className="rv-shop-collection-card">
+              <RevealOnScroll delai={(i % 6) * 50}>
+                <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzali} />
+              </RevealOnScroll>
+            </div>
+          ) : (
+            <div key={p.produit_id} className="rv-shop-collection-card">
+              <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzali} />
+            </div>
+          )
+        )}
       </div>
+    </div>
+  );
+}
+
+function RevealOnScroll({ children, delai = 0 }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observateur = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisible(true);
+          observateur.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+    );
+    observateur.observe(el);
+    return () => observateur.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(18px)",
+        transition: `opacity 0.55s ease ${delai}ms, transform 0.55s ease ${delai}ms`,
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -3040,14 +3094,18 @@ function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit, on
       </div>
       {peuDeProduits ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
-          {produits.map((p) => (
-            <CarteProduitAzali key={p.produit_id} p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
+          {produits.map((p, i) => (
+            <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+              <CarteProduitAzali p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
+            </RevealOnScroll>
           ))}
         </div>
       ) : (
       <div style={{ display: "grid", gridAutoFlow: "column", gridAutoColumns: "minmax(150px, 1fr)", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
-        {produits.slice(0, 14).map((p) => (
-          <CarteProduitAzali key={p.produit_id} p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
+        {produits.slice(0, 14).map((p, i) => (
+          <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+            <CarteProduitAzali p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
+          </RevealOnScroll>
         ))}
       </div>
       )}
@@ -3307,9 +3365,18 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
   function GrilleProduits({ liste, max }) {
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
+    const estAzaliIci = entreprise.slug === "azaliexpress";
     return (
       <div className="rv-builder-grid-produits">
-        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />)}
+        {liste.slice(0, max || 12).map((p, i) =>
+          estAzaliIci ? (
+            <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
+              <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzaliIci} />
+            </RevealOnScroll>
+          ) : (
+            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzaliIci} />
+          )
+        )}
       </div>
     );
   }

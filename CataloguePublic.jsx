@@ -1422,7 +1422,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
                   {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
                   {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                      💰 {entreprise.depotMessage || `Un dépôt de ${Number(entreprise.depotMontant || 0).toLocaleString("fr-FR")} ${entreprise.devise} par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${entreprise.devise}`) : `Un dépôt de ${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${entreprise.devise} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
                     </div>
                   )}
                 </div>

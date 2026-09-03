@@ -18,6 +18,14 @@
     html, body { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
     #root { width: 100%; }
     body { font-family: 'IBM Plex Sans', sans-serif; }
+
+    /* Le tableau de bord admin a été conçu pour mobile ; sur grand écran (PC),
+       tout paraissait minuscule. On agrandit uniquement cette vue, pas la boutique publique. */
+    @media (min-width: 1024px) {
+      body.rv-admin-app {
+        zoom: 1.25;
+      }
+    }
   </style>
 </head>
 <body>

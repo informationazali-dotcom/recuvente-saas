@@ -4248,6 +4248,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 {estEcommerce && <button onClick={() => setVue("simulateur")} aria-label="Simulateur pub" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>}
                 <button onClick={() => setVue("validations")} aria-label="Validations" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
                 {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
+                {workspace.role === "owner" && <button onClick={() => setShowIntegrations(true)} aria-label="Réglages" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>}
               </div>
             </div>
           )}
@@ -4979,7 +4980,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "clients", label: "Clients", icon: Users },
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "Récup.", icon: Target }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "compta", label: "Compta", icon: Calculator }] : []),
-          ...(workspace.role === "owner" ? [{ key: "parametres", label: "Réglages", icon: Compass, action: () => setShowIntegrations(true) }] : []),
         ].map((t) => {
           const Icon = t.icon;
           const active = vue === t.key;
@@ -4989,6 +4989,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               onClick={() => (t.action ? t.action() : setVue(t.key))}
               style={{
                 flex: 1,
+                minWidth: 0,
                 background: "none",
                 border: "none",
                 display: "flex",
@@ -5001,7 +5002,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               }}
             >
               <Icon size={19} strokeWidth={active ? 2.4 : 2} />
-              <span style={{ fontSize: 10, fontWeight: active ? 600 : 500 }}>{t.label}</span>
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{t.label}</span>
             </button>
           );
         })}

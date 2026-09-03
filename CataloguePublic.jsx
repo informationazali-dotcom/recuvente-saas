@@ -2812,8 +2812,42 @@ function CompteARebours() {
   );
 }
 
+function CarteProduitAzali({ p, devise, couleur, ouvrirProduit, onAjouterAuPanier }) {
+  return (
+    <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, overflow: "hidden" }}>
+      <div onClick={() => ouvrirProduit(p)} style={{ position: "relative", cursor: "pointer" }}>
+        {p.photo_url ? (
+          <img src={p.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+        ) : (
+          <div style={{ width: "100%", height: 140, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</div>
+        )}
+        <span style={{ position: "absolute", top: 7, right: 7, width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>♡</span>
+      </div>
+      <div style={{ padding: "9px 10px" }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#8A9089", letterSpacing: "0.3px" }}>AZALIEXPRESS®</div>
+        <div onClick={() => ouvrirProduit(p)} style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{p.produit_nom}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+          <span style={{ color: "#e8920a", fontSize: 11, letterSpacing: "-1px" }}>★★★★★</span>
+          <span style={{ fontSize: 10, color: "#8A9089" }}>(4.7)</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: couleur, marginTop: 5 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {devise}</div>
+        <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>
+        {onAjouterAuPanier && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
+            style={{ width: "100%", marginTop: 7, background: couleur, color: "white", border: "none", borderRadius: 7, padding: "7px 0", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+          >
+            🛒 Ajout rapide
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit, onAjouterAuPanier, onVoirTout }) {
   if (!produits || produits.length === 0) return null;
+  const peuDeProduits = produits.length <= 6;
   return (
     <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -2822,38 +2856,21 @@ function CarrouselProduits({ titre, produits, devise, couleur, ouvrirProduit, on
           <span onClick={onVoirTout} style={{ fontSize: 12, fontWeight: 700, color: couleur, cursor: "pointer" }}>Voir tout →</span>
         )}
       </div>
+      {peuDeProduits ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+          {produits.map((p) => (
+            <CarteProduitAzali key={p.produit_id} p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
+          ))}
+        </div>
+      ) : (
       <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
         {produits.slice(0, 10).map((p) => (
-          <div key={p.produit_id} style={{ flexShrink: 0, width: 160, background: "white", border: "1px solid #ECE8DC", borderRadius: 10, overflow: "hidden" }}>
-            <div onClick={() => ouvrirProduit(p)} style={{ position: "relative", cursor: "pointer" }}>
-              {p.photo_url ? (
-                <img src={p.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
-              ) : (
-                <div style={{ width: "100%", height: 140, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</div>
-              )}
-              <span style={{ position: "absolute", top: 7, right: 7, width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>♡</span>
-            </div>
-            <div style={{ padding: "9px 10px" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#8A9089", letterSpacing: "0.3px" }}>AZALIEXPRESS®</div>
-              <div onClick={() => ouvrirProduit(p)} style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{p.produit_nom}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                <span style={{ color: "#e8920a", fontSize: 11, letterSpacing: "-1px" }}>★★★★★</span>
-                <span style={{ fontSize: 10, color: "#8A9089" }}>(4.7)</span>
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: couleur, marginTop: 5 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {devise}</div>
-              <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>
-              {onAjouterAuPanier && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
-                  style={{ width: "100%", marginTop: 7, background: couleur, color: "white", border: "none", borderRadius: 7, padding: "7px 0", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
-                >
-                  🛒 Ajout rapide
-                </button>
-              )}
-            </div>
+          <div key={p.produit_id} style={{ flexShrink: 0, width: 160 }}>
+            <CarteProduitAzali p={p} devise={devise} couleur={couleur} ouvrirProduit={ouvrirProduit} onAjouterAuPanier={onAjouterAuPanier} />
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

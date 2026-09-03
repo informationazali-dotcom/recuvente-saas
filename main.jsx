@@ -25,6 +25,11 @@ const estDomainePersonnalise =
   !DOMAINES_INTERNES.includes(hostname) &&
   !hostname.endsWith(".vercel.app");
 
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !estDomainePersonnalise;
+if (estVueAdmin) {
+  document.body.classList.add("rv-admin-app");
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>

@@ -53,6 +53,7 @@ export default async function handler(req, res) {
 
     let envoyes = 0;
     const abonnementsMorts = [];
+    const erreursDetail = [];
 
     await Promise.all(
       abonnements.map(async (abo) => {
@@ -64,6 +65,8 @@ export default async function handler(req, res) {
           await webpush.sendNotification(sub, contenuNotification);
           envoyes += 1;
         } catch (e) {
+          // On garde le détail précis de l'erreur pour pouvoir la diagnostiquer.
+          erreursDetail.push({ statusCode: e.statusCode || null, message: e.message || String(e), body: e.body || null });
           // Code 404/410 = l'abonnement n'est plus valide (désinstallation, etc.) — on le nettoie.
           if (e.statusCode === 404 || e.statusCode === 410) {
             abonnementsMorts.push(abo.endpoint);
@@ -76,7 +79,7 @@ export default async function handler(req, res) {
       await supabaseAdmin.from("push_subscriptions").delete().in("endpoint", abonnementsMorts);
     }
 
-    return res.status(200).json({ ok: true, envoyes, total: abonnements.length });
+    return res.status(200).json({ ok: true, envoyes, total: abonnements.length, erreurs: erreursDetail });
   }
 
   return res.status(400).json({ error: "Type de notification inconnu" });

@@ -2993,34 +2993,53 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
   }
 
+  const [statutNotifDebug, setStatutNotifDebug] = useState("");
+
   async function activerNotificationsPush() {
+    setStatutNotifDebug("⏳ Démarrage...");
     try {
       const permission = await Notification.requestPermission();
       setNotifPermission(permission);
-      if (permission !== "granted") return;
-
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        alert("Notifications Push non supportées sur ce navigateur");
+      setStatutNotifDebug(`Permission : ${permission}`);
+      if (permission !== "granted") {
+        setStatutNotifDebug(`❌ Permission refusée par le téléphone (${permission}). Va dans les réglages de notification du navigateur pour ce site et autorise manuellement.`);
         return;
       }
 
-      const registration = await navigator.serviceWorker.ready;
-      let sub = await registration.pushManager.getSubscription();
-      if (!sub) {
-        sub = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        });
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setStatutNotifDebug("❌ Ce navigateur ne supporte pas les notifications Push.");
+        return;
       }
 
+      setStatutNotifDebug("⏳ Vérification du service worker...");
+      const registration = await navigator.serviceWorker.ready;
+
+      // On force toujours un abonnement FRAIS (on désabonne l'ancien s'il existe), pour
+      // ne jamais rester bloqué sur une ancienne clé VAPID périmée.
+      let sub = await registration.pushManager.getSubscription();
+      if (sub) {
+        setStatutNotifDebug("⏳ Ancien abonnement détecté, remplacement...");
+        await sub.unsubscribe();
+      }
+      setStatutNotifDebug("⏳ Création du nouvel abonnement...");
+      sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+
+      setStatutNotifDebug("⏳ Enregistrement dans la base de données...");
       const raw = sub.toJSON();
-      await supabase.from("push_subscriptions").upsert(
+      const { error: erreurUpsert } = await supabase.from("push_subscriptions").upsert(
         [{ workspace_id: workspace.id, user_email: session.user.email, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }],
         { onConflict: "endpoint" }
       );
-      alert("🔔 Notifications activées, même app fermée !");
+      if (erreurUpsert) {
+        setStatutNotifDebug("❌ Erreur base de données : " + erreurUpsert.message);
+        return;
+      }
+      setStatutNotifDebug("✅ Notifications activées avec succès, même app fermée !");
     } catch (e) {
-      alert("Erreur activation notifications: " + e.message);
+      setStatutNotifDebug("❌ Erreur : " + e.message);
     }
   }
 
@@ -4293,6 +4312,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </button>
         </div>
       )}
+
+      {/* Panneau de diagnostic — toujours visible pour tout le monde, tant que les notifications
+          sont en cours de mise au point. À retirer une fois que tout fonctionne de manière fiable. */}
+      <div style={{ background: "#16231F", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
+        <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
+          🔧 Diagnostic notifications — état actuel du navigateur : <strong style={{ color: "white" }}>{notifPermission}</strong>
+        </div>
+        {statutNotifDebug && (
+          <div style={{ fontSize: 12, color: "#e8920a", marginBottom: 8, lineHeight: 1.5 }}>{statutNotifDebug}</div>
+        )}
+        <button onClick={activerNotificationsPush} style={{ background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          🔔 (Re)configurer les notifications maintenant
+        </button>
+      </div>
 
       {accesBloque && (
         <div style={{ background: "white", border: "1.5px solid #F0DDA8", borderRadius: 16, padding: "40px 24px", textAlign: "center", maxWidth: 480, margin: "40px auto" }}>

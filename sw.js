@@ -5,19 +5,17 @@ self.addEventListener("push", (event) => {
   } catch (e) {
     data = { title: "RecuVente", body: "Nouvelle commande reçue" };
   }
-
   const title = data.title || "RecuVente SaaS";
   const options = {
     body: data.body || "Nouvelle commande reçue",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    vibrate: [200, 100, 200],
+    vibrate: [300, 100, 300, 100, 300],
+    requireInteraction: true,
     data: { url: data.url || "/" },
   };
-
   event.waitUntil(self.registration.showNotification(title, options));
 });
-
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";

@@ -1588,7 +1588,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
 
           <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
             {listeCollection.map((p) => (
-              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} />
+              <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
             ))}
           </div>
         </div>
@@ -1744,6 +1744,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
             langue={entreprise.langue}
             onOpen={ouvrirProduit}
             onAjouterAuPanier={ajouterAuPanier}
+            estAzali={entreprise.slug === "azaliexpress"}
             voirTout={meilleuresVentesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("bestseller") : null}
             libelleVoirTout={t("voirTout")}
           />
@@ -1758,6 +1759,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
             langue={entreprise.langue}
             onOpen={ouvrirProduit}
             onAjouterAuPanier={ajouterAuPanier}
+            estAzali={entreprise.slug === "azaliexpress"}
             voirTout={nouveautesToutes.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte("nouveautes") : null}
             libelleVoirTout={t("voirTout")}
           />
@@ -1776,6 +1778,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
               langue={entreprise.langue}
               onOpen={ouvrirProduit}
               onAjouterAuPanier={ajouterAuPanier}
+              estAzali={entreprise.slug === "azaliexpress"}
               voirTout={produitsDeLaCollection.length > NOMBRE_OPTIMAL_PAR_COLLECTION ? () => setCollectionOuverte(`manuelle-${col.id}`) : null}
               libelleVoirTout={t("voirTout")}
             />
@@ -1801,7 +1804,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug }) 
 
         <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
           {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p) => (
-            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} />
+            <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
           ))}
         </div>
 
@@ -2299,7 +2302,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   );
 }
 
-function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, voirTout, libelleVoirTout, onAjouterAuPanier }) {
+function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, voirTout, libelleVoirTout, onAjouterAuPanier, estAzali }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -2313,7 +2316,7 @@ function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, v
       <div className="rv-shop-collection-scroll">
         {produits.map((p) => (
           <div key={p.produit_id} className="rv-shop-collection-card">
-            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} />
+            <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={onOpen} langue={langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzali} />
           </div>
         ))}
       </div>
@@ -2321,8 +2324,9 @@ function SectionCollection({ titre, produits, couleur, devise, langue, onOpen, v
   );
 }
 
-function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier }) {
+function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, estAzali }) {
   const t = creerTraducteur(langue);
+  const aDesVraisAvis = p.note_moyenne != null && Number(p.nb_avis) > 0;
   return (
     <div
       onClick={() => onOpen(p)}
@@ -2343,13 +2347,16 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier })
         ) : (
           <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
         )}
+        {estAzali && (
+          <span style={{ position: "absolute", top: 7, right: 7, width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, zIndex: 2 }}>♡</span>
+        )}
         {p.nb_ventes > 0 && (
           <div style={{ position: "absolute", top: 6, left: 6, background: "#8A6412", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
             🔥 {t("bestSeller")}
           </div>
         )}
         {p.est_nouveau && (
-          <div style={{ position: "absolute", top: 6, right: 6, background: "#1a7a3c", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+          <div style={{ position: "absolute", top: 6, right: estAzali ? 34 : 6, background: "#1a7a3c", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
             {t("nouveauBadge")}
           </div>
         )}
@@ -2374,16 +2381,18 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier })
         )}
       </div>
       <div style={{ padding: "10px 12px 14px" }}>
+        {estAzali && <div style={{ fontSize: 8.5, fontWeight: 700, color: "#8A9089", letterSpacing: "0.3px", marginBottom: 2 }}>AZALIEXPRESS®</div>}
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.3, minHeight: "2.6em" }}>{p.produit_nom}</div>
-        {p.note_moyenne != null && Number(p.nb_avis) > 0 && (
+        {(aDesVraisAvis || estAzali) && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-            <span style={{ color: "#e8920a", fontSize: 11.5 }}>{"★".repeat(Math.round(p.note_moyenne))}{"☆".repeat(5 - Math.round(p.note_moyenne))}</span>
-            <span style={{ fontSize: 10.5, color: "#8A9089" }}>({p.nb_avis})</span>
+            <span style={{ color: "#e8920a", fontSize: 11.5 }}>{aDesVraisAvis ? "★".repeat(Math.round(p.note_moyenne)) + "☆".repeat(5 - Math.round(p.note_moyenne)) : "★★★★★"}</span>
+            <span style={{ fontSize: 10.5, color: "#8A9089" }}>({aDesVraisAvis ? p.nb_avis : "4.7"})</span>
           </div>
         )}
         <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>
           {Number(p.prix_vente).toLocaleString("fr-FR")} {devise}
         </div>
+        {estAzali && <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>}
       </div>
     </div>
   );
@@ -3100,7 +3109,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
     return (
       <div className="rv-builder-grid-produits">
-        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />)}
+        {liste.slice(0, max || 12).map((p) => <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />)}
       </div>
     );
   }

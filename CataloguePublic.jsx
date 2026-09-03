@@ -2054,7 +2054,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
   return (
     <div style={{ fontFamily: "sans-serif" }}>
-      {estFixe && <div style={{ height: 96 }} />}
+      {estFixe && <div style={{ height: 52 }} />}
       <div style={styleFixe}>
         {topbarVisible && (
           <div style={{ background: "#145c2e", color: "rgba(255,255,255,0.92)", padding: "7px 30px", position: "relative" }}>
@@ -2067,33 +2067,33 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           </div>
         )}
 
-        <div style={{ background: couleur, padding: "10px 16px" }}>
+        <div style={{ background: couleur, padding: estFixe ? "6px 16px" : "10px 16px", transition: "padding 0.2s ease" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}>
               {entreprise.logo ? (
-                <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 40, objectFit: "contain" }} />
+                <img src={entreprise.logo} alt={entreprise.nom} style={{ height: estFixe ? 28 : 40, objectFit: "contain", transition: "height 0.2s ease" }} />
               ) : (
-                <span style={{ fontWeight: 800, fontSize: 18, color: "white" }}>{entreprise.nom}</span>
+                <span style={{ fontWeight: 800, fontSize: estFixe ? 14 : 18, color: "white" }}>{entreprise.nom}</span>
               )}
             </div>
 
-            {entreprise.country === "CI" && (
+            {!estFixe && entreprise.country === "CI" && (
               <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.8)", flexShrink: 0, lineHeight: 1.3 }}>
                 📍 Livrer à<br /><span style={{ fontWeight: 700, color: "white" }}>Abidjan ▾</span>
               </div>
             )}
 
-            <div style={{ flex: 1, minWidth: 160, display: "flex", background: "white", borderRadius: 8, overflow: "hidden" }}>
-              <span style={{ padding: "10px 0 10px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
+            <div style={{ flex: 1, minWidth: 140, display: "flex", background: "white", borderRadius: 8, overflow: "hidden" }}>
+              <span style={{ padding: estFixe ? "6px 0 6px 12px" : "10px 0 10px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
               <input
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 placeholder={t("rechercherProduit") || "Rechercher un produit, une marque..."}
-                style={{ flex: 1, border: "none", background: "transparent", padding: "10px 10px", fontSize: 13, outline: "none" }}
+                style={{ flex: 1, border: "none", background: "transparent", padding: estFixe ? "6px 8px" : "10px 10px", fontSize: 13, outline: "none" }}
               />
             </div>
 
-            {entreprise.whatsapp && (
+            {!estFixe && entreprise.whatsapp && (
               <a
                 href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
                 target="_blank"
@@ -2107,9 +2107,9 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
             <button
               onClick={onOuvrirPanier}
-              style={{ position: "relative", background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+              style={{ position: "relative", background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: estFixe ? "6px 11px" : "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
             >
-              🛒 {t("panier") || "Panier"}
+              🛒 {!estFixe && (t("panier") || "Panier")}
               {nbArticlesPanier > 0 && (
                 <span style={{ position: "absolute", top: -6, right: -6, background: "#D64933", color: "white", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {nbArticlesPanier}
@@ -2119,6 +2119,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           </div>
         </div>
 
+        {!estFixe && (
         <div style={{ background: "#145c2e", padding: "0 16px", overflowX: "auto" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}>
             <span
@@ -2149,6 +2150,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {entreprise.whatsapp && (

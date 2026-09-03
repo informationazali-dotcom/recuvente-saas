@@ -601,6 +601,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       const listeProduits = data.filter((p) => p.produit_nom);
       setProduits(listeProduits);
 
+      const idProduitDansUrl = new URLSearchParams(window.location.search).get("produit");
+      if (idProduitDansUrl) {
+        const trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl);
+        if (trouve) {
+          setProduitOuvert(trouve);
+          setForm({ client: "", tel: "", zone: "" });
+        }
+      }
+
       // Petit chargement séparé, sans toucher à la fonction catalogue_public existante,
       // pour récupérer les textes personnalisables du design dédié Azali Express.
       if ((data[0].slug || "") === "azaliexpress") {
@@ -610,31 +619,29 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           }
         });
       }
+    });
+  }, [workspaceId]);
 
-      supabase.rpc("temoignages_publics", { p_workspace_id: workspaceId }).then(({ data: dataTemoignages }) => {
-        setAvisBoutique(dataTemoignages || []);
-      });
+  // Ces deux requêtes ne dépendent pas du résultat de catalogue_public : elles partent
+  // en même temps (en parallèle), au lieu d'attendre qu'il ait fini — la boutique
+  // s'affiche complètement d'un coup, plus de second temps de chargement visible.
+  useEffect(() => {
+    if (!workspaceId) return;
 
-      supabase.rpc("collections_publiques", { p_workspace_id: workspaceId }).then(({ data: dataCollections }) => {
-        if (!dataCollections || dataCollections.length === 0) return;
-        const parCollection = {};
-        dataCollections.forEach((ligne) => {
-          if (!parCollection[ligne.collection_id]) {
-            parCollection[ligne.collection_id] = { id: ligne.collection_id, nom: ligne.collection_nom, ordre: ligne.ordre, produitIds: [] };
-          }
-          parCollection[ligne.collection_id].produitIds.push(ligne.produit_id);
-        });
-        setCollectionsManuelles(Object.values(parCollection).sort((a, b) => a.ordre - b.ordre));
-      });
+    supabase.rpc("temoignages_publics", { p_workspace_id: workspaceId }).then(({ data: dataTemoignages }) => {
+      setAvisBoutique(dataTemoignages || []);
+    });
 
-      const idProduitDansUrl = new URLSearchParams(window.location.search).get("produit");
-      if (idProduitDansUrl) {
-        const trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl);
-        if (trouve) {
-          setProduitOuvert(trouve);
-          setForm({ client: "", tel: "", zone: "" });
+    supabase.rpc("collections_publiques", { p_workspace_id: workspaceId }).then(({ data: dataCollections }) => {
+      if (!dataCollections || dataCollections.length === 0) return;
+      const parCollection = {};
+      dataCollections.forEach((ligne) => {
+        if (!parCollection[ligne.collection_id]) {
+          parCollection[ligne.collection_id] = { id: ligne.collection_id, nom: ligne.collection_nom, ordre: ligne.ordre, produitIds: [] };
         }
-      }
+        parCollection[ligne.collection_id].produitIds.push(ligne.produit_id);
+      });
+      setCollectionsManuelles(Object.values(parCollection).sort((a, b) => a.ordre - b.ordre));
     });
   }, [workspaceId]);
 
@@ -870,8 +877,23 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   if (entreprise === undefined && !erreur) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#8A9089", fontFamily: "sans-serif" }}>
-        Chargement…
+      <div style={{ minHeight: "100vh", fontFamily: "sans-serif", background: "#FAFAF7" }}>
+        <style>{`@keyframes rvPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } } .rv-skel { animation: rvPulse 1.4s ease-in-out infinite; background: #E5E2D8; border-radius: 8px; }`}</style>
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="rv-skel" style={{ width: 100, height: 32 }} />
+          <div className="rv-skel" style={{ flex: 1, height: 32, borderRadius: 8 }} />
+          <div className="rv-skel" style={{ width: 60, height: 32 }} />
+        </div>
+        <div className="rv-skel" style={{ margin: "0 16px 16px", height: 200, borderRadius: 14 }} />
+        <div style={{ display: "flex", gap: 12, padding: "0 16px", overflow: "hidden" }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} style={{ flexShrink: 0, width: 150 }}>
+              <div className="rv-skel" style={{ width: "100%", height: 130, marginBottom: 8 }} />
+              <div className="rv-skel" style={{ width: "80%", height: 12, marginBottom: 6 }} />
+              <div className="rv-skel" style={{ width: "50%", height: 12 }} />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

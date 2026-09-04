@@ -306,6 +306,15 @@ function couleurTextePourFond(hexFond) {
   return luminance(hexFond) > 0.6 ? "#16231F" : "#ffffff";
 }
 
+function slugifierProduit(nom) {
+  return String(nom || "produit")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 function urlEmbedVideo(url) {
   if (!url) return "";
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/);
@@ -636,7 +645,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
       const idProduitDansUrl = new URLSearchParams(window.location.search).get("produit");
       if (idProduitDansUrl) {
-        const trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl);
+        const suffixe8 = idProduitDansUrl.slice(-8);
+        const trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl || p.produit_id.slice(0, 8) === suffixe8);
         if (trouve) {
           setProduitOuvert(trouve);
           setForm({ client: "", tel: "", zone: "" });
@@ -699,7 +709,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setAvisListe(data || []);
     });
     const url = new URL(window.location.href);
-    url.searchParams.set("produit", p.produit_id);
+    url.searchParams.set("produit", `${slugifierProduit(p.produit_nom)}-${p.produit_id.slice(0, 8)}`);
     window.history.pushState({}, "", url);
     window.scrollTo(0, 0);
   }

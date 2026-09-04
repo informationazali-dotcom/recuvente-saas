@@ -3677,6 +3677,46 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
+    if (type === "custom_html") {
+      return <div dangerouslySetInnerHTML={{ __html: config.customHtmlCode || "" }} />;
+    }
+
+    if (type === "scrolling_alert") {
+      return (
+        <div style={{ padding: "9px 0", background: couleurSection, overflow: "hidden", whiteSpace: "nowrap" }}>
+          <style>{`@keyframes rvScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } } .rv-scroll-alert { display: inline-block; animation: rvScroll 18s linear infinite; }`}</style>
+          <div className="rv-scroll-alert" style={{ color: "white", fontSize: 12, fontWeight: 800 }}>
+            {(config.scrollingAlertTexte || "").repeat(8)}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "two_images_text") {
+      return (
+        <div style={{ padding: "30px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.twoImagesTextTitre}</div>
+          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.65, maxWidth: 520, margin: "0 auto 20px" }}>{config.twoImagesTextTexte}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 600, margin: "0 auto" }}>
+            {[config.twoImagesTextImage1, config.twoImagesTextImage2].map((img, i) => (
+              <div key={i} style={{ height: 200, borderRadius: 14, background: img ? `url(${img}) center/cover` : "#eef3ee", display: img ? undefined : "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>
+                {!img && "🖼️"}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "wavy_banner") {
+      return (
+        <div style={{ background: couleurSection, padding: "44px 20px 40px", textAlign: "center", position: "relative", clipPath: "ellipse(65% 100% at 50% 0%)" }}>
+          <div style={{ color: "white", fontWeight: 900, fontSize: 24, marginBottom: 18, marginTop: 14 }}>{config.wavyBannerTitre}</div>
+          <button style={{ border: 0, borderRadius: 999, padding: "13px 28px", background: "white", color: couleurSection, fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config.wavyBannerBouton}</button>
+        </div>
+      );
+    }
+
     if (type === "hero") {
       if (entreprise.slug === "azaliexpress") {
         const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);

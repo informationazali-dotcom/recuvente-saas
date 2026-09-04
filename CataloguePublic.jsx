@@ -282,6 +282,30 @@ const TRADUCTIONS = {
     tonCommentaire: "Your comment (optional)",
   },
 };
+function luminance(hex) {
+  const h = (hex || "").replace("#", "");
+  if (h.length !== 6) return 0.5;
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// Pour un texte utilisant la couleur choisie par le marchand sur un fond clair :
+// si la couleur est trop pâle pour rester lisible, on la fonce automatiquement
+// (le marchand n'a rien à régler en plus, ça reste toujours lisible).
+function couleurTexteLisible(hex) {
+  if (!hex) return "#16231F";
+  if (luminance(hex) > 0.72) return "#16231F";
+  return hex;
+}
+
+// Pour un texte posé sur un fond de la couleur choisie : blanc si le fond est
+// foncé, sombre si le fond est clair — jamais de texte invisible.
+function couleurTextePourFond(hexFond) {
+  return luminance(hexFond) > 0.6 ? "#16231F" : "#ffffff";
+}
+
 function urlEmbedVideo(url) {
   if (!url) return "";
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/);
@@ -3383,7 +3407,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       const t = setInterval(() => setSlideIndex((i) => (i + 1) % slides.length), 5000);
       return () => clearInterval(t);
     }, [type, (config.diaporamaSlides || []).length]);
-    if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleurSection, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
+    if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleurSection, color: couleurTextePourFond(couleurSection), fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
 
     if (type === "flash_sale") {
       return (
@@ -3402,7 +3426,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14 }}>
             {(config.statsItems || []).map((s, i) => (
               <div key={i} style={{ background: "rgba(255,255,255,0.7)", borderRadius: 14, padding: "16px 10px", boxShadow: "0 6px 18px rgba(26,122,60,0.06)" }}>
-                <div style={{ fontSize: "clamp(20px,3.5vw,30px)", fontWeight: 900, color: couleurSection }}>{s.valeur}</div>
+                <div style={{ fontSize: "clamp(20px,3.5vw,30px)", fontWeight: 900, color: couleurTexteLisible(couleurSection) }}>{s.valeur}</div>
                 <div style={{ fontSize: 10.5, color: "#6B7168", marginTop: 4 }}>{s.label}</div>
               </div>
             ))}
@@ -3465,11 +3489,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             {!p.photo_url && "🛍️"}
           </div>
           <div style={{ flex: "1 1 280px", padding: "30px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            {config.featuredProductLabel && <div style={{ fontSize: 10.5, fontWeight: 900, color: couleurSection, letterSpacing: "0.06em", marginBottom: 8 }}>{config.featuredProductLabel.toUpperCase()}</div>}
+            {config.featuredProductLabel && <div style={{ fontSize: 10.5, fontWeight: 900, color: couleurTexteLisible(couleurSection), letterSpacing: "0.06em", marginBottom: 8 }}>{config.featuredProductLabel.toUpperCase()}</div>}
             <div style={{ fontSize: 23, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{p.produit_nom}</div>
             <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7, marginBottom: 14 }}>{descriptionExtrait}{descriptionExtrait.length >= 160 ? "…" : ""}</div>
-            <div style={{ fontSize: 19, fontWeight: 900, color: couleurSection, marginBottom: 14 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
-            <button onClick={() => ouvrirProduit(p)} style={{ alignSelf: "flex-start", border: 0, borderRadius: 10, padding: "12px 22px", background: couleurSection, color: "white", fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
+            <div style={{ fontSize: 19, fontWeight: 900, color: couleurTexteLisible(couleurSection), marginBottom: 14 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
+            <button onClick={() => ouvrirProduit(p)} style={{ alignSelf: "flex-start", border: 0, borderRadius: 10, padding: "12px 22px", background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
               {config.buttonText || "Découvrir"}
             </button>
           </div>
@@ -3561,7 +3585,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <input id={`${idBase}-nom`} placeholder="Nom" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13 }} />
             <input id={`${idBase}-tel`} placeholder="Téléphone" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13 }} />
             <textarea id={`${idBase}-msg`} placeholder="Message" rows={3} style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13, resize: "vertical" }} />
-            <button onClick={envoyer} style={{ border: 0, borderRadius: 10, padding: "12px", background: couleurSection, color: "white", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+            <button onClick={envoyer} style={{ border: 0, borderRadius: 10, padding: "12px", background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
               Envoyer sur WhatsApp
             </button>
           </div>
@@ -3580,7 +3604,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <div style={{ position: "relative", zIndex: 2 }}>
               <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{slide.titre}</div>
               <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 16, maxWidth: 460, margin: "0 auto 16px" }}>{slide.texte}</div>
-              {slide.bouton && <button style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurSection, fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>{slide.bouton}</button>}
+              {slide.bouton && <button style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>{slide.bouton}</button>}
             </div>
           </div>
           {slides.length > 1 && (
@@ -3602,7 +3626,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.08em", opacity: 0.85, marginBottom: 8 }}>COLLECTION</div>
           <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{config.featuredCollectionTitre || col.nom}</div>
           <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 18, maxWidth: 440 }}>{config.featuredCollectionTexte}</div>
-          <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurSection, fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
+          <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
             Voir la collection
           </button>
         </div>
@@ -3634,7 +3658,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))`, gap: 20, maxWidth: 900, margin: "0 auto" }}>
             {etapes.map((e, i) => (
               <div key={e.id} style={{ textAlign: "center" }}>
-                <div style={{ width: 38, height: 38, borderRadius: "50%", background: couleurSection, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, margin: "0 auto 12px", fontSize: 15 }}>{i + 1}</div>
+                <div style={{ width: 38, height: 38, borderRadius: "50%", background: couleurSection, color: couleurTextePourFond(couleurSection), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, margin: "0 auto 12px", fontSize: 15 }}>{i + 1}</div>
                 <div style={{ fontWeight: 900, fontSize: 13.5, color: "#132019", marginBottom: 6 }}>{e.titre}</div>
                 <div style={{ fontSize: 12, color: "#68756d", lineHeight: 1.55 }}>{e.texte}</div>
               </div>
@@ -3685,7 +3709,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={{ padding: "9px 0", background: couleurSection, overflow: "hidden", whiteSpace: "nowrap" }}>
           <style>{`@keyframes rvScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } } .rv-scroll-alert { display: inline-block; animation: rvScroll 18s linear infinite; }`}</style>
-          <div className="rv-scroll-alert" style={{ color: "white", fontSize: 12, fontWeight: 800 }}>
+          <div className="rv-scroll-alert" style={{ color: couleurTextePourFond(couleurSection), fontSize: 12, fontWeight: 800 }}>
             {(config.scrollingAlertTexte || "").repeat(8)}
           </div>
         </div>
@@ -3711,8 +3735,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (type === "wavy_banner") {
       return (
         <div style={{ background: couleurSection, padding: "44px 20px 40px", textAlign: "center", position: "relative", clipPath: "ellipse(65% 100% at 50% 0%)" }}>
-          <div style={{ color: "white", fontWeight: 900, fontSize: 24, marginBottom: 18, marginTop: 14 }}>{config.wavyBannerTitre}</div>
-          <button style={{ border: 0, borderRadius: 999, padding: "13px 28px", background: "white", color: couleurSection, fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config.wavyBannerBouton}</button>
+          <div style={{ color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 24, marginBottom: 18, marginTop: 14 }}>{config.wavyBannerTitre}</div>
+          <button style={{ border: 0, borderRadius: 999, padding: "13px 28px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config.wavyBannerBouton}</button>
         </div>
       );
     }
@@ -3812,7 +3836,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 21, color: "#14221b" }}>{type === "bestsellers" ? "🔥 Meilleures ventes" : "Nos produits"}</h3>
             {troncature && (
-              <button onClick={() => setCollectionOuverte(type === "bestsellers" ? "bestseller" : "tous")} style={{ background: "none", border: "none", color: couleurSection, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <button onClick={() => setCollectionOuverte(type === "bestsellers" ? "bestseller" : "tous")} style={{ background: "none", border: "none", color: couleurTexteLisible(couleurSection), fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
                 Voir tout ({liste.length}) →
               </button>
             )}
@@ -3824,6 +3848,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "bundles") {
       const base = bestsellersAffiches[0]?.prix_vente || produits[0]?.prix_vente || 0;
+      const couleurLisible = couleurTexteLisible(couleurSection);
       return (
         <div style={{ ...commonPad, background: "#fffdf7" }}>
           <div style={{ textAlign: "center", marginBottom: 16 }}>
@@ -3834,11 +3859,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             {(config.bundles || []).map((b, i) => {
               const total = Number(base) * b.qty * (1 - (Number(b.discount) || 0) / 100);
               return (
-                <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleurSection : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
+                <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleurLisible : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
                   <div style={{ fontSize: 13, fontWeight: 950, color: "#16231c" }}>{b.label}</div>
                   <div style={{ fontSize: 11, color: "#7b857e", marginTop: 4 }}>{b.qty} produit(s) · {b.discount || 0}% de remise</div>
-                  <div style={{ fontSize: 21, fontWeight: 950, color: couleurSection, marginTop: 10 }}>{base ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
-                  <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleurSection, color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>
+                  <div style={{ fontSize: 21, fontWeight: 950, color: couleurLisible, marginTop: 10 }}>{base ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
+                  <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 11, cursor: "pointer" }}>
                     Choisir un produit →
                   </button>
                 </div>
@@ -3920,7 +3945,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "cod_form") return (
       <div style={{ ...commonPad, background: "#f7faf7", textAlign: "center" }}>
-        <div style={{ fontSize: 10, fontWeight: 950, color: couleurSection }}>COMMANDE SIMPLE & RAPIDE</div>
+        <div style={{ fontSize: 10, fontWeight: 950, color: couleurTexteLisible(couleurSection) }}>COMMANDE SIMPLE & RAPIDE</div>
         <h3 style={{ margin: "5px 0 10px", fontSize: 21, color: "#14221b" }}>📝 Choisis un produit pour commander</h3>
         <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleurSection, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
           Voir les produits

@@ -2657,6 +2657,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
   const [showProduits, setShowProduits] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
+  const [showProspectsIA, setShowProspectsIA] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -4245,6 +4246,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             ⭐ Avis clients
           </button>
         )}
+        {session?.user?.email === "oulipaiexpress@gmail.com" && (
+          <button
+            onClick={() => setShowProspectsIA(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🤖 Prospects IA
+          </button>
+        )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
             onClick={() => setShowTemoignages(true)}
@@ -5257,6 +5266,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={workspace.currency} />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
+      {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
@@ -8234,6 +8244,140 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProspectsIAModal({ onClose }) {
+  const [secteur, setSecteur] = useState("");
+  const [ville, setVille] = useState("");
+  const [recherche, setRecherche] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const [prospects, setProspects] = useState([]);
+  const [filtreStatut, setFiltreStatut] = useState("");
+  const [chargement, setChargement] = useState(true);
+  const [copie, setCopie] = useState(null);
+
+  async function chargerProspects() {
+    setChargement(true);
+    let q = supabase.from("prospects").select("*").order("score", { ascending: false });
+    if (filtreStatut) q = q.eq("statut", filtreStatut);
+    const { data } = await q;
+    setProspects(data || []);
+    setChargement(false);
+  }
+
+  useEffect(() => { chargerProspects(); }, [filtreStatut]);
+
+  async function lancerRecherche() {
+    if (!secteur.trim()) { setErreur("Indique un secteur de recherche."); return; }
+    setRecherche(true);
+    setErreur("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const resp = await fetch("/api/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "prospection", secteur, ville }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { setErreur(data.error || "Erreur pendant la recherche."); setRecherche(false); return; }
+      await chargerProspects();
+      setSecteur("");
+      setVille("");
+    } catch (e) {
+      setErreur(e.message);
+    }
+    setRecherche(false);
+  }
+
+  async function changerStatut(id, nouveauStatut) {
+    await supabase.from("prospects").update({ statut: nouveauStatut, updated_at: new Date().toISOString() }).eq("id", id);
+    chargerProspects();
+  }
+
+  function copierMessage(prospect) {
+    navigator.clipboard.writeText(prospect.message_suggere || "");
+    setCopie(prospect.id);
+    setTimeout(() => setCopie(null), 2000);
+  }
+
+  const couleurStatut = { NEW: "#8A9089", CONTACTED: "#e8920a", RESPONDED: "#1a7a3c", HOT: "#D64933", CUSTOMER: "#1a7a3c", LOST: "#999", DO_NOT_CONTACT: "#666" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 820, maxHeight: "90vh", overflow: "auto", padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>🤖 Agent de recherche de prospects</div>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10 }}>
+            Décris le type d'entreprise à trouver — l'IA cherche sur le web, note leur potentiel sur 100, et rédige un message personnalisé pour chacune.
+          </div>
+          <input
+            value={secteur}
+            onChange={(e) => setSecteur(e.target.value)}
+            placeholder="Secteur (ex: boutiques de vêtements sur Instagram)"
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box" }}
+          />
+          <input
+            value={ville}
+            onChange={(e) => setVille(e.target.value)}
+            placeholder="Ville (optionnel, ex: Abidjan)"
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box" }}
+          />
+          {erreur && <div style={{ background: "#FBEAE6", color: "#D64933", borderRadius: 8, padding: "8px 10px", fontSize: 11.5, marginBottom: 8 }}>⚠️ {erreur}</div>}
+          <button onClick={lancerRecherche} disabled={recherche} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+            {recherche ? "🔍 Recherche en cours (peut prendre 30-60 sec)..." : "🔍 Lancer la recherche"}
+          </button>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+          {["", "NEW", "CONTACTED", "RESPONDED", "HOT", "CUSTOMER", "LOST"].map((s) => (
+            <button key={s} onClick={() => setFiltreStatut(s)} style={{ padding: "5px 11px", borderRadius: 999, border: "1px solid " + (filtreStatut === s ? "#1a7a3c" : "#ECE8DC"), background: filtreStatut === s ? "#1a7a3c" : "white", color: filtreStatut === s ? "white" : "#425048", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              {s || "Tous"}
+            </button>
+          ))}
+        </div>
+
+        {chargement ? (
+          <div style={{ textAlign: "center", padding: 30, color: "#8A9089", fontSize: 12 }}>Chargement...</div>
+        ) : prospects.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 30, color: "#8A9089", fontSize: 12 }}>Aucun prospect pour l'instant — lance une recherche ci-dessus.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {prospects.map((p) => (
+              <div key={p.id} style={{ border: "1px solid #ECE8DC", borderRadius: 12, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13.5 }}>{p.nom || p.entreprise}</div>
+                    <div style={{ fontSize: 11, color: "#8A9089" }}>{p.secteur} {p.ville ? `· ${p.ville}` : ""}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontWeight: 900, fontSize: 16, color: p.score >= 70 ? "#1a7a3c" : p.score >= 40 ? "#e8920a" : "#999" }}>{p.score}</div>
+                    <span style={{ background: couleurStatut[p.statut] || "#999", color: "white", fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999 }}>{p.statut}</span>
+                  </div>
+                </div>
+                {p.probleme_identifie && <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 8, fontStyle: "italic" }}>💡 {p.probleme_identifie}</div>}
+                {p.message_suggere && (
+                  <div style={{ background: "#FAFAF7", borderRadius: 8, padding: "9px 11px", fontSize: 11.5, color: "#16231F", marginBottom: 8, lineHeight: 1.5 }}>{p.message_suggere}</div>
+                )}
+                {p.site_web && <div style={{ fontSize: 10.5, marginBottom: 8 }}><a href={p.site_web} target="_blank" rel="noopener noreferrer" style={{ color: "#1a7a3c" }}>🔗 {p.site_web}</a></div>}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button onClick={() => copierMessage(p)} style={{ border: "1px solid #cfdad2", background: "#f8fbf8", color: "#1a7a3c", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+                    {copie === p.id ? "✅ Copié" : "📋 Copier le message"}
+                  </button>
+                  {p.statut === "NEW" && <button onClick={() => changerStatut(p.id, "CONTACTED")} style={{ border: "1px solid #e8920a", background: "white", color: "#e8920a", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>Marquer contacté</button>}
+                  {p.statut === "CONTACTED" && <button onClick={() => changerStatut(p.id, "RESPONDED")} style={{ border: "1px solid #1a7a3c", background: "white", color: "#1a7a3c", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>A répondu</button>}
+                  <button onClick={() => changerStatut(p.id, "LOST")} style={{ border: "1px solid #ECE8DC", background: "white", color: "#999", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>Perdu</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

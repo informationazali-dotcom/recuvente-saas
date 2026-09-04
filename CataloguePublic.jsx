@@ -3397,11 +3397,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "stats") {
       return (
-        <div style={{ background: "#FAFAF7", padding: "26px 16px", textAlign: "center" }}>
+        <div style={{ background: "linear-gradient(160deg, #FFFFFF 0%, #F3F7F1 55%, #ECF3EA 100%)", padding: "30px 16px", textAlign: "center" }}>
           <div style={{ fontSize: 11, color: "#8A9089", fontWeight: 700, marginBottom: 16, letterSpacing: "0.4px" }}>NOS CHIFFRES</div>
-          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14 }}>
             {(config.statsItems || []).map((s, i) => (
-              <div key={i}>
+              <div key={i} style={{ background: "rgba(255,255,255,0.7)", borderRadius: 14, padding: "16px 10px", boxShadow: "0 6px 18px rgba(26,122,60,0.06)" }}>
                 <div style={{ fontSize: "clamp(20px,3.5vw,30px)", fontWeight: 900, color: couleurSection }}>{s.valeur}</div>
                 <div style={{ fontSize: 10.5, color: "#6B7168", marginTop: 4 }}>{s.label}</div>
               </div>
@@ -3413,7 +3413,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "brands_cta") {
       return (
-        <div style={{ background: "#16231F", padding: "32px 20px", textAlign: "center" }}>
+        <div style={{ background: "linear-gradient(150deg, #1c2b23 0%, #16231F 60%, #0f1a15 100%)", padding: "32px 20px", textAlign: "center" }}>
           <div style={{ fontWeight: 800, fontSize: 18, color: "white", marginBottom: 8, maxWidth: 480, margin: "0 auto 8px" }}>{config.brandsCtaTitre}</div>
           <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)", maxWidth: 460, margin: "0 auto 20px", lineHeight: 1.6 }}>{config.brandsCtaTexte}</div>
           {entreprise.whatsapp && (
@@ -3983,11 +3983,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         }
       `}</style>
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} />
-      {sectionsNormalisees.filter((s) => s.visible !== false).map((s) => {
+      {sectionsNormalisees.filter((s) => s.visible !== false).map((s, i) => {
         const idsCorrespondants = { products: "produits", promo: "promo", contact: "contact", faq: "faq", testimonials: "avis", whatsapp: "whatsapp", delivery: "livraison", bundles: "bundles" };
         return (
           <div key={s.id} id={idsCorrespondants[s.type] || undefined}>
-            <Section s={s} />
+            {i === 0 ? <Section s={s} /> : <RevealOnScroll><Section s={s} /></RevealOnScroll>}
           </div>
         );
       })}

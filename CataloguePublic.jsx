@@ -3368,6 +3368,75 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     const couleurSection = (config.sectionColors && config.sectionColors[type]) || couleur;
     if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleurSection, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
 
+    if (type === "flash_sale") {
+      return (
+        <div style={{ padding: "26px 20px", textAlign: "center", background: "linear-gradient(135deg,#D64933,#e8920a)" }}>
+          <div style={{ color: "white", fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{config.flashSaleTitre}</div>
+          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginBottom: 16 }}>{config.flashSaleTexte}</div>
+          <CompteARebours />
+        </div>
+      );
+    }
+
+    if (type === "stats") {
+      return (
+        <div style={{ background: "#FAFAF7", padding: "26px 16px", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "#8A9089", fontWeight: 700, marginBottom: 16, letterSpacing: "0.4px" }}>NOS CHIFFRES</div>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+            {(config.statsItems || []).map((s, i) => (
+              <div key={i}>
+                <div style={{ fontSize: "clamp(20px,3.5vw,30px)", fontWeight: 900, color: couleurSection }}>{s.valeur}</div>
+                <div style={{ fontSize: 10.5, color: "#6B7168", marginTop: 4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "brands_cta") {
+      return (
+        <div style={{ background: "#16231F", padding: "32px 20px", textAlign: "center" }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: "white", marginBottom: 8, maxWidth: 480, margin: "0 auto 8px" }}>{config.brandsCtaTitre}</div>
+          <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)", maxWidth: 460, margin: "0 auto 20px", lineHeight: 1.6 }}>{config.brandsCtaTexte}</div>
+          {entreprise.whatsapp && (
+            <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}>
+              💬 Écrire sur WhatsApp
+            </a>
+          )}
+        </div>
+      );
+    }
+
+    if (type === "payment_methods") {
+      return (
+        <div style={{ background: "white", padding: "20px 16px" }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            {(config.paymentMethodsListe || []).map((m, i) => (
+              <div key={i} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 14px", fontSize: 11.5, fontWeight: 600, color: "#16231F" }}>{m}</div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "category_tiles") {
+      if (!derivedCollections.length) return null;
+      return (
+        <div style={commonPad}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Faites vos achats par catégorie</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+            {derivedCollections.slice(0, 8).map((c) => (
+              <button key={c.id} onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: "16px 8px", borderRadius: 12, background: "#f5f8f5", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ fontSize: 22 }}>🗂️</div>
+                <div style={{ fontWeight: 850, fontSize: 11, marginTop: 6 }}>{c.nom}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     if (type === "hero") {
       if (entreprise.slug === "azaliexpress") {
         const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);

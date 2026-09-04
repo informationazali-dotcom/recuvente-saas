@@ -7,6 +7,10 @@ const supabaseAdmin = createClient(
 
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   // ===== PROSPECTION AUTOMATIQUE 24/24 (déclenchée par GitHub Actions) =====
   // Contourne la limite "une fois par jour" des tâches planifiées Vercel gratuites :

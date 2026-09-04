@@ -29,6 +29,10 @@ export default async function handler(req, res) {
     // Secteurs et villes qui correspondent réellement au profil de client
     // idéal de RecuVente (COD, gestion manuelle par WhatsApp/Instagram, PME africaines).
     const SECTEURS_CIBLES = [
+      "boutiques en ligne utilisant Shopify",
+      "e-commerçants vendant sur Instagram et Facebook",
+      "vendeurs en ligne avec paiement à la livraison",
+      "petites boutiques en ligne indépendantes",
       "boutiques de vêtements sur Instagram",
       "vendeurs de cosmétiques et produits de beauté sur WhatsApp",
       "boutiques d'électronique et téléphones",
@@ -37,7 +41,6 @@ export default async function handler(req, res) {
       "boutiques de produits pour bébés et enfants",
       "magasins de pièces automobiles",
       "vendeurs de produits capillaires et perruques",
-      "boutiques en ligne sans vraie plateforme de vente",
       "entreprises de livraison à domicile",
       "vendeurs de compléments alimentaires et bien-être",
       "boutiques de décoration et maison",
@@ -63,6 +66,24 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
 }
 
 IMPORTANT — Ne retiens QUE des entreprises ACTIVES en ce moment : vérifie qu'elles ont publié du contenu (post Instagram/Facebook, mise à jour de site) au cours des 2-3 derniers mois. Ignore complètement les comptes ou sites dont la dernière activité visible remonte à plus de 6 mois — ce sont probablement des commerces fermés ou abandonnés, sans intérêt commercial.
+
+CIBLAGE PRIORITAIRE (environ 80% des prospects trouvés) : toute personne ou entreprise qui vend déjà en ligne, quel que soit son outil actuel — y compris celles qui utilisent DÉJÀ Shopify, WooCommerce, ou une autre plateforme, pas seulement celles qui vendent uniquement par WhatsApp/Instagram sans outil. Le reste (20%) peut être des commerces encore 100% manuels.
+
+POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, ou une plateforme similaire, présente RecuVente comme une VRAIE ALTERNATIVE supérieure pour l'Afrique de l'Ouest, pas juste un outil de plus. RecuVente réunit en UN SEUL abonnement (9 500 FCFA/mois, pas en dollars) des fonctionnalités que Shopify et YouCan n'ont PAS nativement, ou seulement via des applications payantes en plus :
+
+- Paiement à la livraison géré nativement du début à la fin (Shopify/YouCan sont pensés pour le paiement en ligne à l'achat, pas pour le COD)
+- Gestion complète des livreurs : assignation, suivi, statut de chaque livraison
+- Rapprochement des paiements Mobile Money avec lecture automatique des reçus par photo (scan OCR) — aucune des deux plateformes ne propose ça
+- Suivi du bénéfice RÉEL après coûts (pas juste le chiffre d'affaires brut)
+- Gestion d'équipe de vente avec closers/vendeurs et suivi de leurs performances
+- Marketing et relance client directement intégrés à WhatsApp, sans app tierce
+- Gestion de plusieurs boutiques/activités depuis un seul tableau de bord
+- Comptabilité, reçus et factures générés automatiquement
+- Prix fixe en FCFA, aucune surprise liée au taux de change dollar
+
+Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
+
+Pour les prospects qui ne vendent pas encore en ligne du tout, mets plutôt en avant la simplicité de création de boutique et une sélection de ces mêmes fonctionnalités qui n'existent nulle part ailleurs en un seul outil.
 
 Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
 
@@ -134,6 +155,24 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
 }
 
 IMPORTANT — Ne retiens QUE des entreprises ACTIVES en ce moment : vérifie qu'elles ont publié du contenu (post Instagram/Facebook, mise à jour de site) au cours des 2-3 derniers mois. Ignore complètement les comptes ou sites dont la dernière activité visible remonte à plus de 6 mois — ce sont probablement des commerces fermés ou abandonnés, sans intérêt commercial.
+
+CIBLAGE PRIORITAIRE (environ 80% des prospects trouvés) : toute personne ou entreprise qui vend déjà en ligne, quel que soit son outil actuel — y compris celles qui utilisent DÉJÀ Shopify, WooCommerce, ou une autre plateforme, pas seulement celles qui vendent uniquement par WhatsApp/Instagram sans outil. Le reste (20%) peut être des commerces encore 100% manuels.
+
+POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, ou une plateforme similaire, présente RecuVente comme une VRAIE ALTERNATIVE supérieure pour l'Afrique de l'Ouest, pas juste un outil de plus. RecuVente réunit en UN SEUL abonnement (9 500 FCFA/mois, pas en dollars) des fonctionnalités que Shopify et YouCan n'ont PAS nativement, ou seulement via des applications payantes en plus :
+
+- Paiement à la livraison géré nativement du début à la fin (Shopify/YouCan sont pensés pour le paiement en ligne à l'achat, pas pour le COD)
+- Gestion complète des livreurs : assignation, suivi, statut de chaque livraison
+- Rapprochement des paiements Mobile Money avec lecture automatique des reçus par photo (scan OCR) — aucune des deux plateformes ne propose ça
+- Suivi du bénéfice RÉEL après coûts (pas juste le chiffre d'affaires brut)
+- Gestion d'équipe de vente avec closers/vendeurs et suivi de leurs performances
+- Marketing et relance client directement intégrés à WhatsApp, sans app tierce
+- Gestion de plusieurs boutiques/activités depuis un seul tableau de bord
+- Comptabilité, reçus et factures générés automatiquement
+- Prix fixe en FCFA, aucune surprise liée au taux de change dollar
+
+Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
+
+Pour les prospects qui ne vendent pas encore en ligne du tout, mets plutôt en avant la simplicité de création de boutique et une sélection de ces mêmes fonctionnalités qui n'existent nulle part ailleurs en un seul outil.
 
 Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
 

@@ -83,7 +83,16 @@ POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, o
 
 Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
 
-Pour les prospects qui ne vendent pas encore en ligne du tout, mets plutôt en avant la simplicité de création de boutique et une sélection de ces mêmes fonctionnalités qui n'existent nulle part ailleurs en un seul outil.
+Pour les prospects qui ne vendent PAS encore en ligne (encore 100% WhatsApp/Instagram sans vraie boutique) : l'argumentaire doit être tout aussi fort, pas un simple à-côté. Mets en avant, selon ce qui est pertinent :
+
+- Créer sa vraie boutique en ligne en quelques minutes, sans aucune compétence technique
+- Ne plus perdre de commandes dans les messages WhatsApp éparpillés — tout centralisé au même endroit
+- Savoir enfin combien on gagne réellement chaque mois (bénéfice net, pas juste ce qui rentre)
+- Ne plus avoir à gérer les livreurs par appels téléphoniques — suivi organisé de chaque livraison
+- Donner une image professionnelle avec une vraie boutique, sans les coûts et la complexité de Shopify
+- Tout gérer (produits, clients, stock, équipe) au même endroit dès le premier jour, sans devoir ajouter d'outils au fil du temps
+
+C'est le même produit, avec la même puissance, pour les deux profils — adapte simplement l'angle : « passer d'un autre outil à mieux » pour ceux qui vendent déjà en ligne, « démarrer directement avec le bon outil » pour ceux qui n'y sont pas encore.
 
 Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
 
@@ -172,7 +181,16 @@ POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, o
 
 Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
 
-Pour les prospects qui ne vendent pas encore en ligne du tout, mets plutôt en avant la simplicité de création de boutique et une sélection de ces mêmes fonctionnalités qui n'existent nulle part ailleurs en un seul outil.
+Pour les prospects qui ne vendent PAS encore en ligne (encore 100% WhatsApp/Instagram sans vraie boutique) : l'argumentaire doit être tout aussi fort, pas un simple à-côté. Mets en avant, selon ce qui est pertinent :
+
+- Créer sa vraie boutique en ligne en quelques minutes, sans aucune compétence technique
+- Ne plus perdre de commandes dans les messages WhatsApp éparpillés — tout centralisé au même endroit
+- Savoir enfin combien on gagne réellement chaque mois (bénéfice net, pas juste ce qui rentre)
+- Ne plus avoir à gérer les livreurs par appels téléphoniques — suivi organisé de chaque livraison
+- Donner une image professionnelle avec une vraie boutique, sans les coûts et la complexité de Shopify
+- Tout gérer (produits, clients, stock, équipe) au même endroit dès le premier jour, sans devoir ajouter d'outils au fil du temps
+
+C'est le même produit, avec la même puissance, pour les deux profils — adapte simplement l'angle : « passer d'un autre outil à mieux » pour ceux qui vendent déjà en ligne, « démarrer directement avec le bon outil » pour ceux qui n'y sont pas encore.
 
 Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
 
@@ -290,70 +308,4 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
   const token = authHeader.replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Non authentifié" });
 
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-  if (userError || !userData.user) return res.status(401).json({ error: "Session invalide" });
-
-  const { workspaceId, domaine, action } = req.body;
-  if (!workspaceId || !domaine) return res.status(400).json({ error: "Champs manquants" });
-
-  // Seul le propriétaire de l'espace peut gérer son propre domaine
-  const { data: ws } = await supabaseAdmin
-    .from("workspaces")
-    .select("owner_id")
-    .eq("id", workspaceId)
-    .single();
-  if (!ws || ws.owner_id !== userData.user.id) {
-    return res.status(403).json({ error: "Seul le propriétaire de cet espace peut gérer son domaine" });
-  }
-
-  const vercelToken = process.env.VERCEL_API_TOKEN;
-  if (!vercelToken) return res.status(500).json({ error: "Configuration serveur incomplète (VERCEL_API_TOKEN manquant)" });
-
-  const domainePropre = domaine.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
-
-  // ===== RETIRER =====
-  if (action === "remove") {
-    const resp = await fetch(`https://api.vercel.com/v9/projects/${VERCEL_PROJECT}/domains/${domainePropre}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${vercelToken}` },
-    });
-    if (!resp.ok && resp.status !== 404) {
-      const err = await resp.json().catch(() => ({}));
-      return res.status(400).json({ error: err?.error?.message || "Erreur lors du retrait du domaine sur Vercel" });
-    }
-    return res.status(200).json({ success: true });
-  }
-
-  // ===== AJOUTER =====
-  const resp = await fetch(`https://api.vercel.com/v10/projects/${VERCEL_PROJECT}/domains`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${vercelToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name: domainePropre }),
-  });
-
-  const data = await resp.json().catch(() => ({}));
-
-  if (!resp.ok) {
-    // Vercel renvoie un message clair, on le relaie tel quel
-    return res.status(400).json({ error: data?.error?.message || "Erreur lors de l'ajout du domaine sur Vercel" });
-  }
-
-  // Vercel indique quels enregistrements DNS le client doit ajouter chez SON registrar.
-  // On relaie cette info telle quelle, sans l'inventer.
-  const verification = data.verification || [];
-  const configureA = !domainePropre.includes(".") ? [] : [{ type: "A", name: "@", value: "76.76.21.21" }];
-
-  return res.status(200).json({
-    success: true,
-    domaine: domainePropre,
-    verified: data.verified === true,
-    instructions: {
-      cname: { type: "CNAME", name: domainePropre.split(".").length > 2 ? domainePropre.split(".")[0] : "www", value: "cname.vercel-dns.com" },
-      a: configureA[0] || null,
-      verification,
-    },
-  });
-}
+  const { data:

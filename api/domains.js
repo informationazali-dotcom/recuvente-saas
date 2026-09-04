@@ -56,10 +56,13 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
   "secteur": "...",
   "ville": "...",
   "site_web_ou_reseau": "URL réelle trouvée",
+  "telephone_whatsapp": "numéro de téléphone/WhatsApp trouvé publiquement (au format international, ex: 2250700000000), ou vide si introuvable",
   "probleme_identifie": "ce qui suggère qu'ils géreraient mieux avec RecuVente",
   "score": nombre de 0 à 100 selon le potentiel,
   "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
 }
+
+IMPORTANT — Ne retiens QUE des entreprises ACTIVES en ce moment : vérifie qu'elles ont publié du contenu (post Instagram/Facebook, mise à jour de site) au cours des 2-3 derniers mois. Ignore complètement les comptes ou sites dont la dernière activité visible remonte à plus de 6 mois — ce sont probablement des commerces fermés ou abandonnés, sans intérêt commercial.
 
 Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
 
@@ -90,9 +93,10 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         pays: "CI",
         source: "agent_ia_auto",
         site_web: p.site_web_ou_reseau || null,
+        telephone: p.telephone_whatsapp || null,
         probleme_identifie: p.probleme_identifie || null,
         score: Number(p.score) || 0,
-        message_suggere: p.message_suggere || null,
+        message_suggere: p.message_suggere ? `${p.message_suggere}\n\n👉 https://wa.me/message/XHYI5VOMCUFGM1` : null,
         statut: "NEW",
       }));
       if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
@@ -123,10 +127,13 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
   "secteur": "...",
   "ville": "...",
   "site_web_ou_reseau": "URL réelle trouvée",
+  "telephone_whatsapp": "numéro de téléphone/WhatsApp trouvé publiquement (au format international, ex: 2250700000000), ou vide si introuvable",
   "probleme_identifie": "ce qui suggère qu'ils géreraient mieux avec RecuVente",
   "score": nombre de 0 à 100 selon le potentiel,
   "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
 }
+
+IMPORTANT — Ne retiens QUE des entreprises ACTIVES en ce moment : vérifie qu'elles ont publié du contenu (post Instagram/Facebook, mise à jour de site) au cours des 2-3 derniers mois. Ignore complètement les comptes ou sites dont la dernière activité visible remonte à plus de 6 mois — ce sont probablement des commerces fermés ou abandonnés, sans intérêt commercial.
 
 Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
 
@@ -168,9 +175,10 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         pays: "CI",
         source: "agent_ia",
         site_web: p.site_web_ou_reseau || null,
+        telephone: p.telephone_whatsapp || null,
         probleme_identifie: p.probleme_identifie || null,
         score: Number(p.score) || 0,
-        message_suggere: p.message_suggere || null,
+        message_suggere: p.message_suggere ? `${p.message_suggere}\n\n👉 https://wa.me/message/XHYI5VOMCUFGM1` : null,
         statut: "NEW",
       }));
 

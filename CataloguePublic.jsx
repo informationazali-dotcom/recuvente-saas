@@ -449,6 +449,25 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       balise.setAttribute("content", contenu || "");
     }
 
+    // Chaque boutique doit afficher SON logo dans l'onglet du navigateur, pas
+    // celui de RecuVente. setAttribute seul ne suffit pas toujours à forcer les
+    // navigateurs à rafraîchir le favicon affiché : on supprime les anciens liens
+    // et on en recrée de nouveaux, avec un paramètre pour casser le cache.
+    if (entreprise.logo) {
+      document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((lien) => lien.remove());
+      const urlLogoAvecCache = `${entreprise.logo}${entreprise.logo.includes("?") ? "&" : "?"}v=${encodeURIComponent(entreprise.slug || "shop")}`;
+      [
+        { rel: "icon", type: "image/png", sizes: "192x192" },
+        { rel: "icon", type: "image/png", sizes: "512x512" },
+        { rel: "apple-touch-icon" },
+      ].forEach((attrs) => {
+        const lien = document.createElement("link");
+        Object.entries(attrs).forEach(([k, v]) => lien.setAttribute(k, v));
+        lien.setAttribute("href", urlLogoAvecCache);
+        document.head.appendChild(lien);
+      });
+    }
+
     if (produitOuvert) {
       const titre = `${produitOuvert.produit_nom} — ${entreprise.nom}`;
       const description = (produitOuvert.produit_description || entreprise.description || "").replace(/<[^>]*>/g, "").slice(0, 160);

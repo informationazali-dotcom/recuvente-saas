@@ -11,6 +11,20 @@ export const config = {
   maxDuration: 60,
 };
 
+// Évite d'insérer deux fois le même prospect (même nom, ou même site/réseau),
+// que ce soit lors du même passage ou d'un jour à l'autre.
+async function filtrerDoublons(lignesCandidates) {
+  if (lignesCandidates.length === 0) return [];
+  const { data: existants } = await supabaseAdmin.from("prospects").select("nom, site_web");
+  const nomsExistants = new Set((existants || []).map((p) => (p.nom || "").trim().toLowerCase()).filter(Boolean));
+  const sitesExistants = new Set((existants || []).map((p) => (p.site_web || "").trim().toLowerCase()).filter(Boolean));
+  return lignesCandidates.filter((p) => {
+    const nom = (p.nom || "").trim().toLowerCase();
+    const site = (p.site_web || "").trim().toLowerCase();
+    return !(nomsExistants.has(nom) && nom) && !(sitesExistants.has(site) && site);
+  });
+}
+
 export default async function handler(req, res) {
   // ===== PROSPECTION AUTOMATIQUE 24/24 (déclenchée par GitHub Actions) =====
   // Contourne la limite "une fois par jour" des tâches planifiées Vercel gratuites :
@@ -115,7 +129,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
       if (!matchJSON) return res.status(200).json({ success: true, inseres: 0, secteur, ville });
 
       const prospectsTrouves = JSON.parse(matchJSON[0]);
-      const lignesAInserer = prospectsTrouves.map((p) => ({
+      const lignesCandidates = prospectsTrouves.map((p) => ({
         nom: p.nom || null,
         entreprise: p.nom || null,
         secteur: p.secteur || secteur,
@@ -129,9 +143,10 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         message_suggere: p.message_suggere ? `${p.message_suggere}\n\n👉 https://wa.me/message/XHYI5VOMCUFGM1` : null,
         statut: "NEW",
       }));
+      const lignesAInserer = await filtrerDoublons(lignesCandidates);
       if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
 
-      return res.status(200).json({ success: true, inseres: lignesAInserer.length, secteur, ville });
+      return res.status(200).json({ success: true, inseres: lignesAInserer.length, doublonsIgnores: lignesCandidates.length - lignesAInserer.length, secteur, ville });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
@@ -178,7 +193,6 @@ POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, o
 - Gestion de plusieurs boutiques/activités depuis un seul tableau de bord
 - Comptabilité, reçus et factures générés automatiquement
 - Prix fixe en FCFA, aucune surprise liée au taux de change dollar
-
 Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
 
 Pour les prospects qui ne vendent PAS encore en ligne (encore 100% WhatsApp/Instagram sans vraie boutique) : l'argumentaire doit être tout aussi fort, pas un simple à-côté. Mets en avant, selon ce qui est pertinent :
@@ -224,7 +238,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         return res.status(200).json({ success: true, prospects: [], erreurParsing: true, brut: texteReponse });
       }
 
-      const lignesAInserer = prospectsTrouves.map((p) => ({
+      const lignesCandidates = prospectsTrouves.map((p) => ({
         nom: p.nom || null,
         entreprise: p.nom || null,
         secteur: p.secteur || secteur,
@@ -239,11 +253,12 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         statut: "NEW",
       }));
 
+      const lignesAInserer = await filtrerDoublons(lignesCandidates);
       if (lignesAInserer.length > 0) {
         await supabaseAdmin.from("prospects").insert(lignesAInserer);
       }
 
-      return res.status(200).json({ success: true, prospects: lignesAInserer });
+      return res.status(200).json({ success: true, prospects: lignesAInserer, doublonsIgnores: lignesCandidates.length - lignesAInserer.length });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
@@ -308,4 +323,70 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
   const token = authHeader.replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Non authentifié" });
 
-  const { data:
+  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  if (userError || !userData.user) return res.status(401).json({ error: "Session invalide" });
+
+  const { workspaceId, domaine, action } = req.body;
+  if (!workspaceId || !domaine) return res.status(400).json({ error: "Champs manquants" });
+
+  // Seul le propriétaire de l'espace peut gérer son propre domaine
+  const { data: ws } = await supabaseAdmin
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", workspaceId)
+    .single();
+  if (!ws || ws.owner_id !== userData.user.id) {
+    return res.status(403).json({ error: "Seul le propriétaire de cet espace peut gérer son domaine" });
+  }
+
+  const vercelToken = process.env.VERCEL_API_TOKEN;
+  if (!vercelToken) return res.status(500).json({ error: "Configuration serveur incomplète (VERCEL_API_TOKEN manquant)" });
+
+  const domainePropre = domaine.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+  // ===== RETIRER =====
+  if (action === "remove") {
+    const resp = await fetch(`https://api.vercel.com/v9/projects/${VERCEL_PROJECT}/domains/${domainePropre}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${vercelToken}` },
+    });
+    if (!resp.ok && resp.status !== 404) {
+      const err = await resp.json().catch(() => ({}));
+      return res.status(400).json({ error: err?.error?.message || "Erreur lors du retrait du domaine sur Vercel" });
+    }
+    return res.status(200).json({ success: true });
+  }
+
+  // ===== AJOUTER =====
+  const resp = await fetch(`https://api.vercel.com/v10/projects/${VERCEL_PROJECT}/domains`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${vercelToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: domainePropre }),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+
+  if (!resp.ok) {
+    // Vercel renvoie un message clair, on le relaie tel quel
+    return res.status(400).json({ error: data?.error?.message || "Erreur lors de l'ajout du domaine sur Vercel" });
+  }
+
+  // Vercel indique quels enregistrements DNS le client doit ajouter chez SON registrar.
+  // On relaie cette info telle quelle, sans l'inventer.
+  const verification = data.verification || [];
+  const configureA = !domainePropre.includes(".") ? [] : [{ type: "A", name: "@", value: "76.76.21.21" }];
+
+  return res.status(200).json({
+    success: true,
+    domaine: domainePropre,
+    verified: data.verified === true,
+    instructions: {
+      cname: { type: "CNAME", name: domainePropre.split(".").length > 2 ? domainePropre.split(".")[0] : "www", value: "cname.vercel-dns.com" },
+      a: configureA[0] || null,
+      verification,
+    },
+  });
+}

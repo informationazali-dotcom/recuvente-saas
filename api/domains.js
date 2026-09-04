@@ -8,7 +8,98 @@ const supabaseAdmin = createClient(
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
 export default async function handler(req, res) {
-  // ===== AGENT DE RECHERCHE DE PROSPECTS (IA) =====
+  // ===== PROSPECTION AUTOMATIQUE 24/24 (déclenchée par GitHub Actions) =====
+  // Contourne la limite "une fois par jour" des tâches planifiées Vercel gratuites :
+  // GitHub Actions appelle cette route toutes les quelques heures, en continu.
+  // Appel : POST /api/domains { action: "prospection_auto" }, avec en-tête
+  // Authorization: Bearer <PROSPECTION_SECRET>
+  if (req.method === "POST" && req.body?.action === "prospection_auto") {
+    const authHeader = req.headers.authorization || "";
+    if (authHeader !== `Bearer ${process.env.PROSPECTION_SECRET}`) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY manquante côté serveur" });
+
+    // Secteurs et villes qui correspondent réellement au profil de client
+    // idéal de RecuVente (COD, gestion manuelle par WhatsApp/Instagram, PME africaines).
+    const SECTEURS_CIBLES = [
+      "boutiques de vêtements sur Instagram",
+      "vendeurs de cosmétiques et produits de beauté sur WhatsApp",
+      "boutiques d'électronique et téléphones",
+      "restaurants avec livraison à domicile",
+      "vendeurs de chaussures et accessoires",
+      "boutiques de produits pour bébés et enfants",
+      "magasins de pièces automobiles",
+      "vendeurs de produits capillaires et perruques",
+      "boutiques en ligne sans vraie plateforme de vente",
+      "entreprises de livraison à domicile",
+      "vendeurs de compléments alimentaires et bien-être",
+      "boutiques de décoration et maison",
+    ];
+    const VILLES_CIBLES = ["Abidjan", "Bouaké", "Yamoussoukro", "San-Pédro", "Korhogo", "Daloa"];
+    const secteur = SECTEURS_CIBLES[Math.floor(Math.random() * SECTEURS_CIBLES.length)];
+    const ville = VILLES_CIBLES[Math.floor(Math.random() * VILLES_CIBLES.length)];
+
+    const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
+
+Cherche sur le web 5 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}" à ${ville}, Côte d'Ivoire, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+
+Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
+{
+  "nom": "nom du compte/entreprise",
+  "secteur": "...",
+  "ville": "...",
+  "site_web_ou_reseau": "URL réelle trouvée",
+  "probleme_identifie": "ce qui suggère qu'ils géreraient mieux avec RecuVente",
+  "score": nombre de 0 à 100 selon le potentiel,
+  "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
+}
+
+Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
+
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: "claude-sonnet-5",
+          max_tokens: 4000,
+          messages: [{ role: "user", content: prompt }],
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) return res.status(500).json({ error: data?.error?.message || "Erreur API Claude" });
+
+      const texteReponse = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+      const matchJSON = texteReponse.match(/\[[\s\S]*\]/);
+      if (!matchJSON) return res.status(200).json({ success: true, inseres: 0, secteur, ville });
+
+      const prospectsTrouves = JSON.parse(matchJSON[0]);
+      const lignesAInserer = prospectsTrouves.map((p) => ({
+        nom: p.nom || null,
+        entreprise: p.nom || null,
+        secteur: p.secteur || secteur,
+        ville: p.ville || ville,
+        pays: "CI",
+        source: "agent_ia_auto",
+        site_web: p.site_web_ou_reseau || null,
+        probleme_identifie: p.probleme_identifie || null,
+        score: Number(p.score) || 0,
+        message_suggere: p.message_suggere || null,
+        statut: "NEW",
+      }));
+      if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
+
+      return res.status(200).json({ success: true, inseres: lignesAInserer.length, secteur, ville });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ===== AGENT DE RECHERCHE DE PROSPECTS (IA, déclenché manuellement depuis le tableau de bord) =====
   // Fusionné ici pour ne pas dépasser la limite de fonctions du plan Vercel Hobby.
   // Appel : POST /api/domains { action: "prospection", secteur, ville }
   if (req.method === "POST" && req.body?.action === "prospection") {

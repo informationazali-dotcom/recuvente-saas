@@ -7,5 +7,10 @@
   ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" }
-  ]
+  ],
+  "functions": {
+    "api/domains.js": {
+      "maxDuration": 280
+    }
+  }
 }

@@ -3375,6 +3375,14 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   function Section({ s }) {
     const type = s.type;
     const couleurSection = (config.sectionColors && config.sectionColors[type]) || couleur;
+    const [slideIndex, setSlideIndex] = useState(0);
+    useEffect(() => {
+      if (type !== "diaporama") return;
+      const slides = config.diaporamaSlides || [];
+      if (slides.length <= 1) return;
+      const t = setInterval(() => setSlideIndex((i) => (i + 1) % slides.length), 5000);
+      return () => clearInterval(t);
+    }, [type, (config.diaporamaSlides || []).length]);
     if (type === "announcement") return <div style={{ padding: "10px 14px", background: couleurSection, color: "#fff", fontSize: 11, fontWeight: 800, textAlign: "center" }}>{config.announcement}</div>;
 
     if (type === "flash_sale") {
@@ -3556,6 +3564,114 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <button onClick={envoyer} style={{ border: 0, borderRadius: 10, padding: "12px", background: couleurSection, color: "white", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
               Envoyer sur WhatsApp
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "diaporama") {
+      const slides = config.diaporamaSlides || [];
+      const slide = slides[slideIndex] || slides[0];
+      if (!slide) return null;
+      return (
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", minHeight: 300, background: slide.image ? `url(${slide.image}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)`, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", color: "white", padding: 24 }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)" }} />
+            <div style={{ position: "relative", zIndex: 2 }}>
+              <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{slide.titre}</div>
+              <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 16, maxWidth: 460, margin: "0 auto 16px" }}>{slide.texte}</div>
+              {slide.bouton && <button style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurSection, fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>{slide.bouton}</button>}
+            </div>
+          </div>
+          {slides.length > 1 && (
+            <div style={{ position: "absolute", bottom: 14, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
+              {slides.map((_, i) => (
+                <button key={i} onClick={() => setSlideIndex(i)} style={{ width: i === slideIndex ? 20 : 7, height: 6, borderRadius: 4, background: i === slideIndex ? "white" : "rgba(255,255,255,0.5)", border: "none", cursor: "pointer", padding: 0 }} />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (type === "featured_collection") {
+      const col = derivedCollections.find((c) => c.id === config.featuredCollectionId) || derivedCollections[0];
+      if (!col) return null;
+      return (
+        <div style={{ position: "relative", minHeight: 260, background: `linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.6)),linear-gradient(135deg,${couleurSection},#0b2416)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", color: "white", padding: 28 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.08em", opacity: 0.85, marginBottom: 8 }}>COLLECTION</div>
+          <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{config.featuredCollectionTitre || col.nom}</div>
+          <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 18, maxWidth: 440 }}>{config.featuredCollectionTexte}</div>
+          <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurSection, fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
+            Voir la collection
+          </button>
+        </div>
+      );
+    }
+
+    if (type === "tabs") {
+      const items = config.tabsItems || [];
+      const actif = items[slideIndex] || items[0];
+      if (!actif) return null;
+      return (
+        <div style={{ padding: "30px 20px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", justifyContent: "center" }}>
+            {items.map((t, i) => (
+              <button key={t.id} onClick={() => setSlideIndex(i)} style={{ padding: "9px 16px", borderRadius: 999, background: i === slideIndex ? couleurSection : "#f0f3f0", color: i === slideIndex ? "white" : "#425048", fontSize: 12, fontWeight: 800, border: "none", cursor: "pointer" }}>
+                {t.titre}
+              </button>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", fontSize: 13, color: "#68756d", lineHeight: 1.7, maxWidth: 520, margin: "0 auto" }}>{actif.texte}</div>
+        </div>
+      );
+    }
+
+    if (type === "timeline") {
+      const etapes = config.timelineEtapes || [];
+      return (
+        <div style={{ padding: "30px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))`, gap: 20, maxWidth: 900, margin: "0 auto" }}>
+            {etapes.map((e, i) => (
+              <div key={e.id} style={{ textAlign: "center" }}>
+                <div style={{ width: 38, height: 38, borderRadius: "50%", background: couleurSection, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, margin: "0 auto 12px", fontSize: 15 }}>{i + 1}</div>
+                <div style={{ fontWeight: 900, fontSize: 13.5, color: "#132019", marginBottom: 6 }}>{e.titre}</div>
+                <div style={{ fontSize: 12, color: "#68756d", lineHeight: 1.55 }}>{e.texte}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "reviews_carousel") {
+      const avis = avisBoutique && avisBoutique.length ? avisBoutique : [];
+      if (avis.length === 0) return null;
+      return (
+        <div style={{ padding: "26px 20px", maxWidth: 1200, margin: "0 auto" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b", textAlign: "center" }}>Ce que disent nos clients</h3>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
+            {avis.slice(0, 10).map((a, i) => (
+              <div key={i} style={{ flexShrink: 0, width: 240, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16 }}>
+                <div style={{ color: "#e8920a", fontSize: 14, marginBottom: 8 }}>{"★".repeat(a.note || 5)}{"☆".repeat(5 - (a.note || 5))}</div>
+                {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", lineHeight: 1.55, marginBottom: 10 }}>{a.commentaire}</div>}
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#6B7168" }}>{a.client_nom}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "image_text_bubble") {
+      return (
+        <div style={{ padding: "50px 24px", position: "relative" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", maxWidth: 700, margin: "0 auto" }}>
+            <div style={{ flex: "1 1 320px", height: 260, borderRadius: 22, background: config.imageTextBubbleImage ? `url(${config.imageTextBubbleImage}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)`, boxShadow: "0 24px 48px rgba(0,0,0,0.15)" }} />
+            <div style={{ flex: "1 1 320px", marginLeft: -50, marginTop: 0, background: "white", borderRadius: 20, padding: "28px 24px", boxShadow: "0 18px 40px rgba(0,0,0,0.1)", position: "relative", zIndex: 2 }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.imageTextBubbleTitre}</div>
+              <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.65 }}>{config.imageTextBubbleTexte}</div>
+            </div>
           </div>
         </div>
       );

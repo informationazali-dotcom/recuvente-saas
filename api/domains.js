@@ -1,4 +1,4 @@
- import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -8,6 +8,59 @@ const supabaseAdmin = createClient(
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
 export default async function handler(req, res) {
+  // ===== FLUX PRODUITS (Facebook/Google Shopping) =====
+  // Fusionné ici pour ne pas dépasser la limite de fonctions du plan Vercel Hobby.
+  // Appel : GET /api/domains?feed=1&workspace=WORKSPACE_ID
+  if (req.method === "GET" && req.query.feed) {
+    const workspaceId = req.query.workspace;
+    if (!workspaceId) return res.status(400).send("Paramètre workspace manquant.");
+
+    const { data: produits, error } = await supabaseAdmin.rpc("flux_produits_public", {
+      p_workspace_id: workspaceId,
+    });
+
+    if (error) return res.status(500).send("Erreur lors du chargement des produits : " + error.message);
+    if (!produits || produits.length === 0) return res.status(404).send("Aucun produit trouvé pour cette boutique.");
+
+    const echapper = (texte) =>
+      String(texte || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+    const nomBoutique = echapper(produits[0].nom_boutique || "Ma boutique");
+    const slug = produits[0].slug;
+    const urlBoutique = slug ? `https://recuvente-saas.vercel.app/?boutique=${slug}` : `https://recuvente-saas.vercel.app/?catalogue=${workspaceId}`;
+
+    const items = produits
+      .map((p) => {
+        const urlProduit = `${urlBoutique}&produit=${p.produit_id}`;
+        return `
+    <item>
+      <g:id>${p.produit_id}</g:id>
+      <title>${echapper(p.produit_nom)}</title>
+      <description>${echapper(p.description || p.produit_nom)}</description>
+      <link>${echapper(urlProduit)}</link>
+      <g:image_link>${echapper(p.photo_url)}</g:image_link>
+      <g:availability>${p.en_stock ? "in stock" : "out of stock"}</g:availability>
+      <g:price>${Number(p.prix_vente).toFixed(2)} ${p.devise}</g:price>
+      <g:brand>${nomBoutique}</g:brand>
+      <g:condition>new</g:condition>
+    </item>`;
+      })
+      .join("");
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+<channel>
+  <title>${nomBoutique}</title>
+  <link>${echapper(urlBoutique)}</link>
+  <description>Catalogue produits de ${nomBoutique}</description>${items}
+</channel>
+</rss>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.status(200).send(xml);
+  }
+
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
 
   const authHeader = req.headers.authorization || "";

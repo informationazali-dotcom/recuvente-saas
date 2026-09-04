@@ -8,6 +8,87 @@ const supabaseAdmin = createClient(
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
 export default async function handler(req, res) {
+  // ===== AGENT DE RECHERCHE DE PROSPECTS (IA) =====
+  // Fusionné ici pour ne pas dépasser la limite de fonctions du plan Vercel Hobby.
+  // Appel : POST /api/domains { action: "prospection", secteur, ville }
+  if (req.method === "POST" && req.body?.action === "prospection") {
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY manquante côté serveur" });
+
+    const { secteur, ville } = req.body;
+    if (!secteur) return res.status(400).json({ error: "Le secteur est requis (ex: 'boutiques de vêtements Instagram')" });
+
+    const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
+
+Cherche sur le web ${5} entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}"${ville ? ` à ${ville}, Côte d'Ivoire` : " en Côte d'Ivoire"}, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+
+Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
+{
+  "nom": "nom du compte/entreprise",
+  "secteur": "...",
+  "ville": "...",
+  "site_web_ou_reseau": "URL réelle trouvée",
+  "probleme_identifie": "ce qui suggère qu'ils géreraient mieux avec RecuVente",
+  "score": nombre de 0 à 100 selon le potentiel,
+  "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
+}
+
+Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
+
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-5",
+          max_tokens: 4000,
+          messages: [{ role: "user", content: prompt }],
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) return res.status(500).json({ error: data?.error?.message || "Erreur API Claude" });
+
+      const texteReponse = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+      const matchJSON = texteReponse.match(/\[[\s\S]*\]/);
+      if (!matchJSON) return res.status(200).json({ success: true, prospects: [], brut: texteReponse });
+
+      let prospectsTrouves;
+      try {
+        prospectsTrouves = JSON.parse(matchJSON[0]);
+      } catch {
+        return res.status(200).json({ success: true, prospects: [], erreurParsing: true, brut: texteReponse });
+      }
+
+      const lignesAInserer = prospectsTrouves.map((p) => ({
+        nom: p.nom || null,
+        entreprise: p.nom || null,
+        secteur: p.secteur || secteur,
+        ville: p.ville || ville || null,
+        pays: "CI",
+        source: "agent_ia",
+        site_web: p.site_web_ou_reseau || null,
+        probleme_identifie: p.probleme_identifie || null,
+        score: Number(p.score) || 0,
+        message_suggere: p.message_suggere || null,
+        statut: "NEW",
+      }));
+
+      if (lignesAInserer.length > 0) {
+        await supabaseAdmin.from("prospects").insert(lignesAInserer);
+      }
+
+      return res.status(200).json({ success: true, prospects: lignesAInserer });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   // ===== FLUX PRODUITS (Facebook/Google Shopping) =====
   // Fusionné ici pour ne pas dépasser la limite de fonctions du plan Vercel Hobby.
   // Appel : GET /api/domains?feed=1&workspace=WORKSPACE_ID

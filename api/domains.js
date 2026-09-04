@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
 export const config = {
-  maxDuration: 120,
+  maxDuration: 280,
 };
 
 // Évite d'insérer deux fois le même prospect (même nom, ou même site/réseau),
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
     const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
 
-Cherche sur le web 5 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}" à ${ville}, Côte d'Ivoire, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+Cherche sur le web 3 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}" à ${ville}, Côte d'Ivoire, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
 
 Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
 {
@@ -164,7 +164,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
 
     const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
 
-Cherche sur le web ${5} entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}"${ville ? ` à ${ville}, Côte d'Ivoire` : " en Côte d'Ivoire"}, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+Cherche sur le web 3 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}"${ville ? ` à ${ville}, Côte d'Ivoire` : " en Côte d'Ivoire"}, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
 
 Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
 {

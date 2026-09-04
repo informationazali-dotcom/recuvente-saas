@@ -282,6 +282,15 @@ const TRADUCTIONS = {
     tonCommentaire: "Your comment (optional)",
   },
 };
+function urlEmbedVideo(url) {
+  if (!url) return "";
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/);
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  const vim = url.match(/vimeo\.com\/(\d+)/);
+  if (vim) return `https://player.vimeo.com/video/${vim[1]}`;
+  return url;
+}
+
 function creerTraducteur(langue) {
   const dict = TRADUCTIONS[langue] || TRADUCTIONS.fr;
   return (cle) => dict[cle] || TRADUCTIONS.fr[cle] || cle;
@@ -3454,6 +3463,98 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <div style={{ fontSize: 19, fontWeight: 900, color: couleurSection, marginBottom: 14 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
             <button onClick={() => ouvrirProduit(p)} style={{ alignSelf: "flex-start", border: 0, borderRadius: 10, padding: "12px 22px", background: couleurSection, color: "white", fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
               {config.buttonText || "Découvrir"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "rich_text") {
+      return (
+        <div style={{ padding: "30px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.richTextTitre}</div>
+          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.75, maxWidth: 640, margin: "0 auto" }}>{config.richTextTexte}</div>
+        </div>
+      );
+    }
+
+    if (type === "video") {
+      return (
+        <div style={{ padding: "26px 20px" }}>
+          {config.videoTitre && <div style={{ fontSize: 19, fontWeight: 900, color: "#132019", marginBottom: 14, textAlign: "center" }}>{config.videoTitre}</div>}
+          {config.videoUrl ? (
+            <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden", background: "#000", maxWidth: 800, margin: "0 auto" }}>
+              <iframe src={urlEmbedVideo(config.videoUrl)} title="Vidéo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen />
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (type === "trust_logos") {
+      if (!config.trustLogos || config.trustLogos.length === 0) return null;
+      return (
+        <div style={{ padding: "24px 20px", textAlign: "center" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 28 }}>
+            {config.trustLogos.map((u, i) => (
+              <img key={i} src={u} alt="" style={{ height: 38, objectFit: "contain", opacity: 0.82 }} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "before_after") {
+      return (
+        <div style={{ padding: "26px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 700, margin: "0 auto" }}>
+            {[["beforeAfterAvant", "beforeAfterLegendeAvant"], ["beforeAfterApres", "beforeAfterLegendeApres"]].map(([imgKey, legKey]) => (
+              <div key={imgKey}>
+                {config[imgKey] ? (
+                  <img src={config[imgKey]} alt="" style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 12 }} />
+                ) : (
+                  <div style={{ height: 220, background: "#eef3ee", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>🖼️</div>
+                )}
+                <div style={{ textAlign: "center", fontSize: 12, fontWeight: 800, marginTop: 8, color: "#344239" }}>{config[legKey]}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "cta_banner") {
+      return (
+        <div style={{ padding: "34px 20px", textAlign: "center", background: config.ctaBannerCouleur || couleurSection }}>
+          <div style={{ color: "white", fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{config.ctaBannerTitre}</div>
+          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, marginBottom: 18 }}>{config.ctaBannerTexte}</div>
+          <button style={{ border: 0, borderRadius: 10, padding: "13px 26px", background: "white", color: config.ctaBannerCouleur || couleurSection, fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+            {config.ctaBannerBouton}
+          </button>
+        </div>
+      );
+    }
+
+    if (type === "contact_form") {
+      const idBase = `cf-${s.id || Math.random().toString(36).slice(2)}`;
+      const envoyer = () => {
+        const nom = document.getElementById(`${idBase}-nom`)?.value || "";
+        const tel = document.getElementById(`${idBase}-tel`)?.value || "";
+        const msg = document.getElementById(`${idBase}-msg`)?.value || "";
+        if (!entreprise.whatsapp) return;
+        const texte = `Bonjour, je m'appelle ${nom} (${tel}).\n${msg}`;
+        window.open(`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(texte)}`, "_blank");
+      };
+      return (
+        <div style={{ padding: "30px 20px" }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 6, textAlign: "center" }}>{config.contactFormTitre}</div>
+          <div style={{ fontSize: 12.5, color: "#68756d", marginBottom: 18, textAlign: "center" }}>{config.contactFormTexte}</div>
+          <div style={{ display: "grid", gap: 10, maxWidth: 420, margin: "0 auto" }}>
+            <input id={`${idBase}-nom`} placeholder="Nom" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13 }} />
+            <input id={`${idBase}-tel`} placeholder="Téléphone" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13 }} />
+            <textarea id={`${idBase}-msg`} placeholder="Message" rows={3} style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13, resize: "vertical" }} />
+            <button onClick={envoyer} style={{ border: 0, borderRadius: 10, padding: "12px", background: couleurSection, color: "white", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+              Envoyer sur WhatsApp
             </button>
           </div>
         </div>

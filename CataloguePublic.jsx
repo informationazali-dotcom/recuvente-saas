@@ -3437,6 +3437,29 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
+    if (type === "featured_product") {
+      const p = produits.find((x) => x.produit_id === config.featuredProductId) || produits[0];
+      if (!p) return null;
+      const inverse = config.featuredProductPosition === "droite";
+      const descriptionExtrait = (p.produit_description || "").replace(/<[^>]*>/g, "").slice(0, 160);
+      return (
+        <div style={{ display: "flex", flexDirection: inverse ? "row-reverse" : "row", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 280px", minHeight: 260, background: p.photo_url ? `url(${p.photo_url}) center/cover` : "#eef3ee", display: p.photo_url ? undefined : "flex", alignItems: "center", justifyContent: "center", fontSize: 34 }}>
+            {!p.photo_url && "🛍️"}
+          </div>
+          <div style={{ flex: "1 1 280px", padding: "30px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            {config.featuredProductLabel && <div style={{ fontSize: 10.5, fontWeight: 900, color: couleurSection, letterSpacing: "0.06em", marginBottom: 8 }}>{config.featuredProductLabel.toUpperCase()}</div>}
+            <div style={{ fontSize: 23, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{p.produit_nom}</div>
+            <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7, marginBottom: 14 }}>{descriptionExtrait}{descriptionExtrait.length >= 160 ? "…" : ""}</div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: couleurSection, marginBottom: 14 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}</div>
+            <button onClick={() => ouvrirProduit(p)} style={{ alignSelf: "flex-start", border: 0, borderRadius: 10, padding: "12px 22px", background: couleurSection, color: "white", fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
+              {config.buttonText || "Découvrir"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     if (type === "hero") {
       if (entreprise.slug === "azaliexpress") {
         const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);

@@ -8247,6 +8247,47 @@ function AvisModal({ workspaceId, onClose }) {
   const [produitImportId, setProduitImportId] = useState("");
   const [texteImport, setTexteImport] = useState("");
   const [importEnCours, setImportEnCours] = useState(false);
+
+  function ligneCSVVersColonnes(ligne) {
+    // Découpe une ligne CSV en colonnes, en gérant les champs entre guillemets
+    // (qui peuvent contenir des virgules ou point-virgules sans casser le découpage).
+    const separateur = ligne.includes(";") && !ligne.includes(",") ? ";" : ",";
+    const colonnes = [];
+    let colonneActuelle = "";
+    let dansGuillemets = false;
+    for (let i = 0; i < ligne.length; i++) {
+      const c = ligne[i];
+      if (c === '"') { dansGuillemets = !dansGuillemets; continue; }
+      if (c === separateur && !dansGuillemets) { colonnes.push(colonneActuelle.trim()); colonneActuelle = ""; continue; }
+      colonneActuelle += c;
+    }
+    colonnes.push(colonneActuelle.trim());
+    return colonnes;
+  }
+
+  function importerFichierCSVAvis(fichier) {
+    if (!fichier) return;
+    const lecteur = new FileReader();
+    lecteur.onload = (e) => {
+      const contenu = String(e.target.result || "");
+      const lignes = contenu.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      // Si la première ligne ressemble à un en-tête (nom, note, commentaire...), on l'ignore.
+      const premiereLigneEstEntete = /nom|client|note|avis|comment/i.test(lignes[0] || "");
+      const lignesUtiles = premiereLigneEstEntete ? lignes.slice(1) : lignes;
+      const converties = lignesUtiles
+        .map((l) => {
+          const col = ligneCSVVersColonnes(l);
+          if (col.length < 2) return null;
+          return `${col[0] || "Client"} | ${col[1] || "5"} | ${(col[2] || "").replace(/\|/g, "-")}`;
+        })
+        .filter(Boolean)
+        .join("\n");
+      setTexteImport(converties);
+      setResultatImport({ succes: true, message: `Fichier lu : ${lignesUtiles.length} ligne(s) prête(s) à importer. Vérifie l'aperçu ci-dessous puis clique sur "Importer ces avis".` });
+    };
+    lecteur.readAsText(fichier, "UTF-8");
+  }
+
   const [resultatImport, setResultatImport] = useState(null);
 
   async function charger() {
@@ -8373,13 +8414,18 @@ function AvisModal({ workspaceId, onClose }) {
         {afficherImport && (
           <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
             <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.6 }}>
-              Va sur la page du produit sur AliExpress, copie chaque avis (nom, note, commentaire), et colle-les ici — <strong>un avis par ligne</strong>, dans ce format exact :<br />
+              Deux façons d'importer : <strong>1)</strong> choisis un fichier CSV avec 3 colonnes (Nom, Note, Commentaire) — exporté depuis Excel ou Google Sheets. <strong>2)</strong> ou copie chaque avis depuis AliExpress et colle-les directement, un avis par ligne, dans ce format :<br />
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>Nom du client | Note (1 à 5) | Le commentaire</span>
             </div>
             <select value={produitImportId} onChange={(e) => setProduitImportId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8, boxSizing: "border-box" }}>
               <option value="">Choisir le produit concerné...</option>
               {Object.entries(produitsMap).map(([id, nom]) => <option key={id} value={id}>{nom}</option>)}
             </select>
+            <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", boxSizing: "border-box", border: "1px solid #cfdad2", background: "#f8fbf8", color: "#1a7a3c", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
+              📄 Choisir un fichier CSV (colonnes : Nom, Note, Commentaire)
+              <input type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(e) => importerFichierCSVAvis(e.target.files?.[0])} />
+            </label>
+            <div style={{ textAlign: "center", fontSize: 10.5, color: "#8A9089", marginBottom: 10 }}>— ou colle directement le texte ci-dessous —</div>
             <textarea
               value={texteImport}
               onChange={(e) => setTexteImport(e.target.value)}

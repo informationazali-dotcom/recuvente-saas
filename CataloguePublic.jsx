@@ -3416,14 +3416,18 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "image_texte") {
-      const inverse = config.imageTextePosition === "droite";
+    if (type === "image_texte" || type.replace(/_\d+$/, "") === "image_texte") {
+      const suf = (/_(\d+)$/.exec(type) || [])[0] || "";
+      const img = config[`imageTexteImage${suf}`];
+      const titre = config[`imageTexteTitre${suf}`];
+      const texte = config[`imageTexteTexte${suf}`];
+      const inverse = config[`imageTextePosition${suf}`] === "droite";
       return (
         <div style={{ display: "flex", flexDirection: inverse ? "row-reverse" : "row", flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 280px", minHeight: 240, background: config.imageTexteImage ? `url(${config.imageTexteImage}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)` }} />
+          <div style={{ flex: "1 1 280px", minHeight: 240, background: img ? `url(${img}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)` }} />
           <div style={{ flex: "1 1 280px", padding: "30px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.imageTexteTitre}</div>
-            <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7 }}>{config.imageTexteTexte}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{titre}</div>
+            <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7 }}>{texte}</div>
           </div>
         </div>
       );

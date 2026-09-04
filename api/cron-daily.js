@@ -223,6 +223,105 @@ async function verifierStockBas() {
   return { alertesEnvoyees };
 }
 
+// Secteurs et villes qui correspondent réellement au profil de client idéal
+// de RecuVente (COD, gestion manuelle par WhatsApp/Instagram, PME africaines).
+const SECTEURS_CIBLES = [
+  "boutiques de vêtements sur Instagram",
+  "vendeurs de cosmétiques et produits de beauté sur WhatsApp",
+  "boutiques d'électronique et téléphones",
+  "restaurants avec livraison à domicile",
+  "vendeurs de chaussures et accessoires",
+  "boutiques de produits pour bébés et enfants",
+  "magasins de pièces automobiles",
+  "vendeurs de produits capillaires et perruques",
+  "boutiques en ligne sans vraie plateforme de vente",
+  "entreprises de livraison à domicile",
+  "vendeurs de compléments alimentaires et bien-être",
+  "boutiques de décoration et maison",
+];
+const VILLES_CIBLES = ["Abidjan", "Bouaké", "Yamoussoukro", "San-Pédro", "Korhogo", "Daloa"];
+
+function tirerAuSort(liste) {
+  return liste[Math.floor(Math.random() * liste.length)];
+}
+
+async function chercherProspectsAvecClaude(secteur, ville) {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return { inseres: 0, erreur: "ANTHROPIC_API_KEY manquante" };
+
+  const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
+
+Cherche sur le web 5 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}" à ${ville}, Côte d'Ivoire, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+
+Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
+{
+  "nom": "nom du compte/entreprise",
+  "secteur": "...",
+  "ville": "...",
+  "site_web_ou_reseau": "URL réelle trouvée",
+  "probleme_identifie": "ce qui suggère qu'ils géreraient mieux avec RecuVente",
+  "score": nombre de 0 à 100 selon le potentiel,
+  "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
+}
+
+Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 4000,
+        messages: [{ role: "user", content: prompt }],
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) return { inseres: 0, erreur: data?.error?.message || "Erreur API Claude" };
+
+    const texteReponse = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+    const matchJSON = texteReponse.match(/\[[\s\S]*\]/);
+    if (!matchJSON) return { inseres: 0 };
+
+    const prospectsTrouves = JSON.parse(matchJSON[0]);
+    const lignesAInserer = prospectsTrouves.map((p) => ({
+      nom: p.nom || null,
+      entreprise: p.nom || null,
+      secteur: p.secteur || secteur,
+      ville: p.ville || ville,
+      pays: "CI",
+      source: "agent_ia_auto",
+      site_web: p.site_web_ou_reseau || null,
+      probleme_identifie: p.probleme_identifie || null,
+      score: Number(p.score) || 0,
+      message_suggere: p.message_suggere || null,
+      statut: "NEW",
+    }));
+    if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
+    return { inseres: lignesAInserer.length };
+  } catch (e) {
+    return { inseres: 0, erreur: e.message };
+  }
+}
+
+async function lancerProspectionAutomatique() {
+  // 3 recherches par jour (secteur+ville tirés au sort), pour rester dans le
+  // temps d'exécution autorisé par Vercel tout en alimentant le CRM en continu.
+  const resultats = [];
+  for (let i = 0; i < 3; i++) {
+    const secteur = tirerAuSort(SECTEURS_CIBLES);
+    const ville = tirerAuSort(VILLES_CIBLES);
+    const r = await chercherProspectsAvecClaude(secteur, ville);
+    resultats.push({ secteur, ville, ...r });
+  }
+  return resultats;
+}
+
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -232,10 +331,12 @@ export default async function handler(req, res) {
   const sauvegardeReussie = await sauvegarderQuotidiennement();
   const resultatEssais = await verifierEssaisEtRappels();
   const resultatStock = await verifierStockBas();
+  const resultatProspection = await lancerProspectionAutomatique();
 
   return res.status(200).json({
     sauvegardeReussie,
     ...resultatEssais,
     ...resultatStock,
+    prospection: resultatProspection,
   });
 }

@@ -8303,6 +8303,12 @@ function ProspectsIAModal({ onClose }) {
     setTimeout(() => setCopie(null), 2000);
   }
 
+  function ouvrirWhatsApp(prospect) {
+    const numeroPropre = String(prospect.telephone || "").replace(/\D/g, "");
+    window.open(`https://wa.me/${numeroPropre}?text=${encodeURIComponent(prospect.message_suggere || "")}`, "_blank");
+    changerStatut(prospect.id, "CONTACTED");
+  }
+
   const couleurStatut = { NEW: "#8A9089", CONTACTED: "#e8920a", RESPONDED: "#1a7a3c", HOT: "#D64933", CUSTOMER: "#1a7a3c", LOST: "#999", DO_NOT_CONTACT: "#666" };
 
   return (
@@ -8365,11 +8371,18 @@ function ProspectsIAModal({ onClose }) {
                 {p.message_suggere && (
                   <div style={{ background: "#FAFAF7", borderRadius: 8, padding: "9px 11px", fontSize: 11.5, color: "#16231F", marginBottom: 8, lineHeight: 1.5 }}>{p.message_suggere}</div>
                 )}
-                {p.site_web && <div style={{ fontSize: 10.5, marginBottom: 8 }}><a href={p.site_web} target="_blank" rel="noopener noreferrer" style={{ color: "#1a7a3c" }}>🔗 {p.site_web}</a></div>}
+                {p.site_web && <div style={{ fontSize: 10.5, marginBottom: 4 }}><a href={p.site_web} target="_blank" rel="noopener noreferrer" style={{ color: "#1a7a3c" }}>🔗 {p.site_web}</a></div>}
+                {p.telephone && <div style={{ fontSize: 10.5, marginBottom: 8, color: "#6B7168" }}>📞 {p.telephone}</div>}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <button onClick={() => copierMessage(p)} style={{ border: "1px solid #cfdad2", background: "#f8fbf8", color: "#1a7a3c", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
-                    {copie === p.id ? "✅ Copié" : "📋 Copier le message"}
-                  </button>
+                  {p.telephone ? (
+                    <button onClick={() => ouvrirWhatsApp(p)} style={{ border: "none", background: "#25d366", color: "white", borderRadius: 7, padding: "6px 12px", fontSize: 10.5, fontWeight: 800, cursor: "pointer" }}>
+                      💬 Envoyer via WhatsApp
+                    </button>
+                  ) : (
+                    <button onClick={() => copierMessage(p)} style={{ border: "1px solid #cfdad2", background: "#f8fbf8", color: "#1a7a3c", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+                      {copie === p.id ? "✅ Copié" : "📋 Copier le message (pas de numéro trouvé)"}
+                    </button>
+                  )}
                   {p.statut === "NEW" && <button onClick={() => changerStatut(p.id, "CONTACTED")} style={{ border: "1px solid #e8920a", background: "white", color: "#e8920a", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>Marquer contacté</button>}
                   {p.statut === "CONTACTED" && <button onClick={() => changerStatut(p.id, "RESPONDED")} style={{ border: "1px solid #1a7a3c", background: "white", color: "#1a7a3c", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>A répondu</button>}
                   <button onClick={() => changerStatut(p.id, "LOST")} style={{ border: "1px solid #ECE8DC", background: "white", color: "#999", borderRadius: 7, padding: "6px 11px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>Perdu</button>

@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
 export const config = {
-  maxDuration: 60,
+  maxDuration: 120,
 };
 
 // Évite d'insérer deux fois le même prospect (même nom, ou même site/réseau),
@@ -193,6 +193,7 @@ POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, o
 - Gestion de plusieurs boutiques/activités depuis un seul tableau de bord
 - Comptabilité, reçus et factures générés automatiquement
 - Prix fixe en FCFA, aucune surprise liée au taux de change dollar
+
 Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
 
 Pour les prospects qui ne vendent PAS encore en ligne (encore 100% WhatsApp/Instagram sans vraie boutique) : l'argumentaire doit être tout aussi fort, pas un simple à-côté. Mets en avant, selon ce qui est pertinent :

@@ -1,0 +1,19 @@
+ name: Prospection IA 24h/24
+
+on:
+  schedule:
+    # Toutes les 3 heures, en continu — contourne la limite "1 fois par jour"
+    # des tâches planifiées gratuites de Vercel.
+    - cron: "0 */3 * * *"
+  workflow_dispatch: {} # permet aussi de le déclencher manuellement depuis l'onglet Actions
+
+jobs:
+  lancer-prospection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler l'agent de prospection RecuVente
+        run: |
+          curl -sf -X POST "https://www.azaliexpress.com/api/domains" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.PROSPECTION_SECRET }}" \
+            -d '{"action":"prospection_auto"}'

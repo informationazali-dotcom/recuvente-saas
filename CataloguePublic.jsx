@@ -385,6 +385,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
   const [biensLocation, setBiensLocation] = useState([]);
+  const [filtreCategorieBien, setFiltreCategorieBien] = useState(null);
   const [bienOuvert, setBienOuvert] = useState(null);
   const [modeChoisi, setModeChoisi] = useState(null);
   const [formBien, setFormBien] = useState({ client: "", tel: "", zone: "", dateDebut: "", dateFin: "", couleur: "" });
@@ -1282,7 +1283,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
@@ -2004,7 +2005,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           @media (min-width: 1280px) { .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; } .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); naviguerVersCollection(null); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
@@ -2131,8 +2132,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         }
       `}</style>
 
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
 
+      {entreprise.slug === "luxury-car" ? (
+        <HeroLuxuryCar entreprise={entreprise} biensLocation={biensLocation} onOuvrirVehicule={(b) => setBienOuvert(b)} />
+      ) : (
       <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
         {entreprise.banniere ? (
           <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
@@ -2160,6 +2164,29 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         </div>
       </div>
+      )}
+
+      {entreprise.slug === "luxury-car" && biensLocation.length > 0 && (
+        <div id="rv-vehicules" style={{ background: "#0a0a0a", padding: "40px 20px", fontFamily: "'Georgia', serif" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexWrap: "wrap", gap: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "white" }}>
+                {filtreCategorieBien ? filtreCategorieBien : "Notre catalogue"}
+              </div>
+              {filtreCategorieBien && (
+                <button onClick={() => setFiltreCategorieBien(null)} style={{ background: "none", border: "1px solid rgba(212,175,55,0.4)", color: "#D4AF37", borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+                  ✕ Voir tout
+                </button>
+              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+              {biensLocation.filter((b) => !filtreCategorieBien || b.categorie === filtreCategorieBien).map((b) => (
+                <CarteVehiculeLuxury key={b.id} b={b} devise={entreprise.devise} onOuvrir={(bien) => setBienOuvert(bien)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rv-shop-content" style={{ paddingTop: 20 }}>
         {produits.length === 0 && (
@@ -2253,7 +2280,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         )}
       </div>
 
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} biensLocation={biensLocation} />
 
       {politiqueOuverte && (
         <div
@@ -2465,6 +2492,178 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   );
 }
 
+function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, biensLocation = [], onOuvrirCategorie }) {
+  const [menuOuvert, setMenuOuvert] = useState(false);
+  const categories = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))];
+
+  return (
+    <div style={{ fontFamily: "'Georgia', serif", background: "#0a0a0a" }}>
+      <div style={{ background: "#D4AF37", color: "#0a0a0a", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>
+        ✨ VÉHICULES DE LUXE · MATÉRIEL LOURD · IMPORT SUR MESURE DEPUIS LA CHINE
+      </div>
+      <div style={{ maxWidth: 1300, margin: "0 auto", padding: "16px 20px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+        <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }}>
+          {entreprise.logo ? (
+            <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 42, objectFit: "contain" }} />
+          ) : (
+            <span style={{ fontWeight: 800, fontSize: 20, color: "#D4AF37", letterSpacing: "0.02em" }}>{entreprise.nom}</span>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 160, display: "flex", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(212,175,55,0.3)", borderRadius: 6, overflow: "hidden" }}>
+          <span style={{ padding: "10px 0 10px 14px", fontSize: 13, color: "#D4AF37" }}>🔍</span>
+          <input
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher un véhicule, une machine..."
+            style={{ flex: 1, border: "none", background: "transparent", padding: "10px 12px", fontSize: 13, outline: "none", color: "white" }}
+          />
+        </div>
+
+        {entreprise.whatsapp && (
+          <a
+            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.4)", color: "#D4AF37", padding: "9px 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            💬 Nous contacter
+          </a>
+        )}
+      </div>
+
+      {categories.length > 0 && (
+        <div style={{ borderTop: "1px solid rgba(212,175,55,0.15)", overflowX: "auto" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px", display: "flex", gap: 4 }}>
+            <button onClick={() => onOuvrirCategorie(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.8)", padding: "12px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>TOUT VOIR</button>
+            {categories.map((c) => (
+              <button key={c} onClick={() => onOuvrirCategorie(c)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.65)", padding: "12px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {c.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
+  const vedettes = biensLocation.filter((b) => b.photo_url).slice(0, 3);
+  return (
+    <div style={{ position: "relative", background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #0a0a0a 100%)", padding: "56px 20px", overflow: "hidden", fontFamily: "'Georgia', serif" }}>
+      <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.14), transparent 70%)" }} />
+      <div style={{ maxWidth: 1300, margin: "0 auto", position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: vedettes.length > 0 ? "1.1fr 1fr" : "1fr", gap: 40, alignItems: "center" }}>
+        <div>
+          <div style={{ display: "inline-block", border: "1px solid #D4AF37", color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "6px 14px", borderRadius: 30, marginBottom: 20 }}>
+            EXCELLENCE & PRESTIGE
+          </div>
+          <div style={{ fontSize: "clamp(30px,4.5vw,52px)", fontWeight: 800, color: "white", lineHeight: 1.12, marginBottom: 18 }}>
+            {entreprise.nom}<br /><span style={{ color: "#D4AF37" }}>Véhicules, machines & bien plus.</span>
+          </div>
+          <div style={{ fontSize: 14.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: 28, maxWidth: 480 }}>
+            {entreprise.description || "Louez, commandez ou achetez directement — voitures de luxe, engins de chantier, bennes et maisons préfabriquées, importés sur mesure ou disponibles immédiatement."}
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button
+              onClick={() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" })}
+              style={{ background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "14px 28px", fontWeight: 800, fontSize: 13.5, cursor: "pointer", letterSpacing: "0.03em" }}
+            >
+              Explorer le catalogue →
+            </button>
+            {entreprise.whatsapp && (
+              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "14px 24px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>
+                💬 Parler à un conseiller
+              </a>
+            )}
+          </div>
+        </div>
+
+        {vedettes.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: vedettes.length >= 3 ? "1.3fr 1fr" : "1fr", gap: 14 }}>
+            <button onClick={() => onOuvrirVehicule(vedettes[0])} style={{ position: "relative", border: "none", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer", gridRow: vedettes.length >= 3 ? "span 2" : undefined, minHeight: 220 }}>
+              <img src={vedettes[0].photo_url} alt="" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, objectFit: "cover" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent 60%)" }} />
+              <div style={{ position: "absolute", bottom: 14, left: 14, right: 14, textAlign: "left" }}>
+                <div style={{ color: "#D4AF37", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{vedettes[0].categorie}</div>
+                <div style={{ color: "white", fontWeight: 700, fontSize: 15 }}>{vedettes[0].nom}</div>
+              </div>
+            </button>
+            {vedettes.slice(1, 3).map((v) => (
+              <button key={v.id} onClick={() => onOuvrirVehicule(v)} style={{ position: "relative", border: "none", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer", minHeight: 100 }}>
+                <img src={v.photo_url} alt="" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, objectFit: "cover" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent 60%)" }} />
+                <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, textAlign: "left" }}>
+                  <div style={{ color: "white", fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.nom}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CarteVehiculeLuxury({ b, devise, onOuvrir }) {
+  return (
+    <button onClick={() => onOuvrir(b)} style={{ textAlign: "left", background: "#141414", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 12, padding: 0, cursor: "pointer", overflow: "hidden", width: "100%" }}>
+      {b.photo_url ? (
+        <img src={b.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+      ) : (
+        <div style={{ width: "100%", height: 160, background: "#1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🚗</div>
+      )}
+      <div style={{ padding: 14 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{b.categorie}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.nom}</div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {b.mode_location && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#D4AF37", border: "1px solid rgba(212,175,55,0.4)", padding: "2px 7px", borderRadius: 999 }}>🔑 Louer</span>}
+          {b.mode_commander && <span style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.25)", padding: "2px 7px", borderRadius: 999 }}>📦 Commander</span>}
+          {b.mode_payer_maintenant && <span style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.25)", padding: "2px 7px", borderRadius: 999 }}>💵 Direct</span>}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function PiedPageLuxuryCar({ entreprise, biensLocation = [] }) {
+  const anneeEnCours = new Date().getFullYear();
+  const categories = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))];
+  return (
+    <div style={{ background: "#0a0a0a", color: "rgba(255,255,255,0.6)", fontFamily: "'Georgia', serif" }}>
+      <div style={{ maxWidth: 1300, margin: "0 auto", padding: "40px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 28, borderBottom: "1px solid rgba(212,175,55,0.15)" }}>
+        <div>
+          {entreprise.logo ? (
+            <img src={entreprise.logo} alt="" style={{ height: 38, objectFit: "contain", marginBottom: 12 }} />
+          ) : (
+            <div style={{ color: "#D4AF37", fontWeight: 800, fontSize: 17, marginBottom: 12 }}>{entreprise.nom}</div>
+          )}
+          <div style={{ fontSize: 12, lineHeight: 1.7 }}>{entreprise.description || "Véhicules de luxe, machines et matériel lourd — location, commande ou achat direct."}</div>
+        </div>
+        {categories.length > 0 && (
+          <div>
+            <div style={{ color: "#D4AF37", fontWeight: 700, fontSize: 12, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>Catégories</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {categories.map((c) => <span key={c} style={{ fontSize: 12.5 }}>{c}</span>)}
+            </div>
+          </div>
+        )}
+        <div>
+          <div style={{ color: "#D4AF37", fontWeight: 700, fontSize: 12, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contact</div>
+          {entreprise.whatsapp && (
+            <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.65)", fontSize: 12.5, textDecoration: "none" }}>
+              💬 Discuter sur WhatsApp
+            </a>
+          )}
+        </div>
+      </div>
+      <div style={{ textAlign: "center", padding: "16px 20px", fontSize: 11 }}>
+        © {anneeEnCours} {entreprise.nom} — Tous droits réservés
+      </div>
+    </div>
+  );
+}
+
 function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier }) {
   const t = creerTraducteur(entreprise.langue);
   const [topbarVisible, setTopbarVisible] = useState(true);
@@ -2609,7 +2808,19 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
   );
 }
 
-function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig, nbArticlesPanier = 0, onOuvrirPanier }) {
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig, nbArticlesPanier = 0, onOuvrirPanier, biensLocation = [], onOuvrirCategorieBien }) {
+  if (entreprise.slug === "luxury-car") {
+    return (
+      <EnteteLuxuryCar
+        entreprise={entreprise}
+        recherche={recherche}
+        setRecherche={setRecherche}
+        onLogoClick={onLogoClick}
+        biensLocation={biensLocation}
+        onOuvrirCategorie={onOuvrirCategorieBien}
+      />
+    );
+  }
   if (entreprise.slug === "azaliexpress") {
     return (
       <EnteteAzaliExpress
@@ -3040,7 +3251,10 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
   );
 }
 
-function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, footerConfig }) {
+function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, footerConfig, biensLocation = [] }) {
+  if (entreprise.slug === "luxury-car") {
+    return <PiedPageLuxuryCar entreprise={entreprise} biensLocation={biensLocation} />;
+  }
   if (entreprise.slug === "azaliexpress") {
     return (
       <PiedPageAzaliExpress

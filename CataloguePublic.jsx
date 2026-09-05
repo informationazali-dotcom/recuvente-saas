@@ -367,6 +367,20 @@ function validerTelephone(numero, codePays) {
   return { valide: true, message: "" };
 }
 
+// Indicatifs des pays couverts par l'app — utilisés pour transformer un numéro local
+// (souvent saisi avec un 0 devant, ex: 05 09 28 14 03) en numéro international compris
+// par WhatsApp (ex: 225509281403), sans quoi wa.me refuse d'ouvrir la conversation.
+const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
+
+function formaterTelWhatsapp(numero, codePays) {
+  const indicatif = INDICATIFS_PAYS[codePays] || "225";
+  const chiffres = String(numero || "").replace(/\D/g, "");
+  if (!chiffres) return "";
+  if (chiffres.startsWith(indicatif)) return chiffres; // déjà au format international
+  if (chiffres.startsWith("0")) return indicatif + chiffres.slice(1); // format local avec 0 initial
+  return indicatif + chiffres; // par précaution, au cas où le 0 initial aurait été omis
+}
+
 function prixUnitairePourBundle(prixVente, bundle) {
   if (!bundle) return Number(prixVente);
   if ((bundle.mode || "pourcentage") === "prix_fixe") {
@@ -1262,7 +1276,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
             {entreprise.whatsapp && (
               <a
-                href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(`Bonjour, j'ai une question sur ma commande de "${produitOuvert.produit_nom}".`)}`}
+                href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}?text=${encodeURIComponent(`Bonjour, j'ai une question sur ma commande de "${produitOuvert.produit_nom}".`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ display: "block", background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, textDecoration: "none", marginBottom: 10 }}
@@ -1959,7 +1973,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             </div>
           </div>
         )}
-        <BulleWhatsApp whatsapp={entreprise.whatsapp} messageDefaut={`Bonjour, j'ai une question sur "${produitOuvert.produit_nom}".`} surCtaBar={!envoye} />
+        <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} messageDefaut={`Bonjour, j'ai une question sur "${produitOuvert.produit_nom}".`} surCtaBar={!envoye} />
         {panierOuvert && (
           <PanierDrawer
             panier={panier}
@@ -2026,7 +2040,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         </div>
 
         <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
-        <BulleWhatsApp whatsapp={entreprise.whatsapp} messageDefaut={`Bonjour, j'ai une question sur "${titreCollection}".`} />
+        <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} messageDefaut={`Bonjour, j'ai une question sur "${titreCollection}".`} />
         {panierOuvert && (
           <PanierDrawer
             panier={panier}
@@ -2311,7 +2325,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         </div>
       )}
-      <BulleWhatsApp whatsapp={entreprise.whatsapp} />
+      <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} />
       {panierOuvert && (
         <PanierDrawer
           panier={panier}
@@ -2534,7 +2548,7 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
 
         {entreprise.whatsapp && (
           <a
-            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.4)", color: "#D4AF37", padding: "9px 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
@@ -2609,7 +2623,7 @@ function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
               Explorer le catalogue →
             </button>
             {entreprise.whatsapp && (
-              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="rv-lux-cta-btn" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "13px 20px", fontWeight: 600, fontSize: 13, textDecoration: "none" }}>
+              <a href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`} target="_blank" rel="noopener noreferrer" className="rv-lux-cta-btn" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "13px 20px", fontWeight: 600, fontSize: 13, textDecoration: "none" }}>
                 💬 Parler à un conseiller
               </a>
             )}
@@ -2788,7 +2802,7 @@ function SectionsLuxuryCar({ entreprise, biensLocation = [], onOuvrirCategorie }
         </div>
         {entreprise.whatsapp && (
           <a
-            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="rv-lux-cta-btn"
@@ -2828,7 +2842,7 @@ function PiedPageLuxuryCar({ entreprise, biensLocation = [] }) {
         <div>
           <div style={{ color: "#D4AF37", fontWeight: 700, fontSize: 12, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contact</div>
           {entreprise.whatsapp && (
-            <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.65)", fontSize: 12.5, textDecoration: "none" }}>
+            <a href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.65)", fontSize: 12.5, textDecoration: "none" }}>
               💬 Discuter sur WhatsApp
             </a>
           )}
@@ -2910,7 +2924,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
             {!estFixe && entreprise.whatsapp && (
               <a
-                href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+                href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "4px 10px", borderRadius: 6, textDecoration: "none", flexShrink: 0 }}
@@ -2972,7 +2986,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
         <div style={{ background: "#25d366", color: "white", textAlign: "center", padding: "8px 12px", fontSize: 12, fontWeight: 600 }}>
           💬 {t("besoinAide") || "Besoin d'aide ? Contactez-nous"} — réponse en moins de 30 min !{" "}
           <a
-            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "white", fontWeight: 700, textDecoration: "none", background: "rgba(255,255,255,0.22)", padding: "3px 10px", borderRadius: 4, marginLeft: 6 }}
@@ -3064,7 +3078,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
 
           {entreprise.whatsapp && (
             <a
-              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="rv-shop-header-whatsapp"
@@ -3324,7 +3338,7 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
             {entreprise.whatsapp && (
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12 }}>
                 <span style={{ fontSize: 14, color: "#e8920a", flexShrink: 0 }}>📞</span>
-                <a href={`tel:${String(entreprise.whatsapp).replace(/\D/g, "")}`} style={{ color: "#9aa0a6", textDecoration: "none" }}>{entreprise.whatsapp}</a>
+                <a href={`tel:${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`} style={{ color: "#9aa0a6", textDecoration: "none" }}>{entreprise.whatsapp}</a>
               </div>
             )}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, lineHeight: 1.5 }}>
@@ -3364,7 +3378,7 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
             <span style={{ fontSize: 12, cursor: "pointer" }}>Garantie produits</span>
             <span style={{ fontSize: 12, cursor: "pointer" }}>Faire une réclamation</span>
             {entreprise.whatsapp && (
-              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "inherit", textDecoration: "none" }}>
+              <a href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "inherit", textDecoration: "none" }}>
                 {t("supportWhatsapp") || "WhatsApp Support"}
               </a>
             )}
@@ -3558,7 +3572,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
               <div style={{ fontWeight: 700, fontSize: 13, color: "white", textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("contact")}</div>
             </div>
             <a
-              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, textDecoration: "none" }}
@@ -3575,7 +3589,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
           {footerConfig.newsletterTexte && <div style={{ fontSize: 11.5, opacity: 0.75, margin: "6px 0 12px" }}>{footerConfig.newsletterTexte}</div>}
           {entreprise.whatsapp && (
             <a
-              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(t("texteInscriptionNewsletter"))}`}
+              href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}?text=${encodeURIComponent(t("texteInscriptionNewsletter"))}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "inline-block", background: "rgba(255,255,255,0.9)", color: "#16231F", borderRadius: 999, padding: "9px 20px", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
@@ -3614,7 +3628,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 
 const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };
 
-function BulleWhatsApp({ whatsapp, messageDefaut, surCtaBar }) {
+function BulleWhatsApp({ whatsapp, codePays, messageDefaut, surCtaBar }) {
   if (!whatsapp) return null;
   const [ouvert, setOuvert] = useState(false);
   return (
@@ -3627,7 +3641,7 @@ function BulleWhatsApp({ whatsapp, messageDefaut, surCtaBar }) {
           </div>
           <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 12, lineHeight: 1.5 }}>Écris-nous directement sur WhatsApp, on répond vite.</div>
           <a
-            href={`https://wa.me/${String(whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(messageDefaut || "Bonjour, j'ai une question.")}`}
+            href={`https://wa.me/${formaterTelWhatsapp(whatsapp, codePays)}?text=${encodeURIComponent(messageDefaut || "Bonjour, j'ai une question.")}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: "block", textAlign: "center", background: "#168a45", color: "white", borderRadius: 9, padding: "10px 0", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
@@ -3939,7 +3953,7 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
         {entreprise?.whatsapp && (
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             <a
-              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
@@ -3947,7 +3961,7 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
               💬 Écrire sur WhatsApp
             </a>
             <a
-              href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+              href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "inline-block", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 10, padding: "12px 26px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
@@ -4058,7 +4072,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ fontWeight: 800, fontSize: 18, color: "white", marginBottom: 8, maxWidth: 480, margin: "0 auto 8px" }}>{config.brandsCtaTitre}</div>
           <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)", maxWidth: 460, margin: "0 auto 20px", lineHeight: 1.6 }}>{config.brandsCtaTexte}</div>
           {entreprise.whatsapp && (
-            <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}>
+            <a href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#25d366", color: "white", border: "none", borderRadius: 10, padding: "12px 26px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}>
               💬 Écrire sur WhatsApp
             </a>
           )}
@@ -4192,7 +4206,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         const msg = document.getElementById(`${idBase}-msg`)?.value || "";
         if (!entreprise.whatsapp) return;
         const texte = `Bonjour, je m'appelle ${nom} (${tel}).\n${msg}`;
-        window.open(`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(texte)}`, "_blank");
+        window.open(`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}?text=${encodeURIComponent(texte)}`, "_blank");
       };
       return (
         <div style={{ padding: "30px 20px" }}>
@@ -4576,7 +4590,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         <h3 style={{ margin: "8px 0", fontSize: 20, color: "#14221b" }}>Besoin d'aide ?</h3>
         <p style={{ fontSize: 12, color: "#68756d" }}>Écris-nous directement sur WhatsApp.</p>
         {entreprise.whatsapp && (
-          <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(config.whatsapp || "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", border: 0, borderRadius: 10, padding: "11px 19px", background: "#168a45", color: "#fff", fontWeight: 900, textDecoration: "none" }}>
+          <a href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}?text=${encodeURIComponent(config.whatsapp || "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", border: 0, borderRadius: 10, padding: "11px 19px", background: "#168a45", color: "#fff", fontWeight: 900, textDecoration: "none" }}>
             Ouvrir WhatsApp
           </a>
         )}
@@ -4691,7 +4705,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         </div>
       )}
-      <BulleWhatsApp whatsapp={entreprise.whatsapp} />
+      <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} />
     </div>
   );
 }

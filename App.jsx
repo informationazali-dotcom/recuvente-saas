@@ -6174,7 +6174,7 @@ function AdminPanel({ session }) {
                 <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                   {ws.whatsappNumber && (
                     <a
-                      href={`https://wa.me/${String(ws.whatsappNumber).replace(/\D/g, "").replace(/^0/, "225")}`}
+                      href={`https://wa.me/${cleanPhoneForWhatsApp(ws.whatsappNumber)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ background: "#EAF3DE", color: "#3B6D11", border: "1px solid #C7DDA3", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, textDecoration: "none" }}
@@ -8115,7 +8115,7 @@ function PaniersAbandonnesModal({ workspaceId, currency, onClose }) {
                 <button onClick={() => ignorerPanier(p.id)} style={{ background: "none", border: "none", color: "#8A9089", cursor: "pointer", fontSize: 11, flexShrink: 0, textDecoration: "underline" }}>Ignorer</button>
               </div>
               <a
-                href={`https://wa.me/${String(p.tel).replace(/\D/g, "").replace(/^0/, "225")}?text=${encodeURIComponent(`Bonjour ${(p.client_nom || "").split(" ")[0] || ""} 👋, j'ai vu que vous étiez intéressé(e) par "${p.produit_nom}". Puis-je vous aider à finaliser votre commande ?`)}`}
+                href={`https://wa.me/${cleanPhoneForWhatsApp(p.tel)}?text=${encodeURIComponent(`Bonjour ${(p.client_nom || "").split(" ")[0] || ""} 👋, j'ai vu que vous étiez intéressé(e) par "${p.produit_nom}". Puis-je vous aider à finaliser votre commande ?`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => marquerRelance(p.id)}
@@ -11855,7 +11855,7 @@ function RecoveryCenterView({ commandes, toutesCommandes = [], currency, nomEntr
 
   function lienRecuperation(c) {
     const texte = `Bonjour ${c.client}, nous n'avons pas encore pu finaliser votre commande "${c.produit}" (${Number(c.montant).toLocaleString("fr-FR")} ${currency}) chez ${nomEntreprise}. Êtes-vous toujours disponible pour la recevoir ?`;
-    const telPropre = String(c.tel || "").replace(/\D/g, "").replace(/^0/, "225");
+    const telPropre = cleanPhoneForWhatsApp(c.tel || "");
     return `https://wa.me/${telPropre}?text=${encodeURIComponent(texte)}`;
   }
 

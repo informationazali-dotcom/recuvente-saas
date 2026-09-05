@@ -2715,6 +2715,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadBiensLocation();
   }
 
+  async function updateBienLocation(id, form) {
+    const { couleurs_texte, ...formSansCouleurs } = form;
+    const couleurs_disponibles = couleurs_texte ? couleurs_texte.split(",").map((c) => c.trim()).filter(Boolean) : null;
+    await supabase.from("biens_location").update({ ...formSansCouleurs, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0, prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null, couleurs_disponibles }).eq("id", id);
+    await loadBiensLocation();
+  }
+
   async function toggleDisponibiliteBien(id, valeurActuelle) {
     await supabase.from("biens_location").update({ disponible: !valeurActuelle }).eq("id", id);
     await loadBiensLocation();
@@ -4862,6 +4869,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           workspaceId={workspace.id}
           estLucirica={workspace.slug === "luxury-car"}
           onAdd={addBienLocation}
+          onUpdate={updateBienLocation}
           onToggleDisponibilite={toggleDisponibiliteBien}
           onDelete={deleteBienLocation}
         />
@@ -10785,13 +10793,14 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
   );
 }
 
-function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, onAdd, onToggleDisponibilite, onDelete }) {
+function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, onAdd, onUpdate, onToggleDisponibilite, onDelete }) {
   const [form, setForm] = useState({
     nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "",
     mode_location: true, mode_commander: false, mode_payer_maintenant: false,
     prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "",
   });
   const [envoiPhotoEnCours, setEnvoiPhotoEnCours] = useState(false);
+  const [bienEnEditionId, setBienEnEditionId] = useState(null);
 
   const nbDisponibles = biensLocation.filter((b) => b.disponible).length;
   const nbLoues = biensLocation.length - nbDisponibles;
@@ -10811,7 +10820,19 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
   }
 
   function reinitialiserForm() {
+    setBienEnEditionId(null);
     setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "", mode_location: true, mode_commander: false, mode_payer_maintenant: false, prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "" });
+  }
+
+  function demarrerEdition(b) {
+    setBienEnEditionId(b.id);
+    setForm({
+      nom: b.nom || "", categorie: b.categorie || "Véhicule", prix_jour: b.prix_jour ?? "", caution_suggeree: b.caution_suggeree ?? "",
+      description: b.description || "", mode_location: !!b.mode_location, mode_commander: !!b.mode_commander, mode_payer_maintenant: !!b.mode_payer_maintenant,
+      prix_vente_direct: b.prix_vente_direct ?? "", delai_commande_estime: b.delai_commande_estime || "", photo_url: b.photo_url || "",
+      couleurs_texte: Array.isArray(b.couleurs_disponibles) ? b.couleurs_disponibles.join(", ") : "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const auMoinsUneOption = form.mode_location || form.mode_commander || form.mode_payer_maintenant;
@@ -10824,7 +10845,12 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
       </div>
 
       <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>+ Ajouter un bien</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{bienEnEditionId ? "✏️ Modifier ce bien" : "+ Ajouter un bien"}</div>
+          {bienEnEditionId && (
+            <button onClick={reinitialiserForm} style={{ background: "none", border: "none", color: "#8A9089", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Annuler</button>
+          )}
+        </div>
         <input placeholder="Nom (ex: Toyota Land Cruiser, Groupe électrogène 10kVA)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
         <input placeholder="Catégorie (ex: Voiture de luxe, Engin de chantier, Benne, Maison préfabriquée)" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
         <textarea placeholder="Description (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }} />
@@ -10878,11 +10904,11 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
         {!auMoinsUneOption && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8 }}>Coche au moins une option.</div>}
 
         <button
-          onClick={() => { if (!form.nom.trim() || !auMoinsUneOption) return; onAdd(form); reinitialiserForm(); }}
+          onClick={() => { if (!form.nom.trim() || !auMoinsUneOption) return; bienEnEditionId ? onUpdate(bienEnEditionId, form) : onAdd(form); reinitialiserForm(); }}
           disabled={!form.nom.trim() || !auMoinsUneOption}
           style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: (!form.nom.trim() || !auMoinsUneOption) ? 0.5 : 1 }}
         >
-          Ajouter au catalogue
+          {bienEnEditionId ? "Enregistrer les modifications" : "Ajouter au catalogue"}
         </button>
         </>
         ) : (
@@ -10892,10 +10918,10 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
           <input placeholder={`Caution suggérée (${currency})`} type="number" value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
         </div>
         <button
-          onClick={() => { if (!form.nom.trim() || !form.prix_jour) return; onAdd(form); reinitialiserForm(); }}
+          onClick={() => { if (!form.nom.trim() || !form.prix_jour) return; bienEnEditionId ? onUpdate(bienEnEditionId, form) : onAdd(form); reinitialiserForm(); }}
           style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
         >
-          Ajouter au catalogue
+          {bienEnEditionId ? "Enregistrer les modifications" : "Ajouter au catalogue"}
         </button>
         </>
         )}
@@ -10917,7 +10943,10 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
                   </div>
                 </div>
               </div>
-              <button onClick={() => onDelete(b.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button onClick={() => demarrerEdition(b)} style={{ background: "none", border: "none", color: "#2452E8", cursor: "pointer", fontSize: 15 }}>✏️</button>
+                <button onClick={() => onDelete(b.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+              </div>
             </div>
             <button
               onClick={() => onToggleDisponibilite(b.id, b.disponible)}

@@ -2708,7 +2708,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function addBienLocation(form) {
-    await supabase.from("biens_location").insert([{ ...form, workspace_id: workspace.id, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0, prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null }]);
+    const { couleurs_texte, ...formSansCouleurs } = form;
+    const couleurs_disponibles = couleurs_texte ? couleurs_texte.split(",").map((c) => c.trim()).filter(Boolean) : null;
+    await supabase.from("biens_location").insert([{ ...formSansCouleurs, workspace_id: workspace.id, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0, prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null, couleurs_disponibles }]);
     await loadBiensLocation();
   }
 
@@ -10687,7 +10689,7 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
   const [form, setForm] = useState({
     nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "",
     mode_location: true, mode_commander: false, mode_payer_maintenant: false,
-    prix_vente_direct: "", delai_commande_estime: "", photo_url: "",
+    prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "",
   });
   const [envoiPhotoEnCours, setEnvoiPhotoEnCours] = useState(false);
 
@@ -10709,7 +10711,7 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
   }
 
   function reinitialiserForm() {
-    setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "", mode_location: true, mode_commander: false, mode_payer_maintenant: false, prix_vente_direct: "", delai_commande_estime: "", photo_url: "" });
+    setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "", mode_location: true, mode_commander: false, mode_payer_maintenant: false, prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "" });
   }
 
   const auMoinsUneOption = form.mode_location || form.mode_commander || form.mode_payer_maintenant;
@@ -10735,6 +10737,9 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
 
         {estLucirica ? (
         <>
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Couleurs disponibles (séparées par des virgules, optionnel)</div>
+        <input placeholder="Ex: Noir, Blanc, Gris" value={form.couleurs_texte} onChange={(e) => setForm({ ...form, couleurs_texte: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }} />
+
         <div style={{ fontSize: 12, fontWeight: 700, color: "#344239", marginBottom: 8 }}>Quelles options proposer pour ce bien précis ?</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: form.mode_location ? "#EAF3DE" : "#FAFAF7", border: "1px solid " + (form.mode_location ? "#C7DDA3" : "#ECE8DC"), borderRadius: 8, padding: "9px 12px" }}>

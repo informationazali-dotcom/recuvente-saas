@@ -2664,6 +2664,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showPaniersAbandonnes, setShowPaniersAbandonnes] = useState(false);
   const [showAzaliDesign, setShowAzaliDesign] = useState(false);
   const [showTraficBoutique, setShowTraficBoutique] = useState(false);
+  const [showVisiteursEnLigne, setShowVisiteursEnLigne] = useState(false);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
   useEffect(() => {
@@ -4027,13 +4028,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4047,7 +4048,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4290,6 +4291,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
+            onClick={() => setShowVisiteursEnLigne(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🟢 Visiteurs en ligne
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
             onClick={() => setShowTraficBoutique(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
@@ -4431,6 +4440,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 <button onClick={() => setVue("validations")} aria-label="Validations" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
                 {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowIntegrations(true)} aria-label="Réglages" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>}
+                {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
                 {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowProspectsIA(true)} aria-label="Prospects IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤖</button>}
               </div>
@@ -5293,6 +5303,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
+      {showVisiteursEnLigne && !accesBloque && <VisiteursEnLigneModal workspaceId={workspace.id} onClose={() => setShowVisiteursEnLigne(false)} />}
       {showTraficBoutique && !accesBloque && <TraficBoutiqueModal workspaceId={workspace.id} onClose={() => setShowTraficBoutique(false)} />}
       {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowCodesPromo(false)} />}
       {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowPaniersAbandonnes(false)} />}
@@ -6226,6 +6237,58 @@ function AdminPanel({ session }) {
             );
           })}
         {data.workspaces.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune entreprise inscrite pour l'instant.</div>}
+      </div>
+    </div>
+  );
+}
+
+function VisiteursEnLigneModal({ workspaceId, onClose }) {
+  const [visiteurs, setVisiteurs] = useState([]);
+
+  useEffect(() => {
+    const canal = supabase.channel(`presence-boutique-${workspaceId}`);
+    canal
+      .on("presence", { event: "sync" }, () => {
+        const etat = canal.presenceState();
+        const liste = Object.values(etat).map((entrees) => entrees[0]).sort((a, b) => (b.present_depuis || 0) - (a.present_depuis || 0));
+        setVisiteurs(liste);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [workspaceId]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🟢 Visiteurs en ligne</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 18, lineHeight: 1.5 }}>
+          Les personnes actuellement sur ta boutique publique, et ce qu'elles regardent — mis à jour en direct.
+        </div>
+
+        <div style={{ background: "#EAF3DE", borderRadius: 10, padding: "10px 14px", marginBottom: 16, textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#3B6D11" }}>{visiteurs.length}</div>
+          <div style={{ fontSize: 11, color: "#3B6D11", fontWeight: 600 }}>en ce moment</div>
+        </div>
+
+        {visiteurs.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "20px 0" }}>Personne sur la boutique pour l'instant.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {visiteurs.map((v, i) => {
+              const secondes = Math.max(0, Math.round((Date.now() - (v.present_depuis || Date.now())) / 1000));
+              const duree = secondes < 60 ? `${secondes}s` : `${Math.round(secondes / 60)} min`;
+              return (
+                <div key={i} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "10px 14px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#16231F" }}>{v.page || "Accueil"}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>Présent depuis {duree}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

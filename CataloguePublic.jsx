@@ -2167,10 +2167,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       )}
 
       {entreprise.slug === "luxury-car" && biensLocation.length > 0 && (
-        <div id="rv-vehicules" style={{ background: "#0a0a0a", padding: "40px 20px", fontFamily: "'Georgia', serif" }}>
+        <div id="rv-vehicules" style={{ background: "#0a0a0a", padding: "44px 20px", fontFamily: "'Inter', sans-serif" }}>
+          <style>{`
+            .rv-lux-carte:hover { transform: translateY(-6px); box-shadow: 0 18px 34px rgba(212,175,55,0.14); border-color: rgba(212,175,55,0.5) !important; }
+            .rv-lux-carte:hover .rv-lux-carte-img { transform: scale(1.07); }
+          `}</style>
           <div style={{ maxWidth: 1300, margin: "0 auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexWrap: "wrap", gap: 10 }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: "white" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
+              <div className="rv-lux-titre" style={{ fontSize: 24, fontWeight: 700, color: "white" }}>
                 {filtreCategorieBien ? filtreCategorieBien : "Notre catalogue"}
               </div>
               {filtreCategorieBien && (
@@ -2179,16 +2183,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 </button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-              {biensLocation.filter((b) => !filtreCategorieBien || b.categorie === filtreCategorieBien).map((b) => (
-                <CarteVehiculeLuxury key={b.id} b={b} devise={entreprise.devise} onOuvrir={(bien) => setBienOuvert(bien)} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
+              {biensLocation.filter((b) => !filtreCategorieBien || b.categorie === filtreCategorieBien).map((b, i) => (
+                <RevealOnScroll key={b.id} delai={(i % 8) * 60}>
+                  <CarteVehiculeLuxury b={b} devise={entreprise.devise} onOuvrir={(bien) => setBienOuvert(bien)} />
+                </RevealOnScroll>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {entreprise.slug === "luxury-car" && <SectionsLuxuryCar entreprise={entreprise} biensLocation={biensLocation} />}
+      {entreprise.slug === "luxury-car" && <SectionsLuxuryCar entreprise={entreprise} biensLocation={biensLocation} onOuvrirCategorie={(cat) => setFiltreCategorieBien(cat)} />}
 
       <div className="rv-shop-content" style={{ paddingTop: 20, ...(entreprise.slug === "luxury-car" ? { background: "#0a0a0a", color: "white" } : {}) }}>
         {produits.length === 0 && (
@@ -2499,7 +2505,11 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
   const categories = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))];
 
   return (
-    <div style={{ fontFamily: "'Georgia', serif", background: "#0a0a0a" }}>
+    <div style={{ fontFamily: "'Inter', sans-serif", background: "#0a0a0a" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+        .rv-lux-titre { font-family: 'Playfair Display', 'Georgia', serif; }
+      `}</style>
       <div style={{ background: "#D4AF37", color: "#0a0a0a", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>
         ✨ VÉHICULES DE LUXE · MATÉRIEL LOURD · IMPORT SUR MESURE DEPUIS LA CHINE
       </div>
@@ -2508,7 +2518,7 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
           {entreprise.logo ? (
             <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 42, objectFit: "contain" }} />
           ) : (
-            <span style={{ fontWeight: 800, fontSize: 20, color: "#D4AF37", letterSpacing: "0.02em" }}>{entreprise.nom}</span>
+            <span className="rv-lux-titre" style={{ fontWeight: 700, fontSize: 21, color: "#D4AF37", letterSpacing: "0.02em" }}>{entreprise.nom}</span>
           )}
         </div>
 
@@ -2518,7 +2528,7 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Rechercher un véhicule, une machine..."
-            style={{ flex: 1, border: "none", background: "transparent", padding: "10px 12px", fontSize: 13, outline: "none", color: "white" }}
+            style={{ flex: 1, border: "none", background: "transparent", padding: "10px 12px", fontSize: 13, outline: "none", color: "white", fontFamily: "'Inter', sans-serif" }}
           />
         </div>
 
@@ -2553,39 +2563,53 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
 function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
   const vedettes = biensLocation.filter((b) => b.photo_url).slice(0, 3);
   return (
-    <div style={{ position: "relative", background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #0a0a0a 100%)", padding: "40px 16px", overflow: "hidden", fontFamily: "'Georgia', serif" }}>
+    <div style={{ position: "relative", background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #0a0a0a 100%)", padding: "40px 16px", overflow: "hidden", fontFamily: "'Inter', sans-serif" }}>
       <style>{`
+        @keyframes rvLuxFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes rvLuxGlow { 0%,100% { opacity: 0.5; } 50% { opacity: 0.85; } }
         .rv-lux-hero-outer { max-width: 1300px; margin: 0 auto; position: relative; z-index: 2; display: grid; grid-template-columns: 1fr; gap: 28px; align-items: center; }
         .rv-lux-hero-images { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .rv-lux-hero-images .rv-lux-main-img { grid-column: span 2; min-height: 180px !important; }
-        .rv-lux-hero-title { font-size: clamp(24px,7vw,52px) !important; }
+        .rv-lux-hero-title { font-size: clamp(26px,7vw,54px) !important; }
+        .rv-lux-fade-1 { animation: rvLuxFadeUp 0.7s ease both; }
+        .rv-lux-fade-2 { animation: rvLuxFadeUp 0.7s ease 0.12s both; }
+        .rv-lux-fade-3 { animation: rvLuxFadeUp 0.7s ease 0.24s both; }
+        .rv-lux-fade-4 { animation: rvLuxFadeUp 0.7s ease 0.36s both; }
+        .rv-lux-img-btn { transition: transform 0.4s ease, box-shadow 0.4s ease; }
+        .rv-lux-img-btn:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(212,175,55,0.18); }
+        .rv-lux-img-btn img { transition: transform 0.6s ease; }
+        .rv-lux-img-btn:hover img { transform: scale(1.06); }
+        .rv-lux-cta-btn { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+        .rv-lux-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(212,175,55,0.35); }
         @media (min-width: 860px) {
           .rv-lux-hero-outer { grid-template-columns: 1.1fr 1fr; gap: 40px; }
           .rv-lux-hero-images { grid-template-columns: ${vedettes.length >= 3 ? "1.3fr 1fr" : "1fr"}; }
           .rv-lux-hero-images .rv-lux-main-img { grid-column: auto; grid-row: ${vedettes.length >= 3 ? "span 2" : "auto"}; min-height: 220px !important; }
         }
       `}</style>
-      <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.14), transparent 70%)" }} />
+      <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.16), transparent 70%)", animation: "rvLuxGlow 5s ease-in-out infinite" }} />
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(212,175,55,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.035) 1px, transparent 1px)", backgroundSize: "44px 44px", pointerEvents: "none" }} />
       <div className="rv-lux-hero-outer">
         <div>
-          <div style={{ display: "inline-block", border: "1px solid #D4AF37", color: "#D4AF37", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", padding: "5px 12px", borderRadius: 30, marginBottom: 16 }}>
+          <div className="rv-lux-fade-1" style={{ display: "inline-block", border: "1px solid #D4AF37", color: "#D4AF37", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", padding: "5px 14px", borderRadius: 30, marginBottom: 18 }}>
             EXCELLENCE & PRESTIGE
           </div>
-          <div className="rv-lux-hero-title" style={{ fontWeight: 800, color: "white", lineHeight: 1.15, marginBottom: 14 }}>
+          <div className="rv-lux-titre rv-lux-hero-title rv-lux-fade-2" style={{ fontWeight: 800, color: "white", lineHeight: 1.15, marginBottom: 16, letterSpacing: "-0.01em" }}>
             {entreprise.nom}<br /><span style={{ color: "#D4AF37" }}>Véhicules, machines & bien plus.</span>
           </div>
-          <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, marginBottom: 22, maxWidth: 480 }}>
+          <div className="rv-lux-fade-3" style={{ fontSize: 13.5, color: "rgba(255,255,255,0.68)", lineHeight: 1.7, marginBottom: 24, maxWidth: 480 }}>
             {entreprise.description || "Louez, commandez ou achetez directement — voitures de luxe, engins de chantier, bennes et maisons préfabriquées, importés sur mesure ou disponibles immédiatement."}
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div className="rv-lux-fade-4" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
+              className="rv-lux-cta-btn"
               onClick={() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" })}
-              style={{ background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "13px 22px", fontWeight: 800, fontSize: 13, cursor: "pointer", letterSpacing: "0.03em" }}
+              style={{ background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "13px 24px", fontWeight: 700, fontSize: 13, cursor: "pointer", letterSpacing: "0.03em" }}
             >
               Explorer le catalogue →
             </button>
             {entreprise.whatsapp && (
-              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "13px 20px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="rv-lux-cta-btn" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "13px 20px", fontWeight: 600, fontSize: 13, textDecoration: "none" }}>
                 💬 Parler à un conseiller
               </a>
             )}
@@ -2593,17 +2617,17 @@ function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
         </div>
 
         {vedettes.length > 0 && (
-          <div className="rv-lux-hero-images">
-            <button className="rv-lux-main-img" onClick={() => onOuvrirVehicule(vedettes[0])} style={{ position: "relative", border: "none", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
+          <div className="rv-lux-hero-images rv-lux-fade-3">
+            <button className="rv-lux-main-img rv-lux-img-btn" onClick={() => onOuvrirVehicule(vedettes[0])} style={{ position: "relative", border: "1px solid rgba(212,175,55,0.25)", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
               <img src={vedettes[0].photo_url} alt="" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, objectFit: "cover" }} />
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent 60%)" }} />
               <div style={{ position: "absolute", bottom: 14, left: 14, right: 14, textAlign: "left" }}>
-                <div style={{ color: "#D4AF37", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{vedettes[0].categorie}</div>
-                <div style={{ color: "white", fontWeight: 700, fontSize: 15 }}>{vedettes[0].nom}</div>
+                <div style={{ color: "#D4AF37", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>{vedettes[0].categorie}</div>
+                <div className="rv-lux-titre" style={{ color: "white", fontWeight: 700, fontSize: 16 }}>{vedettes[0].nom}</div>
               </div>
             </button>
             {vedettes.slice(1, 3).map((v) => (
-              <button key={v.id} onClick={() => onOuvrirVehicule(v)} style={{ position: "relative", border: "none", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer", minHeight: 100 }}>
+              <button key={v.id} className="rv-lux-img-btn" onClick={() => onOuvrirVehicule(v)} style={{ position: "relative", border: "1px solid rgba(212,175,55,0.25)", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer", minHeight: 100 }}>
                 <img src={v.photo_url} alt="" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, objectFit: "cover" }} />
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent 60%)" }} />
                 <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, textAlign: "left" }}>
@@ -2620,31 +2644,80 @@ function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
 
 function CarteVehiculeLuxury({ b, devise, onOuvrir }) {
   return (
-    <button onClick={() => onOuvrir(b)} style={{ textAlign: "left", background: "#141414", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 12, padding: 0, cursor: "pointer", overflow: "hidden", width: "100%" }}>
-      {b.photo_url ? (
-        <img src={b.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
-      ) : (
-        <div style={{ width: "100%", height: 160, background: "#1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🚗</div>
-      )}
-      <div style={{ padding: 14 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{b.categorie}</div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.nom}</div>
+    <button className="rv-lux-carte" onClick={() => onOuvrir(b)} style={{ textAlign: "left", background: "#141414", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 12, padding: 0, cursor: "pointer", overflow: "hidden", width: "100%", fontFamily: "'Inter', sans-serif", transition: "transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease" }}>
+      <div style={{ position: "relative", overflow: "hidden" }}>
+        {b.photo_url ? (
+          <img className="rv-lux-carte-img" src={b.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 170, objectFit: "cover", display: "block", transition: "transform 0.5s ease" }} />
+        ) : (
+          <div style={{ width: "100%", height: 170, background: "#1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🚗</div>
+        )}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.35), transparent 45%)" }} />
+      </div>
+      <div style={{ padding: "15px 16px" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>{b.categorie}</div>
+        <div className="rv-lux-titre" style={{ fontSize: 15, fontWeight: 700, color: "white", marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.nom}</div>
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {b.mode_location && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#D4AF37", border: "1px solid rgba(212,175,55,0.4)", padding: "2px 7px", borderRadius: 999 }}>🔑 Louer</span>}
-          {b.mode_commander && <span style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.25)", padding: "2px 7px", borderRadius: 999 }}>📦 Commander</span>}
-          {b.mode_payer_maintenant && <span style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.25)", padding: "2px 7px", borderRadius: 999 }}>💵 Direct</span>}
+          {b.mode_location && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#D4AF37", border: "1px solid rgba(212,175,55,0.4)", padding: "3px 8px", borderRadius: 999 }}>🔑 Louer</span>}
+          {b.mode_commander && <span style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.25)", padding: "3px 8px", borderRadius: 999 }}>📦 Commander</span>}
+          {b.mode_payer_maintenant && <span style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.25)", padding: "3px 8px", borderRadius: 999 }}>💵 Direct</span>}
         </div>
       </div>
     </button>
   );
 }
 
-function SectionsLuxuryCar({ entreprise, biensLocation = [] }) {
+function SectionsLuxuryCar({ entreprise, biensLocation = [], onOuvrirCategorie }) {
   const nbCategories = new Set(biensLocation.map((b) => b.categorie).filter(Boolean)).size;
+  const categoriesAvecPhoto = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))]
+    .map((cat) => ({ nom: cat, photo: biensLocation.find((b) => b.categorie === cat && b.photo_url)?.photo_url, count: biensLocation.filter((b) => b.categorie === cat).length }));
+
   return (
-    <div style={{ background: "#0a0a0a", fontFamily: "'Georgia', serif" }}>
+    <div style={{ background: "#0a0a0a", fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        .rv-lux-cat-tile { transition: transform 0.4s ease; }
+        .rv-lux-cat-tile:hover { transform: translateY(-5px); }
+        .rv-lux-cat-tile:hover img { transform: scale(1.08); }
+        .rv-lux-cat-tile img { transition: transform 0.5s ease; }
+        .rv-lux-mode-card:hover { transform: translateY(-5px); border-color: rgba(212,175,55,0.5) !important; }
+        .rv-lux-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(212,175,55,0.35); }
+      `}</style>
+
+      {/* Tuiles par catégorie */}
+      {categoriesAvecPhoto.length > 1 && (
+        <div style={{ padding: "50px 20px 10px" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto" }}>
+            <RevealOnScroll>
+              <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, marginBottom: 24, textAlign: "center" }}>Achetez par catégorie</div>
+            </RevealOnScroll>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              {categoriesAvecPhoto.map((c, i) => (
+                <RevealOnScroll key={c.nom} delai={i * 70}>
+                  <button
+                    className="rv-lux-cat-tile"
+                    onClick={() => onOuvrirCategorie && onOuvrirCategorie(c.nom)}
+                    style={{ position: "relative", width: "100%", height: 160, border: "1px solid rgba(212,175,55,0.2)", borderRadius: 12, overflow: "hidden", cursor: "pointer", padding: 0 }}
+                  >
+                    {c.photo ? (
+                      <img src={c.photo} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", background: "#1e1e1e" }} />
+                    )}
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.15) 60%)" }} />
+                    <div style={{ position: "absolute", bottom: 14, left: 14, right: 14, textAlign: "left" }}>
+                      <div className="rv-lux-titre" style={{ color: "white", fontWeight: 700, fontSize: 15 }}>{c.nom}</div>
+                      <div style={{ color: "#D4AF37", fontSize: 11, fontWeight: 600, marginTop: 2 }}>{c.count} disponible{c.count > 1 ? "s" : ""}</div>
+                    </div>
+                  </button>
+                </RevealOnScroll>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bandeau de confiance */}
-      <div style={{ borderTop: "1px solid rgba(212,175,55,0.15)", borderBottom: "1px solid rgba(212,175,55,0.15)", padding: "26px 20px" }}>
+      <RevealOnScroll>
+      <div style={{ borderTop: "1px solid rgba(212,175,55,0.15)", borderBottom: "1px solid rgba(212,175,55,0.15)", padding: "26px 20px", marginTop: 30 }}>
         <div style={{ maxWidth: 1300, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 18 }}>
           {[
             ["🌍", "Import direct", "Depuis la Chine, sur commande"],
@@ -2662,27 +2735,31 @@ function SectionsLuxuryCar({ entreprise, biensLocation = [] }) {
           ))}
         </div>
       </div>
+      </RevealOnScroll>
 
       {/* Comment ça marche — les 3 modes */}
+      <RevealOnScroll>
       <div style={{ padding: "50px 20px", textAlign: "center" }}>
         <div style={{ color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>COMMENT ÇA MARCHE</div>
-        <div style={{ color: "white", fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, marginBottom: 36 }}>Trois façons d'obtenir ce dont vous avez besoin</div>
+        <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, marginBottom: 36 }}>Trois façons d'obtenir ce dont vous avez besoin</div>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
           {[
             ["🔑", "LOUER", "Idéal pour un besoin ponctuel — voiture, engin ou matériel loué à la journée, avec caution."],
             ["📦", "COMMANDER", "Le bien n'est pas encore sur place ? On vous le fait venir directement de Chine, délai annoncé à l'avance."],
             ["💵", "PAYER MAINTENANT", "Déjà disponible en Côte d'Ivoire — vous payez et repartez rapidement avec votre bien."],
           ].map(([icone, titre, texte], i) => (
-            <div key={i} style={{ background: "#141414", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 14, padding: "30px 24px" }}>
+            <div key={i} className="rv-lux-mode-card" style={{ background: "#141414", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 14, padding: "30px 24px", transition: "transform 0.35s ease, border-color 0.35s ease" }}>
               <div style={{ fontSize: 30, marginBottom: 14 }}>{icone}</div>
-              <div style={{ color: "#D4AF37", fontWeight: 800, fontSize: 15, letterSpacing: "0.04em", marginBottom: 10 }}>{titre}</div>
+              <div style={{ color: "#D4AF37", fontWeight: 700, fontSize: 14, letterSpacing: "0.06em", marginBottom: 10 }}>{titre}</div>
               <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, lineHeight: 1.65 }}>{texte}</div>
             </div>
           ))}
         </div>
       </div>
+      </RevealOnScroll>
 
       {/* Chiffres */}
+      <RevealOnScroll>
       <div style={{ background: "#141414", padding: "40px 20px", textAlign: "center" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 20 }}>
           {[
@@ -2692,19 +2769,21 @@ function SectionsLuxuryCar({ entreprise, biensLocation = [] }) {
             ["24/7", "Support client"],
           ].map(([valeur, label], i) => (
             <div key={i}>
-              <div style={{ fontSize: "clamp(24px,4vw,34px)", fontWeight: 800, color: "#D4AF37" }}>{valeur}</div>
+              <div className="rv-lux-titre" style={{ fontSize: "clamp(24px,4vw,34px)", fontWeight: 700, color: "#D4AF37" }}>{valeur}</div>
               <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", marginTop: 6 }}>{label}</div>
             </div>
           ))}
         </div>
       </div>
+      </RevealOnScroll>
 
       {/* CTA final */}
-      <div style={{ padding: "50px 20px", textAlign: "center" }}>
-        <div style={{ color: "white", fontSize: "clamp(22px,3vw,30px)", fontWeight: 800, marginBottom: 10, maxWidth: 560, margin: "0 auto 10px" }}>
+      <RevealOnScroll>
+      <div style={{ padding: "54px 20px", textAlign: "center", background: "linear-gradient(180deg, transparent, rgba(212,175,55,0.05))" }}>
+        <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, marginBottom: 12, maxWidth: 560, margin: "0 auto 12px" }}>
           Un projet précis en tête ?
         </div>
-        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13.5, marginBottom: 26, maxWidth: 460, margin: "0 auto 26px", lineHeight: 1.6 }}>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13.5, marginBottom: 28, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>
           Décrivez-nous ce que vous cherchez — véhicule, engin, matériel — et on vous accompagne, de la commande à la livraison.
         </div>
         {entreprise.whatsapp && (
@@ -2712,12 +2791,14 @@ function SectionsLuxuryCar({ entreprise, biensLocation = [] }) {
             href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ display: "inline-block", background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "14px 32px", fontWeight: 800, fontSize: 13.5, textDecoration: "none", letterSpacing: "0.03em" }}
+            className="rv-lux-cta-btn"
+            style={{ display: "inline-block", background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "14px 32px", fontWeight: 700, fontSize: 13.5, textDecoration: "none", letterSpacing: "0.03em", transition: "transform 0.25s ease, box-shadow 0.25s ease" }}
           >
             💬 Discuter avec un conseiller
           </a>
         )}
       </div>
+      </RevealOnScroll>
     </div>
   );
 }
@@ -2726,13 +2807,13 @@ function PiedPageLuxuryCar({ entreprise, biensLocation = [] }) {
   const anneeEnCours = new Date().getFullYear();
   const categories = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))];
   return (
-    <div style={{ background: "#0a0a0a", color: "rgba(255,255,255,0.6)", fontFamily: "'Georgia', serif" }}>
+    <div style={{ background: "#0a0a0a", color: "rgba(255,255,255,0.6)", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ maxWidth: 1300, margin: "0 auto", padding: "40px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 28, borderBottom: "1px solid rgba(212,175,55,0.15)" }}>
         <div>
           {entreprise.logo ? (
             <img src={entreprise.logo} alt="" style={{ height: 38, objectFit: "contain", marginBottom: 12 }} />
           ) : (
-            <div style={{ color: "#D4AF37", fontWeight: 800, fontSize: 17, marginBottom: 12 }}>{entreprise.nom}</div>
+            <div className="rv-lux-titre" style={{ color: "#D4AF37", fontWeight: 700, fontSize: 18, marginBottom: 12 }}>{entreprise.nom}</div>
           )}
           <div style={{ fontSize: 12, lineHeight: 1.7 }}>{entreprise.description || "Véhicules de luxe, machines et matériel lourd — location, commande ou achat direct."}</div>
         </div>

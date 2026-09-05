@@ -2489,7 +2489,7 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
         <div
           className="rv-dashboard-3d-panel"
           style={{
-            position:"relative", zIndex:3, width:"min(1040px, calc(100% - 34px))", margin:"72px auto 44px",
+            position:"relative", zIndex:3, width:"min(1400px, calc(100% - 34px))", margin:"72px auto 44px",
             transform:`${stageTransform} translateZ(55px)`, transformStyle:"preserve-3d",
             background:"linear-gradient(145deg,rgba(9,55,37,.94),rgba(2,19,13,.97))",
             border:"1px solid rgba(255,255,255,.18)", borderRadius:24, padding:18,

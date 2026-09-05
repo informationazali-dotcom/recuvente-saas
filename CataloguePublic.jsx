@@ -428,6 +428,28 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     try { localStorage.setItem(`rv_panier_${workspaceId}`, JSON.stringify(panier)); } catch (_) {}
   }, [panier, workspaceId]);
 
+  // Freins basiques contre la copie occasionnelle de la boutique (clic droit, sélection de
+  // texte) — pas une protection technique réelle (n'importe quel navigateur peut toujours
+  // afficher le code source), juste une gêne pour décourager la copie la plus simple.
+  useEffect(() => {
+    console.log("%cCe design appartient à son créateur — reproduction interdite sans autorisation.", "color:#999;font-size:11px;");
+    function bloquerClicDroit(e) { e.preventDefault(); }
+    document.addEventListener("contextmenu", bloquerClicDroit);
+
+    const styleAntiCopie = document.createElement("style");
+    styleAntiCopie.id = "rv-anticopie";
+    styleAntiCopie.textContent = `
+      body { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      input, textarea, [contenteditable="true"] { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
+    `;
+    document.head.appendChild(styleAntiCopie);
+
+    return () => {
+      document.removeEventListener("contextmenu", bloquerClicDroit);
+      styleAntiCopie.remove();
+    };
+  }, []);
+
   function ajouterAuPanier(p, quantiteAjoutee = 1) {
     setPanier((liste) => {
       const existant = liste.find((it) => it.produit_id === p.produit_id);
@@ -2518,10 +2540,21 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
   const [menuOuvert, setMenuOuvert] = useState(false);
   const categories = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))];
 
+  // Charge la police premium en arrière-plan, sans jamais bloquer l'affichage de la page —
+  // le site s'affiche immédiatement avec une police de secours, puis bascule sur la police
+  // premium dès qu'elle est prête (aucune attente visible pour le visiteur).
+  useEffect(() => {
+    if (document.getElementById("rv-lux-font-premium")) return;
+    const lien = document.createElement("link");
+    lien.id = "rv-lux-font-premium";
+    lien.rel = "stylesheet";
+    lien.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap";
+    document.head.appendChild(lien);
+  }, []);
+
   return (
     <div style={{ fontFamily: "'Inter', sans-serif", background: "#0a0a0a" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
         .rv-lux-titre { font-family: 'Playfair Display', 'Georgia', serif; }
       `}</style>
       <div style={{ background: "#D4AF37", color: "#0a0a0a", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>

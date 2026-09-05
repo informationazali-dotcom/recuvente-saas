@@ -2553,28 +2553,39 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
 function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
   const vedettes = biensLocation.filter((b) => b.photo_url).slice(0, 3);
   return (
-    <div style={{ position: "relative", background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #0a0a0a 100%)", padding: "56px 20px", overflow: "hidden", fontFamily: "'Georgia', serif" }}>
+    <div style={{ position: "relative", background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #0a0a0a 100%)", padding: "40px 16px", overflow: "hidden", fontFamily: "'Georgia', serif" }}>
+      <style>{`
+        .rv-lux-hero-outer { max-width: 1300px; margin: 0 auto; position: relative; z-index: 2; display: grid; grid-template-columns: 1fr; gap: 28px; align-items: center; }
+        .rv-lux-hero-images { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .rv-lux-hero-images .rv-lux-main-img { grid-column: span 2; min-height: 180px !important; }
+        .rv-lux-hero-title { font-size: clamp(24px,7vw,52px) !important; }
+        @media (min-width: 860px) {
+          .rv-lux-hero-outer { grid-template-columns: 1.1fr 1fr; gap: 40px; }
+          .rv-lux-hero-images { grid-template-columns: ${vedettes.length >= 3 ? "1.3fr 1fr" : "1fr"}; }
+          .rv-lux-hero-images .rv-lux-main-img { grid-column: auto; grid-row: ${vedettes.length >= 3 ? "span 2" : "auto"}; min-height: 220px !important; }
+        }
+      `}</style>
       <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.14), transparent 70%)" }} />
-      <div style={{ maxWidth: 1300, margin: "0 auto", position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: vedettes.length > 0 ? "1.1fr 1fr" : "1fr", gap: 40, alignItems: "center" }}>
+      <div className="rv-lux-hero-outer">
         <div>
-          <div style={{ display: "inline-block", border: "1px solid #D4AF37", color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "6px 14px", borderRadius: 30, marginBottom: 20 }}>
+          <div style={{ display: "inline-block", border: "1px solid #D4AF37", color: "#D4AF37", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", padding: "5px 12px", borderRadius: 30, marginBottom: 16 }}>
             EXCELLENCE & PRESTIGE
           </div>
-          <div style={{ fontSize: "clamp(30px,4.5vw,52px)", fontWeight: 800, color: "white", lineHeight: 1.12, marginBottom: 18 }}>
+          <div className="rv-lux-hero-title" style={{ fontWeight: 800, color: "white", lineHeight: 1.15, marginBottom: 14 }}>
             {entreprise.nom}<br /><span style={{ color: "#D4AF37" }}>Véhicules, machines & bien plus.</span>
           </div>
-          <div style={{ fontSize: 14.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: 28, maxWidth: 480 }}>
+          <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, marginBottom: 22, maxWidth: 480 }}>
             {entreprise.description || "Louez, commandez ou achetez directement — voitures de luxe, engins de chantier, bennes et maisons préfabriquées, importés sur mesure ou disponibles immédiatement."}
           </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               onClick={() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" })}
-              style={{ background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "14px 28px", fontWeight: 800, fontSize: 13.5, cursor: "pointer", letterSpacing: "0.03em" }}
+              style={{ background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "13px 22px", fontWeight: 800, fontSize: 13, cursor: "pointer", letterSpacing: "0.03em" }}
             >
               Explorer le catalogue →
             </button>
             {entreprise.whatsapp && (
-              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "14px 24px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>
+              <a href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "13px 20px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
                 💬 Parler à un conseiller
               </a>
             )}
@@ -2582,8 +2593,8 @@ function HeroLuxuryCar({ entreprise, biensLocation, onOuvrirVehicule }) {
         </div>
 
         {vedettes.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: vedettes.length >= 3 ? "1.3fr 1fr" : "1fr", gap: 14 }}>
-            <button onClick={() => onOuvrirVehicule(vedettes[0])} style={{ position: "relative", border: "none", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer", gridRow: vedettes.length >= 3 ? "span 2" : undefined, minHeight: 220 }}>
+          <div className="rv-lux-hero-images">
+            <button className="rv-lux-main-img" onClick={() => onOuvrirVehicule(vedettes[0])} style={{ position: "relative", border: "none", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
               <img src={vedettes[0].photo_url} alt="" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, objectFit: "cover" }} />
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent 60%)" }} />
               <div style={{ position: "absolute", bottom: 14, left: 14, right: 14, textAlign: "left" }}>

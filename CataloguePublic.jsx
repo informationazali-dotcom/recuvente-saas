@@ -2188,7 +2188,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         </div>
       )}
 
-      <div className="rv-shop-content" style={{ paddingTop: 20 }}>
+      {entreprise.slug === "luxury-car" && <SectionsLuxuryCar entreprise={entreprise} biensLocation={biensLocation} />}
+
+      <div className="rv-shop-content" style={{ paddingTop: 20, ...(entreprise.slug === "luxury-car" ? { background: "#0a0a0a", color: "white" } : {}) }}>
         {produits.length === 0 && (
           <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, marginTop: 40, paddingBottom: 40 }}>
             {t("aucunProduit")}
@@ -2623,6 +2625,89 @@ function CarteVehiculeLuxury({ b, devise, onOuvrir }) {
         </div>
       </div>
     </button>
+  );
+}
+
+function SectionsLuxuryCar({ entreprise, biensLocation = [] }) {
+  const nbCategories = new Set(biensLocation.map((b) => b.categorie).filter(Boolean)).size;
+  return (
+    <div style={{ background: "#0a0a0a", fontFamily: "'Georgia', serif" }}>
+      {/* Bandeau de confiance */}
+      <div style={{ borderTop: "1px solid rgba(212,175,55,0.15)", borderBottom: "1px solid rgba(212,175,55,0.15)", padding: "26px 20px" }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 18 }}>
+          {[
+            ["🌍", "Import direct", "Depuis la Chine, sur commande"],
+            ["🔑", "Location flexible", "À la journée, sans engagement long"],
+            ["🛡️", "Achat sécurisé", "Véhicules et engins vérifiés"],
+            ["💬", "Accompagnement", "Un conseiller dédié à chaque étape"],
+          ].map((f, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 26, flexShrink: 0 }}>{f[0]}</span>
+              <div>
+                <div style={{ color: "white", fontWeight: 700, fontSize: 13 }}>{f[1]}</div>
+                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2 }}>{f[2]}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Comment ça marche — les 3 modes */}
+      <div style={{ padding: "50px 20px", textAlign: "center" }}>
+        <div style={{ color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>COMMENT ÇA MARCHE</div>
+        <div style={{ color: "white", fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, marginBottom: 36 }}>Trois façons d'obtenir ce dont vous avez besoin</div>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
+          {[
+            ["🔑", "LOUER", "Idéal pour un besoin ponctuel — voiture, engin ou matériel loué à la journée, avec caution."],
+            ["📦", "COMMANDER", "Le bien n'est pas encore sur place ? On vous le fait venir directement de Chine, délai annoncé à l'avance."],
+            ["💵", "PAYER MAINTENANT", "Déjà disponible en Côte d'Ivoire — vous payez et repartez rapidement avec votre bien."],
+          ].map(([icone, titre, texte], i) => (
+            <div key={i} style={{ background: "#141414", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 14, padding: "30px 24px" }}>
+              <div style={{ fontSize: 30, marginBottom: 14 }}>{icone}</div>
+              <div style={{ color: "#D4AF37", fontWeight: 800, fontSize: 15, letterSpacing: "0.04em", marginBottom: 10 }}>{titre}</div>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, lineHeight: 1.65 }}>{texte}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chiffres */}
+      <div style={{ background: "#141414", padding: "40px 20px", textAlign: "center" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 20 }}>
+          {[
+            [`${biensLocation.length || 0}+`, "Biens disponibles"],
+            [`${nbCategories || 0}`, "Catégories"],
+            ["100%", "Vérifié avant livraison"],
+            ["24/7", "Support client"],
+          ].map(([valeur, label], i) => (
+            <div key={i}>
+              <div style={{ fontSize: "clamp(24px,4vw,34px)", fontWeight: 800, color: "#D4AF37" }}>{valeur}</div>
+              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", marginTop: 6 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA final */}
+      <div style={{ padding: "50px 20px", textAlign: "center" }}>
+        <div style={{ color: "white", fontSize: "clamp(22px,3vw,30px)", fontWeight: 800, marginBottom: 10, maxWidth: 560, margin: "0 auto 10px" }}>
+          Un projet précis en tête ?
+        </div>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13.5, marginBottom: 26, maxWidth: 460, margin: "0 auto 26px", lineHeight: 1.6 }}>
+          Décrivez-nous ce que vous cherchez — véhicule, engin, matériel — et on vous accompagne, de la commande à la livraison.
+        </div>
+        {entreprise.whatsapp && (
+          <a
+            href={`https://wa.me/${String(entreprise.whatsapp).replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-block", background: "#D4AF37", color: "#0a0a0a", border: "none", borderRadius: 6, padding: "14px 32px", fontWeight: 800, fontSize: 13.5, textDecoration: "none", letterSpacing: "0.03em" }}
+          >
+            💬 Discuter avec un conseiller
+          </a>
+        )}
+      </div>
+    </div>
   );
 }
 

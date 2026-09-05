@@ -1630,7 +1630,7 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
 
   return (
     <Centered>
-      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 360 }}>
+      <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 30, width: 360, maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box" }}>
         {etape === 1 ? (
           <>
             <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Bienvenue 👋</div>
@@ -2581,7 +2581,7 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
 }
 
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
-  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise";
+  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || (workspace.activity_type === "location_vehicule" && workspace.slug === "luxury-car");
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
@@ -2708,7 +2708,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function addBienLocation(form) {
-    await supabase.from("biens_location").insert([{ ...form, workspace_id: workspace.id, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0 }]);
+    await supabase.from("biens_location").insert([{ ...form, workspace_id: workspace.id, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0, prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null }]);
     await loadBiensLocation();
   }
 
@@ -4846,6 +4846,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         <BiensLocationView
           biensLocation={biensLocation}
           currency={workspace.currency}
+          workspaceId={workspace.id}
+          estLucirica={workspace.slug === "luxury-car"}
           onAdd={addBienLocation}
           onToggleDisponibilite={toggleDisponibiliteBien}
           onDelete={deleteBienLocation}
@@ -10681,11 +10683,36 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
   );
 }
 
-function BiensLocationView({ biensLocation, currency, onAdd, onToggleDisponibilite, onDelete }) {
-  const [form, setForm] = useState({ nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "" });
+function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, onAdd, onToggleDisponibilite, onDelete }) {
+  const [form, setForm] = useState({
+    nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "",
+    mode_location: true, mode_commander: false, mode_payer_maintenant: false,
+    prix_vente_direct: "", delai_commande_estime: "", photo_url: "",
+  });
+  const [envoiPhotoEnCours, setEnvoiPhotoEnCours] = useState(false);
 
   const nbDisponibles = biensLocation.filter((b) => b.disponible).length;
   const nbLoues = biensLocation.length - nbDisponibles;
+
+  async function envoyerPhoto(fichier) {
+    if (!fichier) return;
+    if (fichier.size > 5 * 1024 * 1024) { alert("Photo trop lourde (max 5 Mo)."); return; }
+    setEnvoiPhotoEnCours(true);
+    const extension = (fichier.name.split(".").pop() || "jpg").toLowerCase();
+    const chemin = `${workspaceId}-bien-${Date.now()}.${extension}`;
+    const { error } = await supabase.storage.from("boutique").upload(chemin, fichier, { upsert: true, contentType: fichier.type || undefined });
+    if (!error) {
+      const { data } = supabase.storage.from("boutique").getPublicUrl(chemin);
+      setForm((f) => ({ ...f, photo_url: data.publicUrl }));
+    }
+    setEnvoiPhotoEnCours(false);
+  }
+
+  function reinitialiserForm() {
+    setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "", mode_location: true, mode_commander: false, mode_payer_maintenant: false, prix_vente_direct: "", delai_commande_estime: "", photo_url: "" });
+  }
+
+  const auMoinsUneOption = form.mode_location || form.mode_commander || form.mode_payer_maintenant;
 
   return (
     <div style={{ padding: "20px 20px 8px" }}>
@@ -10696,41 +10723,102 @@ function BiensLocationView({ biensLocation, currency, onAdd, onToggleDisponibili
 
       <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>+ Ajouter un bien</div>
-        <input placeholder="Nom (ex: Toyota Hilux, Perceuse Bosch)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
-        <input placeholder="Catégorie (ex: Véhicule, Moto, Matériel BTP)" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <input placeholder="Nom (ex: Toyota Land Cruiser, Groupe électrogène 10kVA)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <input placeholder="Catégorie (ex: Voiture de luxe, Engin de chantier, Benne, Maison préfabriquée)" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+        <textarea placeholder="Description (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }} />
+
+        {form.photo_url && <img src={form.photo_url} alt="" style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 8, marginBottom: 8, border: "1px solid #ECE8DC" }} />}
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FAFAF7", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 14 }}>
+          {envoiPhotoEnCours ? "Envoi..." : "📷 " + (form.photo_url ? "Changer la photo" : "Ajouter une photo")}
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => envoyerPhoto(e.target.files?.[0])} />
+        </label>
+
+        {estLucirica ? (
+        <>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#344239", marginBottom: 8 }}>Quelles options proposer pour ce bien précis ?</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: form.mode_location ? "#EAF3DE" : "#FAFAF7", border: "1px solid " + (form.mode_location ? "#C7DDA3" : "#ECE8DC"), borderRadius: 8, padding: "9px 12px" }}>
+            <input type="checkbox" checked={form.mode_location} onChange={(e) => setForm({ ...form, mode_location: e.target.checked })} />
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>🔑 Location — le client loue pour une période</span>
+          </label>
+          {form.mode_location && (
+            <div style={{ display: "flex", gap: 8, paddingLeft: 26 }}>
+              <input placeholder={`Prix / jour (${currency})`} type="number" value={form.prix_jour} onChange={(e) => setForm({ ...form, prix_jour: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+              <input placeholder={`Caution suggérée (${currency})`} type="number" value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+          )}
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: form.mode_commander ? "#EAF0FB" : "#FAFAF7", border: "1px solid " + (form.mode_commander ? "#C3D4F0" : "#ECE8DC"), borderRadius: 8, padding: "9px 12px" }}>
+            <input type="checkbox" checked={form.mode_commander} onChange={(e) => setForm({ ...form, mode_commander: e.target.checked })} />
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>📦 Commander — pas encore sur place, on le fait venir (ex: Chine)</span>
+          </label>
+          {form.mode_commander && (
+            <div style={{ display: "flex", gap: 8, paddingLeft: 26 }}>
+              <input placeholder={`Prix (${currency})`} type="number" value={form.prix_vente_direct} onChange={(e) => setForm({ ...form, prix_vente_direct: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+              <input placeholder="Délai estimé (ex: 45-60 jours)" value={form.delai_commande_estime} onChange={(e) => setForm({ ...form, delai_commande_estime: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+          )}
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: form.mode_payer_maintenant ? "#FBF3E3" : "#FAFAF7", border: "1px solid " + (form.mode_payer_maintenant ? "#F0DDA8" : "#ECE8DC"), borderRadius: 8, padding: "9px 12px" }}>
+            <input type="checkbox" checked={form.mode_payer_maintenant} onChange={(e) => setForm({ ...form, mode_payer_maintenant: e.target.checked })} />
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>💵 Payer maintenant — déjà disponible, achat direct</span>
+          </label>
+          {form.mode_payer_maintenant && !form.mode_commander && (
+            <div style={{ paddingLeft: 26 }}>
+              <input placeholder={`Prix (${currency})`} type="number" value={form.prix_vente_direct} onChange={(e) => setForm({ ...form, prix_vente_direct: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+          )}
+        </div>
+
+        {!auMoinsUneOption && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8 }}>Coche au moins une option.</div>}
+
+        <button
+          onClick={() => { if (!form.nom.trim() || !auMoinsUneOption) return; onAdd(form); reinitialiserForm(); }}
+          disabled={!form.nom.trim() || !auMoinsUneOption}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: (!form.nom.trim() || !auMoinsUneOption) ? 0.5 : 1 }}
+        >
+          Ajouter au catalogue
+        </button>
+        </>
+        ) : (
+        <>
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <input placeholder={`Prix / jour (${currency})`} type="number" value={form.prix_jour} onChange={(e) => setForm({ ...form, prix_jour: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
           <input placeholder={`Caution suggérée (${currency})`} type="number" value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
         </div>
         <button
-          onClick={() => { if (!form.nom.trim() || !form.prix_jour) return; onAdd(form); setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "" }); }}
+          onClick={() => { if (!form.nom.trim() || !form.prix_jour) return; onAdd(form); reinitialiserForm(); }}
           style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
         >
           Ajouter au catalogue
         </button>
+        </>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {biensLocation.map((b) => (
           <div key={b.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
-                <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>{b.categorie}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: "#1a7a3c", marginTop: 6 }}>
-                  {Number(b.prix_jour).toLocaleString("fr-FR")} {currency} / jour
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                {b.photo_url && <img src={b.photo_url} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
+                  <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>{b.categorie}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                    {b.mode_location && <span style={{ fontSize: 10, fontWeight: 700, color: "#3B6D11", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>🔑 {Number(b.prix_jour).toLocaleString("fr-FR")}/j</span>}
+                    {b.mode_commander && <span style={{ fontSize: 10, fontWeight: 700, color: "#1E4B8C", background: "#EAF0FB", padding: "2px 8px", borderRadius: 999 }}>📦 Commander</span>}
+                    {b.mode_payer_maintenant && <span style={{ fontSize: 10, fontWeight: 700, color: "#8A6412", background: "#FBF3E3", padding: "2px 8px", borderRadius: 999 }}>💵 Direct</span>}
+                  </div>
                 </div>
-                {Number(b.caution_suggeree) > 0 && (
-                  <div style={{ fontSize: 11, color: "#8A6412", marginTop: 2 }}>Caution suggérée : {Number(b.caution_suggeree).toLocaleString("fr-FR")} {currency}</div>
-                )}
               </div>
-              <button onClick={() => onDelete(b.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+              <button onClick={() => onDelete(b.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑️</button>
             </div>
             <button
               onClick={() => onToggleDisponibilite(b.id, b.disponible)}
               style={{ width: "100%", marginTop: 10, background: b.disponible ? "#EAF3DE" : "#FBEAE6", color: b.disponible ? "#3B6D11" : "#D64933", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
             >
-              {b.disponible ? "✅ Disponible" : "🚫 Actuellement loué / indisponible"}
+              {b.disponible ? "✅ Disponible" : "🚫 Actuellement indisponible"}
             </button>
           </div>
         ))}

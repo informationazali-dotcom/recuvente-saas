@@ -429,56 +429,6 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     try { localStorage.setItem(`rv_panier_${workspaceId}`, JSON.stringify(panier)); } catch (_) {}
   }, [panier, workspaceId]);
 
-  // Compte les personnes réellement présentes sur cette boutique en ce moment (comme sur
-  // Shopify) — via la présence en temps réel de Supabase, sans nouvelle table : chaque
-  // visiteur "s'annonce" sur un canal partagé propre à cette boutique, et repart de la
-  // liste automatiquement dès qu'il ferme la page (aucune action de notre part à faire).
-  // Chacun partage aussi la page qu'il consulte, pour que l'admin voie qui regarde quoi.
-  const canalPresenceRef = useRef(null);
-  useEffect(() => {
-    if (!workspaceId) return;
-    const idVisiteur = Math.random().toString(36).slice(2);
-    const canal = supabase.channel(`presence-boutique-${workspaceId}`, { config: { presence: { key: idVisiteur } } });
-    canalPresenceRef.current = canal;
-    canal
-      .on("presence", { event: "sync" }, () => {
-        const etat = canal.presenceState();
-        setNbPersonnesEnLigne(Math.max(1, Object.keys(etat).length));
-      })
-      .subscribe((statut) => {
-        if (statut === "SUBSCRIBED") canal.track({ page: "Accueil", present_depuis: Date.now() });
-      });
-    return () => { supabase.removeChannel(canal); canalPresenceRef.current = null; };
-  }, [workspaceId]);
-
-  // Met à jour la page annoncée à chaque changement d'écran consulté par le visiteur.
-  useEffect(() => {
-    if (!canalPresenceRef.current) return;
-    const page = produitOuvert ? `Produit : ${produitOuvert.produit_nom}` : bienOuvert ? `Bien : ${bienOuvert.nom}` : collectionOuverte ? "Collection" : "Accueil";
-    canalPresenceRef.current.track({ page, present_depuis: Date.now() });
-  }, [produitOuvert, bienOuvert, collectionOuverte]);
-
-  // Freins basiques contre la copie occasionnelle de la boutique (clic droit, sélection de
-  // texte) — pas une protection technique réelle (n'importe quel navigateur peut toujours
-  // afficher le code source), juste une gêne pour décourager la copie la plus simple.
-  useEffect(() => {
-    console.log("%cCe design appartient à son créateur — reproduction interdite sans autorisation.", "color:#999;font-size:11px;");
-    function bloquerClicDroit(e) { e.preventDefault(); }
-    document.addEventListener("contextmenu", bloquerClicDroit);
-
-    const styleAntiCopie = document.createElement("style");
-    styleAntiCopie.id = "rv-anticopie";
-    styleAntiCopie.textContent = `
-      body { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-touch-callout: none; }
-      input, textarea, [contenteditable="true"] { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
-    `;
-    document.head.appendChild(styleAntiCopie);
-
-    return () => {
-      document.removeEventListener("contextmenu", bloquerClicDroit);
-      styleAntiCopie.remove();
-    };
-  }, []);
 
   function ajouterAuPanier(p, quantiteAjoutee = 1) {
     setPanier((liste) => {

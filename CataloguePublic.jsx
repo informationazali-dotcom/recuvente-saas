@@ -725,7 +725,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setFormAvis({ nom: "", note: 5, commentaire: "" });
     setAvisEnvoye(false);
     supabase.rpc("avis_produit_public", { p_produit_id: p.produit_id }).then(({ data }) => {
-      setAvisListe(data || []);
+      // On n'affiche que les avis avec un vrai commentaire — un avis "juste des étoiles, sans texte"
+      // n'apporte rien visuellement et alourdit la liste inutilement.
+      setAvisListe((data || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0));
     });
     const url = new URL(window.location.href);
     url.searchParams.set("produit", `${slugifierProduit(p.produit_nom)}-${p.produit_id.slice(0, 8)}`);
@@ -3321,21 +3323,25 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
         </div>
       </div>
 
-      {avisBoutique && avisBoutique.length > 0 && (
-        <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 14, color: "#16231F", textAlign: "center" }}>Ce que disent nos clients</div>
-          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
-            {avisBoutique.slice(0, 10).map((a, i) => (
-              <div key={i} style={{ flexShrink: 0, width: 220, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: 14 }}>
-                <div style={{ color: "#e8920a", fontSize: 13, marginBottom: 6 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</div>
-                {a.commentaire && <div style={{ fontSize: 12, color: "#16231F", lineHeight: 1.5, marginBottom: 8 }}>{a.commentaire}</div>}
-                {a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 8, marginBottom: 8 }} />}
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168" }}>{a.client_nom}</div>
-              </div>
-            ))}
+      {(() => {
+        const avisAvecTexte = (avisBoutique || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0);
+        if (avisAvecTexte.length === 0) return null;
+        return (
+          <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 14, color: "#16231F", textAlign: "center" }}>Ce que disent nos clients</div>
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 6 }}>
+              {avisAvecTexte.slice(0, 10).map((a, i) => (
+                <div key={i} style={{ flexShrink: 0, width: 220, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: 14 }}>
+                  <div style={{ color: "#e8920a", fontSize: 13, marginBottom: 6 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</div>
+                  <div style={{ fontSize: 12, color: "#16231F", lineHeight: 1.5, marginBottom: 8 }}>{a.commentaire}</div>
+                  {a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 8, marginBottom: 8 }} />}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168" }}>{a.client_nom}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div style={{ background: "#16231F", padding: "32px 20px", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 14, letterSpacing: "0.4px" }}>NOS MARQUES PARTENAIRES</div>
@@ -3925,7 +3931,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "testimonials") {
       const manuels = (entreprise.temoignagesManuels || []).map((t) => ({ nom: t.nom, note: t.note || 5, texte: t.texte }));
-      const reels = (avisBoutique || []).map((a) => ({ nom: a.client_nom, note: a.note || 5, texte: a.commentaire }));
+      const reels = (avisBoutique || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0).map((a) => ({ nom: a.client_nom, note: a.note || 5, texte: a.commentaire }));
       const tousTemoignages = [...manuels, ...reels].slice(0, 9);
       if (tousTemoignages.length === 0) return null;
       return (

@@ -367,9 +367,10 @@ function validerTelephone(numero, codePays) {
   return { valide: true, message: "" };
 }
 
-// Indicatifs des pays couverts par l'app — utilisés pour transformer un numéro local
-// (souvent saisi avec un 0 devant, ex: 05 09 28 14 03) en numéro international compris
-// par WhatsApp (ex: 225509281403), sans quoi wa.me refuse d'ouvrir la conversation.
+// Indicatifs des pays couverts par l'app. Important : depuis les réformes de numérotation
+// (Côte d'Ivoire 2021, Bénin 2024), le zéro initial fait partie intégrante du numéro à
+// 10 chiffres — il ne faut JAMAIS le retirer, juste ajouter l'indicatif pays devant
+// (ex: 0509281403 → 2250509281403, pas 225509281403).
 const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
 
 function formaterTelWhatsapp(numero, codePays) {
@@ -377,8 +378,7 @@ function formaterTelWhatsapp(numero, codePays) {
   const chiffres = String(numero || "").replace(/\D/g, "");
   if (!chiffres) return "";
   if (chiffres.startsWith(indicatif)) return chiffres; // déjà au format international
-  if (chiffres.startsWith("0")) return indicatif + chiffres.slice(1); // format local avec 0 initial
-  return indicatif + chiffres; // par précaution, au cas où le 0 initial aurait été omis
+  return indicatif + chiffres;
 }
 
 function prixUnitairePourBundle(prixVente, bundle) {

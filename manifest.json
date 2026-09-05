@@ -3,7 +3,7 @@
   "short_name": "RecuVente",
   "description": "Gestion de commandes, livreurs, closers et comptabilité",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#FAFAF7",
   "theme_color": "#1a7a3c",
   "icons": [

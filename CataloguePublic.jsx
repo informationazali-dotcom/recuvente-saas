@@ -400,6 +400,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [produits, setProduits] = useState([]);
   const [biensLocation, setBiensLocation] = useState([]);
   const [filtreCategorieBien, setFiltreCategorieBien] = useState(null);
+  const [nbPersonnesEnLigne, setNbPersonnesEnLigne] = useState(1);
   const [bienOuvert, setBienOuvert] = useState(null);
   const [modeChoisi, setModeChoisi] = useState(null);
   const [formBien, setFormBien] = useState({ client: "", tel: "", zone: "", dateDebut: "", dateFin: "", couleur: "" });
@@ -427,6 +428,25 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   useEffect(() => {
     try { localStorage.setItem(`rv_panier_${workspaceId}`, JSON.stringify(panier)); } catch (_) {}
   }, [panier, workspaceId]);
+
+  // Compte les personnes réellement présentes sur cette boutique en ce moment (comme sur
+  // Shopify) — via la présence en temps réel de Supabase, sans nouvelle table : chaque
+  // visiteur "s'annonce" sur un canal partagé propre à cette boutique, et repart de la
+  // liste automatiquement dès qu'il ferme la page (aucune action de notre part à faire).
+  useEffect(() => {
+    if (!workspaceId) return;
+    const idVisiteur = Math.random().toString(36).slice(2);
+    const canal = supabase.channel(`presence-boutique-${workspaceId}`, { config: { presence: { key: idVisiteur } } });
+    canal
+      .on("presence", { event: "sync" }, () => {
+        const etat = canal.presenceState();
+        setNbPersonnesEnLigne(Math.max(1, Object.keys(etat).length));
+      })
+      .subscribe((statut) => {
+        if (statut === "SUBSCRIBED") canal.track({ present_depuis: Date.now() });
+      });
+    return () => { supabase.removeChannel(canal); };
+  }, [workspaceId]);
 
   // Freins basiques contre la copie occasionnelle de la boutique (clic droit, sélection de
   // texte) — pas une protection technique réelle (n'importe quel navigateur peut toujours
@@ -1127,6 +1147,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         <div style={{ padding: 20, maxWidth: 560, margin: "0 auto" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: couleur, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{bienOuvert.categorie}</div>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 8 }}>{bienOuvert.nom}</div>
+          <div style={{ marginBottom: 14 }}>
+            <BadgePersonnesEnLigne nb={nbPersonnesEnLigne} />
+          </div>
           {bienOuvert.description && <div style={{ fontSize: 13.5, color: "#6B7168", lineHeight: 1.6, marginBottom: 18 }}>{bienOuvert.description}</div>}
 
           {Array.isArray(bienOuvert.couleurs_disponibles) && bienOuvert.couleurs_disponibles.length > 0 && (
@@ -1416,6 +1439,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
             <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 10, marginBottom: 4 }}>
               {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {entreprise.devise}
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <BadgePersonnesEnLigne nb={nbPersonnesEnLigne} />
             </div>
 
             {livraisonGratuite ? (
@@ -3785,6 +3812,16 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
 }
 
 const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };
+
+function BadgePersonnesEnLigne({ nb, style }) {
+  if (nb < 2) return null;
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 999, padding: "5px 12px", fontSize: 11.5, fontWeight: 700, color: "#8A6412", ...style }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1F9D6E", flexShrink: 0 }} />
+      {nb} personne{nb > 1 ? "s" : ""} en train de regarder cette boutique
+    </div>
+  );
+}
 
 function BulleWhatsApp({ whatsapp, codePays, messageDefaut, surCtaBar }) {
   if (!whatsapp) return null;

@@ -5541,7 +5541,7 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   }
 
   const champs = estRetail ? ["client", "tel", "produit", "montant"] : ["client", "tel", "produit", "montant", "zone"];
-  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "", caution: "" });
+  const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "", zone: "", mode_vente: estRetail ? "sur_place" : "livraison", montant_paye: "", ville_expedition: "", frais_expedition_saisi: "", caution: "" });
   const [modeRapide, setModeRapide] = useState(false);
   const [logementId, setLogementId] = useState("");
   function selectionnerLogement(id) {
@@ -5635,12 +5635,26 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
               </button>
             </div>
             {form.mode_vente === "expedition" && (
-              <input
-                placeholder="Ville de destination"
-                value={form.ville_expedition}
-                onChange={(e) => setForm({ ...form, ville_expedition: e.target.value })}
-                style={inputStyle}
-              />
+              <>
+                <input
+                  placeholder="Ville de destination"
+                  value={form.ville_expedition}
+                  onChange={(e) => setForm({ ...form, ville_expedition: e.target.value })}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder={`Frais d'expédition (${currency})`}
+                  type="number"
+                  value={form.frais_expedition_saisi}
+                  onChange={(e) => setForm({ ...form, frais_expedition_saisi: e.target.value })}
+                  style={inputStyle}
+                />
+                {Number(form.frais_expedition_saisi) > 0 && (
+                  <div style={{ fontSize: 11.5, color: "#8A6412", marginTop: -6, marginBottom: 10 }}>
+                    + {Number(form.frais_expedition_saisi).toLocaleString("fr-FR")} {currency} de frais ajoutés au montant total
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -5737,7 +5751,15 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
           </div>
         )}
 
-        <button onClick={() => canSubmit && montantPayeValide && onAdd(form)} disabled={!canSubmit || !montantPayeValide} style={btnStyle}>
+        <button
+          onClick={() => {
+            if (!canSubmit || !montantPayeValide) return;
+            const fraisExp = form.mode_vente === "expedition" ? (Number(form.frais_expedition_saisi) || 0) : 0;
+            onAdd({ ...form, montant: (Number(form.montant) || 0) + fraisExp });
+          }}
+          disabled={!canSubmit || !montantPayeValide}
+          style={btnStyle}
+        >
           {estRetail ? "Enregistrer la vente" : "Ajouter"}
         </button>
           </>

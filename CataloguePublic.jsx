@@ -2694,6 +2694,11 @@ function SectionsLuxuryCar({ entreprise, biensLocation = [], onOuvrirCategorie }
         .rv-lux-cat-tile img { transition: transform 0.5s ease; }
         .rv-lux-mode-card:hover { transform: translateY(-5px); border-color: rgba(212,175,55,0.5) !important; }
         .rv-lux-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(212,175,55,0.35); }
+        summary::-webkit-details-marker { display: none; }
+        summary::marker { content: ""; }
+        summary { position: relative; padding-right: 20px; }
+        summary::after { content: "+"; position: absolute; right: 0; top: 0; color: #D4AF37; font-size: 16px; }
+        details[open] summary::after { content: "−"; }
       `}</style>
 
       {/* Tuiles par catégorie */}
@@ -2787,6 +2792,126 @@ function SectionsLuxuryCar({ entreprise, biensLocation = [], onOuvrirCategorie }
               <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", marginTop: 6 }}>{label}</div>
             </div>
           ))}
+        </div>
+      </div>
+      </RevealOnScroll>
+
+      {/* Notre processus d'achat */}
+      <RevealOnScroll>
+      <div style={{ padding: "54px 20px", background: "#0d0d0d" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>DE LA COMMANDE À LA LIVRAISON</div>
+            <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(22px,3vw,32px)", fontWeight: 700 }}>Notre processus d'achat</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20 }}>
+            {[
+              ["1", "Contact", "Vous nous décrivez votre besoin, par WhatsApp ou via la fiche du bien."],
+              ["2", "Devis personnalisé", "On vous propose un prix clair et un délai précis, selon le mode choisi."],
+              ["3", "Confirmation", "Vous validez, avec les conditions convenues ensemble."],
+              ["4", "Import ou préparation", "Selon le mode : commande depuis la Chine, ou préparation du bien local."],
+              ["5", "Réception", "Livraison ou retrait, avec vérification du bien devant vous."],
+            ].map(([num, titre, texte], i, arr) => (
+              <div key={num} style={{ position: "relative", textAlign: "center" }}>
+                <div className="rv-lux-titre" style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(212,175,55,0.12)", border: "1.5px solid #D4AF37", color: "#D4AF37", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 17, margin: "0 auto 14px" }}>{num}</div>
+                <div style={{ color: "white", fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>{titre}</div>
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11.5, lineHeight: 1.55 }}>{texte}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      </RevealOnScroll>
+
+      {/* Garanties & service après-vente */}
+      <RevealOnScroll>
+      <div style={{ padding: "54px 20px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 32, alignItems: "center" }}>
+          <div>
+            <div style={{ color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>APRÈS VOTRE ACHAT</div>
+            <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(22px,3vw,30px)", fontWeight: 700, marginBottom: 16 }}>Garanties & service après-vente</div>
+            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, lineHeight: 1.7 }}>
+              Un investissement de cette ampleur mérite un vrai accompagnement — pas juste une transaction. Notre équipe reste disponible après la livraison pour répondre à vos questions et vous orienter en cas de besoin.
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {[
+              ["🔍", "Vérification avant livraison", "Chaque bien est contrôlé avant de vous être remis."],
+              ["📞", "Support post-achat", "Une ligne dédiée pour toute question après réception."],
+              ["📋", "Documentation complète", "Facture, informations techniques, et suivi de commande fournis."],
+            ].map(([icone, titre, texte], i) => (
+              <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "#141414", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 10, padding: "16px 18px" }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{icone}</span>
+                <div>
+                  <div style={{ color: "white", fontWeight: 700, fontSize: 13 }}>{titre}</div>
+                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11.5, marginTop: 3, lineHeight: 1.5 }}>{texte}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      </RevealOnScroll>
+
+      {/* Moyens de paiement flexibles */}
+      <RevealOnScroll>
+      <div style={{ background: "#141414", padding: "50px 20px", textAlign: "center" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ color: "#D4AF37", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>SANS COMPLICATION</div>
+          <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, marginBottom: 30 }}>Moyens de paiement flexibles</div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+            {["💸 Wave", "📱 Orange Money", "📱 MTN MoMo", "🏦 Virement bancaire", "💵 Espèces"].map((m, i) => (
+              <div key={i} style={{ background: "#0a0a0a", border: "1px solid rgba(212,175,55,0.25)", borderRadius: 8, padding: "10px 18px", fontSize: 12.5, fontWeight: 600, color: "white" }}>{m}</div>
+            ))}
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12.5, lineHeight: 1.6, maxWidth: 520, margin: "0 auto" }}>
+            Pour les montants importants, un paiement échelonné peut être discuté au cas par cas avec votre conseiller.
+          </div>
+        </div>
+      </div>
+      </RevealOnScroll>
+
+      {/* À qui s'adresse Luxury Car */}
+      <RevealOnScroll>
+      <div style={{ padding: "54px 20px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, marginBottom: 30, textAlign: "center" }}>À qui s'adresse Luxury Car</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            {[
+              ["🏗️", "Entreprises BTP", "Engins de chantier, bennes, groupes électrogènes pour vos travaux."],
+              ["🏢", "Administrations & ONG", "Véhicules et matériel pour vos missions et opérations."],
+              ["👤", "Particuliers", "Véhicules de luxe, à louer ou à acheter, selon votre besoin."],
+              ["🏪", "Commerces & PME", "Groupes électrogènes et matériel pour sécuriser votre activité."],
+            ].map(([icone, titre, texte], i) => (
+              <div key={i} style={{ background: "#141414", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 12, padding: "22px 18px", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{icone}</div>
+                <div style={{ color: "#D4AF37", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{titre}</div>
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11.5, lineHeight: 1.5 }}>{texte}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      </RevealOnScroll>
+
+      {/* FAQ */}
+      <RevealOnScroll>
+      <div style={{ background: "#141414", padding: "54px 20px" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto" }}>
+          <div className="rv-lux-titre" style={{ color: "white", fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, marginBottom: 30, textAlign: "center" }}>Questions fréquentes</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              ["Puis-je voir le véhicule ou l'engin avant de payer ?", "Oui, pour tout bien déjà disponible localement, une visite peut être organisée avec votre conseiller avant la finalisation."],
+              ["Quel est le délai réel pour une commande depuis la Chine ?", "Le délai est annoncé précisément sur chaque fiche produit avant que vous ne confirmiez — généralement 45 à 60 jours selon le bien."],
+              ["Comment se passe le paiement pour un montant important ?", "Par Mobile Money, virement bancaire, ou en espèces. Pour les gros montants, un paiement échelonné peut être discuté directement avec votre conseiller."],
+              ["Que se passe-t-il si le véhicule loué a un problème ?", "Contactez immédiatement notre support — chaque location est suivie et un remplacement ou une solution est proposé rapidement."],
+            ].map(([q, r], i) => (
+              <details key={i} style={{ background: "#0a0a0a", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 10, padding: "16px 18px" }}>
+                <summary style={{ color: "white", fontWeight: 600, fontSize: 13, cursor: "pointer", listStyle: "none" }}>{q}</summary>
+                <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5, lineHeight: 1.6, marginTop: 10 }}>{r}</div>
+              </details>
+            ))}
+          </div>
         </div>
       </div>
       </RevealOnScroll>

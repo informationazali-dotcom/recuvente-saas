@@ -623,6 +623,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   useEffect(() => {
     if (!workspaceId) return;
+
+    // Enregistre une vraie visite (une seule fois par ouverture de page) — capte la source
+    // si un lien publicitaire ajoute ?utm_source=facebook (ou autre) à l'adresse.
+    const paramsUrl = new URLSearchParams(window.location.search);
+    const sourceDetectee = paramsUrl.get("utm_source") || paramsUrl.get("source") || null;
+    supabase.rpc("enregistrer_visite_boutique", { p_workspace_id: workspaceId, p_source: sourceDetectee }).then(() => {});
+
     supabase.rpc("catalogue_public", { p_workspace_id: workspaceId }).then(({ data, error }) => {
       if (error || !data || data.length === 0) {
         setErreur("Ce catalogue est introuvable ou vide.");

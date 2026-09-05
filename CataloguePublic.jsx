@@ -387,7 +387,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [biensLocation, setBiensLocation] = useState([]);
   const [bienOuvert, setBienOuvert] = useState(null);
   const [modeChoisi, setModeChoisi] = useState(null);
-  const [formBien, setFormBien] = useState({ client: "", tel: "", zone: "", dateDebut: "", dateFin: "" });
+  const [formBien, setFormBien] = useState({ client: "", tel: "", zone: "", dateDebut: "", dateFin: "", couleur: "" });
   const [envoiBienEnCours, setEnvoiBienEnCours] = useState(false);
   const [erreurEnvoiBien, setErreurEnvoiBien] = useState("");
   const [bienEnvoye, setBienEnvoye] = useState(false);
@@ -966,6 +966,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setErreurEnvoiBien("Choisis les dates de location.");
       return;
     }
+    if (Array.isArray(bienOuvert.couleurs_disponibles) && bienOuvert.couleurs_disponibles.length > 0 && !formBien.couleur) {
+      setErreurEnvoiBien("Choisis une couleur.");
+      return;
+    }
     setEnvoiBienEnCours(true);
     setErreurEnvoiBien("");
     const { data, error } = await supabase.rpc("creer_commande_bien_location_publique", {
@@ -977,6 +981,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_date_debut: modeChoisi === "location" ? formBien.dateDebut : null,
       p_date_fin: modeChoisi === "location" ? formBien.dateFin : null,
       p_zone: formBien.zone || null,
+      p_couleur: formBien.couleur || null,
     });
     setEnvoiBienEnCours(false);
     const resultat = data && data[0];
@@ -1079,6 +1084,23 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           <div style={{ fontSize: 11, fontWeight: 700, color: couleur, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{bienOuvert.categorie}</div>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 8 }}>{bienOuvert.nom}</div>
           {bienOuvert.description && <div style={{ fontSize: 13.5, color: "#6B7168", lineHeight: 1.6, marginBottom: 18 }}>{bienOuvert.description}</div>}
+
+          {Array.isArray(bienOuvert.couleurs_disponibles) && bienOuvert.couleurs_disponibles.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>Choisis la couleur</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {bienOuvert.couleurs_disponibles.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setFormBien({ ...formBien, couleur: c }); setErreurEnvoiBien(""); }}
+                    style={{ padding: "9px 16px", borderRadius: 999, border: `2px solid ${formBien.couleur === c ? couleur : "#ECE8DC"}`, background: formBien.couleur === c ? `${couleur}15` : "white", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>Comment veux-tu ce bien ?</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>

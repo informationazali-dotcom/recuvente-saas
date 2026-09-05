@@ -8,22 +8,8 @@ const supabaseAdmin = createClient(
 const VERCEL_PROJECT = "recuvente-saas"; // nom exact du projet sur Vercel
 
 export const config = {
-  maxDuration: 280,
+  maxDuration: 60,
 };
-
-// Évite d'insérer deux fois le même prospect (même nom, ou même site/réseau),
-// que ce soit lors du même passage ou d'un jour à l'autre.
-async function filtrerDoublons(lignesCandidates) {
-  if (lignesCandidates.length === 0) return [];
-  const { data: existants } = await supabaseAdmin.from("prospects").select("nom, site_web");
-  const nomsExistants = new Set((existants || []).map((p) => (p.nom || "").trim().toLowerCase()).filter(Boolean));
-  const sitesExistants = new Set((existants || []).map((p) => (p.site_web || "").trim().toLowerCase()).filter(Boolean));
-  return lignesCandidates.filter((p) => {
-    const nom = (p.nom || "").trim().toLowerCase();
-    const site = (p.site_web || "").trim().toLowerCase();
-    return !(nomsExistants.has(nom) && nom) && !(sitesExistants.has(site) && site);
-  });
-}
 
 export default async function handler(req, res) {
   // ===== PROSPECTION AUTOMATIQUE 24/24 (déclenchée par GitHub Actions) =====
@@ -65,7 +51,7 @@ export default async function handler(req, res) {
 
     const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
 
-Cherche sur le web 3 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}" à ${ville}, Côte d'Ivoire, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+Cherche sur le web 5 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}" à ${ville}, Côte d'Ivoire, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
 
 Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
 {
@@ -79,36 +65,22 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
   "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
 }
 
-IMPORTANT — Ne retiens QUE des entreprises ACTIVES en ce moment : vérifie qu'elles ont publié du contenu (post Instagram/Facebook, mise à jour de site) au cours des 2-3 derniers mois. Ignore complètement les comptes ou sites dont la dernière activité visible remonte à plus de 6 mois — ce sont probablement des commerces fermés ou abandonnés, sans intérêt commercial.
+IMPORTANT — Privilégie des entreprises qui semblent actives (contenu récent si tu le vois facilement), mais ne passe pas de temps à vérifier chaque candidat en profondeur : base-toi sur ce que tu observes dans tes premiers résultats de recherche, sans multiplier les recherches supplémentaires juste pour confirmer une date exacte de dernière activité.
 
 CIBLAGE PRIORITAIRE (environ 80% des prospects trouvés) : toute personne ou entreprise qui vend déjà en ligne, quel que soit son outil actuel — y compris celles qui utilisent DÉJÀ Shopify, WooCommerce, ou une autre plateforme, pas seulement celles qui vendent uniquement par WhatsApp/Instagram sans outil. Le reste (20%) peut être des commerces encore 100% manuels.
 
-POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, ou une plateforme similaire, présente RecuVente comme une VRAIE ALTERNATIVE supérieure pour l'Afrique de l'Ouest, pas juste un outil de plus. RecuVente réunit en UN SEUL abonnement (9 500 FCFA/mois, pas en dollars) des fonctionnalités que Shopify et YouCan n'ont PAS nativement, ou seulement via des applications payantes en plus :
+POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify (ou une plateforme similaire facturée en dollars), présente RecuVente comme une VRAIE ALTERNATIVE, pas juste un outil de plus. Mentionne dans le message, selon ce qui est pertinent :
+- Prix en FCFA (9 500 FCFA/mois) au lieu d'un abonnement en dollars qui varie avec le taux de change
+- Pensé pour la vente avec paiement à la livraison (Shopify n'est pas conçu pour ça nativement)
+- Gestion des livreurs, du stock et des clients intégrée, pas besoin d'applications payantes en plus
+- Support et interface en français, adapté au marché ouest-africain
+- Marketing et suivi client directement par WhatsApp
 
-- Paiement à la livraison géré nativement du début à la fin (Shopify/YouCan sont pensés pour le paiement en ligne à l'achat, pas pour le COD)
-- Gestion complète des livreurs : assignation, suivi, statut de chaque livraison
-- Rapprochement des paiements Mobile Money avec lecture automatique des reçus par photo (scan OCR) — aucune des deux plateformes ne propose ça
-- Suivi du bénéfice RÉEL après coûts (pas juste le chiffre d'affaires brut)
-- Gestion d'équipe de vente avec closers/vendeurs et suivi de leurs performances
-- Marketing et relance client directement intégrés à WhatsApp, sans app tierce
-- Gestion de plusieurs boutiques/activités depuis un seul tableau de bord
-- Comptabilité, reçus et factures générés automatiquement
-- Prix fixe en FCFA, aucune surprise liée au taux de change dollar
+Pour les prospects qui ne vendent pas encore en ligne du tout, mets plutôt en avant la simplicité de création de boutique et toutes les fonctionnalités de gestion (commandes, livreurs, stock, clients).
 
-Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
+Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.
 
-Pour les prospects qui ne vendent PAS encore en ligne (encore 100% WhatsApp/Instagram sans vraie boutique) : l'argumentaire doit être tout aussi fort, pas un simple à-côté. Mets en avant, selon ce qui est pertinent :
-
-- Créer sa vraie boutique en ligne en quelques minutes, sans aucune compétence technique
-- Ne plus perdre de commandes dans les messages WhatsApp éparpillés — tout centralisé au même endroit
-- Savoir enfin combien on gagne réellement chaque mois (bénéfice net, pas juste ce qui rentre)
-- Ne plus avoir à gérer les livreurs par appels téléphoniques — suivi organisé de chaque livraison
-- Donner une image professionnelle avec une vraie boutique, sans les coûts et la complexité de Shopify
-- Tout gérer (produits, clients, stock, équipe) au même endroit dès le premier jour, sans devoir ajouter d'outils au fil du temps
-
-C'est le même produit, avec la même puissance, pour les deux profils — adapte simplement l'angle : « passer d'un autre outil à mieux » pour ceux qui vendent déjà en ligne, « démarrer directement avec le bon outil » pour ceux qui n'y sont pas encore.
-
-Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
+Limite-toi à 4-5 recherches web au total pour toute cette tâche, pas plus — reste efficace plutôt que de tout vérifier en détail.`;
 
     try {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -129,7 +101,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
       if (!matchJSON) return res.status(200).json({ success: true, inseres: 0, secteur, ville });
 
       const prospectsTrouves = JSON.parse(matchJSON[0]);
-      const lignesCandidates = prospectsTrouves.map((p) => ({
+      const lignesAInserer = prospectsTrouves.map((p) => ({
         nom: p.nom || null,
         entreprise: p.nom || null,
         secteur: p.secteur || secteur,
@@ -143,10 +115,9 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         message_suggere: p.message_suggere ? `${p.message_suggere}\n\n👉 https://wa.me/message/XHYI5VOMCUFGM1` : null,
         statut: "NEW",
       }));
-      const lignesAInserer = await filtrerDoublons(lignesCandidates);
       if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
 
-      return res.status(200).json({ success: true, inseres: lignesAInserer.length, doublonsIgnores: lignesCandidates.length - lignesAInserer.length, secteur, ville });
+      return res.status(200).json({ success: true, inseres: lignesAInserer.length, secteur, ville });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
@@ -164,7 +135,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
 
     const prompt = `Tu es un agent de recherche commerciale pour RecuVente, une plateforme de gestion de boutique en ligne et paiement à la livraison pour l'Afrique de l'Ouest (abonnement à 9 500 FCFA/mois : création de boutique en ligne, gestion des commandes, des livreurs, des clients, du stock, marketing WhatsApp).
 
-Cherche sur le web 3 entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}"${ville ? ` à ${ville}, Côte d'Ivoire` : " en Côte d'Ivoire"}, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
+Cherche sur le web ${5} entreprises RÉELLES et VÉRIFIABLES dans le secteur "${secteur}"${ville ? ` à ${ville}, Côte d'Ivoire` : " en Côte d'Ivoire"}, qui semblent gérer leurs ventes de façon manuelle (WhatsApp, Instagram, sans vraie boutique en ligne) et pourraient bénéficier de RecuVente.
 
 Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un tableau, avec ces champs exacts :
 {
@@ -178,36 +149,22 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
   "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
 }
 
-IMPORTANT — Ne retiens QUE des entreprises ACTIVES en ce moment : vérifie qu'elles ont publié du contenu (post Instagram/Facebook, mise à jour de site) au cours des 2-3 derniers mois. Ignore complètement les comptes ou sites dont la dernière activité visible remonte à plus de 6 mois — ce sont probablement des commerces fermés ou abandonnés, sans intérêt commercial.
+IMPORTANT — Privilégie des entreprises qui semblent actives (contenu récent si tu le vois facilement), mais ne passe pas de temps à vérifier chaque candidat en profondeur : base-toi sur ce que tu observes dans tes premiers résultats de recherche, sans multiplier les recherches supplémentaires juste pour confirmer une date exacte de dernière activité.
 
 CIBLAGE PRIORITAIRE (environ 80% des prospects trouvés) : toute personne ou entreprise qui vend déjà en ligne, quel que soit son outil actuel — y compris celles qui utilisent DÉJÀ Shopify, WooCommerce, ou une autre plateforme, pas seulement celles qui vendent uniquement par WhatsApp/Instagram sans outil. Le reste (20%) peut être des commerces encore 100% manuels.
 
-POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify, YouCan, ou une plateforme similaire, présente RecuVente comme une VRAIE ALTERNATIVE supérieure pour l'Afrique de l'Ouest, pas juste un outil de plus. RecuVente réunit en UN SEUL abonnement (9 500 FCFA/mois, pas en dollars) des fonctionnalités que Shopify et YouCan n'ont PAS nativement, ou seulement via des applications payantes en plus :
+POSITIONNEMENT DU MESSAGE : quand le prospect semble utiliser Shopify (ou une plateforme similaire facturée en dollars), présente RecuVente comme une VRAIE ALTERNATIVE, pas juste un outil de plus. Mentionne dans le message, selon ce qui est pertinent :
+- Prix en FCFA (9 500 FCFA/mois) au lieu d'un abonnement en dollars qui varie avec le taux de change
+- Pensé pour la vente avec paiement à la livraison (Shopify n'est pas conçu pour ça nativement)
+- Gestion des livreurs, du stock et des clients intégrée, pas besoin d'applications payantes en plus
+- Support et interface en français, adapté au marché ouest-africain
+- Marketing et suivi client directement par WhatsApp
 
-- Paiement à la livraison géré nativement du début à la fin (Shopify/YouCan sont pensés pour le paiement en ligne à l'achat, pas pour le COD)
-- Gestion complète des livreurs : assignation, suivi, statut de chaque livraison
-- Rapprochement des paiements Mobile Money avec lecture automatique des reçus par photo (scan OCR) — aucune des deux plateformes ne propose ça
-- Suivi du bénéfice RÉEL après coûts (pas juste le chiffre d'affaires brut)
-- Gestion d'équipe de vente avec closers/vendeurs et suivi de leurs performances
-- Marketing et relance client directement intégrés à WhatsApp, sans app tierce
-- Gestion de plusieurs boutiques/activités depuis un seul tableau de bord
-- Comptabilité, reçus et factures générés automatiquement
-- Prix fixe en FCFA, aucune surprise liée au taux de change dollar
+Pour les prospects qui ne vendent pas encore en ligne du tout, mets plutôt en avant la simplicité de création de boutique et toutes les fonctionnalités de gestion (commandes, livreurs, stock, clients).
 
-Choisis 2 ou 3 de ces arguments les PLUS pertinents pour CE prospect précis (pas tous en même temps, le message doit rester court et naturel) — adapte selon son secteur et sa situation apparente.
+Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.
 
-Pour les prospects qui ne vendent PAS encore en ligne (encore 100% WhatsApp/Instagram sans vraie boutique) : l'argumentaire doit être tout aussi fort, pas un simple à-côté. Mets en avant, selon ce qui est pertinent :
-
-- Créer sa vraie boutique en ligne en quelques minutes, sans aucune compétence technique
-- Ne plus perdre de commandes dans les messages WhatsApp éparpillés — tout centralisé au même endroit
-- Savoir enfin combien on gagne réellement chaque mois (bénéfice net, pas juste ce qui rentre)
-- Ne plus avoir à gérer les livreurs par appels téléphoniques — suivi organisé de chaque livraison
-- Donner une image professionnelle avec une vraie boutique, sans les coûts et la complexité de Shopify
-- Tout gérer (produits, clients, stock, équipe) au même endroit dès le premier jour, sans devoir ajouter d'outils au fil du temps
-
-C'est le même produit, avec la même puissance, pour les deux profils — adapte simplement l'angle : « passer d'un autre outil à mieux » pour ceux qui vendent déjà en ligne, « démarrer directement avec le bon outil » pour ceux qui n'y sont pas encore.
-
-Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise — n'utilise que des résultats de recherche réels.`;
+Limite-toi à 4-5 recherches web au total pour toute cette tâche, pas plus — reste efficace plutôt que de tout vérifier en détail.`;
 
     try {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -239,7 +196,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         return res.status(200).json({ success: true, prospects: [], erreurParsing: true, brut: texteReponse });
       }
 
-      const lignesCandidates = prospectsTrouves.map((p) => ({
+      const lignesAInserer = prospectsTrouves.map((p) => ({
         nom: p.nom || null,
         entreprise: p.nom || null,
         secteur: p.secteur || secteur,
@@ -254,12 +211,11 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
         statut: "NEW",
       }));
 
-      const lignesAInserer = await filtrerDoublons(lignesCandidates);
       if (lignesAInserer.length > 0) {
         await supabaseAdmin.from("prospects").insert(lignesAInserer);
       }
 
-      return res.status(200).json({ success: true, prospects: lignesAInserer, doublonsIgnores: lignesCandidates.length - lignesAInserer.length });
+      return res.status(200).json({ success: true, prospects: lignesAInserer });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }

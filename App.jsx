@@ -2663,6 +2663,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCodesPromo, setShowCodesPromo] = useState(false);
   const [showPaniersAbandonnes, setShowPaniersAbandonnes] = useState(false);
   const [showAzaliDesign, setShowAzaliDesign] = useState(false);
+  const [showTraficBoutique, setShowTraficBoutique] = useState(false);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
   useEffect(() => {
@@ -4019,13 +4020,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4039,7 +4040,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4278,6 +4279,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             🎨 Personnaliser ma boutique
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowTraficBoutique(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            📊 Trafic de ma boutique
           </button>
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
@@ -5274,6 +5283,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
+      {showTraficBoutique && !accesBloque && <TraficBoutiqueModal workspaceId={workspace.id} onClose={() => setShowTraficBoutique(false)} />}
       {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowCodesPromo(false)} />}
       {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowPaniersAbandonnes(false)} />}
     </div>
@@ -6184,6 +6194,72 @@ function AdminPanel({ session }) {
             );
           })}
         {data.workspaces.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune entreprise inscrite pour l'instant.</div>}
+      </div>
+    </div>
+  );
+}
+
+function TraficBoutiqueModal({ workspaceId, onClose }) {
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    supabase.rpc("statistiques_visites", { p_workspace_id: workspaceId }).then(({ data }) => {
+      setStats(data?.[0] || { aujourd_hui: 0, sept_jours: 0, trente_jours: 0, par_source: {} });
+    });
+  }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>📊 Trafic de ma boutique</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 18, lineHeight: 1.5 }}>
+          Nombre de fois où ta boutique publique a été ouverte — utile pour voir si une publicité envoie vraiment du monde.
+        </div>
+
+        {stats === null && <SkeletonListe nombre={2} />}
+
+        {stats !== null && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 18 }}>
+              <div style={{ background: "#EAF3DE", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#3B6D11", textTransform: "uppercase", fontWeight: 700 }}>Aujourd'hui</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 800, fontSize: 22, color: "#3B6D11", marginTop: 4 }}>{stats.aujourd_hui}</div>
+              </div>
+              <div style={{ background: "#EAF0FB", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#1E4B8C", textTransform: "uppercase", fontWeight: 700 }}>7 jours</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 800, fontSize: 22, color: "#1E4B8C", marginTop: 4 }}>{stats.sept_jours}</div>
+              </div>
+              <div style={{ background: "#FBF3E3", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#8A6412", textTransform: "uppercase", fontWeight: 700 }}>30 jours</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 800, fontSize: 22, color: "#8A6412", marginTop: 4 }}>{stats.trente_jours}</div>
+              </div>
+            </div>
+
+            {stats.par_source && Object.keys(stats.par_source).length > 0 ? (
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: "#344239", marginBottom: 8, textTransform: "uppercase" }}>D'où viennent tes visiteurs (30 derniers jours)</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {Object.entries(stats.par_source).sort((a, b) => b[1] - a[1]).map(([source, count]) => (
+                    <div key={source} style={{ display: "flex", justifyContent: "space-between", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 12px" }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600 }}>{source}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#1a7a3c" }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 10, lineHeight: 1.5 }}>
+                  💡 Pour voir d'où viennent tes visiteurs, ajoute <code>?utm_source=facebook</code> (ou "whatsapp", "instagram"...) à la fin du lien de ta boutique quand tu le partages dans une publicité.
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11.5, color: "#8A9089", lineHeight: 1.6 }}>
+                Aucune source détectée pour l'instant — les visites "Direct / inconnu" viennent de liens partagés sans suivi. Ajoute <code>?utm_source=facebook</code> à la fin de ton lien pour suivre une pub précise.
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

@@ -384,6 +384,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [workspaceId, setWorkspaceId] = useState(workspaceIdProp || null);
   const [entreprise, setEntreprise] = useState(undefined);
   const [produits, setProduits] = useState([]);
+  const [biensLocation, setBiensLocation] = useState([]);
+  const [bienOuvert, setBienOuvert] = useState(null);
+  const [modeChoisi, setModeChoisi] = useState(null);
+  const [formBien, setFormBien] = useState({ client: "", tel: "", zone: "", dateDebut: "", dateFin: "" });
+  const [envoiBienEnCours, setEnvoiBienEnCours] = useState(false);
+  const [erreurEnvoiBien, setErreurEnvoiBien] = useState("");
+  const [bienEnvoye, setBienEnvoye] = useState(false);
   const [collectionsManuelles, setCollectionsManuelles] = useState([]);
   const [avisBoutique, setAvisBoutique] = useState([]);
   const [sourceCampagne] = useState(() => {
@@ -681,6 +688,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           }
         });
       }
+
+      // Charge les véhicules/machines/bennes/maisons à 3 modes d'acquisition — réservé à cette
+      // boutique précise (Luxury Car), aucune autre boutique n'est concernée par cette fonctionnalité.
+      if ((data[0].slug || "") === "luxury-car") {
+        supabase.rpc("biens_location_public", { p_workspace_id: workspaceId }).then(({ data: dataBiens }) => {
+          setBiensLocation(dataBiens || []);
+          const idBienDansUrl = new URLSearchParams(window.location.search).get("bien");
+          if (idBienDansUrl && dataBiens) {
+            const trouve = dataBiens.find((b) => b.id === idBienDansUrl || b.id.slice(0, 8) === idBienDansUrl.slice(-8));
+            if (trouve) setBienOuvert(trouve);
+          }
+        });
+      }
     });
   }, [workspaceId]);
 
@@ -936,6 +956,37 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     return () => clearTimeout(delai);
   }, [form.tel, form.client, produitOuvert?.produit_id, workspaceId, envoye]);
 
+  async function envoyerCommandeBien() {
+    if (!bienOuvert || !modeChoisi) return;
+    if (!formBien.client.trim() || !formBien.tel.trim()) {
+      setErreurEnvoiBien("Nom et téléphone obligatoires.");
+      return;
+    }
+    if (modeChoisi === "location" && (!formBien.dateDebut || !formBien.dateFin)) {
+      setErreurEnvoiBien("Choisis les dates de location.");
+      return;
+    }
+    setEnvoiBienEnCours(true);
+    setErreurEnvoiBien("");
+    const { data, error } = await supabase.rpc("creer_commande_bien_location_publique", {
+      p_workspace_id: workspaceId,
+      p_bien_id: bienOuvert.id,
+      p_client: formBien.client,
+      p_tel: formBien.tel,
+      p_mode_acquisition: modeChoisi,
+      p_date_debut: modeChoisi === "location" ? formBien.dateDebut : null,
+      p_date_fin: modeChoisi === "location" ? formBien.dateFin : null,
+      p_zone: formBien.zone || null,
+    });
+    setEnvoiBienEnCours(false);
+    const resultat = data && data[0];
+    if (error || !resultat?.succes) {
+      setErreurEnvoiBien(resultat?.message || "Erreur, réessaie.");
+      return;
+    }
+    setBienEnvoye(true);
+  }
+
   const couleur = entreprise?.couleur || "#1a7a3c";
   const t = creerTraducteur(entreprise?.langue);
 
@@ -983,6 +1034,115 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.6 }}>
             Cette boutique n'accepte plus de commandes pour le moment. Reviens un peu plus tard.
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== ÉCRAN FICHE BIEN À 3 MODES (véhicules de luxe, machines, bennes, maisons) =====
+  if (bienOuvert) {
+    const modesDisponibles = [
+      bienOuvert.mode_location && { cle: "location", icone: "🔑", label: "Louer" },
+      bienOuvert.mode_commander && { cle: "commander", icone: "📦", label: "Commander" },
+      bienOuvert.mode_payer_maintenant && { cle: "payer_maintenant", icone: "💵", label: "Payer maintenant" },
+    ].filter(Boolean);
+
+    const nbJours = (modeChoisi === "location" && formBien.dateDebut && formBien.dateFin)
+      ? Math.max(1, Math.round((new Date(formBien.dateFin) - new Date(formBien.dateDebut)) / 86400000) + 1)
+      : 0;
+    const montantEstime = modeChoisi === "location" ? nbJours * Number(bienOuvert.prix_jour || 0) : Number(bienOuvert.prix_vente_direct || 0);
+
+    if (bienEnvoye) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "sans-serif", background: "#FAFAF7" }}>
+          <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 20, padding: 32, textAlign: "center", maxWidth: 400 }}>
+            <div style={{ fontSize: 46, marginBottom: 14 }}>✅</div>
+            <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 8 }}>Demande envoyée !</div>
+            <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.6 }}>
+              Notre équipe va te contacter très vite sur {formBien.tel} pour confirmer les détails.
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "sans-serif" }}>
+        <div style={{ background: "white", padding: "14px 16px", borderBottom: "1px solid #ECE8DC", display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => { setBienOuvert(null); setModeChoisi(null); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>←</button>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{entreprise.nom}</div>
+        </div>
+
+        {bienOuvert.photo_url && <img src={bienOuvert.photo_url} alt="" style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }} />}
+
+        <div style={{ padding: 20, maxWidth: 560, margin: "0 auto" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: couleur, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{bienOuvert.categorie}</div>
+          <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 8 }}>{bienOuvert.nom}</div>
+          {bienOuvert.description && <div style={{ fontSize: 13.5, color: "#6B7168", lineHeight: 1.6, marginBottom: 18 }}>{bienOuvert.description}</div>}
+
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>Comment veux-tu ce bien ?</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+            {modesDisponibles.map((m) => (
+              <button
+                key={m.cle}
+                onClick={() => { setModeChoisi(m.cle); setErreurEnvoiBien(""); }}
+                style={{ flex: "1 1 auto", minWidth: 110, padding: "12px 10px", borderRadius: 12, border: `2px solid ${modeChoisi === m.cle ? couleur : "#ECE8DC"}`, background: modeChoisi === m.cle ? `${couleur}15` : "white", cursor: "pointer", textAlign: "center" }}
+              >
+                <div style={{ fontSize: 20 }}>{m.icone}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{m.label}</div>
+              </button>
+            ))}
+          </div>
+
+          {modeChoisi && (
+            <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18 }}>
+              {modeChoisi === "location" && (
+                <>
+                  <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 10 }}>{Number(bienOuvert.prix_jour).toLocaleString("fr-FR")} {entreprise.devise} / jour{Number(bienOuvert.caution_suggeree) > 0 && ` · Caution : ${Number(bienOuvert.caution_suggeree).toLocaleString("fr-FR")} ${entreprise.devise}`}</div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Du</div>
+                      <input type="date" value={formBien.dateDebut} onChange={(e) => setFormBien({ ...formBien, dateDebut: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Au</div>
+                      <input type="date" value={formBien.dateFin} onChange={(e) => setFormBien({ ...formBien, dateFin: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+                  {nbJours > 0 && (
+                    <div style={{ background: "#EAF3DE", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12.5, fontWeight: 700, color: "#3B6D11" }}>
+                      {nbJours} jour{nbJours > 1 ? "s" : ""} — Total : {montantEstime.toLocaleString("fr-FR")} {entreprise.devise}
+                    </div>
+                  )}
+                </>
+              )}
+              {modeChoisi === "commander" && (
+                <div style={{ background: "#EAF0FB", borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#1E4B8C", lineHeight: 1.5 }}>
+                  📦 Prix : <strong>{montantEstime.toLocaleString("fr-FR")} {entreprise.devise}</strong><br />
+                  Délai estimé : <strong>{bienOuvert.delai_commande_estime || "à confirmer avec toi"}</strong>
+                </div>
+              )}
+              {modeChoisi === "payer_maintenant" && (
+                <div style={{ background: "#FBF3E3", borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#8A6412" }}>
+                  💵 Prix : <strong>{montantEstime.toLocaleString("fr-FR")} {entreprise.devise}</strong> — déjà disponible, livraison rapide.
+                </div>
+              )}
+
+              <input placeholder="Ton nom complet" value={formBien.client} onChange={(e) => setFormBien({ ...formBien, client: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Ton numéro de téléphone" value={formBien.tel} onChange={(e) => setFormBien({ ...formBien, tel: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Ta ville / commune (optionnel)" value={formBien.zone} onChange={(e) => setFormBien({ ...formBien, zone: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 12, boxSizing: "border-box" }} />
+
+              {erreurEnvoiBien && <div style={{ color: "#D64933", fontSize: 12, marginBottom: 10, fontWeight: 600 }}>{erreurEnvoiBien}</div>}
+
+              <button
+                onClick={envoyerCommandeBien}
+                disabled={envoiBienEnCours}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 800, fontSize: 14, cursor: "pointer" }}
+              >
+                {envoiBienEnCours ? "Envoi..." : `Confirmer ma demande`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1890,6 +2050,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           totalArticlesPanier={totalArticlesPanier}
           onOuvrirPanier={() => setPanierOuvert(true)}
           onAjouterAuPanier={ajouterAuPanier}
+          biensLocation={biensLocation}
+          onOuvrirBien={(b) => setBienOuvert(b)}
         />
         {panierOuvert && (
           <PanierDrawer
@@ -3395,7 +3557,7 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
   );
 }
 
-function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier }) {
+function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier, biensLocation = [], onOuvrirBien }) {
   const devise = entreprise.devise;
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
     typeof s === "string" ? { id: `s${i}`, type: s, visible: true } : { id: s.id || `s${i}`, type: s.type, visible: s.visible !== false }
@@ -4063,6 +4225,35 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           onAjouterAuPanier={onAjouterAuPanier}
           setCollectionOuverte={setCollectionOuverte}
         />
+      )}
+      {biensLocation.length > 0 && (
+        <div style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 14, color: "#16231F" }}>🚗 Véhicules & Matériel</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
+            {biensLocation.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => onOuvrirBien(b)}
+                style={{ textAlign: "left", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 0, cursor: "pointer", overflow: "hidden" }}
+              >
+                {b.photo_url ? (
+                  <img src={b.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 130, objectFit: "cover", display: "block" }} />
+                ) : (
+                  <div style={{ width: "100%", height: 130, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>🚗</div>
+                )}
+                <div style={{ padding: 12 }}>
+                  <div style={{ fontSize: 10.5, color: couleur, fontWeight: 700, textTransform: "uppercase" }}>{b.categorie}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.nom}</div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+                    {b.mode_location && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#3B6D11", background: "#EAF3DE", padding: "2px 6px", borderRadius: 999 }}>🔑 Louer</span>}
+                    {b.mode_commander && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1E4B8C", background: "#EAF0FB", padding: "2px 6px", borderRadius: 999 }}>📦 Commander</span>}
+                    {b.mode_payer_maintenant && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#8A6412", background: "#FBF3E3", padding: "2px 6px", borderRadius: 999 }}>💵 Direct</span>}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />
       {politiqueOuverte && (

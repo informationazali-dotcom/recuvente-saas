@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { supabase } from "./supabaseClient";
 import {
   OBJECTIFS_DIAGNOSTIC, OPTIONS_TRANCHE_CA, OPTIONS_TYPE_BOUTIQUE, OPTIONS_CANAUX, OPTIONS_PROBLEME,
-  diagnostiquerEcommerce,
+  OPTIONS_TYPE_OFFRE_COACH, OPTIONS_CANAL_COACH, OPTIONS_PROBLEME_COACH,
+  diagnostiquerEcommerce, diagnostiquerCoach,
 } from "./diagnosticRules.js";
 
 const NUMERO_WHATSAPP_DIAGNOSTIC = "0709281403"; // même numéro que la vitrine — à garder synchronisé si tu le changes
@@ -14,9 +15,11 @@ function cleanPhoneForWhatsApp(tel) {
   return "225" + digits;
 }
 
-// Ordre des écrans du parcours e-commerce (§5 du cahier des charges). "objectif" est commun
-// à tous les parcours et vient avant cette liste.
-const ETAPES_ECOMMERCE = ["boutique", "typeBoutique", "urlBoutique", "ca", "budgetPub", "canaux", "probleme", "commandes", "objectifRevenu", "analyse", "resume", "capture", "termine"];
+// Étapes par parcours (§5 e-commerce, §7 coach). "objectif" est commun et vient avant.
+const ETAPES_PAR_PARCOURS = {
+  ecommerce: ["boutique", "typeBoutique", "urlBoutique", "ca", "budgetPub", "canaux", "probleme", "commandes", "objectifRevenu", "analyse", "resume", "capture", "termine"],
+  coach: ["typeOffre", "prixMoyen", "canalAcquisition", "avezTunnel", "prospectsMois", "ventesMois", "problemeCoach", "analyse", "resume", "capture", "termine"],
+};
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
 const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "#0A0A12", color: "white", fontSize: 13.5, marginBottom: 10, boxSizing: "border-box" };
@@ -71,6 +74,8 @@ export default function ProjectDiagnostic({ onFermer }) {
   const [diagnostic, setDiagnostic] = useState(null);
 
   const estEcommerce = objectif?.parcours === "ecommerce";
+  const estCoach = objectif?.parcours === "coach";
+  const etapesParcours = objectif ? (ETAPES_PAR_PARCOURS[objectif.parcours] || null) : null;
 
   function maj(champ, valeur) {
     setReponses((r) => ({ ...r, [champ]: valeur }));
@@ -86,7 +91,7 @@ export default function ProjectDiagnostic({ onFermer }) {
 
   function suivant(prochaine) {
     if (prochaine === "analyse") {
-      const d = diagnostiquerEcommerce(reponses);
+      const d = estCoach ? diagnostiquerCoach(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
       setEtape("analyse");
       setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
@@ -116,10 +121,14 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_store_url: reponses.urlBoutique || null,
       p_revenue_range: reponses.caMensuel || null,
       p_ad_spend_range: reponses.budgetPub || null,
-      p_ad_channels: (reponses.canaux || []).join(", ") || null,
-      p_pain_point: reponses.problemePrincipal || besoinLibre || null,
-      p_monthly_orders: reponses.commandesMois || null,
+      p_ad_channels: (reponses.canaux || []).join(", ") || reponses.canalAcquisition || null,
+      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || besoinLibre || null,
+      p_monthly_orders: reponses.commandesMois || reponses.ventesMois || null,
       p_desired_revenue: reponses.objectifRevenu || null,
+      p_offer_type: reponses.typeOffre || null,
+      p_average_price: reponses.prixMoyen || null,
+      p_has_funnel: reponses.avezTunnel || null,
+      p_monthly_leads: reponses.prospectsMois || null,
       p_qualification_score: diagnostic ? diagnostic.score : null,
       p_diagnostic: diagnosticTexte,
       p_recommendation: recommandationTexte,
@@ -150,7 +159,7 @@ export default function ProjectDiagnostic({ onFermer }) {
           <div style={{ height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 99, marginBottom: 28, overflow: "hidden" }}>
             <div style={{
               height: "100%", background: "linear-gradient(90deg,#4F46E5,#7C3AED)", borderRadius: 99, transition: "width 0.3s ease",
-              width: etape === "objectif" ? "8%" : !estEcommerce ? "50%" : `${8 + (ETAPES_ECOMMERCE.indexOf(etape) + 1) * (84 / ETAPES_ECOMMERCE.length)}%`,
+              width: etape === "objectif" ? "8%" : !etapesParcours ? "50%" : `${8 + (etapesParcours.indexOf(etape) + 1) * (84 / etapesParcours.length)}%`,
             }} />
           </div>
         )}
@@ -163,7 +172,7 @@ export default function ProjectDiagnostic({ onFermer }) {
               enfants={
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
                   {OBJECTIFS_DIAGNOSTIC.map((o) => (
-                    <div key={o.id} onClick={() => { setObjectif(o); setEtape(o.parcours === "ecommerce" ? "boutique" : "bientot"); }} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10 }}>
+                    <div key={o.id} onClick={() => { setObjectif(o); setEtape(o.parcours === "bientot" ? "bientot" : ETAPES_PAR_PARCOURS[o.parcours][0]); }} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontSize: 18 }}>{o.icone}</span> {o.label}
                     </div>
                   ))}
@@ -236,6 +245,55 @@ export default function ProjectDiagnostic({ onFermer }) {
             />
           )}
 
+          {etape === "typeOffre" && (
+            <EcranQuestion titre="Que vendez-vous ?" onRetour={() => setEtape("objectif")}
+              peutContinuer={!!reponses.typeOffre} onContinuer={() => suivant("prixMoyen")}
+              enfants={<ChoixCartes options={OPTIONS_TYPE_OFFRE_COACH} valeur={reponses.typeOffre} onChoisir={(v) => maj("typeOffre", v)} />}
+            />
+          )}
+
+          {etape === "prixMoyen" && (
+            <EcranQuestion titre="Quel est votre prix moyen ?" onRetour={() => setEtape("typeOffre")}
+              peutContinuer={true} onContinuer={() => suivant("canalAcquisition")}
+              enfants={<input placeholder="Ex : 75 000 FCFA" value={reponses.prixMoyen || ""} onChange={(e) => maj("prixMoyen", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "canalAcquisition" && (
+            <EcranQuestion titre="Comment trouvez-vous actuellement vos clients ?" onRetour={() => setEtape("prixMoyen")}
+              peutContinuer={!!reponses.canalAcquisition} onContinuer={() => suivant("avezTunnel")}
+              enfants={<ChoixCartes options={OPTIONS_CANAL_COACH} valeur={reponses.canalAcquisition} onChoisir={(v) => maj("canalAcquisition", v)} />}
+            />
+          )}
+
+          {etape === "avezTunnel" && (
+            <EcranQuestion titre="Avez-vous déjà un tunnel de vente ?" onRetour={() => setEtape("canalAcquisition")}
+              peutContinuer={!!reponses.avezTunnel} onContinuer={() => suivant("prospectsMois")}
+              enfants={<ChoixCartes options={["Oui", "Non"]} valeur={reponses.avezTunnel} onChoisir={(v) => maj("avezTunnel", v)} />}
+            />
+          )}
+
+          {etape === "prospectsMois" && (
+            <EcranQuestion titre="Combien de prospects obtenez-vous environ par mois ?" onRetour={() => setEtape("avezTunnel")}
+              peutContinuer={true} onContinuer={() => suivant("ventesMois")}
+              enfants={<input placeholder="Ex : 25" value={reponses.prospectsMois || ""} onChange={(e) => maj("prospectsMois", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "ventesMois" && (
+            <EcranQuestion titre="Et combien de ventes réalisez-vous, sur ces prospects ?" onRetour={() => setEtape("prospectsMois")}
+              peutContinuer={true} onContinuer={() => suivant("problemeCoach")}
+              enfants={<input placeholder="Ex : 4" value={reponses.ventesMois || ""} onChange={(e) => maj("ventesMois", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "problemeCoach" && (
+            <EcranQuestion titre="Quel est votre principal problème aujourd'hui ?" onRetour={() => setEtape("ventesMois")}
+              peutContinuer={!!reponses.problemeCoach} onContinuer={() => suivant("analyse")}
+              enfants={<ChoixCartes options={OPTIONS_PROBLEME_COACH} valeur={reponses.problemeCoach} onChoisir={(v) => maj("problemeCoach", v)} />}
+            />
+          )}
+
           {etape === "analyse" && (
             <div style={{ textAlign: "center", padding: "50px 0" }}>
               <div style={{ fontSize: 30, marginBottom: 16 }}>⏳</div>
@@ -264,7 +322,7 @@ export default function ProjectDiagnostic({ onFermer }) {
                 ))}
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-                <button onClick={() => setEtape("objectifRevenu")} style={btnFantome}>← Revenir</button>
+                <button onClick={() => setEtape(etapesParcours[etapesParcours.length - 5] /* dernière question avant "analyse" */)} style={btnFantome}>← Revenir</button>
                 <button onClick={() => setEtape("capture")} style={btnPrimaire}>Recevoir ma recommandation</button>
               </div>
             </div>

@@ -7,7 +7,7 @@ import {
   OPTIONS_TYPE_PRODUIT_STARTUP, OPTIONS_STADE_STARTUP, OPTIONS_MODELE_ECONOMIQUE,
   OPTIONS_SERVICES_AGENCE, OPTIONS_DELAI_AGENCE, OPTIONS_MODELE_COLLABORATION,
   OPTIONS_TAILLE_ORG, OPTIONS_OUI_NON,
-  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup, diagnostiquerAgence, diagnostiquerStrategique,
+  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup, diagnostiquerAgence, diagnostiquerStrategique, diagnostiquerLibre,
 } from "./diagnosticRules.js";
 
 const NUMERO_WHATSAPP_DIAGNOSTIC = "0709281403"; // même numéro que la vitrine — à garder synchronisé si tu le changes
@@ -27,6 +27,7 @@ const ETAPES_PAR_PARCOURS = {
   startup: ["typeProduitStartup", "stadeStartup", "equipeTechnique", "utilisateursCibles", "modeleEconomique", "budgetStartup", "lancementStartup", "analyse", "resume", "capture", "termine"],
   agence: ["nombreClients", "typeClients", "servicesAgence", "volumeMensuel", "whiteLabel", "delaiAgence", "modeleCollaboration", "analyse", "resume", "capture", "termine"],
   strategique: ["organisation", "fonction", "secteur", "tailleOrganisation", "problemeStrategique", "objectifStrategique", "nombreUtilisateurs", "nombreSites", "besoinsFonctionnels", "integrations", "securite", "budgetStrategique", "delaiStrategique", "cahierDesCharges", "accompagnementStrategique", "analyse", "resume", "capture", "termine"],
+  libre: ["blocagePrincipal", "analyse", "resume", "capture", "termine"],
 };
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
@@ -87,6 +88,7 @@ export default function ProjectDiagnostic({ onFermer }) {
   const estStartup = objectif?.parcours === "startup";
   const estAgence = objectif?.parcours === "agence";
   const estStrategique = objectif?.parcours === "strategique";
+  const estLibre = objectif?.parcours === "libre";
   const etapesParcours = objectif ? (ETAPES_PAR_PARCOURS[objectif.parcours] || null) : null;
 
   function maj(champ, valeur) {
@@ -119,7 +121,7 @@ export default function ProjectDiagnostic({ onFermer }) {
 
   function suivant(prochaine) {
     if (prochaine === "analyse") {
-      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : estAgence ? diagnostiquerAgence(reponses) : estStrategique ? diagnostiquerStrategique(reponses) : diagnostiquerEcommerce(reponses);
+      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : estAgence ? diagnostiquerAgence(reponses) : estStrategique ? diagnostiquerStrategique(reponses) : estLibre ? diagnostiquerLibre(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
       setEtape("analyse");
       setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
@@ -150,7 +152,7 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_revenue_range: reponses.caMensuel || null,
       p_ad_spend_range: reponses.budgetPub || reponses.budgetEntreprise || reponses.budgetStartup || reponses.budgetStrategique || null,
       p_ad_channels: (reponses.canaux || []).join(", ") || reponses.canalAcquisition || null,
-      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || reponses.problemeEntreprise || reponses.problemeStrategique || besoinLibre || null,
+      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || reponses.problemeEntreprise || reponses.problemeStrategique || reponses.blocagePrincipal || besoinLibre || null,
       p_monthly_orders: reponses.commandesMois || reponses.ventesMois || null,
       p_desired_revenue: reponses.objectifRevenu || null,
       p_offer_type: reponses.typeOffre || null,
@@ -613,6 +615,13 @@ export default function ProjectDiagnostic({ onFermer }) {
             <EcranQuestion titre="Avez-vous besoin d'un accompagnement stratégique ?" onRetour={() => setEtape("cahierDesCharges")}
               peutContinuer={!!reponses.accompagnementStrategique} onContinuer={() => suivant("analyse")}
               enfants={<ChoixCartes options={OPTIONS_OUI_NON} valeur={reponses.accompagnementStrategique} onChoisir={(v) => maj("accompagnementStrategique", v)} />}
+            />
+          )}
+
+          {etape === "blocagePrincipal" && (
+            <EcranQuestion titre="Pas de problème. Décrivons simplement votre situation." sousTitre="Qu'est-ce qui vous empêche aujourd'hui de développer votre activité comme vous le souhaitez ?" onRetour={() => setEtape("objectif")}
+              peutContinuer={(reponses.blocagePrincipal || "").trim().length > 0} onContinuer={() => suivant("analyse")}
+              enfants={<textarea placeholder="Écrivez librement, en quelques phrases..." value={reponses.blocagePrincipal || ""} onChange={(e) => maj("blocagePrincipal", e.target.value)} rows={5} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />}
             />
           )}
 

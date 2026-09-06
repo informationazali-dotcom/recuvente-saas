@@ -3,6 +3,7 @@ import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Box
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic from "./CataloguePublic.jsx";
+import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -703,8 +704,9 @@ function VitrineBusinessPublique() {
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [formulaireEnvoye, setFormulaireEnvoye] = useState(false);
   const [erreurFormulaire, setErreurFormulaire] = useState("");
+  const [diagnosticOuvert, setDiagnosticOuvert] = useState(false);
 
-  const NUMERO_WHATSAPP = "0509281403"; // à ajuster si besoin
+  const NUMERO_WHATSAPP = "0709281403"; // à ajuster si besoin
 
   // Titre d'onglet + meta description spécifiques à la vitrine commerciale (au lieu de ceux,
   // génériques, du produit RecuVente). Pas de nettoyage au démontage : les liens de cette page
@@ -804,6 +806,20 @@ function VitrineBusinessPublique() {
           </div>
         </div>
       </div>
+
+      {/* RecuVente Project Intelligence — diagnostic guidé, pas un simple formulaire */}
+      <div style={{ padding: "50px 20px", background: "linear-gradient(160deg,#1a1030,#0A0A12)", textAlign: "center" }}>
+        <RevealOnScroll>
+          <div style={{ color: "#A78BFA", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 12 }}>RECUVENTE PROJECT INTELLIGENCE</div>
+          <div style={{ fontSize: "clamp(20px,3vw,28px)", fontWeight: 800, marginBottom: 12, maxWidth: 560, margin: "0 auto 12px" }}>Parlez-nous de votre activité. Nous allons comprendre ce qu'il vous faut.</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 22, maxWidth: 500, margin: "0 auto 22px", lineHeight: 1.6 }}>
+            Quelques questions suffisent pour identifier vos principaux leviers de croissance et vous orienter vers le système le plus adapté à votre projet.
+          </div>
+          <button onClick={() => setDiagnosticOuvert(true)} style={styleBtnPrimaire}>Commencer le diagnostic</button>
+        </RevealOnScroll>
+      </div>
+
+      {diagnosticOuvert && <ProjectDiagnostic onFermer={() => setDiagnosticOuvert(false)} />}
 
       {/* Ce que nous pouvons créer */}
       <div id="solutions" style={{ padding: "70px 20px", maxWidth: 1200, margin: "0 auto" }}>

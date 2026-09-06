@@ -13,7 +13,7 @@ export const OBJECTIFS_DIAGNOSTIC = [
   { id: "coaching", icone: "🎓", label: "Vendre mes formations / coachings", parcours: "coach" },
   { id: "application", icone: "📱", label: "Créer une application", parcours: "bientot" },
   { id: "saas", icone: "🚀", label: "Créer un SaaS", parcours: "bientot" },
-  { id: "digitaliser", icone: "🏢", label: "Digitaliser mon entreprise", parcours: "bientot" },
+  { id: "digitaliser", icone: "🏢", label: "Digitaliser mon entreprise", parcours: "entreprise" },
   { id: "partenaire", icone: "🤝", label: "Trouver un partenaire technique", parcours: "bientot" },
   { id: "projet_strategique", icone: "🏛️", label: "Soumettre un projet stratégique", parcours: "bientot" },
   { id: "ne_sait_pas", icone: "❓", label: "Je ne sais pas encore", parcours: "bientot" },
@@ -49,6 +49,16 @@ export const OPTIONS_PROBLEME_COACH = [
   "Pas d'automatisation",
   "Autre",
 ];
+
+// --- Parcours Entreprise / PME (§8) ---
+export const OPTIONS_A_DEJA_SYSTEME = ["Oui", "Non", "Partiellement"];
+export const OPTIONS_AMELIORER_ENTREPRISE = [
+  "Présence digitale", "Acquisition", "Processus internes", "CRM", "Vente",
+  "Automatisation", "Données", "Application", "Plateforme", "Portail client", "Autre",
+];
+export const OPTIONS_NIVEAU_PROJET = ["Petit projet", "Projet départemental", "Projet entreprise", "Projet stratégique", "Je ne sais pas"];
+export const OPTIONS_BUDGET_ENTREPRISE = ["Moins de 1M FCFA", "1M – 3M", "3M – 5M", "5M – 10M", "10M+", "Je préfère ne pas répondre"];
+export const OPTIONS_DEMARRAGE = ["Immédiatement", "Dans le mois", "Dans les 3 mois", "Plus tard / à définir"];
 
 // Points internes par tranche (score de qualification, jamais montré au visiteur)
 const POINTS_TRANCHE = {
@@ -190,5 +200,55 @@ export function diagnostiquerCoach(reponses) {
     defiTexte,
     recommandations,
     score: calculerScoreCoach(reponses),
+  };
+}
+
+// --- Diagnostic Entreprise / PME (§8) ---
+// Priorité de sélection du levier quand plusieurs axes d'amélioration sont cochés.
+const PRIORITE_LEVIER_ENTREPRISE = ["Acquisition", "Vente", "CRM", "Processus internes", "Automatisation", "Données", "Présence digitale", "Application", "Plateforme", "Portail client", "Autre"];
+
+const RECOMMANDATIONS_PAR_AXE = {
+  "Présence digitale": ["Site institutionnel", "Refonte de présence en ligne"],
+  "Acquisition": ["Stratégie d'acquisition", "Campagnes ciblées", "Tracking"],
+  "Processus internes": ["Audit des processus", "Automatisation", "Outils internes"],
+  "CRM": ["CRM sur mesure", "Automatisation du suivi client"],
+  "Vente": ["Système de vente", "Pipeline commercial"],
+  "Automatisation": ["Automatisation", "Workflows", "Intégrations"],
+  "Données": ["Dashboard", "Reporting", "Centralisation des données"],
+  "Application": ["Application sur mesure", "Architecture technique"],
+  "Plateforme": ["Plateforme web", "Architecture technique"],
+  "Portail client": ["Portail client", "Espace utilisateur sécurisé"],
+  "Autre": ["Audit global"],
+};
+
+// Points calibrés pour que budget max + projet stratégique + démarrage immédiat = 100,
+// ce qui déclenche le seuil "strategic_priority" (>=81) déjà utilisé côté SQL (§29).
+const POINTS_BUDGET_ENTREPRISE = { "Moins de 1M FCFA": 5, "1M – 3M": 15, "3M – 5M": 25, "5M – 10M": 35, "10M+": 45, "Je préfère ne pas répondre": 0 };
+const POINTS_NIVEAU_PROJET = { "Petit projet": 5, "Projet départemental": 15, "Projet entreprise": 25, "Projet stratégique": 35, "Je ne sais pas": 0 };
+const POINTS_DEMARRAGE = { "Immédiatement": 20, "Dans le mois": 15, "Dans les 3 mois": 8, "Plus tard / à définir": 0 };
+
+export function calculerScoreEntreprise(reponses) {
+  const score = (POINTS_BUDGET_ENTREPRISE[reponses.budgetEntreprise] || 0)
+    + (POINTS_NIVEAU_PROJET[reponses.niveauProjet] || 0)
+    + (POINTS_DEMARRAGE[reponses.demarrage] || 0);
+  return Math.min(100, score);
+}
+
+export function diagnostiquerEntreprise(reponses) {
+  const axes = reponses.ameliorer || [];
+  const axePrincipal = PRIORITE_LEVIER_ENTREPRISE.find((a) => axes.includes(a)) || "Autre";
+  const recommandations = RECOMMANDATIONS_PAR_AXE[axePrincipal] || RECOMMANDATIONS_PAR_AXE["Autre"];
+
+  const situationTexte = `Votre organisation ${reponses.hasSysteme === "Oui" ? "dispose déjà d'un système en place" : reponses.hasSysteme === "Partiellement" ? "dispose d'un système partiel" : "ne dispose pas encore d'un système dédié"}${reponses.personnesConcernees ? `, pour environ ${reponses.personnesConcernees} personne(s) concernée(s)` : ""}.`;
+  const objectifTexte = axes.length > 0 ? `Vous souhaitez avant tout améliorer : ${axes.join(", ")}.` : "Axes d'amélioration non précisés.";
+  const defiTexte = `Le projet se situe au niveau "${reponses.niveauProjet || "non précisé"}", avec un démarrage souhaité ${reponses.demarrage ? reponses.demarrage.toLowerCase() : "non précisé"}.`;
+
+  return {
+    levierPrincipal: axePrincipal,
+    situationTexte,
+    objectifTexte,
+    defiTexte,
+    recommandations,
+    score: calculerScoreEntreprise(reponses),
   };
 }

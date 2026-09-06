@@ -2661,6 +2661,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
   const [showRendezVousBusiness, setShowRendezVousBusiness] = useState(false);
+  const [showDashboardBusiness, setShowDashboardBusiness] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -4031,13 +4032,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4051,7 +4052,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4271,6 +4272,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         {session?.user?.email === "oulipaiexpress@gmail.com" && (
           <>
             <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", padding: "16px 12px 6px" }}>BUSINESS</div>
+            <button
+              onClick={() => setShowDashboardBusiness(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              📊 Dashboard Business
+            </button>
             <button
               onClick={() => setShowProspectsBusiness(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -5329,6 +5336,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
+      {showDashboardBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && (
+        <DashboardBusinessModal
+          email={session.user.email}
+          onClose={() => setShowDashboardBusiness(false)}
+          onOuvrirProspects={() => { setShowDashboardBusiness(false); setShowProspectsBusiness(true); }}
+          onOuvrirFactures={() => { setShowDashboardBusiness(false); setShowFacturesBusiness(true); }}
+          onOuvrirRdv={() => { setShowDashboardBusiness(false); setShowRendezVousBusiness(true); }}
+        />
+      )}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
@@ -6948,6 +6964,308 @@ function RendezVousBusinessModal({ email, onClose }) {
           onSave={sauvegarder}
         />
       )}
+    </div>
+  );
+}
+
+const OBJECTIF_BUSINESS_FCFA = 10000000;
+
+function joursDepuis(dateStr) {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+
+function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFactures, onOuvrirRdv }) {
+  const [donnees, setDonnees] = useState(null);
+  const [periodeGraphique, setPeriodeGraphique] = useState(30); // 7, 30, ou 90
+
+  useEffect(() => {
+    async function charger() {
+      // Une seule vague de requêtes groupées, en parallèle — pas de requête en cascade.
+      const [{ data: prospects }, { data: factures }, { data: rdvs }] = await Promise.all([
+        supabase.from("prospects_business").select("*").eq("proprietaire_email", email),
+        supabase.from("factures_business").select("*").eq("proprietaire_email", email),
+        supabase.from("rendezvous_business").select("*, prospects_business(nom, telephone, entreprise)").eq("proprietaire_email", email),
+      ]);
+      setDonnees({ prospects: prospects || [], factures: factures || [], rdvs: rdvs || [] });
+    }
+    charger();
+  }, [email]);
+
+  if (donnees === null) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 900 }}>
+          <SkeletonListe nombre={4} />
+        </div>
+      </div>
+    );
+  }
+
+  const { prospects, factures, rdvs } = donnees;
+  const maintenant = new Date();
+  const aujourdhuiStr = maintenant.toISOString().slice(0, 10);
+
+  // ===== Calculs financiers =====
+  const facturesGagnees = factures; // toutes les factures/propositions émises
+  const caSigne = factures.filter((f) => f.type === "facture").reduce((s, f) => s + calculerTotalFacture(f), 0);
+  const caEncaisse = factures.filter((f) => f.type === "facture" && f.statut === "payee").reduce((s, f) => s + calculerTotalFacture(f), 0);
+  const caEnAttente = factures.filter((f) => f.type === "facture" && ["envoyee", "partiel", "en_retard"].includes(f.statut)).reduce((s, f) => s + calculerTotalFacture(f), 0);
+  const caRestantObjectif = Math.max(0, OBJECTIF_BUSINESS_FCFA - caEncaisse);
+  const pourcentageObjectif = Math.min(100, (caEncaisse / OBJECTIF_BUSINESS_FCFA) * 100);
+
+  // ===== KPI =====
+  const prospectsChauds = prospects.filter((p) => p.score >= 70).length;
+  const rdvAvenir = rdvs.filter((r) => new Date(r.date_heure) >= maintenant && r.statut !== "annule");
+  const propositionsEnvoyees = factures.filter((f) => f.type === "proposition" && f.statut !== "brouillon").length;
+  const ventesGagnees = prospects.filter((p) => p.statut === "gagne").length;
+
+  // ===== Pipeline synthétique =====
+  const pipelineResume = ETAPES_PIPELINE.map((etape) => ({
+    ...etape,
+    nb: prospects.filter((p) => p.statut === etape.cle).length,
+    montant: prospects.filter((p) => p.statut === etape.cle).reduce((s, p) => s + (Number(p.budget) || 0), 0),
+  }));
+
+  // ===== Activité du jour / à relancer =====
+  const prospectsAContacter = prospects.filter((p) => p.statut === "nouveau");
+  const prospectsSansReponse = prospects.filter((p) => p.statut === "contacte" && joursDepuis(p.updated_at) >= 3);
+  const prospectsChaudsInactifs = prospects.filter((p) => p.score >= 70 && p.statut !== "gagne" && p.statut !== "perdu" && joursDepuis(p.updated_at) >= 5);
+  const propositionsARelancer = factures.filter((f) => f.type === "proposition" && f.statut === "envoyee" && joursDepuis(f.updated_at) >= 3);
+  const facturesImpayees = factures.filter((f) => f.type === "facture" && ["envoyee", "partiel", "en_retard"].includes(f.statut));
+  const rdvManques = rdvs.filter((r) => new Date(r.date_heure) < maintenant && (r.statut === "planifie" || r.statut === "confirme"));
+  const rdvDuJour = rdvs.filter((r) => r.date_heure.slice(0, 10) === aujourdhuiStr && r.statut !== "annule");
+
+  const aRelancer = [
+    ...prospectsSansReponse.map((p) => ({ type: "Sans réponse", nom: p.nom, tel: p.telephone, cible: p })),
+    ...prospectsChaudsInactifs.map((p) => ({ type: "Prospect chaud inactif", nom: p.nom, tel: p.telephone, cible: p })),
+    ...propositionsARelancer.map((f) => ({ type: "Proposition sans retour", nom: f.client_nom, tel: f.client_telephone, cible: f })),
+    ...facturesImpayees.map((f) => ({ type: "Facture impayée", nom: f.client_nom, tel: f.client_telephone, cible: f })),
+    ...rdvManques.map((r) => ({ type: "Rendez-vous manqué", nom: r.prospects_business?.nom || r.titre, tel: r.prospects_business?.telephone, cible: r })),
+  ];
+
+  // ===== Performance =====
+  const nbContactes = prospects.filter((p) => p.statut !== "nouveau").length;
+  const nbRepondu = prospects.filter((p) => !["nouveau", "contacte"].includes(p.statut)).length;
+  const nbQualifies = prospects.filter((p) => ["qualifie", "proposition", "gagne", "perdu"].includes(p.statut)).length;
+  const nbRdvTotal = rdvs.length;
+  const nbPropositionsTotal = factures.filter((f) => f.type === "proposition").length;
+  const tauxReponse = nbContactes > 0 ? Math.round((nbRepondu / nbContactes) * 100) : null;
+  const tauxRdv = nbQualifies > 0 ? Math.round((nbRdvTotal / nbQualifies) * 100) : null;
+  const tauxClosing = nbPropositionsTotal > 0 ? Math.round((ventesGagnees / nbPropositionsTotal) * 100) : null;
+  const panierMoyen = ventesGagnees > 0 ? Math.round(caSigne / ventesGagnees) : null;
+  const tauxConversion = prospects.length > 0 ? Math.round((ventesGagnees / prospects.length) * 100) : null;
+
+  // ===== Graphique revenus (jours de la période choisie) =====
+  const joursGraphique = Array.from({ length: periodeGraphique }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (periodeGraphique - 1 - i));
+    return d.toISOString().slice(0, 10);
+  });
+  const facturesPayeesAvecDate = factures.filter((f) => f.type === "facture" && f.statut === "payee");
+  const donneesGraphique = joursGraphique.map((jour) => ({
+    jour,
+    montant: facturesPayeesAvecDate.filter((f) => (f.updated_at || f.created_at).slice(0, 10) === jour).reduce((s, f) => s + calculerTotalFacture(f), 0),
+  }));
+  const maxGraphique = Math.max(1, ...donneesGraphique.map((d) => d.montant));
+
+  function KpiCard({ icone, label, valeur, couleur, onClick }) {
+    return (
+      <div onClick={onClick} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px", cursor: onClick ? "pointer" : "default" }}>
+        <div style={{ fontSize: 18, marginBottom: 4 }}>{icone}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: couleur || "#16231F" }}>{valeur}</div>
+        <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 2 }}>{label}</div>
+      </div>
+    );
+  }
+
+  function ActionsRapides({ tel, cible }) {
+    return (
+      <div style={{ display: "flex", gap: 5 }}>
+        {tel && (
+          <>
+            <a href={`https://wa.me/${cleanPhoneForWhatsApp(tel)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#25d366", color: "white", borderRadius: 6, padding: "5px 8px", fontSize: 11, textDecoration: "none" }}>💬</a>
+            <a href={`tel:${tel}`} style={{ background: "#2452E8", color: "white", borderRadius: 6, padding: "5px 8px", fontSize: 11, textDecoration: "none" }}>📞</a>
+          </>
+        )}
+        <button onClick={onOuvrirProspects} style={{ background: "#F0EEE6", border: "none", borderRadius: 6, padding: "5px 8px", fontSize: 11, cursor: "pointer" }}>👁️</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 980, maxHeight: "92vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ fontWeight: 700, fontSize: 20 }}>📊 Dashboard Business</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+
+        {/* Objectif financier */}
+        <div style={{ background: "linear-gradient(135deg,#16231F,#0d1512)", borderRadius: 14, padding: "20px 22px", marginBottom: 18, color: "white" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700, letterSpacing: "0.05em", marginBottom: 6 }}>OBJECTIF</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 14 }}>{OBJECTIF_BUSINESS_FCFA.toLocaleString("fr-FR")} FCFA</div>
+          <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 999, height: 14, overflow: "hidden", marginBottom: 10 }}>
+            <div style={{ background: "linear-gradient(90deg,#1a7a3c,#3ec97a)", height: "100%", width: `${pourcentageObjectif}%`, borderRadius: 999, transition: "width 0.6s ease" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, flexWrap: "wrap", gap: 8 }}>
+            <span><strong>{caEncaisse.toLocaleString("fr-FR")}</strong> encaissés ({pourcentageObjectif.toFixed(1)}%)</span>
+            <span style={{ color: "rgba(255,255,255,0.6)" }}>Reste {caRestantObjectif.toLocaleString("fr-FR")} FCFA</span>
+          </div>
+          <div style={{ display: "flex", gap: 16, marginTop: 14, flexWrap: "wrap", fontSize: 11.5, color: "rgba(255,255,255,0.7)" }}>
+            <span>CA signé : <strong style={{ color: "white" }}>{caSigne.toLocaleString("fr-FR")}</strong></span>
+            <span>En attente : <strong style={{ color: "white" }}>{caEnAttente.toLocaleString("fr-FR")}</strong></span>
+          </div>
+        </div>
+
+        {/* Cartes KPI */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 22 }}>
+          <KpiCard icone="👥" label="Prospects" valeur={prospects.length} onClick={onOuvrirProspects} />
+          <KpiCard icone="🔥" label="Chauds" valeur={prospectsChauds} couleur="#D64933" onClick={onOuvrirProspects} />
+          <KpiCard icone="📞" label="RDV à venir" valeur={rdvAvenir.length} couleur="#2452E8" onClick={onOuvrirRdv} />
+          <KpiCard icone="📄" label="Propositions" valeur={propositionsEnvoyees} couleur="#e8920a" onClick={onOuvrirFactures} />
+          <KpiCard icone="🏆" label="Ventes gagnées" valeur={ventesGagnees} couleur="#1a7a3c" onClick={onOuvrirProspects} />
+          <KpiCard icone="💰" label="CA encaissé" valeur={`${(caEncaisse / 1000).toFixed(0)}k`} couleur="#1a7a3c" onClick={onOuvrirFactures} />
+        </div>
+
+        {/* Pipeline synthétique */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>🗂️ Pipeline commercial</div>
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+            {pipelineResume.map((e) => (
+              <div key={e.cle} onClick={onOuvrirProspects} style={{ flexShrink: 0, minWidth: 110, background: "#FAFAF7", border: `1px solid ${e.couleur}33`, borderTop: `3px solid ${e.couleur}`, borderRadius: 9, padding: "10px 12px", cursor: "pointer" }}>
+                <div style={{ fontSize: 10.5, color: "#8A9089", fontWeight: 700 }}>{e.label}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: e.couleur }}>{e.nb}</div>
+                {e.montant > 0 && <div style={{ fontSize: 10, color: "#8A9089" }}>{e.montant.toLocaleString("fr-FR")} FCFA</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Revenus */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>📈 Revenus encaissés</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[7, 30, 90].map((p) => (
+                <button key={p} onClick={() => setPeriodeGraphique(p)} style={{ background: periodeGraphique === p ? "#1a7a3c" : "#F0EEE6", color: periodeGraphique === p ? "white" : "#6B7168", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{p}j</button>
+              ))}
+            </div>
+          </div>
+          {facturesPayeesAvecDate.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: "#8A9089", background: "#FAFAF7", borderRadius: 9, padding: "16px", textAlign: "center" }}>Pas assez de données pour afficher un graphique.</div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: periodeGraphique > 30 ? 1 : 3, height: 90, background: "#FAFAF7", borderRadius: 9, padding: "10px 10px 0" }}>
+              {donneesGraphique.map((d, i) => (
+                <div key={i} title={`${d.jour} : ${d.montant.toLocaleString("fr-FR")} FCFA`} style={{ flex: 1, height: `${Math.max(2, (d.montant / maxGraphique) * 100)}%`, background: d.montant > 0 ? "#1a7a3c" : "#E5E2D8", borderRadius: "3px 3px 0 0", minWidth: 2 }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Activité du jour */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>☀️ Activité du jour</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
+            {[
+              ["👥", "À contacter", prospectsAContacter.length],
+              ["🔁", "À relancer", aRelancer.length],
+              ["📞", "RDV aujourd'hui", rdvDuJour.length],
+              ["📄", "Propositions à relancer", propositionsARelancer.length],
+              ["💳", "Factures impayées", facturesImpayees.length],
+            ].map(([icone, label, valeur], i) => (
+              <div key={i} style={{ background: valeur > 0 ? "#FBF3E3" : "#FAFAF7", border: `1px solid ${valeur > 0 ? "#F0DDA8" : "#ECE8DC"}`, borderRadius: 9, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 16 }}>{icone}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: valeur > 0 ? "#8A6412" : "#8A9089" }}>{valeur}</div>
+                <div style={{ fontSize: 10, color: "#8A9089" }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rendez-vous à venir */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>📞 Prochains rendez-vous</div>
+          {rdvAvenir.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: "#8A9089" }}>Aucun rendez-vous à venir.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {rdvAvenir.slice(0, 5).map((r) => {
+                const d = new Date(r.date_heure);
+                return (
+                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", borderRadius: 8, padding: "9px 12px", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12.5 }}>
+                      <strong>{d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} {d.toTimeString().slice(0, 5)}</strong> — {TYPES_RDV[r.type]?.label} — {r.prospects_business?.entreprise || r.prospects_business?.nom || r.titre}
+                    </div>
+                    <ActionsRapides tel={r.prospects_business?.telephone} cible={r} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* À relancer */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>🔥 À relancer</div>
+          {aRelancer.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: "#8A9089" }}>Rien à relancer pour l'instant, tout est à jour. 🎉</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {aRelancer.slice(0, 8).map((r, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FBEAE6", borderRadius: 8, padding: "9px 12px", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 12.5 }}><strong>{r.nom}</strong> — <span style={{ color: "#D64933" }}>{r.type}</span></div>
+                  <ActionsRapides tel={r.tel} cible={r.cible} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Facturation */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>💳 Facturation</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 8, marginBottom: 10 }}>
+            {Object.entries(STATUTS_FACTURE).map(([cle, v]) => {
+              const nb = factures.filter((f) => f.type === "facture" && f.statut === cle).length;
+              return (
+                <div key={cle} onClick={onOuvrirFactures} style={{ background: "#FAFAF7", border: `1px solid ${v.couleur}33`, borderRadius: 8, padding: "8px 10px", textAlign: "center", cursor: "pointer" }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: v.couleur }}>{nb}</div>
+                  <div style={{ fontSize: 9.5, color: "#8A9089" }}>{v.label}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 16, fontSize: 12, flexWrap: "wrap" }}>
+            <span>Total facturé : <strong>{caSigne.toLocaleString("fr-FR")} FCFA</strong></span>
+            <span>Encaissé : <strong style={{ color: "#1a7a3c" }}>{caEncaisse.toLocaleString("fr-FR")} FCFA</strong></span>
+            <span>Restant : <strong style={{ color: "#D64933" }}>{caEnAttente.toLocaleString("fr-FR")} FCFA</strong></span>
+          </div>
+        </div>
+
+        {/* Performance */}
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>🎯 Performance commerciale</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
+            {[
+              ["Conversion", tauxConversion, "prospects → clients"],
+              ["Réponse", tauxReponse, "contactés → répondu"],
+              ["Rendez-vous", tauxRdv, "qualifiés → RDV"],
+              ["Closing", tauxClosing, "propositions → ventes"],
+            ].map(([label, valeur, sous], i) => (
+              <div key={i} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "12px" }}>
+                <div style={{ fontSize: 19, fontWeight: 800, color: valeur === null ? "#8A9089" : "#16231F" }}>{valeur === null ? "—" : `${valeur}%`}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "#6B7168", marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 9.5, color: "#8A9089" }}>{valeur === null ? "Pas assez de données" : sous}</div>
+              </div>
+            ))}
+            <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "12px" }}>
+              <div style={{ fontSize: 19, fontWeight: 800, color: panierMoyen === null ? "#8A9089" : "#16231F" }}>{panierMoyen === null ? "—" : `${panierMoyen.toLocaleString("fr-FR")}`}</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "#6B7168", marginTop: 2 }}>Panier moyen</div>
+              <div style={{ fontSize: 9.5, color: "#8A9089" }}>{panierMoyen === null ? "Pas assez de données" : "FCFA / vente"}</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

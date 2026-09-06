@@ -1,0 +1,128 @@
+// Registre des agents de l'AI Company OS (§33).
+// Miroir JS de la table ai_agents — utile côté frontend pour afficher l'organigramme (§20)
+// sans requêter Supabase à chaque fois pour des métadonnées statiques.
+//
+// IMPORTANT : "status: active" signifie que l'agent est réellement connecté à une vraie
+// logique testée (voir /api/admin-panel.js, action "ceo_ask" pour "ceo", ou le cron existant
+// pour "prospecting"). "status: inactive" signifie que la fiche existe mais qu'aucune logique
+// réelle ne tourne derrière — jamais l'inverse (§48 : ne jamais déclarer opérationnel ce qui
+// ne l'est pas). Mets à jour ce statut toi-même au fur et à mesure des phases suivantes.
+
+export const AGENTS = {
+  ceo: {
+    id: "ceo",
+    name: "CEO IA",
+    role: "Chef d'orchestre, synthèse et délégation",
+    department: "Direction",
+    status: "active", // Phase A : répond aux questions sur les prospects, en lecture seule
+    endpoint: "/api/admin-panel", // { action: "ceo_ask", question: "..." }
+  },
+  generalManager: {
+    id: "general_manager",
+    name: "Directeur Général IA",
+    role: "Opérations et exécution quotidienne",
+    department: "Opérations",
+    status: "inactive",
+    endpoint: null,
+  },
+  cfo: {
+    id: "cfo",
+    name: "CFO IA",
+    role: "Finance, trésorerie, rentabilité",
+    department: "Finance",
+    status: "inactive",
+    endpoint: null,
+  },
+  cmo: {
+    id: "cmo",
+    name: "CMO IA",
+    role: "Stratégie marketing et acquisition",
+    department: "Marketing",
+    status: "inactive",
+    endpoint: null,
+  },
+  sales: {
+    id: "sales",
+    name: "CRO / Sales IA",
+    role: "Pipeline commercial et closing",
+    department: "Ventes",
+    status: "inactive",
+    endpoint: null,
+  },
+  prospecting: {
+    id: "prospecting",
+    name: "Prospection IA",
+    role: "Recherche et qualification de prospects",
+    department: "Ventes",
+    status: "active", // le cron quotidien existant (api/cron-daily.js) — c'est probablement "Golden IA"
+    endpoint: "/api/cron-daily",
+  },
+  ads: {
+    id: "ads",
+    name: "Ads IA",
+    role: "Publicité Meta / Google / TikTok",
+    department: "Marketing",
+    status: "inactive", // bloqué : aucune intégration Meta/Google/TikTok Ads connectée
+    endpoint: null,
+  },
+  copywriter: {
+    id: "copywriter",
+    name: "Copywriter IA",
+    role: "Rédaction commerciale",
+    department: "Marketing",
+    status: "inactive",
+    endpoint: null,
+  },
+  hr: {
+    id: "hr",
+    name: "RH IA",
+    role: "Équipe, charge de travail, recrutement",
+    department: "RH",
+    status: "inactive",
+    endpoint: null,
+  },
+  cto: {
+    id: "cto",
+    name: "CTO IA",
+    role: "Architecture, bugs, sécurité",
+    department: "Tech",
+    status: "inactive",
+    endpoint: null,
+  },
+  customerSuccess: {
+    id: "customer_success",
+    name: "Customer Success IA",
+    role: "Satisfaction et rétention client",
+    department: "Support",
+    status: "inactive",
+    endpoint: null,
+  },
+  projectManager: {
+    id: "project_manager",
+    name: "Project Manager IA",
+    role: "Suivi de projets et livraison",
+    department: "Opérations",
+    status: "inactive",
+    endpoint: null,
+  },
+  data: {
+    id: "data",
+    name: "Data / Analytics IA",
+    role: "Analyse et détection d'anomalies",
+    department: "Data",
+    status: "inactive",
+    endpoint: null,
+  },
+  automation: {
+    id: "automation",
+    name: "Automation IA",
+    role: "Règles et workflows",
+    department: "Opérations",
+    status: "inactive",
+    endpoint: null,
+  },
+};
+
+export function listerAgentsActifs() {
+  return Object.values(AGENTS).filter((a) => a.status === "active");
+}

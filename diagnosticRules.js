@@ -15,7 +15,7 @@ export const OBJECTIFS_DIAGNOSTIC = [
   { id: "saas", icone: "🚀", label: "Créer un SaaS", parcours: "startup" },
   { id: "digitaliser", icone: "🏢", label: "Digitaliser mon entreprise", parcours: "entreprise" },
   { id: "partenaire", icone: "🤝", label: "Trouver un partenaire technique", parcours: "agence" },
-  { id: "projet_strategique", icone: "🏛️", label: "Soumettre un projet stratégique", parcours: "bientot" },
+  { id: "projet_strategique", icone: "🏛️", label: "Soumettre un projet stratégique", parcours: "strategique" },
   { id: "ne_sait_pas", icone: "❓", label: "Je ne sais pas encore", parcours: "bientot" },
 ];
 
@@ -69,6 +69,10 @@ export const OPTIONS_MODELE_ECONOMIQUE = ["Abonnement", "Freemium", "Vente uniqu
 export const OPTIONS_SERVICES_AGENCE = ["Développement", "Landing pages", "Funnels", "E-commerce", "Tracking", "Automatisation", "SaaS"];
 export const OPTIONS_DELAI_AGENCE = ["Urgent (moins de 2 semaines)", "2 à 4 semaines", "1 à 2 mois", "Flexible"];
 export const OPTIONS_MODELE_COLLABORATION = ["Forfait par projet", "Abonnement mensuel", "Commission / revenue share", "À discuter"];
+
+// --- Parcours Projet stratégique (§9) — toujours marqué priorité stratégique au CRM ---
+export const OPTIONS_TAILLE_ORG = ["1 à 10 personnes", "11 à 50 personnes", "51 à 200 personnes", "201 à 1000 personnes", "Plus de 1000 personnes"];
+export const OPTIONS_OUI_NON = ["Oui", "Non"];
 
 // Points internes par tranche (score de qualification, jamais montré au visiteur)
 const POINTS_TRANCHE = {
@@ -335,5 +339,35 @@ export function diagnostiquerAgence(reponses) {
     defiTexte,
     recommandations,
     score: calculerScoreAgence(reponses),
+  };
+}
+
+// --- Diagnostic Projet stratégique (§9) ---
+const POINTS_TAILLE_ORG = { "1 à 10 personnes": 5, "11 à 50 personnes": 12, "51 à 200 personnes": 20, "201 à 1000 personnes": 30, "Plus de 1000 personnes": 40 };
+
+export function calculerScoreStrategique(reponses) {
+  const score = (POINTS_BUDGET_ENTREPRISE[reponses.budgetStrategique] || 0)
+    + (POINTS_DEMARRAGE[reponses.delaiStrategique] || 0)
+    + (POINTS_TAILLE_ORG[reponses.tailleOrganisation] || 0)
+    + (reponses.accompagnementStrategique === "Oui" ? 10 : 0);
+  return Math.min(100, score);
+}
+
+export function diagnostiquerStrategique(reponses) {
+  const recommandations = reponses.cahierDesCharges === "Oui"
+    ? ["Analyse du cahier des charges", "Cadrage technique", "Proposition détaillée"]
+    : ["Atelier de cadrage", "Rédaction du cahier des charges", "Proposition détaillée"];
+
+  const situationTexte = `Organisation du secteur ${reponses.secteur || "non précisé"}${reponses.tailleOrganisation ? ` (${reponses.tailleOrganisation})` : ""}, contact en tant que ${reponses.fonction || "fonction non précisée"}.`;
+  const objectifTexte = reponses.objectifStrategique || "Objectif du projet non précisé.";
+  const defiTexte = reponses.problemeStrategique || "Problème à résoudre non précisé.";
+
+  return {
+    levierPrincipal: "Accompagnement stratégique",
+    situationTexte,
+    objectifTexte,
+    defiTexte,
+    recommandations,
+    score: calculerScoreStrategique(reponses),
   };
 }

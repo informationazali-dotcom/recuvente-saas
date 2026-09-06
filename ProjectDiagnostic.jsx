@@ -6,7 +6,8 @@ import {
   OPTIONS_A_DEJA_SYSTEME, OPTIONS_AMELIORER_ENTREPRISE, OPTIONS_NIVEAU_PROJET, OPTIONS_BUDGET_ENTREPRISE, OPTIONS_DEMARRAGE,
   OPTIONS_TYPE_PRODUIT_STARTUP, OPTIONS_STADE_STARTUP, OPTIONS_MODELE_ECONOMIQUE,
   OPTIONS_SERVICES_AGENCE, OPTIONS_DELAI_AGENCE, OPTIONS_MODELE_COLLABORATION,
-  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup, diagnostiquerAgence,
+  OPTIONS_TAILLE_ORG, OPTIONS_OUI_NON,
+  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup, diagnostiquerAgence, diagnostiquerStrategique,
 } from "./diagnosticRules.js";
 
 const NUMERO_WHATSAPP_DIAGNOSTIC = "0709281403"; // même numéro que la vitrine — à garder synchronisé si tu le changes
@@ -25,6 +26,7 @@ const ETAPES_PAR_PARCOURS = {
   entreprise: ["orgDescription", "problemeEntreprise", "personnesConcernees", "utilisateursEstimes", "hasSysteme", "ameliorer", "niveauProjet", "budgetEntreprise", "demarrage", "analyse", "resume", "capture", "termine"],
   startup: ["typeProduitStartup", "stadeStartup", "equipeTechnique", "utilisateursCibles", "modeleEconomique", "budgetStartup", "lancementStartup", "analyse", "resume", "capture", "termine"],
   agence: ["nombreClients", "typeClients", "servicesAgence", "volumeMensuel", "whiteLabel", "delaiAgence", "modeleCollaboration", "analyse", "resume", "capture", "termine"],
+  strategique: ["organisation", "fonction", "secteur", "tailleOrganisation", "problemeStrategique", "objectifStrategique", "nombreUtilisateurs", "nombreSites", "besoinsFonctionnels", "integrations", "securite", "budgetStrategique", "delaiStrategique", "cahierDesCharges", "accompagnementStrategique", "analyse", "resume", "capture", "termine"],
 };
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
@@ -84,6 +86,7 @@ export default function ProjectDiagnostic({ onFermer }) {
   const estEntreprise = objectif?.parcours === "entreprise";
   const estStartup = objectif?.parcours === "startup";
   const estAgence = objectif?.parcours === "agence";
+  const estStrategique = objectif?.parcours === "strategique";
   const etapesParcours = objectif ? (ETAPES_PAR_PARCOURS[objectif.parcours] || null) : null;
 
   function maj(champ, valeur) {
@@ -116,7 +119,7 @@ export default function ProjectDiagnostic({ onFermer }) {
 
   function suivant(prochaine) {
     if (prochaine === "analyse") {
-      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : estAgence ? diagnostiquerAgence(reponses) : diagnostiquerEcommerce(reponses);
+      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : estAgence ? diagnostiquerAgence(reponses) : estStrategique ? diagnostiquerStrategique(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
       setEtape("analyse");
       setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
@@ -145,21 +148,21 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_platform: reponses.typeBoutique || reponses.typeProduitStartup || null,
       p_store_url: reponses.urlBoutique || null,
       p_revenue_range: reponses.caMensuel || null,
-      p_ad_spend_range: reponses.budgetPub || reponses.budgetEntreprise || reponses.budgetStartup || null,
+      p_ad_spend_range: reponses.budgetPub || reponses.budgetEntreprise || reponses.budgetStartup || reponses.budgetStrategique || null,
       p_ad_channels: (reponses.canaux || []).join(", ") || reponses.canalAcquisition || null,
-      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || reponses.problemeEntreprise || besoinLibre || null,
+      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || reponses.problemeEntreprise || reponses.problemeStrategique || besoinLibre || null,
       p_monthly_orders: reponses.commandesMois || reponses.ventesMois || null,
       p_desired_revenue: reponses.objectifRevenu || null,
       p_offer_type: reponses.typeOffre || null,
       p_average_price: reponses.prixMoyen || null,
       p_has_funnel: reponses.avezTunnel || null,
       p_monthly_leads: reponses.prospectsMois || null,
-      p_org_description: reponses.orgDescription || null,
+      p_org_description: reponses.orgDescription || reponses.organisation || null,
       p_people_affected: reponses.personnesConcernees || null,
-      p_estimated_users: reponses.utilisateursEstimes || null,
+      p_estimated_users: reponses.utilisateursEstimes || reponses.nombreUtilisateurs || null,
       p_improve_areas: (reponses.ameliorer || []).join(", ") || null,
       p_project_level: reponses.niveauProjet || null,
-      p_start_timing: reponses.demarrage || reponses.lancementStartup || null,
+      p_start_timing: reponses.demarrage || reponses.lancementStartup || reponses.delaiStrategique || null,
       p_team_status: reponses.equipeTechnique || null,
       p_target_users: reponses.utilisateursCibles || null,
       p_business_model: reponses.modeleEconomique || null,
@@ -170,7 +173,18 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_services_needed: (reponses.servicesAgence || []).join(", ") || null,
       p_delivery_timeframe: reponses.delaiAgence || null,
       p_collaboration_model: reponses.modeleCollaboration || null,
-      p_lead_type: estAgence ? "partner" : "diagnostic",
+      p_contact_role: reponses.fonction || null,
+      p_sector: reponses.secteur || null,
+      p_org_size: reponses.tailleOrganisation || null,
+      p_project_objective: reponses.objectifStrategique || null,
+      p_site_count: reponses.nombreSites || null,
+      p_functional_needs: reponses.besoinsFonctionnels || null,
+      p_integrations_needed: reponses.integrations || null,
+      p_security_requirements: reponses.securite || null,
+      p_has_specifications: reponses.cahierDesCharges || null,
+      p_needs_strategic_support: reponses.accompagnementStrategique || null,
+      p_lead_type: estAgence ? "partner" : estStrategique ? "strategic" : "diagnostic",
+      p_force_strategic: estStrategique,
       p_qualification_score: diagnostic ? diagnostic.score : null,
       p_diagnostic: diagnosticTexte,
       p_recommendation: recommandationTexte,
@@ -494,6 +508,111 @@ export default function ProjectDiagnostic({ onFermer }) {
             <EcranQuestion titre="Quel modèle de collaboration envisagez-vous ?" onRetour={() => setEtape("delaiAgence")}
               peutContinuer={!!reponses.modeleCollaboration} onContinuer={() => suivant("analyse")}
               enfants={<ChoixCartes options={OPTIONS_MODELE_COLLABORATION} valeur={reponses.modeleCollaboration} onChoisir={(v) => maj("modeleCollaboration", v)} />}
+            />
+          )}
+
+          {etape === "organisation" && (
+            <EcranQuestion titre="Quelle est votre organisation ?" onRetour={() => setEtape("objectif")}
+              peutContinuer={true} onContinuer={() => suivant("fonction")}
+              enfants={<input placeholder="Nom de l'organisation" value={reponses.organisation || ""} onChange={(e) => maj("organisation", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "fonction" && (
+            <EcranQuestion titre="Quelle est votre fonction ?" onRetour={() => setEtape("organisation")}
+              peutContinuer={true} onContinuer={() => suivant("secteur")}
+              enfants={<input placeholder="Ex : Directeur général, DSI..." value={reponses.fonction || ""} onChange={(e) => maj("fonction", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "secteur" && (
+            <EcranQuestion titre="Dans quel secteur opérez-vous ?" onRetour={() => setEtape("fonction")}
+              peutContinuer={true} onContinuer={() => suivant("tailleOrganisation")}
+              enfants={<input placeholder="Ex : Banque, santé, distribution..." value={reponses.secteur || ""} onChange={(e) => maj("secteur", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "tailleOrganisation" && (
+            <EcranQuestion titre="Quelle est la taille de votre organisation ?" onRetour={() => setEtape("secteur")}
+              peutContinuer={!!reponses.tailleOrganisation} onContinuer={() => suivant("problemeStrategique")}
+              enfants={<ChoixCartes options={OPTIONS_TAILLE_ORG} valeur={reponses.tailleOrganisation} onChoisir={(v) => maj("tailleOrganisation", v)} />}
+            />
+          )}
+
+          {etape === "problemeStrategique" && (
+            <EcranQuestion titre="Quel problème cherchez-vous à résoudre ?" onRetour={() => setEtape("tailleOrganisation")}
+              peutContinuer={true} onContinuer={() => suivant("objectifStrategique")}
+              enfants={<textarea placeholder="Décrivez le problème..." value={reponses.problemeStrategique || ""} onChange={(e) => maj("problemeStrategique", e.target.value)} rows={3} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />}
+            />
+          )}
+
+          {etape === "objectifStrategique" && (
+            <EcranQuestion titre="Quel est votre objectif ?" onRetour={() => setEtape("problemeStrategique")}
+              peutContinuer={true} onContinuer={() => suivant("nombreUtilisateurs")}
+              enfants={<textarea placeholder="Décrivez l'objectif visé..." value={reponses.objectifStrategique || ""} onChange={(e) => maj("objectifStrategique", e.target.value)} rows={3} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />}
+            />
+          )}
+
+          {etape === "nombreUtilisateurs" && (
+            <EcranQuestion titre="Combien d'utilisateurs estimez-vous ?" onRetour={() => setEtape("objectifStrategique")}
+              peutContinuer={true} onContinuer={() => suivant("nombreSites")}
+              enfants={<input placeholder="Ex : 500" value={reponses.nombreUtilisateurs || ""} onChange={(e) => maj("nombreUtilisateurs", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "nombreSites" && (
+            <EcranQuestion titre="Combien de sites ou agences sont concernés ?" sousTitre="Si pertinent pour votre organisation." onRetour={() => setEtape("nombreUtilisateurs")}
+              peutContinuer={true} onContinuer={() => suivant("besoinsFonctionnels")}
+              enfants={<input placeholder="Ex : 8" value={reponses.nombreSites || ""} onChange={(e) => maj("nombreSites", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "besoinsFonctionnels" && (
+            <EcranQuestion titre="Quels sont vos besoins fonctionnels ?" onRetour={() => setEtape("nombreSites")}
+              peutContinuer={true} onContinuer={() => suivant("integrations")}
+              enfants={<textarea placeholder="Fonctionnalités attendues..." value={reponses.besoinsFonctionnels || ""} onChange={(e) => maj("besoinsFonctionnels", e.target.value)} rows={3} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />}
+            />
+          )}
+
+          {etape === "integrations" && (
+            <EcranQuestion titre="Des intégrations sont-elles nécessaires ?" sousTitre="Ex : ERP, paiement mobile, outils existants..." onRetour={() => setEtape("besoinsFonctionnels")}
+              peutContinuer={true} onContinuer={() => suivant("securite")}
+              enfants={<input placeholder="Décrivez les intégrations..." value={reponses.integrations || ""} onChange={(e) => maj("integrations", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "securite" && (
+            <EcranQuestion titre="Avez-vous des exigences de sécurité particulières ?" onRetour={() => setEtape("integrations")}
+              peutContinuer={true} onContinuer={() => suivant("budgetStrategique")}
+              enfants={<input placeholder="Ex : hébergement local, conformité..." value={reponses.securite || ""} onChange={(e) => maj("securite", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "budgetStrategique" && (
+            <EcranQuestion titre="Quel budget avez-vous prévu ?" onRetour={() => setEtape("securite")}
+              peutContinuer={!!reponses.budgetStrategique} onContinuer={() => suivant("delaiStrategique")}
+              enfants={<ChoixCartes options={OPTIONS_BUDGET_ENTREPRISE} valeur={reponses.budgetStrategique} onChoisir={(v) => maj("budgetStrategique", v)} />}
+            />
+          )}
+
+          {etape === "delaiStrategique" && (
+            <EcranQuestion titre="Quel est le délai souhaité ?" onRetour={() => setEtape("budgetStrategique")}
+              peutContinuer={!!reponses.delaiStrategique} onContinuer={() => suivant("cahierDesCharges")}
+              enfants={<ChoixCartes options={OPTIONS_DEMARRAGE} valeur={reponses.delaiStrategique} onChoisir={(v) => maj("delaiStrategique", v)} />}
+            />
+          )}
+
+          {etape === "cahierDesCharges" && (
+            <EcranQuestion titre="Disposez-vous déjà d'un cahier des charges ?" onRetour={() => setEtape("delaiStrategique")}
+              peutContinuer={!!reponses.cahierDesCharges} onContinuer={() => suivant("accompagnementStrategique")}
+              enfants={<ChoixCartes options={OPTIONS_OUI_NON} valeur={reponses.cahierDesCharges} onChoisir={(v) => maj("cahierDesCharges", v)} />}
+            />
+          )}
+
+          {etape === "accompagnementStrategique" && (
+            <EcranQuestion titre="Avez-vous besoin d'un accompagnement stratégique ?" onRetour={() => setEtape("cahierDesCharges")}
+              peutContinuer={!!reponses.accompagnementStrategique} onContinuer={() => suivant("analyse")}
+              enfants={<ChoixCartes options={OPTIONS_OUI_NON} valeur={reponses.accompagnementStrategique} onChoisir={(v) => maj("accompagnementStrategique", v)} />}
             />
           )}
 

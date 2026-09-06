@@ -1121,7 +1121,7 @@ function VitrineBusinessPublique() {
   );
 }
 
-const inputVitrineStyle = { width: "100%", padding: "11px 13px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "#0A0A12", color: "white", fontSize: 13, marginBottom: 10, boxSizing: "border-box" };
+const inputVitrineStyle = { width: "100%", padding: "11px 13px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "#0A0A12", color: "white", fontSize: 16, marginBottom: 10, boxSizing: "border-box" };
 
 function LandingPage() {
   const [plans, setPlans] = useState([]);

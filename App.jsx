@@ -704,7 +704,7 @@ function VitrineBusinessPublique() {
   const [formulaireEnvoye, setFormulaireEnvoye] = useState(false);
   const [erreurFormulaire, setErreurFormulaire] = useState("");
 
-  const NUMERO_WHATSAPP = "0709281403"; // à ajuster si besoin
+  const NUMERO_WHATSAPP = "0509281403"; // à ajuster si besoin
 
   // Titre d'onglet + meta description spécifiques à la vitrine commerciale (au lieu de ceux,
   // génériques, du produit RecuVente). Pas de nettoyage au démontage : les liens de cette page

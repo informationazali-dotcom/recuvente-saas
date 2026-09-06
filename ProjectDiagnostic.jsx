@@ -5,7 +5,8 @@ import {
   OPTIONS_TYPE_OFFRE_COACH, OPTIONS_CANAL_COACH, OPTIONS_PROBLEME_COACH,
   OPTIONS_A_DEJA_SYSTEME, OPTIONS_AMELIORER_ENTREPRISE, OPTIONS_NIVEAU_PROJET, OPTIONS_BUDGET_ENTREPRISE, OPTIONS_DEMARRAGE,
   OPTIONS_TYPE_PRODUIT_STARTUP, OPTIONS_STADE_STARTUP, OPTIONS_MODELE_ECONOMIQUE,
-  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup,
+  OPTIONS_SERVICES_AGENCE, OPTIONS_DELAI_AGENCE, OPTIONS_MODELE_COLLABORATION,
+  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup, diagnostiquerAgence,
 } from "./diagnosticRules.js";
 
 const NUMERO_WHATSAPP_DIAGNOSTIC = "0709281403"; // même numéro que la vitrine — à garder synchronisé si tu le changes
@@ -23,6 +24,7 @@ const ETAPES_PAR_PARCOURS = {
   coach: ["typeOffre", "prixMoyen", "canalAcquisition", "avezTunnel", "prospectsMois", "ventesMois", "problemeCoach", "analyse", "resume", "capture", "termine"],
   entreprise: ["orgDescription", "problemeEntreprise", "personnesConcernees", "utilisateursEstimes", "hasSysteme", "ameliorer", "niveauProjet", "budgetEntreprise", "demarrage", "analyse", "resume", "capture", "termine"],
   startup: ["typeProduitStartup", "stadeStartup", "equipeTechnique", "utilisateursCibles", "modeleEconomique", "budgetStartup", "lancementStartup", "analyse", "resume", "capture", "termine"],
+  agence: ["nombreClients", "typeClients", "servicesAgence", "volumeMensuel", "whiteLabel", "delaiAgence", "modeleCollaboration", "analyse", "resume", "capture", "termine"],
 };
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
@@ -81,6 +83,7 @@ export default function ProjectDiagnostic({ onFermer }) {
   const estCoach = objectif?.parcours === "coach";
   const estEntreprise = objectif?.parcours === "entreprise";
   const estStartup = objectif?.parcours === "startup";
+  const estAgence = objectif?.parcours === "agence";
   const etapesParcours = objectif ? (ETAPES_PAR_PARCOURS[objectif.parcours] || null) : null;
 
   function maj(champ, valeur) {
@@ -103,9 +106,17 @@ export default function ProjectDiagnostic({ onFermer }) {
     });
   }
 
+  function toggleServiceAgence(service) {
+    setReponses((r) => {
+      const actuels = r.servicesAgence || [];
+      const nouveaux = actuels.includes(service) ? actuels.filter((s) => s !== service) : [...actuels, service];
+      return { ...r, servicesAgence: nouveaux };
+    });
+  }
+
   function suivant(prochaine) {
     if (prochaine === "analyse") {
-      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : diagnostiquerEcommerce(reponses);
+      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : estAgence ? diagnostiquerAgence(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
       setEtape("analyse");
       setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
@@ -152,6 +163,14 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_team_status: reponses.equipeTechnique || null,
       p_target_users: reponses.utilisateursCibles || null,
       p_business_model: reponses.modeleEconomique || null,
+      p_client_count: reponses.nombreClients || null,
+      p_client_type: reponses.typeClients || null,
+      p_monthly_volume: reponses.volumeMensuel || null,
+      p_white_label: reponses.whiteLabel || null,
+      p_services_needed: (reponses.servicesAgence || []).join(", ") || null,
+      p_delivery_timeframe: reponses.delaiAgence || null,
+      p_collaboration_model: reponses.modeleCollaboration || null,
+      p_lead_type: estAgence ? "partner" : "diagnostic",
       p_qualification_score: diagnostic ? diagnostic.score : null,
       p_diagnostic: diagnosticTexte,
       p_recommendation: recommandationTexte,
@@ -426,6 +445,55 @@ export default function ProjectDiagnostic({ onFermer }) {
             <EcranQuestion titre="Quand voulez-vous lancer ?" onRetour={() => setEtape("budgetStartup")}
               peutContinuer={!!reponses.lancementStartup} onContinuer={() => suivant("analyse")}
               enfants={<ChoixCartes options={OPTIONS_DEMARRAGE} valeur={reponses.lancementStartup} onChoisir={(v) => maj("lancementStartup", v)} />}
+            />
+          )}
+
+          {etape === "nombreClients" && (
+            <EcranQuestion titre="Combien de clients gérez-vous actuellement ?" onRetour={() => setEtape("objectif")}
+              peutContinuer={true} onContinuer={() => suivant("typeClients")}
+              enfants={<input placeholder="Ex : 12" value={reponses.nombreClients || ""} onChange={(e) => maj("nombreClients", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "typeClients" && (
+            <EcranQuestion titre="Quel type de clients accompagnez-vous ?" onRetour={() => setEtape("nombreClients")}
+              peutContinuer={true} onContinuer={() => suivant("servicesAgence")}
+              enfants={<input placeholder="Ex : e-commerçants, coachs, PME..." value={reponses.typeClients || ""} onChange={(e) => maj("typeClients", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "servicesAgence" && (
+            <EcranQuestion titre="Quels services recherchez-vous chez un partenaire technique ?" sousTitre="Plusieurs choix possibles." onRetour={() => setEtape("typeClients")}
+              peutContinuer={(reponses.servicesAgence || []).length > 0} onContinuer={() => suivant("volumeMensuel")}
+              enfants={<ChoixCartes options={OPTIONS_SERVICES_AGENCE} valeur={reponses.servicesAgence} multi onChoisir={toggleServiceAgence} />}
+            />
+          )}
+
+          {etape === "volumeMensuel" && (
+            <EcranQuestion titre="Quel volume mensuel de projets estimez-vous ?" onRetour={() => setEtape("servicesAgence")}
+              peutContinuer={true} onContinuer={() => suivant("whiteLabel")}
+              enfants={<input placeholder="Ex : 6" value={reponses.volumeMensuel || ""} onChange={(e) => maj("volumeMensuel", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "whiteLabel" && (
+            <EcranQuestion titre="Recherchez-vous un travail en marque blanche ?" onRetour={() => setEtape("volumeMensuel")}
+              peutContinuer={!!reponses.whiteLabel} onContinuer={() => suivant("delaiAgence")}
+              enfants={<ChoixCartes options={["Oui", "Non"]} valeur={reponses.whiteLabel} onChoisir={(v) => maj("whiteLabel", v)} />}
+            />
+          )}
+
+          {etape === "delaiAgence" && (
+            <EcranQuestion titre="Quel délai moyen recherchez-vous ?" onRetour={() => setEtape("whiteLabel")}
+              peutContinuer={!!reponses.delaiAgence} onContinuer={() => suivant("modeleCollaboration")}
+              enfants={<ChoixCartes options={OPTIONS_DELAI_AGENCE} valeur={reponses.delaiAgence} onChoisir={(v) => maj("delaiAgence", v)} />}
+            />
+          )}
+
+          {etape === "modeleCollaboration" && (
+            <EcranQuestion titre="Quel modèle de collaboration envisagez-vous ?" onRetour={() => setEtape("delaiAgence")}
+              peutContinuer={!!reponses.modeleCollaboration} onContinuer={() => suivant("analyse")}
+              enfants={<ChoixCartes options={OPTIONS_MODELE_COLLABORATION} valeur={reponses.modeleCollaboration} onChoisir={(v) => maj("modeleCollaboration", v)} />}
             />
           )}
 

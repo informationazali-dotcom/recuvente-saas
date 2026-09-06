@@ -120,10 +120,84 @@ async function gererPOST(req, res) {
   return res.status(200).json({ success: true, status: nouveauStatut });
 }
 
+// ===== POST "ceo_ask" : premier agent réel du AI Company OS (Phase A) =====
+// Volontairement scope étroit et honnête : lit UNIQUEMENT prospects_business (ta donnée,
+// sans ambiguïté de propriétaire — contrairement à "commandes" qui est multi-tenant SaaS et
+// nécessiterait de connaître ton workspace_id précis, que je n'ai pas). Toute réponse est
+// bâtie sur des chiffres réels requêtés à l'instant, jamais inventés par le modèle.
+async function gererCeoAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) {
+    return res.status(400).json({ error: "Question manquante" });
+  }
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+  }
+
+  const { data: prospects, error: prospectsError } = await supabaseAdmin
+    .from("prospects_business")
+    .select("statut, score, strategic_priority, source, lead_type, created_at")
+    .eq("proprietaire_email", "oulipaiexpress@gmail.com");
+  if (prospectsError) return res.status(400).json({ error: prospectsError.message });
+
+  const total = prospects.length;
+  const parStatut = {};
+  prospects.forEach((p) => { parStatut[p.statut] = (parStatut[p.statut] || 0) + 1; });
+  const strategiques = prospects.filter((p) => p.strategic_priority).length;
+  const scoreMoyen = total > 0 ? Math.round(prospects.reduce((s, p) => s + (p.score || 0), 0) / total) : 0;
+  const septDerniersJours = prospects.filter((p) => new Date(p.created_at) > new Date(Date.now() - 7 * 24 * 3600 * 1000)).length;
+
+  const contexteReel = {
+    total_prospects: total,
+    repartition_par_statut: parStatut,
+    prospects_strategiques: strategiques,
+    score_moyen: scoreMoyen,
+    nouveaux_7_derniers_jours: septDerniersJours,
+  };
+
+  const prompt = `Tu es le CEO IA de RecuVente Business (l'activité de services de Koffi, pas le SaaS RecuVente lui-même). Voici les VRAIES données actuelles de son pipeline de prospects, extraites à l'instant de sa base :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, de façon directe et actionnable, UNIQUEMENT à partir des chiffres ci-dessus. Si la question porte sur quelque chose que ces données ne couvrent pas (finances, publicité, projets...), dis clairement "Information non disponible — cette donnée n'est pas encore connectée à l'agent CEO" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({
+      model: "claude-sonnet-5",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+
+  // Journal des actions (§27) — traçabilité, pas d'exécution ici donc validation_required=false
+  await supabaseAdmin.from("ai_action_logs").insert([{
+    agent_key: "ceo",
+    action: "ceo_ask",
+    reason: question,
+    input_data: contexteReel,
+    result_data: { reponse: reponseTexte },
+    validation_required: false,
+    approved_by: user.email,
+  }]);
+
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
 
+  if (req.method === "POST" && req.body?.action === "ceo_ask") return gererCeoAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

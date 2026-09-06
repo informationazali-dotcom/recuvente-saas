@@ -2658,6 +2658,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showProduits, setShowProduits] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
   const [showProspectsIA, setShowProspectsIA] = useState(false);
+  const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -4028,13 +4029,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4048,7 +4049,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4264,6 +4265,17 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           >
             🤖 Prospects IA
           </button>
+        )}
+        {session?.user?.email === "oulipaiexpress@gmail.com" && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", padding: "16px 12px 6px" }}>BUSINESS</div>
+            <button
+              onClick={() => setShowProspectsBusiness(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              💼 Prospects / CRM
+            </button>
+          </>
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
@@ -5300,6 +5312,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
+      {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
@@ -6238,6 +6251,200 @@ function AdminPanel({ session }) {
           })}
         {data.workspaces.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune entreprise inscrite pour l'instant.</div>}
       </div>
+    </div>
+  );
+}
+
+const ETAPES_PIPELINE = [
+  { cle: "nouveau", label: "Nouveau", couleur: "#8A9089" },
+  { cle: "contacte", label: "Contacté", couleur: "#2452E8" },
+  { cle: "qualifie", label: "Qualifié", couleur: "#8A6412" },
+  { cle: "proposition", label: "Proposition", couleur: "#e8920a" },
+  { cle: "gagne", label: "Gagné", couleur: "#1a7a3c" },
+  { cle: "perdu", label: "Perdu", couleur: "#D64933" },
+];
+
+function scoreEnEtiquette(score) {
+  if (score >= 70) return { texte: "🔥 CHAUD", couleur: "#D64933" };
+  if (score >= 40) return { texte: "🌤️ TIÈDE", couleur: "#e8920a" };
+  return { texte: "❄️ FROID", couleur: "#2452E8" };
+}
+
+function ProspectFormModal({ prospectExistant, onClose, onSave }) {
+  const [form, setForm] = useState(prospectExistant || {
+    nom: "", entreprise: "", secteur: "", pays: "", telephone: "", whatsapp: "", email: "",
+    site_web: "", instagram: "", facebook: "", besoin: "", budget: "", source: "", score: 50, statut: "nouveau", notes: "",
+  });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{prospectExistant ? "Modifier le prospect" : "+ Nouveau prospect"}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <input placeholder="Nom *" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={inputStyle} />
+        <input placeholder="Entreprise" value={form.entreprise || ""} onChange={(e) => setForm({ ...form, entreprise: e.target.value })} style={inputStyle} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input placeholder="Secteur" value={form.secteur || ""} onChange={(e) => setForm({ ...form, secteur: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <input placeholder="Pays" value={form.pays || ""} onChange={(e) => setForm({ ...form, pays: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+        </div>
+        <div style={{ height: 10 }} />
+        <input placeholder="Téléphone / WhatsApp" value={form.telephone || ""} onChange={(e) => setForm({ ...form, telephone: e.target.value, whatsapp: e.target.value })} style={inputStyle} />
+        <input placeholder="Email" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} style={inputStyle} />
+        <textarea placeholder="Besoin exprimé" value={form.besoin || ""} onChange={(e) => setForm({ ...form, besoin: e.target.value })} rows={2} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input placeholder="Budget estimé (FCFA)" type="number" value={form.budget || ""} onChange={(e) => setForm({ ...form, budget: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <input placeholder="Source (ex: Prospection IA)" value={form.source || ""} onChange={(e) => setForm({ ...form, source: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+        </div>
+        <div style={{ height: 10 }} />
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 6 }}>Score de chaleur (0 = froid, 100 = très chaud) — {form.score}</div>
+        <input type="range" min="0" max="100" value={form.score} onChange={(e) => setForm({ ...form, score: Number(e.target.value) })} style={{ width: "100%", marginBottom: 14 }} />
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 6 }}>Étape du pipeline</div>
+        <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })} style={{ ...inputStyle, background: "white" }}>
+          {ETAPES_PIPELINE.map((e) => <option key={e.cle} value={e.cle}>{e.label}</option>)}
+        </select>
+        <textarea placeholder="Notes internes" value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
+        <button
+          onClick={() => { if (!form.nom.trim()) return; onSave(form); }}
+          disabled={!form.nom.trim()}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: !form.nom.trim() ? 0.5 : 1, marginTop: 4 }}
+        >
+          {prospectExistant ? "Enregistrer" : "Créer le prospect"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProspectsBusinessModal({ email, onClose }) {
+  const [prospects, setProspects] = useState(null);
+  const [vue, setVue] = useState("pipeline"); // pipeline | liste
+  const [prospectEnEdition, setProspectEnEdition] = useState(null);
+  const [afficherForm, setAfficherForm] = useState(false);
+
+  async function charger() {
+    const { data } = await supabase.from("prospects_business").select("*").eq("proprietaire_email", email).order("created_at", { ascending: false });
+    setProspects(data || []);
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function sauvegarderProspect(form) {
+    const payload = { ...form, budget: form.budget ? Number(form.budget) : null, proprietaire_email: email, updated_at: new Date().toISOString() };
+    if (form.id) {
+      await supabase.from("prospects_business").update(payload).eq("id", form.id);
+    } else {
+      await supabase.from("prospects_business").insert([payload]);
+    }
+    setAfficherForm(false);
+    setProspectEnEdition(null);
+    await charger();
+  }
+
+  async function changerStatut(id, nouveauStatut) {
+    await supabase.from("prospects_business").update({ statut: nouveauStatut, updated_at: new Date().toISOString() }).eq("id", id);
+    await charger();
+  }
+
+  async function supprimerProspect(id) {
+    if (!window.confirm("Supprimer ce prospect ?")) return;
+    await supabase.from("prospects_business").delete().eq("id", id);
+    await charger();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 1100, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>💼 Prospects / CRM</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setVue(vue === "pipeline" ? "liste" : "pipeline")} style={{ background: "#F0EEE6", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              {vue === "pipeline" ? "📋 Vue liste" : "🗂️ Vue pipeline"}
+            </button>
+            <button onClick={() => { setProspectEnEdition(null); setAfficherForm(true); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              + Nouveau
+            </button>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 18 }}>
+          {prospects === null ? "Chargement..." : `${prospects.length} prospect${prospects.length > 1 ? "s" : ""} au total`}
+        </div>
+
+        {prospects === null && <SkeletonListe nombre={3} />}
+
+        {prospects !== null && vue === "pipeline" && (
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+            {ETAPES_PIPELINE.map((etape) => {
+              const prospectsEtape = prospects.filter((p) => p.statut === etape.cle);
+              return (
+                <div key={etape.cle} style={{ flexShrink: 0, width: 220 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "0 4px" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: etape.couleur, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, fontSize: 12.5 }}>{etape.label}</span>
+                    <span style={{ fontSize: 11, color: "#8A9089" }}>({prospectsEtape.length})</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 60 }}>
+                    {prospectsEtape.map((p) => {
+                      const etiquette = scoreEnEtiquette(p.score);
+                      return (
+                        <div key={p.id} onClick={() => { setProspectEnEdition(p); setAfficherForm(true); }} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "10px 12px", cursor: "pointer" }}>
+                          <div style={{ fontWeight: 700, fontSize: 12.5 }}>{p.nom}</div>
+                          {p.entreprise && <div style={{ fontSize: 11, color: "#8A9089" }}>{p.entreprise}</div>}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                            <span style={{ fontSize: 9.5, fontWeight: 700, color: etiquette.couleur }}>{etiquette.texte}</span>
+                            {p.budget && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#1a7a3c" }}>{Number(p.budget).toLocaleString("fr-FR")}</span>}
+                          </div>
+                          <select
+                            value={p.statut}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => changerStatut(p.id, e.target.value)}
+                            style={{ width: "100%", marginTop: 8, fontSize: 10.5, padding: "4px 6px", borderRadius: 5, border: "1px solid #DDD8CC", background: "white" }}
+                          >
+                            {ETAPES_PIPELINE.map((e) => <option key={e.cle} value={e.cle}>{e.label}</option>)}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {prospects !== null && vue === "liste" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {prospects.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun prospect pour l'instant.</div>}
+            {prospects.map((p) => {
+              const etiquette = scoreEnEtiquette(p.score);
+              const etapeInfo = ETAPES_PIPELINE.find((e) => e.cle === p.statut);
+              return (
+                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "12px 14px", gap: 10, flexWrap: "wrap" }}>
+                  <div onClick={() => { setProspectEnEdition(p); setAfficherForm(true); }} style={{ cursor: "pointer", flex: 1, minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{p.nom} {p.entreprise && <span style={{ fontWeight: 500, color: "#8A9089" }}>— {p.entreprise}</span>}</div>
+                    <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>{p.telephone} {p.secteur && `· ${p.secteur}`} {p.pays && `· ${p.pays}`}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: etiquette.couleur }}>{etiquette.texte}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: etapeInfo?.couleur, background: "white", border: `1px solid ${etapeInfo?.couleur}`, borderRadius: 999, padding: "3px 10px" }}>{etapeInfo?.label}</span>
+                  {p.telephone && (
+                    <a href={`https://wa.me/${cleanPhoneForWhatsApp(p.telephone)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ background: "#25d366", color: "white", borderRadius: 7, padding: "6px 10px", fontSize: 12, textDecoration: "none" }}>💬</a>
+                  )}
+                  <button onClick={() => supprimerProspect(p.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {afficherForm && (
+        <ProspectFormModal
+          prospectExistant={prospectEnEdition}
+          onClose={() => { setAfficherForm(false); setProspectEnEdition(null); }}
+          onSave={sauvegarderProspect}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import {
   OBJECTIFS_DIAGNOSTIC, OPTIONS_TRANCHE_CA, OPTIONS_TYPE_BOUTIQUE, OPTIONS_CANAUX, OPTIONS_PROBLEME,
@@ -82,6 +82,22 @@ export default function ProjectDiagnostic({ onFermer }) {
   const [siteWebPiege, setSiteWebPiege] = useState(""); // honeypot anti-spam, jamais affiché
   const [diagnostic, setDiagnostic] = useState(null);
 
+  // Identifiant de session côté client uniquement (jamais envoyé nulle part d'autre), pour
+  // pouvoir compter des SESSIONS uniques dans le funnel (§31), pas juste des clics.
+  const sessionIdRef = useRef((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+
+  // Best-effort, ne bloque jamais et ne casse jamais le tunnel si l'analytics échoue.
+  function logEvent(type, extra = {}) {
+    supabase.rpc("enregistrer_evenement_diagnostic", {
+      p_session_id: sessionIdRef.current,
+      p_event_type: type,
+      p_objective: extra.objective || objectif?.label || null,
+      p_etape: extra.etape || null,
+    }).catch(() => {});
+  }
+
+  useEffect(() => { logEvent("diagnostic_started"); }, []);
+
   const estEcommerce = objectif?.parcours === "ecommerce";
   const estCoach = objectif?.parcours === "coach";
   const estEntreprise = objectif?.parcours === "entreprise";
@@ -120,11 +136,15 @@ export default function ProjectDiagnostic({ onFermer }) {
   }
 
   function suivant(prochaine) {
+    const etapeActuelle = etape;
+    const estPremiereEtape = etapesParcours && etapesParcours[0] === etapeActuelle;
+    logEvent(estPremiereEtape ? "profile_selected" : "question_answered", { etape: etapeActuelle });
     if (prochaine === "analyse") {
       const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : estAgence ? diagnostiquerAgence(reponses) : estStrategique ? diagnostiquerStrategique(reponses) : estLibre ? diagnostiquerLibre(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
+      logEvent("diagnostic_completed");
       setEtape("analyse");
-      setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
+      setTimeout(() => { setEtape("resume"); logEvent("recommendation_viewed"); }, 1100); // court temps de "traitement", pas un vrai calcul long
       return;
     }
     setEtape(prochaine);
@@ -197,6 +217,7 @@ export default function ProjectDiagnostic({ onFermer }) {
       setErreur("Une erreur est survenue, réessaie ou contacte-nous directement sur WhatsApp.");
       return;
     }
+    logEvent("lead_created");
     setEtape("termine");
   }
 
@@ -230,7 +251,7 @@ export default function ProjectDiagnostic({ onFermer }) {
               enfants={
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
                   {OBJECTIFS_DIAGNOSTIC.map((o) => (
-                    <div key={o.id} onClick={() => { setObjectif(o); setEtape(o.parcours === "bientot" ? "bientot" : ETAPES_PAR_PARCOURS[o.parcours][0]); }} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10 }}>
+                    <div key={o.id} onClick={() => { logEvent("objective_selected", { objective: o.label }); setObjectif(o); setEtape(o.parcours === "bientot" ? "bientot" : ETAPES_PAR_PARCOURS[o.parcours][0]); }} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontSize: 18 }}>{o.icone}</span> {o.label}
                     </div>
                   ))}
@@ -700,7 +721,7 @@ export default function ProjectDiagnostic({ onFermer }) {
                 Votre projet est enregistré. Un expert revient vers vous sous 24h, généralement bien plus vite.
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <a href={`https://wa.me/${cleanPhoneForWhatsApp(NUMERO_WHATSAPP_DIAGNOSTIC)}?text=${encodeURIComponent(messageWhatsApp)}`} target="_blank" rel="noopener noreferrer" style={{ ...btnPrimaire, textDecoration: "none", textAlign: "center" }}>
+                <a href={`https://wa.me/${cleanPhoneForWhatsApp(NUMERO_WHATSAPP_DIAGNOSTIC)}?text=${encodeURIComponent(messageWhatsApp)}`} target="_blank" rel="noopener noreferrer" onClick={() => logEvent("whatsapp_clicked")} style={{ ...btnPrimaire, textDecoration: "none", textAlign: "center" }}>
                   💬 Continuer sur WhatsApp
                 </a>
                 <button onClick={onFermer} style={btnFantome}>Fermer</button>

@@ -22,6 +22,36 @@ function echapperHTML(texte) {
 }
 
 export default async function handler(req, res) {
+  // Vitrine commerciale (recuvente-saas.vercel.app/business) : contenu statique, pas besoin
+  // de Supabase. Même logique que le reste de ce fichier : les robots de partage lisent ces
+  // balises directement, un vrai visiteur est redirigé en une fraction de seconde vers la
+  // vraie page (?business=1).
+  if (req.query.business === "1") {
+    const titre = "RecuVente Business — Sites, boutiques, tunnels et systèmes qui génèrent des clients";
+    const description = "Nous créons des sites web, boutiques e-commerce, tunnels de vente, systèmes d'acquisition, automatisations et solutions IA pour développer les entreprises en Afrique.";
+    const image = `https://${req.headers.host}/icon-512.png`;
+    const lienReel = `https://${req.headers.host}/?business=1`;
+    const lienDeCettePage = `https://${req.headers.host}${req.url}`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=600");
+    return res.status(200).send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${echapperHTML(titre)}</title>
+<meta name="description" content="${echapperHTML(description)}">
+<meta property="og:title" content="${echapperHTML(titre)}">
+<meta property="og:description" content="${echapperHTML(description)}">
+<meta property="og:image" content="${echapperHTML(image)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${echapperHTML(lienDeCettePage)}">
+<meta name="twitter:card" content="summary_large_image">
+<script>window.location.replace(${JSON.stringify(lienReel)});</script>
+</head>
+<body>Redirection vers <a href="${echapperHTML(lienReel)}">${echapperHTML(titre)}</a>...</body>
+</html>`);
+  }
+
   const slug = req.query.boutique;
   const catalogueIdDirect = req.query.catalogue;
   const produitId = req.query.produit;

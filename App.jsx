@@ -2660,6 +2660,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showProspectsIA, setShowProspectsIA] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
+  const [showRendezVousBusiness, setShowRendezVousBusiness] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -4030,13 +4031,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4050,7 +4051,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4281,6 +4282,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               📄 Propositions & Factures
+            </button>
+            <button
+              onClick={() => setShowRendezVousBusiness(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              📞 Rendez-vous
             </button>
           </>
         )}
@@ -5321,6 +5328,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
+      {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
@@ -6745,6 +6753,198 @@ function FacturesBusinessModal({ email, onClose }) {
           factureExistante={factureEnEdition}
           prospects={prospects}
           onClose={() => { setAfficherForm(false); setFactureEnEdition(null); }}
+          onSave={sauvegarder}
+        />
+      )}
+    </div>
+  );
+}
+
+const TYPES_RDV = {
+  appel_decouverte: { label: "Appel découverte", icone: "📞" },
+  audit: { label: "Audit", icone: "🔍" },
+  strategie: { label: "Stratégie", icone: "🧠" },
+  presentation_offre: { label: "Présentation d'offre", icone: "📋" },
+};
+const STATUTS_RDV = {
+  planifie: { label: "Planifié", couleur: "#2452E8" },
+  confirme: { label: "Confirmé", couleur: "#1a7a3c" },
+  termine: { label: "Terminé", couleur: "#8A9089" },
+  annule: { label: "Annulé", couleur: "#D64933" },
+  absent: { label: "Absent", couleur: "#D64933" },
+};
+
+function RdvFormModal({ rdvExistant, prospects, onClose, onSave }) {
+  const [form, setForm] = useState(rdvExistant || {
+    titre: "", type: "appel_decouverte", date: "", heure: "", duree_minutes: 30, statut: "planifie", notes: "", prospect_id: null,
+  });
+
+  function choisirProspect(id) {
+    const p = prospects.find((pr) => pr.id === id);
+    setForm((f) => ({ ...f, prospect_id: id || null, titre: p ? `${TYPES_RDV[f.type].label} — ${p.nom}` : f.titre }));
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{rdvExistant ? "Modifier le rendez-vous" : "+ Nouveau rendez-vous"}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        {prospects.length > 0 && (
+          <select value={form.prospect_id || ""} onChange={(e) => choisirProspect(e.target.value)} style={{ ...inputStyle, background: "white" }}>
+            <option value="">Lier à un prospect (optionnel)</option>
+            {prospects.map((p) => <option key={p.id} value={p.id}>{p.nom} {p.entreprise ? `— ${p.entreprise}` : ""}</option>)}
+          </select>
+        )}
+        <input placeholder="Titre du rendez-vous *" value={form.titre} onChange={(e) => setForm({ ...form, titre: e.target.value })} style={inputStyle} />
+        <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, background: "white" }}>
+          {Object.entries(TYPES_RDV).map(([cle, v]) => <option key={cle} value={cle}>{v.icone} {v.label}</option>)}
+        </select>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <input type="time" value={form.heure} onChange={(e) => setForm({ ...form, heure: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+        </div>
+        <div style={{ height: 10 }} />
+        <input placeholder="Durée (minutes)" type="number" value={form.duree_minutes} onChange={(e) => setForm({ ...form, duree_minutes: e.target.value })} style={inputStyle} />
+        <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })} style={{ ...inputStyle, background: "white" }}>
+          {Object.entries(STATUTS_RDV).map(([cle, v]) => <option key={cle} value={cle}>{v.label}</option>)}
+        </select>
+        <textarea placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
+
+        <button
+          onClick={() => { if (!form.titre.trim() || !form.date || !form.heure) return; onSave(form); }}
+          disabled={!form.titre.trim() || !form.date || !form.heure}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: (!form.titre.trim() || !form.date || !form.heure) ? 0.5 : 1 }}
+        >
+          {rdvExistant ? "Enregistrer" : "Créer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RendezVousBusinessModal({ email, onClose }) {
+  const [rdvs, setRdvs] = useState(null);
+  const [prospects, setProspects] = useState([]);
+  const [rdvEnEdition, setRdvEnEdition] = useState(null);
+  const [afficherForm, setAfficherForm] = useState(false);
+
+  async function charger() {
+    const { data } = await supabase.from("rendezvous_business").select("*, prospects_business(nom, telephone)").eq("proprietaire_email", email).order("date_heure", { ascending: true });
+    setRdvs(data || []);
+    const { data: dataProspects } = await supabase.from("prospects_business").select("id, nom, entreprise, telephone").eq("proprietaire_email", email);
+    setProspects(dataProspects || []);
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function sauvegarder(form) {
+    const date_heure = new Date(`${form.date}T${form.heure}`).toISOString();
+    const payload = { titre: form.titre, type: form.type, date_heure, duree_minutes: Number(form.duree_minutes) || 30, statut: form.statut, notes: form.notes, prospect_id: form.prospect_id, proprietaire_email: email };
+    if (form.id) {
+      await supabase.from("rendezvous_business").update(payload).eq("id", form.id);
+    } else {
+      await supabase.from("rendezvous_business").insert([payload]);
+    }
+    setAfficherForm(false);
+    setRdvEnEdition(null);
+    await charger();
+  }
+
+  async function changerStatut(id, statut) {
+    await supabase.from("rendezvous_business").update({ statut }).eq("id", id);
+    await charger();
+  }
+
+  async function supprimer(id) {
+    if (!window.confirm("Supprimer ce rendez-vous ?")) return;
+    await supabase.from("rendezvous_business").delete().eq("id", id);
+    await charger();
+  }
+
+  const maintenant = new Date();
+  const aVenir = (rdvs || []).filter((r) => new Date(r.date_heure) >= maintenant && r.statut !== "annule");
+  const passes = (rdvs || []).filter((r) => new Date(r.date_heure) < maintenant || r.statut === "annule");
+
+  function ouvrirEdition(r) {
+    const d = new Date(r.date_heure);
+    setRdvEnEdition({
+      id: r.id, titre: r.titre, type: r.type, prospect_id: r.prospect_id, statut: r.statut, notes: r.notes || "",
+      duree_minutes: r.duree_minutes,
+      date: d.toISOString().slice(0, 10),
+      heure: d.toTimeString().slice(0, 5),
+    });
+    setAfficherForm(true);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>📞 Rendez-vous</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setRdvEnEdition(null); setAfficherForm(true); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Nouveau</button>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+
+        {rdvs === null && <SkeletonListe nombre={3} />}
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168", textTransform: "uppercase", marginBottom: 8 }}>À venir ({aVenir.length})</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+          {aVenir.length === 0 && <div style={{ fontSize: 12.5, color: "#8A9089", padding: "8px 0" }}>Aucun rendez-vous à venir.</div>}
+          {aVenir.map((r) => {
+            const d = new Date(r.date_heure);
+            const info = STATUTS_RDV[r.statut];
+            const typeInfo = TYPES_RDV[r.type];
+            return (
+              <div key={r.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "12px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                  <div onClick={() => ouvrirEdition(r)} style={{ cursor: "pointer", flex: 1, minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{typeInfo?.icone} {r.titre}</div>
+                    <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>
+                      {d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} à {d.toTimeString().slice(0, 5)} · {r.duree_minutes} min
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    <select value={r.statut} onChange={(e) => changerStatut(r.id, e.target.value)} style={{ fontSize: 10.5, padding: "5px 8px", borderRadius: 6, border: `1px solid ${info.couleur}`, color: info.couleur, background: "white", fontWeight: 700 }}>
+                      {Object.entries(STATUTS_RDV).map(([cle, v]) => <option key={cle} value={cle}>{v.label}</option>)}
+                    </select>
+                    {r.prospects_business?.telephone && (
+                      <a href={`https://wa.me/${cleanPhoneForWhatsApp(r.prospects_business.telephone)}?text=${encodeURIComponent(`Bonjour ${r.prospects_business.nom}, petit rappel pour notre rendez-vous "${r.titre}" le ${d.toLocaleDateString("fr-FR")} à ${d.toTimeString().slice(0, 5)}.`)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#25d366", color: "white", borderRadius: 6, padding: "6px 9px", fontSize: 12, textDecoration: "none" }}>💬</a>
+                    )}
+                    <button onClick={() => supprimer(r.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {passes.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168", textTransform: "uppercase", marginBottom: 8 }}>Passés</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {passes.slice(0, 10).map((r) => {
+                const d = new Date(r.date_heure);
+                return (
+                  <div key={r.id} onClick={() => ouvrirEdition(r)} style={{ display: "flex", justifyContent: "space-between", background: "#F5F5F0", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer", opacity: 0.75 }}>
+                    <span>{r.titre}</span>
+                    <span>{d.toLocaleDateString("fr-FR")}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+      {afficherForm && (
+        <RdvFormModal
+          rdvExistant={rdvEnEdition}
+          prospects={prospects}
+          onClose={() => { setAfficherForm(false); setRdvEnEdition(null); }}
           onSave={sauvegarder}
         />
       )}

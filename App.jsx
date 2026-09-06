@@ -2659,6 +2659,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAvis, setShowAvis] = useState(false);
   const [showProspectsIA, setShowProspectsIA] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
+  const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -4029,13 +4030,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4049,7 +4050,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4274,6 +4275,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               💼 Prospects / CRM
+            </button>
+            <button
+              onClick={() => setShowFacturesBusiness(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              📄 Propositions & Factures
             </button>
           </>
         )}
@@ -5313,6 +5320,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
+      {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
@@ -6443,6 +6451,301 @@ function ProspectsBusinessModal({ email, onClose }) {
           prospectExistant={prospectEnEdition}
           onClose={() => { setAfficherForm(false); setProspectEnEdition(null); }}
           onSave={sauvegarderProspect}
+        />
+      )}
+    </div>
+  );
+}
+
+const STATUTS_FACTURE = {
+  brouillon: { label: "Brouillon", couleur: "#8A9089" },
+  envoyee: { label: "Envoyée", couleur: "#2452E8" },
+  partiel: { label: "Partiellement payée", couleur: "#e8920a" },
+  payee: { label: "Payée", couleur: "#1a7a3c" },
+  en_retard: { label: "En retard", couleur: "#D64933" },
+  annulee: { label: "Annulée", couleur: "#8A9089" },
+};
+
+function calculerTotalFacture(f) {
+  const sousTotal = (f.lignes || []).reduce((s, l) => s + (Number(l.quantite) || 0) * (Number(l.prix_unitaire) || 0), 0);
+  return Math.max(0, sousTotal - (Number(f.remise) || 0));
+}
+
+function genererPdfFactureBusiness(f, nomEmetteur) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const vert = [26, 122, 60];
+  const gris = [107, 113, 104];
+  const sombre = [22, 35, 31];
+
+  doc.setFillColor(...vert);
+  doc.rect(0, 0, 210, 32, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(nomEmetteur.toUpperCase(), 15, 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(f.type === "proposition" ? "Proposition commerciale" : "Facture", 15, 26);
+
+  doc.setTextColor(...sombre);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`N° ${f.numero}`, 15, 44);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...gris);
+  doc.text(`Émise le ${new Date(f.created_at).toLocaleDateString("fr-FR")}`, 15, 50);
+  if (f.date_echeance) doc.text(`Échéance : ${new Date(f.date_echeance).toLocaleDateString("fr-FR")}`, 15, 55);
+
+  doc.setTextColor(...sombre);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Destinataire :", 130, 44);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...gris);
+  let yDest = 50;
+  doc.text(f.client_nom, 130, yDest); yDest += 5;
+  if (f.client_entreprise) { doc.text(f.client_entreprise, 130, yDest); yDest += 5; }
+  if (f.client_telephone) { doc.text(f.client_telephone, 130, yDest); yDest += 5; }
+
+  let y = 68;
+  doc.setFillColor(240, 238, 230);
+  doc.rect(15, y, 180, 8, "F");
+  doc.setTextColor(...sombre);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Description", 18, y + 5.5);
+  doc.text("Qté", 130, y + 5.5);
+  doc.text("Prix unit.", 150, y + 5.5);
+  doc.text("Total", 178, y + 5.5, { align: "right" });
+  y += 12;
+
+  doc.setFont("helvetica", "normal");
+  (f.lignes || []).forEach((ligne) => {
+    const totalLigne = (Number(ligne.quantite) || 0) * (Number(ligne.prix_unitaire) || 0);
+    doc.text(String(ligne.description || ""), 18, y, { maxWidth: 105 });
+    doc.text(String(ligne.quantite || 0), 130, y);
+    doc.text(Number(ligne.prix_unitaire || 0).toLocaleString("fr-FR"), 150, y);
+    doc.text(totalLigne.toLocaleString("fr-FR"), 178, y, { align: "right" });
+    y += 8;
+  });
+
+  y += 4;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(15, y, 195, y);
+  y += 8;
+
+  if (Number(f.remise) > 0) {
+    doc.setFontSize(9.5);
+    doc.text("Remise", 150, y);
+    doc.text(`− ${Number(f.remise).toLocaleString("fr-FR")}`, 178, y, { align: "right" });
+    y += 7;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Total", 150, y);
+  doc.text(`${calculerTotalFacture(f).toLocaleString("fr-FR")} FCFA`, 178, y, { align: "right" });
+
+  if (f.notes) {
+    y += 16;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(...gris);
+    doc.text(f.notes, 15, y, { maxWidth: 180 });
+  }
+
+  doc.save(`${f.type}-${f.numero}.pdf`);
+}
+
+function FactureFormModal({ factureExistante, prospects, onClose, onSave }) {
+  const [form, setForm] = useState(factureExistante || {
+    type: "facture", numero: `${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`,
+    client_nom: "", client_entreprise: "", client_telephone: "", client_email: "",
+    lignes: [{ description: "", quantite: 1, prix_unitaire: "" }],
+    remise: "", statut: "brouillon", date_echeance: "", notes: "", prospect_id: null,
+  });
+
+  function modifierLigne(i, champ, val) {
+    setForm((f) => ({ ...f, lignes: f.lignes.map((l, j) => (j === i ? { ...l, [champ]: val } : l)) }));
+  }
+  function ajouterLigne() {
+    setForm((f) => ({ ...f, lignes: [...f.lignes, { description: "", quantite: 1, prix_unitaire: "" }] }));
+  }
+  function retirerLigne(i) {
+    setForm((f) => ({ ...f, lignes: f.lignes.filter((_, j) => j !== i) }));
+  }
+  function choisirProspect(id) {
+    const p = prospects.find((pr) => pr.id === id);
+    if (!p) { setForm((f) => ({ ...f, prospect_id: null })); return; }
+    setForm((f) => ({ ...f, prospect_id: id, client_nom: p.nom, client_entreprise: p.entreprise || "", client_telephone: p.telephone || "", client_email: p.email || "" }));
+  }
+
+  const total = calculerTotalFacture(form);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 520, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{factureExistante ? "Modifier" : "+ Nouvelle proposition / facture"}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1, background: "white" }}>
+            <option value="proposition">📄 Proposition</option>
+            <option value="facture">💳 Facture</option>
+          </select>
+          <input placeholder="Numéro" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+        </div>
+        <div style={{ height: 10 }} />
+
+        {prospects.length > 0 && (
+          <select value={form.prospect_id || ""} onChange={(e) => choisirProspect(e.target.value)} style={{ ...inputStyle, background: "white" }}>
+            <option value="">Lier à un prospect existant (optionnel)</option>
+            {prospects.map((p) => <option key={p.id} value={p.id}>{p.nom} {p.entreprise ? `— ${p.entreprise}` : ""}</option>)}
+          </select>
+        )}
+        <input placeholder="Nom du client *" value={form.client_nom} onChange={(e) => setForm({ ...form, client_nom: e.target.value })} style={inputStyle} />
+        <input placeholder="Entreprise du client" value={form.client_entreprise} onChange={(e) => setForm({ ...form, client_entreprise: e.target.value })} style={inputStyle} />
+        <input placeholder="Téléphone" value={form.client_telephone} onChange={(e) => setForm({ ...form, client_telephone: e.target.value })} style={inputStyle} />
+
+        <div style={{ fontWeight: 700, fontSize: 12.5, margin: "14px 0 8px" }}>Lignes</div>
+        {form.lignes.map((ligne, i) => (
+          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+            <input placeholder="Description (ex: Création boutique)" value={ligne.description} onChange={(e) => modifierLigne(i, "description", e.target.value)} style={{ flex: 3, padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+            <input placeholder="Qté" type="number" value={ligne.quantite} onChange={(e) => modifierLigne(i, "quantite", e.target.value)} style={{ flex: 1, padding: "8px 8px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+            <input placeholder="Prix" type="number" value={ligne.prix_unitaire} onChange={(e) => modifierLigne(i, "prix_unitaire", e.target.value)} style={{ flex: 1.4, padding: "8px 8px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+            {form.lignes.length > 1 && <button onClick={() => retirerLigne(i)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 15, flexShrink: 0 }}>✕</button>}
+          </div>
+        ))}
+        <button onClick={ajouterLigne} style={{ background: "none", border: "1px dashed #DDD8CC", borderRadius: 7, padding: "7px 0", width: "100%", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 14 }}>+ Ajouter une ligne</button>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input placeholder="Remise (FCFA, optionnel)" type="number" value={form.remise} onChange={(e) => setForm({ ...form, remise: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+          <input type="date" value={form.date_echeance} onChange={(e) => setForm({ ...form, date_echeance: e.target.value })} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+        </div>
+        <div style={{ height: 10 }} />
+        <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })} style={{ ...inputStyle, background: "white" }}>
+          {Object.entries(STATUTS_FACTURE).map(([cle, v]) => <option key={cle} value={cle}>{v.label}</option>)}
+        </select>
+        <textarea placeholder="Notes (visibles sur le PDF)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
+
+        <div style={{ background: "#EAF3DE", borderRadius: 9, padding: "10px 14px", marginBottom: 14, textAlign: "right", fontWeight: 700, fontSize: 15, color: "#3B6D11" }}>
+          Total : {total.toLocaleString("fr-FR")} FCFA
+        </div>
+
+        <button
+          onClick={() => { if (!form.client_nom.trim()) return; onSave(form); }}
+          disabled={!form.client_nom.trim()}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: !form.client_nom.trim() ? 0.5 : 1 }}
+        >
+          {factureExistante ? "Enregistrer" : "Créer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FacturesBusinessModal({ email, onClose }) {
+  const [factures, setFactures] = useState(null);
+  const [prospects, setProspects] = useState([]);
+  const [factureEnEdition, setFactureEnEdition] = useState(null);
+  const [afficherForm, setAfficherForm] = useState(false);
+
+  async function charger() {
+    const { data } = await supabase.from("factures_business").select("*").eq("proprietaire_email", email).order("created_at", { ascending: false });
+    setFactures(data || []);
+    const { data: dataProspects } = await supabase.from("prospects_business").select("id, nom, entreprise, telephone, email").eq("proprietaire_email", email);
+    setProspects(dataProspects || []);
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function sauvegarder(form) {
+    const payload = { ...form, remise: form.remise ? Number(form.remise) : 0, proprietaire_email: email, updated_at: new Date().toISOString() };
+    if (form.id) {
+      await supabase.from("factures_business").update(payload).eq("id", form.id);
+    } else {
+      await supabase.from("factures_business").insert([payload]);
+    }
+    setAfficherForm(false);
+    setFactureEnEdition(null);
+    await charger();
+  }
+
+  async function changerStatut(id, statut) {
+    await supabase.from("factures_business").update({ statut, updated_at: new Date().toISOString() }).eq("id", id);
+    await charger();
+  }
+
+  async function supprimer(id) {
+    if (!window.confirm("Supprimer ce document ?")) return;
+    await supabase.from("factures_business").delete().eq("id", id);
+    await charger();
+  }
+
+  const totalFacture = (factures || []).filter((f) => f.type === "facture" && f.statut === "payee").reduce((s, f) => s + calculerTotalFacture(f), 0);
+  const totalEnAttente = (factures || []).filter((f) => f.type === "facture" && ["envoyee", "partiel", "en_retard"].includes(f.statut)).reduce((s, f) => s + calculerTotalFacture(f), 0);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 800, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>📄 Propositions & Factures</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setFactureEnEdition(null); setAfficherForm(true); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Nouveau</button>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+          <div style={{ background: "#EAF3DE", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 10.5, color: "#3B6D11", fontWeight: 700, textTransform: "uppercase" }}>Encaissé</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#3B6D11" }}>{totalFacture.toLocaleString("fr-FR")} FCFA</div>
+          </div>
+          <div style={{ background: "#FBF3E3", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 10.5, color: "#8A6412", fontWeight: 700, textTransform: "uppercase" }}>En attente</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#8A6412" }}>{totalEnAttente.toLocaleString("fr-FR")} FCFA</div>
+          </div>
+        </div>
+
+        {factures === null && <SkeletonListe nombre={3} />}
+        {factures !== null && factures.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune proposition ni facture pour l'instant.</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(factures || []).map((f) => {
+            const info = STATUTS_FACTURE[f.statut] || STATUTS_FACTURE.brouillon;
+            return (
+              <div key={f.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "12px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                  <div onClick={() => { setFactureEnEdition(f); setAfficherForm(true); }} style={{ cursor: "pointer", flex: 1, minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{f.type === "proposition" ? "📄" : "💳"} {f.numero} — {f.client_nom}</div>
+                    <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 2 }}>{f.client_entreprise} · {calculerTotalFacture(f).toLocaleString("fr-FR")} FCFA</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    <select value={f.statut} onChange={(e) => changerStatut(f.id, e.target.value)} style={{ fontSize: 10.5, padding: "5px 8px", borderRadius: 6, border: `1px solid ${info.couleur}`, color: info.couleur, background: "white", fontWeight: 700 }}>
+                      {Object.entries(STATUTS_FACTURE).map(([cle, v]) => <option key={cle} value={cle}>{v.label}</option>)}
+                    </select>
+                    <button onClick={() => genererPdfFactureBusiness(f, "RecuVente Services")} title="Télécharger le PDF" style={{ background: "#EAF0FB", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>📄</button>
+                    {f.client_telephone && (
+                      <a href={`https://wa.me/${cleanPhoneForWhatsApp(f.client_telephone)}?text=${encodeURIComponent(`Bonjour ${f.client_nom}, voici votre ${f.type === "proposition" ? "proposition" : "facture"} n°${f.numero} d'un montant de ${calculerTotalFacture(f).toLocaleString("fr-FR")} FCFA.`)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#25d366", color: "white", borderRadius: 6, padding: "6px 9px", fontSize: 12, textDecoration: "none" }}>💬</a>
+                    )}
+                    <button onClick={() => supprimer(f.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {afficherForm && (
+        <FactureFormModal
+          factureExistante={factureEnEdition}
+          prospects={prospects}
+          onClose={() => { setAfficherForm(false); setFactureEnEdition(null); }}
+          onSave={sauvegarder}
         />
       )}
     </div>

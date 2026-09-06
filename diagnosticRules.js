@@ -14,7 +14,7 @@ export const OBJECTIFS_DIAGNOSTIC = [
   { id: "application", icone: "📱", label: "Créer une application", parcours: "startup" },
   { id: "saas", icone: "🚀", label: "Créer un SaaS", parcours: "startup" },
   { id: "digitaliser", icone: "🏢", label: "Digitaliser mon entreprise", parcours: "entreprise" },
-  { id: "partenaire", icone: "🤝", label: "Trouver un partenaire technique", parcours: "bientot" },
+  { id: "partenaire", icone: "🤝", label: "Trouver un partenaire technique", parcours: "agence" },
   { id: "projet_strategique", icone: "🏛️", label: "Soumettre un projet stratégique", parcours: "bientot" },
   { id: "ne_sait_pas", icone: "❓", label: "Je ne sais pas encore", parcours: "bientot" },
 ];
@@ -64,6 +64,11 @@ export const OPTIONS_DEMARRAGE = ["Immédiatement", "Dans le mois", "Dans les 3 
 export const OPTIONS_TYPE_PRODUIT_STARTUP = ["SaaS", "Application mobile", "Plateforme web", "Marketplace", "Outil métier", "IA", "Autre"];
 export const OPTIONS_STADE_STARTUP = ["Idée", "Prototype", "MVP", "Produit existant", "Produit en croissance"];
 export const OPTIONS_MODELE_ECONOMIQUE = ["Abonnement", "Freemium", "Vente unique", "Commission / marketplace", "Publicité", "Pas encore défini", "Autre"];
+
+// --- Parcours Agence / Media buyer (§11) ---
+export const OPTIONS_SERVICES_AGENCE = ["Développement", "Landing pages", "Funnels", "E-commerce", "Tracking", "Automatisation", "SaaS"];
+export const OPTIONS_DELAI_AGENCE = ["Urgent (moins de 2 semaines)", "2 à 4 semaines", "1 à 2 mois", "Flexible"];
+export const OPTIONS_MODELE_COLLABORATION = ["Forfait par projet", "Abonnement mensuel", "Commission / revenue share", "À discuter"];
 
 // Points internes par tranche (score de qualification, jamais montré au visiteur)
 const POINTS_TRANCHE = {
@@ -293,5 +298,42 @@ export function diagnostiquerStartup(reponses) {
     defiTexte,
     recommandations,
     score: calculerScoreStartup(reponses),
+  };
+}
+
+// --- Diagnostic Agence / Media buyer (§11) — débouche sur un partenariat, pas un audit ---
+export function calculerScoreAgence(reponses) {
+  const clients = extraireNombre(reponses.nombreClients);
+  const volume = extraireNombre(reponses.volumeMensuel);
+  let score = 0;
+  if (clients >= 20) score += 25;
+  else if (clients >= 10) score += 18;
+  else if (clients >= 5) score += 10;
+  else if (clients > 0) score += 5;
+  if (volume >= 10) score += 25;
+  else if (volume >= 5) score += 15;
+  else if (volume >= 1) score += 8;
+  if (reponses.whiteLabel === "Oui") score += 15;
+  if (["Abonnement mensuel", "Commission / revenue share"].includes(reponses.modeleCollaboration)) score += 20;
+  else if (reponses.modeleCollaboration === "Forfait par projet") score += 10;
+  if (reponses.delaiAgence === "Urgent (moins de 2 semaines)") score += 15;
+  return Math.min(100, score);
+}
+
+export function diagnostiquerAgence(reponses) {
+  const services = reponses.servicesAgence || [];
+  const recommandations = services.length > 0 ? services : ["À définir ensemble selon vos besoins"];
+
+  const situationTexte = `Vous gérez environ ${reponses.nombreClients || "un nombre non précisé de"} client(s)${reponses.typeClients ? `, principalement ${reponses.typeClients}` : ""}, pour un volume mensuel estimé à ${reponses.volumeMensuel || "non précisé"}.`;
+  const objectifTexte = `Vous recherchez un partenaire pour : ${services.length > 0 ? services.join(", ") : "des besoins à préciser"}${reponses.whiteLabel === "Oui" ? ", en marque blanche" : ""}.`;
+  const defiTexte = `Délai souhaité : ${reponses.delaiAgence || "non précisé"}, modèle de collaboration envisagé : ${reponses.modeleCollaboration || "non précisé"}.`;
+
+  return {
+    levierPrincipal: "Partenariat de production",
+    situationTexte,
+    objectifTexte,
+    defiTexte,
+    recommandations,
+    score: calculerScoreAgence(reponses),
   };
 }

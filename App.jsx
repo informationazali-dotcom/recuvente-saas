@@ -65,6 +65,43 @@ function cleanPhoneForWhatsApp(tel) {
   return "225" + digits;
 }
 
+// Utilisé par VitrineBusinessPublique (animation d'apparition au défilement). Défini ici
+// explicitement : il existe aussi dans CataloguePublic.jsx, mais ce n'est PAS un import — ne
+// pas dépendre du regroupement de Rollup entre fichiers pour qu'un composant existe.
+function RevealOnScroll({ children, delai = 0 }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observateur = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisible(true);
+          observateur.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+    );
+    observateur.observe(el);
+    return () => observateur.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(18px)",
+        transition: `opacity 0.55s ease ${delai}ms, transform 0.55s ease ${delai}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function numeroFacture(commande) {
   const date = new Date(commande.created_at);
   const y = date.getFullYear();

@@ -225,12 +225,23 @@ export default function ProjectDiagnostic({ onFermer }) {
     ? `Bonjour, je viens de terminer le diagnostic RecuVente. Mon projet concerne : ${objectif.label}.`
     : "Bonjour, je souhaite discuter d'un projet avec vous.";
 
+  // §32 : si la personne ferme avant "termine", on note juste où elle s'est arrêtée (anonyme,
+  // même table analytics que le reste) — jamais de données personnelles tapées mais non
+  // envoyées. Pas de case de consentement sur ce formulaire aujourd'hui, donc pas de base
+  // légitime pour exploiter un abandon avec des coordonnées.
+  function fermerAvecSuivi() {
+    if (etape !== "termine" && etape !== "objectif") {
+      logEvent("diagnostic_abandoned", { etape });
+    }
+    onFermer();
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(6,6,10,0.92)", backdropFilter: "blur(6px)", overflowY: "auto", display: "flex", justifyContent: "center", padding: "40px 16px" }}>
       <style>{`@keyframes rvDiagFade { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }`}</style>
       <div style={{ maxWidth: 560, width: "100%", height: "fit-content" }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-          <button onClick={onFermer} style={{ ...btnFantome, fontSize: 22, padding: "10px 12px" }}>✕</button>
+          <button onClick={fermerAvecSuivi} style={{ ...btnFantome, fontSize: 22, padding: "10px 12px" }}>✕</button>
         </div>
 
         {/* Barre de progression discrète — jamais "Étape X / Y" */}
@@ -724,7 +735,7 @@ export default function ProjectDiagnostic({ onFermer }) {
                 <a href={`https://wa.me/${cleanPhoneForWhatsApp(NUMERO_WHATSAPP_DIAGNOSTIC)}?text=${encodeURIComponent(messageWhatsApp)}`} target="_blank" rel="noopener noreferrer" onClick={() => logEvent("whatsapp_clicked")} style={{ ...btnPrimaire, textDecoration: "none", textAlign: "center" }}>
                   💬 Continuer sur WhatsApp
                 </a>
-                <button onClick={onFermer} style={btnFantome}>Fermer</button>
+                <button onClick={fermerAvecSuivi} style={btnFantome}>Fermer</button>
               </div>
             </div>
           )}

@@ -11,8 +11,8 @@ export const OBJECTIFS_DIAGNOSTIC = [
   { id: "automatiser", icone: "🤖", label: "Automatiser mon activité", parcours: "bientot" },
   { id: "campagnes_pub", icone: "📈", label: "Améliorer mes campagnes publicitaires", parcours: "bientot" },
   { id: "coaching", icone: "🎓", label: "Vendre mes formations / coachings", parcours: "coach" },
-  { id: "application", icone: "📱", label: "Créer une application", parcours: "bientot" },
-  { id: "saas", icone: "🚀", label: "Créer un SaaS", parcours: "bientot" },
+  { id: "application", icone: "📱", label: "Créer une application", parcours: "startup" },
+  { id: "saas", icone: "🚀", label: "Créer un SaaS", parcours: "startup" },
   { id: "digitaliser", icone: "🏢", label: "Digitaliser mon entreprise", parcours: "entreprise" },
   { id: "partenaire", icone: "🤝", label: "Trouver un partenaire technique", parcours: "bientot" },
   { id: "projet_strategique", icone: "🏛️", label: "Soumettre un projet stratégique", parcours: "bientot" },
@@ -59,6 +59,11 @@ export const OPTIONS_AMELIORER_ENTREPRISE = [
 export const OPTIONS_NIVEAU_PROJET = ["Petit projet", "Projet départemental", "Projet entreprise", "Projet stratégique", "Je ne sais pas"];
 export const OPTIONS_BUDGET_ENTREPRISE = ["Moins de 1M FCFA", "1M – 3M", "3M – 5M", "5M – 10M", "10M+", "Je préfère ne pas répondre"];
 export const OPTIONS_DEMARRAGE = ["Immédiatement", "Dans le mois", "Dans les 3 mois", "Plus tard / à définir"];
+
+// --- Parcours Startup (§10) ---
+export const OPTIONS_TYPE_PRODUIT_STARTUP = ["SaaS", "Application mobile", "Plateforme web", "Marketplace", "Outil métier", "IA", "Autre"];
+export const OPTIONS_STADE_STARTUP = ["Idée", "Prototype", "MVP", "Produit existant", "Produit en croissance"];
+export const OPTIONS_MODELE_ECONOMIQUE = ["Abonnement", "Freemium", "Vente unique", "Commission / marketplace", "Publicité", "Pas encore défini", "Autre"];
 
 // Points internes par tranche (score de qualification, jamais montré au visiteur)
 const POINTS_TRANCHE = {
@@ -250,5 +255,43 @@ export function diagnostiquerEntreprise(reponses) {
     defiTexte,
     recommandations,
     score: calculerScoreEntreprise(reponses),
+  };
+}
+
+// --- Diagnostic Startup (§10) ---
+const TRAJECTOIRE_STARTUP = ["Idée", "Architecture", "Prototype", "MVP", "Tests", "Lancement", "Acquisition"];
+const INDEX_STADE_STARTUP = { "Idée": 0, "Prototype": 2, "MVP": 3, "Produit existant": 5, "Produit en croissance": 6 };
+const POINTS_STADE_STARTUP = { "Idée": 5, "Prototype": 10, "MVP": 15, "Produit existant": 20, "Produit en croissance": 25 };
+
+export function calculerScoreStartup(reponses) {
+  const score = (POINTS_BUDGET_ENTREPRISE[reponses.budgetStartup] || 0)
+    + (POINTS_DEMARRAGE[reponses.lancementStartup] || 0)
+    + (POINTS_STADE_STARTUP[reponses.stadeStartup] || 0)
+    + (reponses.equipeTechnique === "Oui" ? 10 : 0);
+  return Math.min(100, score);
+}
+
+export function diagnostiquerStartup(reponses) {
+  const index = INDEX_STADE_STARTUP[reponses.stadeStartup];
+  const prochainesEtapes = index !== undefined ? TRAJECTOIRE_STARTUP.slice(index + 1) : [];
+  const recommandations = prochainesEtapes.length > 0
+    ? prochainesEtapes
+    : ["Optimisation de l'acquisition", "Automatisation", "Structuration de la croissance"];
+
+  const situationTexte = `Vous construisez ${reponses.typeProduitStartup ? `un(e) ${reponses.typeProduitStartup}` : "un produit non précisé"}, actuellement au stade "${reponses.stadeStartup || "non précisé"}"${reponses.equipeTechnique ? `, ${reponses.equipeTechnique === "Oui" ? "avec" : "sans"} équipe technique en place` : ""}.`;
+  const objectifTexte = reponses.utilisateursCibles
+    ? `Vous ciblez environ ${reponses.utilisateursCibles} utilisateurs.`
+    : "Nombre d'utilisateurs ciblés non précisé.";
+  const defiTexte = reponses.modeleEconomique
+    ? `Votre modèle économique envisagé est : ${reponses.modeleEconomique}.`
+    : "Modèle économique pas encore défini.";
+
+  return {
+    levierPrincipal: prochainesEtapes.length > 0 ? `Prochaine étape : ${prochainesEtapes[0]}` : "Croissance & optimisation",
+    situationTexte,
+    objectifTexte,
+    defiTexte,
+    recommandations,
+    score: calculerScoreStartup(reponses),
   };
 }

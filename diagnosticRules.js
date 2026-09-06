@@ -16,7 +16,7 @@ export const OBJECTIFS_DIAGNOSTIC = [
   { id: "digitaliser", icone: "🏢", label: "Digitaliser mon entreprise", parcours: "entreprise" },
   { id: "partenaire", icone: "🤝", label: "Trouver un partenaire technique", parcours: "agence" },
   { id: "projet_strategique", icone: "🏛️", label: "Soumettre un projet stratégique", parcours: "strategique" },
-  { id: "ne_sait_pas", icone: "❓", label: "Je ne sais pas encore", parcours: "bientot" },
+  { id: "ne_sait_pas", icone: "❓", label: "Je ne sais pas encore", parcours: "libre" },
 ];
 
 export const OPTIONS_TRANCHE_CA = [
@@ -369,5 +369,50 @@ export function diagnostiquerStrategique(reponses) {
     defiTexte,
     recommandations,
     score: calculerScoreStrategique(reponses),
+  };
+}
+
+// --- Parcours "Je ne sais pas encore" (§12) — analyse par mots-clés, PAS une IA.
+// Honnête sur ses limites : si rien ne correspond, on dit "Information non déterminée"
+// plutôt que d'inventer une catégorie. Sera remplacé par un vrai moteur IA plus tard
+// si la Phase IA est validée, sans changer l'UI (ProjectDiagnostic.jsx).
+const INFO_NON_DETERMINEE = "Information non déterminée.";
+
+const MOTS_CLES_SECTEUR = [
+  { motsCles: ["boutique", "vente", "produit", "client", "commande", "livraison", "e-commerce", "ecommerce"], secteur: "E-commerce" },
+  { motsCles: ["coaching", "formation", "accompagnement", "élève", "eleve", "programme", "cours"], secteur: "Coaching / Formation" },
+  { motsCles: ["équipe", "equipe", "société", "societe", "entreprise", "organisation", "salarié", "salarie"], secteur: "Entreprise" },
+  { motsCles: ["application", "saas", "plateforme", "développeur", "developpeur", "produit tech"], secteur: "Startup / Tech" },
+];
+
+const MOTS_CLES_PROBLEME = [
+  { motsCles: ["trafic", "visibilité", "visibilite", "personne ne", "connu", "connaît", "connait"], probleme: "Acquisition / visibilité", recommandations: ["Audit de visibilité", "Stratégie d'acquisition"] },
+  { motsCles: ["vend pas", "vends pas", "conversion", "achète pas", "achete pas", "panier"], probleme: "Conversion", recommandations: ["Optimisation du parcours d'achat", "Audit de conversion"] },
+  { motsCles: ["temps", "organisation", "déborde", "deborde", "seul", "toute seule", "tout seul"], probleme: "Organisation interne", recommandations: ["Automatisation", "Outils de gestion"] },
+  { motsCles: ["argent", "budget", "financement", "trésorerie", "tresorerie", "cher"], probleme: "Financement / budget", recommandations: ["Plan d'action à budget maîtrisé"] },
+];
+
+export function analyserTexteLibre(texte) {
+  const t = (texte || "").toLowerCase();
+  const secteurTrouve = MOTS_CLES_SECTEUR.find((s) => s.motsCles.some((m) => t.includes(m)));
+  const problemeTrouve = MOTS_CLES_PROBLEME.find((p) => p.motsCles.some((m) => t.includes(m)));
+  return {
+    secteur: secteurTrouve ? secteurTrouve.secteur : INFO_NON_DETERMINEE,
+    probleme: problemeTrouve ? problemeTrouve.probleme : INFO_NON_DETERMINEE,
+    recommandations: problemeTrouve ? problemeTrouve.recommandations : ["Échange avec un expert pour clarifier la situation"],
+  };
+}
+
+export function diagnostiquerLibre(reponses) {
+  const texte = reponses.blocagePrincipal || "";
+  const analyse = analyserTexteLibre(texte);
+
+  return {
+    levierPrincipal: analyse.probleme,
+    situationTexte: `Secteur d'activité : ${analyse.secteur} (déduit des mots utilisés — à confirmer avec vous).`,
+    objectifTexte: INFO_NON_DETERMINEE,
+    defiTexte: analyse.probleme,
+    recommandations: analyse.recommandations,
+    score: texte.length > 200 ? 40 : texte.length > 50 ? 25 : 10,
   };
 }

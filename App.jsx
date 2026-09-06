@@ -729,9 +729,9 @@ const PAYS_VITRINE = [
 ];
 
 const REALISATIONS_DEMO_VITRINE = [
-  { categorie: "E-commerce", nom: "Azali Express", description: "Boutique e-commerce COD complète, avec design dédié, carrousels dynamiques et parcours d'achat optimisé.", technos: ["React", "Supabase", "Vercel"], demo: false },
-  { categorie: "E-commerce", nom: "Luxury Car", description: "Boutique premium pour véhicules et matériel lourd, avec 3 modes d'acquisition (louer, commander, payer).", technos: ["React", "Supabase", "Design premium"], demo: false },
-  { categorie: "SaaS", nom: "RecuVente", description: "Plateforme de gestion multi-métiers : e-commerce, livraison, comptabilité, CRM.", technos: ["React", "Supabase", "IA"], demo: false },
+  { categorie: "E-commerce", nom: "Azali Express", description: "Boutique e-commerce COD complète, avec design dédié, carrousels dynamiques et parcours d'achat optimisé.", technos: ["Paiement à la livraison", "Design sur mesure", "Cloud"], demo: false },
+  { categorie: "E-commerce", nom: "Luxury Car", description: "Boutique premium pour véhicules et matériel lourd, avec 3 modes d'acquisition (louer, commander, payer).", technos: ["Multi-acquisition", "Design premium", "Cloud"], demo: false },
+  { categorie: "SaaS", nom: "RecuVente", description: "Plateforme de gestion multi-métiers : e-commerce, livraison, comptabilité, CRM.", technos: ["Multi-tenant", "IA", "Cloud"], demo: false },
 ];
 
 function VitrineBusinessPublique() {

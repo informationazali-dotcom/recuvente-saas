@@ -26,9 +26,9 @@ const ETAPES_PAR_PARCOURS = {
 };
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
-const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "#0A0A12", color: "white", fontSize: 13.5, marginBottom: 10, boxSizing: "border-box" };
+const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "#0A0A12", color: "white", fontSize: 16, marginBottom: 10, boxSizing: "border-box" };
 const btnPrimaire = { background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "white", border: "none", borderRadius: 10, padding: "13px 24px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" };
-const btnFantome = { background: "transparent", color: "rgba(255,255,255,0.5)", border: "none", fontSize: 12.5, cursor: "pointer", padding: "8px 0" };
+const btnFantome = { background: "transparent", color: "rgba(255,255,255,0.5)", border: "none", fontSize: 12.5, cursor: "pointer", padding: "8px 4px" };
 
 function ChoixCartes({ options, valeur, onChoisir, multi }) {
   const estCoche = (o) => (multi ? (valeur || []).includes(o) : valeur === o);
@@ -174,7 +174,7 @@ export default function ProjectDiagnostic({ onFermer }) {
       <style>{`@keyframes rvDiagFade { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }`}</style>
       <div style={{ maxWidth: 560, width: "100%", height: "fit-content" }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-          <button onClick={onFermer} style={{ ...btnFantome, fontSize: 20 }}>✕</button>
+          <button onClick={onFermer} style={{ ...btnFantome, fontSize: 22, padding: "10px 12px" }}>✕</button>
         </div>
 
         {/* Barre de progression discrète — jamais "Étape X / Y" */}

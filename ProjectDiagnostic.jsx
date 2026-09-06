@@ -3,7 +3,8 @@ import { supabase } from "./supabaseClient";
 import {
   OBJECTIFS_DIAGNOSTIC, OPTIONS_TRANCHE_CA, OPTIONS_TYPE_BOUTIQUE, OPTIONS_CANAUX, OPTIONS_PROBLEME,
   OPTIONS_TYPE_OFFRE_COACH, OPTIONS_CANAL_COACH, OPTIONS_PROBLEME_COACH,
-  diagnostiquerEcommerce, diagnostiquerCoach,
+  OPTIONS_A_DEJA_SYSTEME, OPTIONS_AMELIORER_ENTREPRISE, OPTIONS_NIVEAU_PROJET, OPTIONS_BUDGET_ENTREPRISE, OPTIONS_DEMARRAGE,
+  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise,
 } from "./diagnosticRules.js";
 
 const NUMERO_WHATSAPP_DIAGNOSTIC = "0709281403"; // même numéro que la vitrine — à garder synchronisé si tu le changes
@@ -19,6 +20,7 @@ function cleanPhoneForWhatsApp(tel) {
 const ETAPES_PAR_PARCOURS = {
   ecommerce: ["boutique", "typeBoutique", "urlBoutique", "ca", "budgetPub", "canaux", "probleme", "commandes", "objectifRevenu", "analyse", "resume", "capture", "termine"],
   coach: ["typeOffre", "prixMoyen", "canalAcquisition", "avezTunnel", "prospectsMois", "ventesMois", "problemeCoach", "analyse", "resume", "capture", "termine"],
+  entreprise: ["orgDescription", "problemeEntreprise", "personnesConcernees", "utilisateursEstimes", "hasSysteme", "ameliorer", "niveauProjet", "budgetEntreprise", "demarrage", "analyse", "resume", "capture", "termine"],
 };
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
@@ -75,6 +77,7 @@ export default function ProjectDiagnostic({ onFermer }) {
 
   const estEcommerce = objectif?.parcours === "ecommerce";
   const estCoach = objectif?.parcours === "coach";
+  const estEntreprise = objectif?.parcours === "entreprise";
   const etapesParcours = objectif ? (ETAPES_PAR_PARCOURS[objectif.parcours] || null) : null;
 
   function maj(champ, valeur) {
@@ -89,9 +92,17 @@ export default function ProjectDiagnostic({ onFermer }) {
     });
   }
 
+  function toggleAmeliorer(axe) {
+    setReponses((r) => {
+      const actuels = r.ameliorer || [];
+      const nouveaux = actuels.includes(axe) ? actuels.filter((a) => a !== axe) : [...actuels, axe];
+      return { ...r, ameliorer: nouveaux };
+    });
+  }
+
   function suivant(prochaine) {
     if (prochaine === "analyse") {
-      const d = estCoach ? diagnostiquerCoach(reponses) : diagnostiquerEcommerce(reponses);
+      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
       setEtape("analyse");
       setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
@@ -116,19 +127,25 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_email: capture.email || null,
       p_pays: capture.pays || null,
       p_objective: objectif?.label || null,
-      p_business_stage: reponses.avezBoutique || null,
+      p_business_stage: reponses.avezBoutique || reponses.hasSysteme || null,
       p_platform: reponses.typeBoutique || null,
       p_store_url: reponses.urlBoutique || null,
       p_revenue_range: reponses.caMensuel || null,
       p_ad_spend_range: reponses.budgetPub || null,
       p_ad_channels: (reponses.canaux || []).join(", ") || reponses.canalAcquisition || null,
-      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || besoinLibre || null,
+      p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || reponses.problemeEntreprise || besoinLibre || null,
       p_monthly_orders: reponses.commandesMois || reponses.ventesMois || null,
       p_desired_revenue: reponses.objectifRevenu || null,
       p_offer_type: reponses.typeOffre || null,
       p_average_price: reponses.prixMoyen || null,
       p_has_funnel: reponses.avezTunnel || null,
       p_monthly_leads: reponses.prospectsMois || null,
+      p_org_description: reponses.orgDescription || null,
+      p_people_affected: reponses.personnesConcernees || null,
+      p_estimated_users: reponses.utilisateursEstimes || null,
+      p_improve_areas: (reponses.ameliorer || []).join(", ") || null,
+      p_project_level: reponses.niveauProjet || null,
+      p_start_timing: reponses.demarrage || null,
       p_qualification_score: diagnostic ? diagnostic.score : null,
       p_diagnostic: diagnosticTexte,
       p_recommendation: recommandationTexte,
@@ -291,6 +308,69 @@ export default function ProjectDiagnostic({ onFermer }) {
             <EcranQuestion titre="Quel est votre principal problème aujourd'hui ?" onRetour={() => setEtape("ventesMois")}
               peutContinuer={!!reponses.problemeCoach} onContinuer={() => suivant("analyse")}
               enfants={<ChoixCartes options={OPTIONS_PROBLEME_COACH} valeur={reponses.problemeCoach} onChoisir={(v) => maj("problemeCoach", v)} />}
+            />
+          )}
+
+          {etape === "orgDescription" && (
+            <EcranQuestion titre="Présentez brièvement votre organisation." onRetour={() => setEtape("objectif")}
+              peutContinuer={true} onContinuer={() => suivant("problemeEntreprise")}
+              enfants={<textarea placeholder="Secteur, taille, activité..." value={reponses.orgDescription || ""} onChange={(e) => maj("orgDescription", e.target.value)} rows={3} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />}
+            />
+          )}
+
+          {etape === "problemeEntreprise" && (
+            <EcranQuestion titre="Quel problème cherchez-vous à résoudre ?" onRetour={() => setEtape("orgDescription")}
+              peutContinuer={true} onContinuer={() => suivant("personnesConcernees")}
+              enfants={<textarea placeholder="Décrivez le problème..." value={reponses.problemeEntreprise || ""} onChange={(e) => maj("problemeEntreprise", e.target.value)} rows={3} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />}
+            />
+          )}
+
+          {etape === "personnesConcernees" && (
+            <EcranQuestion titre="Combien de personnes sont concernées ?" onRetour={() => setEtape("problemeEntreprise")}
+              peutContinuer={true} onContinuer={() => suivant("utilisateursEstimes")}
+              enfants={<input placeholder="Ex : 15" value={reponses.personnesConcernees || ""} onChange={(e) => maj("personnesConcernees", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "utilisateursEstimes" && (
+            <EcranQuestion titre="Combien d'utilisateurs estimez-vous ?" onRetour={() => setEtape("personnesConcernees")}
+              peutContinuer={true} onContinuer={() => suivant("hasSysteme")}
+              enfants={<input placeholder="Ex : 200" value={reponses.utilisateursEstimes || ""} onChange={(e) => maj("utilisateursEstimes", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "hasSysteme" && (
+            <EcranQuestion titre="Disposez-vous déjà d'un système ?" onRetour={() => setEtape("utilisateursEstimes")}
+              peutContinuer={!!reponses.hasSysteme} onContinuer={() => suivant("ameliorer")}
+              enfants={<ChoixCartes options={OPTIONS_A_DEJA_SYSTEME} valeur={reponses.hasSysteme} onChoisir={(v) => maj("hasSysteme", v)} />}
+            />
+          )}
+
+          {etape === "ameliorer" && (
+            <EcranQuestion titre="Que souhaitez-vous améliorer ?" sousTitre="Plusieurs choix possibles." onRetour={() => setEtape("hasSysteme")}
+              peutContinuer={(reponses.ameliorer || []).length > 0} onContinuer={() => suivant("niveauProjet")}
+              enfants={<ChoixCartes options={OPTIONS_AMELIORER_ENTREPRISE} valeur={reponses.ameliorer} multi onChoisir={toggleAmeliorer} />}
+            />
+          )}
+
+          {etape === "niveauProjet" && (
+            <EcranQuestion titre="Quel est le niveau du projet ?" onRetour={() => setEtape("ameliorer")}
+              peutContinuer={!!reponses.niveauProjet} onContinuer={() => suivant("budgetEntreprise")}
+              enfants={<ChoixCartes options={OPTIONS_NIVEAU_PROJET} valeur={reponses.niveauProjet} onChoisir={(v) => maj("niveauProjet", v)} />}
+            />
+          )}
+
+          {etape === "budgetEntreprise" && (
+            <EcranQuestion titre="Quel budget avez-vous prévu ?" onRetour={() => setEtape("niveauProjet")}
+              peutContinuer={!!reponses.budgetEntreprise} onContinuer={() => suivant("demarrage")}
+              enfants={<ChoixCartes options={OPTIONS_BUDGET_ENTREPRISE} valeur={reponses.budgetEntreprise} onChoisir={(v) => maj("budgetEntreprise", v)} />}
+            />
+          )}
+
+          {etape === "demarrage" && (
+            <EcranQuestion titre="Quand souhaitez-vous démarrer ?" onRetour={() => setEtape("budgetEntreprise")}
+              peutContinuer={!!reponses.demarrage} onContinuer={() => suivant("analyse")}
+              enfants={<ChoixCartes options={OPTIONS_DEMARRAGE} valeur={reponses.demarrage} onChoisir={(v) => maj("demarrage", v)} />}
             />
           )}
 

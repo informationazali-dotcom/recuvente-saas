@@ -4,7 +4,8 @@ import {
   OBJECTIFS_DIAGNOSTIC, OPTIONS_TRANCHE_CA, OPTIONS_TYPE_BOUTIQUE, OPTIONS_CANAUX, OPTIONS_PROBLEME,
   OPTIONS_TYPE_OFFRE_COACH, OPTIONS_CANAL_COACH, OPTIONS_PROBLEME_COACH,
   OPTIONS_A_DEJA_SYSTEME, OPTIONS_AMELIORER_ENTREPRISE, OPTIONS_NIVEAU_PROJET, OPTIONS_BUDGET_ENTREPRISE, OPTIONS_DEMARRAGE,
-  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise,
+  OPTIONS_TYPE_PRODUIT_STARTUP, OPTIONS_STADE_STARTUP, OPTIONS_MODELE_ECONOMIQUE,
+  diagnostiquerEcommerce, diagnostiquerCoach, diagnostiquerEntreprise, diagnostiquerStartup,
 } from "./diagnosticRules.js";
 
 const NUMERO_WHATSAPP_DIAGNOSTIC = "0709281403"; // même numéro que la vitrine — à garder synchronisé si tu le changes
@@ -21,6 +22,7 @@ const ETAPES_PAR_PARCOURS = {
   ecommerce: ["boutique", "typeBoutique", "urlBoutique", "ca", "budgetPub", "canaux", "probleme", "commandes", "objectifRevenu", "analyse", "resume", "capture", "termine"],
   coach: ["typeOffre", "prixMoyen", "canalAcquisition", "avezTunnel", "prospectsMois", "ventesMois", "problemeCoach", "analyse", "resume", "capture", "termine"],
   entreprise: ["orgDescription", "problemeEntreprise", "personnesConcernees", "utilisateursEstimes", "hasSysteme", "ameliorer", "niveauProjet", "budgetEntreprise", "demarrage", "analyse", "resume", "capture", "termine"],
+  startup: ["typeProduitStartup", "stadeStartup", "equipeTechnique", "utilisateursCibles", "modeleEconomique", "budgetStartup", "lancementStartup", "analyse", "resume", "capture", "termine"],
 };
 
 const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
@@ -78,6 +80,7 @@ export default function ProjectDiagnostic({ onFermer }) {
   const estEcommerce = objectif?.parcours === "ecommerce";
   const estCoach = objectif?.parcours === "coach";
   const estEntreprise = objectif?.parcours === "entreprise";
+  const estStartup = objectif?.parcours === "startup";
   const etapesParcours = objectif ? (ETAPES_PAR_PARCOURS[objectif.parcours] || null) : null;
 
   function maj(champ, valeur) {
@@ -102,7 +105,7 @@ export default function ProjectDiagnostic({ onFermer }) {
 
   function suivant(prochaine) {
     if (prochaine === "analyse") {
-      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : diagnostiquerEcommerce(reponses);
+      const d = estCoach ? diagnostiquerCoach(reponses) : estEntreprise ? diagnostiquerEntreprise(reponses) : estStartup ? diagnostiquerStartup(reponses) : diagnostiquerEcommerce(reponses);
       setDiagnostic(d);
       setEtape("analyse");
       setTimeout(() => setEtape("resume"), 1100); // court temps de "traitement", pas un vrai calcul long
@@ -127,11 +130,11 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_email: capture.email || null,
       p_pays: capture.pays || null,
       p_objective: objectif?.label || null,
-      p_business_stage: reponses.avezBoutique || reponses.hasSysteme || null,
-      p_platform: reponses.typeBoutique || null,
+      p_business_stage: reponses.avezBoutique || reponses.hasSysteme || reponses.stadeStartup || null,
+      p_platform: reponses.typeBoutique || reponses.typeProduitStartup || null,
       p_store_url: reponses.urlBoutique || null,
       p_revenue_range: reponses.caMensuel || null,
-      p_ad_spend_range: reponses.budgetPub || null,
+      p_ad_spend_range: reponses.budgetPub || reponses.budgetEntreprise || reponses.budgetStartup || null,
       p_ad_channels: (reponses.canaux || []).join(", ") || reponses.canalAcquisition || null,
       p_pain_point: reponses.problemePrincipal || reponses.problemeCoach || reponses.problemeEntreprise || besoinLibre || null,
       p_monthly_orders: reponses.commandesMois || reponses.ventesMois || null,
@@ -145,7 +148,10 @@ export default function ProjectDiagnostic({ onFermer }) {
       p_estimated_users: reponses.utilisateursEstimes || null,
       p_improve_areas: (reponses.ameliorer || []).join(", ") || null,
       p_project_level: reponses.niveauProjet || null,
-      p_start_timing: reponses.demarrage || null,
+      p_start_timing: reponses.demarrage || reponses.lancementStartup || null,
+      p_team_status: reponses.equipeTechnique || null,
+      p_target_users: reponses.utilisateursCibles || null,
+      p_business_model: reponses.modeleEconomique || null,
       p_qualification_score: diagnostic ? diagnostic.score : null,
       p_diagnostic: diagnosticTexte,
       p_recommendation: recommandationTexte,
@@ -371,6 +377,55 @@ export default function ProjectDiagnostic({ onFermer }) {
             <EcranQuestion titre="Quand souhaitez-vous démarrer ?" onRetour={() => setEtape("budgetEntreprise")}
               peutContinuer={!!reponses.demarrage} onContinuer={() => suivant("analyse")}
               enfants={<ChoixCartes options={OPTIONS_DEMARRAGE} valeur={reponses.demarrage} onChoisir={(v) => maj("demarrage", v)} />}
+            />
+          )}
+
+          {etape === "typeProduitStartup" && (
+            <EcranQuestion titre="Quel produit voulez-vous construire ?" onRetour={() => setEtape("objectif")}
+              peutContinuer={!!reponses.typeProduitStartup} onContinuer={() => suivant("stadeStartup")}
+              enfants={<ChoixCartes options={OPTIONS_TYPE_PRODUIT_STARTUP} valeur={reponses.typeProduitStartup} onChoisir={(v) => maj("typeProduitStartup", v)} />}
+            />
+          )}
+
+          {etape === "stadeStartup" && (
+            <EcranQuestion titre="Où en êtes-vous ?" onRetour={() => setEtape("typeProduitStartup")}
+              peutContinuer={!!reponses.stadeStartup} onContinuer={() => suivant("equipeTechnique")}
+              enfants={<ChoixCartes options={OPTIONS_STADE_STARTUP} valeur={reponses.stadeStartup} onChoisir={(v) => maj("stadeStartup", v)} />}
+            />
+          )}
+
+          {etape === "equipeTechnique" && (
+            <EcranQuestion titre="Avez-vous déjà une équipe technique ?" onRetour={() => setEtape("stadeStartup")}
+              peutContinuer={!!reponses.equipeTechnique} onContinuer={() => suivant("utilisateursCibles")}
+              enfants={<ChoixCartes options={["Oui", "Non"]} valeur={reponses.equipeTechnique} onChoisir={(v) => maj("equipeTechnique", v)} />}
+            />
+          )}
+
+          {etape === "utilisateursCibles" && (
+            <EcranQuestion titre="Combien d'utilisateurs ciblez-vous ?" onRetour={() => setEtape("equipeTechnique")}
+              peutContinuer={true} onContinuer={() => suivant("modeleEconomique")}
+              enfants={<input placeholder="Ex : 5000" value={reponses.utilisateursCibles || ""} onChange={(e) => maj("utilisateursCibles", e.target.value)} style={inputStyle} />}
+            />
+          )}
+
+          {etape === "modeleEconomique" && (
+            <EcranQuestion titre="Quel est votre modèle économique ?" onRetour={() => setEtape("utilisateursCibles")}
+              peutContinuer={!!reponses.modeleEconomique} onContinuer={() => suivant("budgetStartup")}
+              enfants={<ChoixCartes options={OPTIONS_MODELE_ECONOMIQUE} valeur={reponses.modeleEconomique} onChoisir={(v) => maj("modeleEconomique", v)} />}
+            />
+          )}
+
+          {etape === "budgetStartup" && (
+            <EcranQuestion titre="Quel est votre budget ?" onRetour={() => setEtape("modeleEconomique")}
+              peutContinuer={!!reponses.budgetStartup} onContinuer={() => suivant("lancementStartup")}
+              enfants={<ChoixCartes options={OPTIONS_BUDGET_ENTREPRISE} valeur={reponses.budgetStartup} onChoisir={(v) => maj("budgetStartup", v)} />}
+            />
+          )}
+
+          {etape === "lancementStartup" && (
+            <EcranQuestion titre="Quand voulez-vous lancer ?" onRetour={() => setEtape("budgetStartup")}
+              peutContinuer={!!reponses.lancementStartup} onContinuer={() => suivant("analyse")}
+              enfants={<ChoixCartes options={OPTIONS_DEMARRAGE} valeur={reponses.lancementStartup} onChoisir={(v) => maj("lancementStartup", v)} />}
             />
           )}
 

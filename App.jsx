@@ -432,6 +432,9 @@ export default function App() {
   if (pageParam === "cgu" || pageParam === "confidentialite") return <PageLegale page={pageParam} />;
   if (pageParam === "impact") return <PageImpact />;
 
+  const wantsBusiness = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("business") === "1";
+  if (wantsBusiness && !session) return <VitrineBusinessPublique />;
+
   if (!session) {
     const wantsAuth = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "1";
     const wantsLogin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1";
@@ -622,6 +625,450 @@ function ReunionEquipeModal({ workspace, onClose }) {
     </div>
   );
 }
+
+const SOLUTIONS_VITRINE = [
+  { icone: "🌐", titre: "Site Web", texte: "Sites professionnels, vitrines, pages de services, landing pages." },
+  { icone: "🛒", titre: "Boutique E-commerce", texte: "Boutiques e-commerce, pages produits, catalogues, optimisation conversion." },
+  { icone: "🚀", titre: "Tunnel de Vente", texte: "Landing page → capture → qualification → WhatsApp → rendez-vous → vente." },
+  { icone: "📈", titre: "Acquisition", texte: "Meta Ads, stratégie publicitaire, tracking, optimisation et génération de prospects." },
+  { icone: "🤖", titre: "Automatisation & IA", texte: "Automatisation des tâches commerciales, CRM, IA, WhatsApp, workflows." },
+  { icone: "💼", titre: "Système Business", texte: "CRM + acquisition + vente + paiement + gestion client + automatisation." },
+  { icone: "🧠", titre: "Consulting", texte: "Audit, stratégie digitale, e-commerce, acquisition et optimisation commerciale." },
+  { icone: "📱", titre: "Applications / SaaS", texte: "Conception de plateformes web et solutions SaaS adaptées aux besoins des entreprises." },
+];
+
+const COMPETENCES_VITRINE = [
+  { titre: "STRATÉGIE", items: ["Stratégie digitale", "Stratégie e-commerce", "Stratégie d'acquisition", "Positionnement", "Offre", "Tunnel de conversion"] },
+  { titre: "CRÉATION", items: ["Sites web", "Boutiques e-commerce", "Landing pages", "Tunnels", "Applications", "SaaS"] },
+  { titre: "ACQUISITION", items: ["Meta Ads", "Génération de leads", "Retargeting", "Conversion", "Tracking", "Optimisation"] },
+  { titre: "AUTOMATISATION", items: ["CRM", "WhatsApp", "Workflows", "IA", "Automatisation commerciale", "Reporting"] },
+];
+
+const PROFILS_CLIENTS_VITRINE = [
+  { titre: "Vous êtes entrepreneur ?", texte: "Nous structurons votre présence digitale et votre acquisition." },
+  { titre: "Vous êtes e-commerçant ?", texte: "Nous créons ou optimisons votre boutique et votre système de vente." },
+  { titre: "Vous êtes coach ou consultant ?", texte: "Nous construisons votre tunnel pour générer des prospects et prendre des rendez-vous." },
+  { titre: "Vous êtes une entreprise ?", texte: "Nous pouvons créer votre site, vos outils internes et automatiser certains processus." },
+  { titre: "Vous avez une idée ?", texte: "Nous pouvons transformer cette idée en produit digital, application ou SaaS." },
+];
+
+const OFFRES_VITRINE = [
+  { titre: "Audit Business", prix: "À partir de 150 000 FCFA", texte: "Analyse de l'activité + recommandations + plan d'action.", cta: "Demander un audit" },
+  { titre: "Site Web", prix: "À partir de 250 000 FCFA", texte: "Site professionnel adapté à l'activité.", cta: "Créer mon site" },
+  { titre: "Boutique E-commerce", prix: "À partir de 350 000 FCFA", texte: "Boutique + pages produits + optimisation conversion.", cta: "Créer ma boutique" },
+  { titre: "Tunnel de Vente", prix: "À partir de 500 000 FCFA", texte: "Landing + capture + qualification + conversion.", cta: "Créer mon tunnel" },
+  { titre: "Acquisition", prix: "À partir de 750 000 FCFA / mois", texte: "Stratégie + campagnes + optimisation + reporting. Budget publicitaire séparé.", cta: "Développer mon acquisition" },
+  { titre: "Business System", prix: "À partir de 1 500 000 FCFA", texte: "Un système complet pour structurer acquisition, vente, gestion et automatisation.", cta: "Construire mon système", vedette: true },
+];
+
+const PROCESSUS_VITRINE = [
+  { n: "01", titre: "Découverte", texte: "Nous comprenons votre activité, vos objectifs et vos problèmes." },
+  { n: "02", titre: "Stratégie", texte: "Nous définissons la meilleure solution." },
+  { n: "03", titre: "Construction", texte: "Nous créons le site, la boutique, le funnel ou le système." },
+  { n: "04", titre: "Lancement", texte: "Nous mettons en ligne et configurons les outils nécessaires." },
+  { n: "05", titre: "Acquisition", texte: "Nous vous aidons à générer des prospects et des ventes." },
+  { n: "06", titre: "Optimisation", texte: "Nous analysons les résultats et améliorons continuellement le système." },
+];
+
+const FAQ_VITRINE = [
+  ["Combien coûte un site ?", "À partir de 250 000 FCFA, selon la complexité et le nombre de pages souhaitées."],
+  ["Combien coûte une boutique e-commerce ?", "À partir de 350 000 FCFA, incluant les pages produits et l'optimisation de la conversion."],
+  ["Travaillez-vous avec des entreprises africaines ?", "Oui, c'est notre marché principal — nous concevons des solutions adaptées aux réalités des entreprises africaines."],
+  ["Quels pays accompagnez-vous ?", "Principalement la Côte d'Ivoire, avec une ouverture à toute l'Afrique de l'Ouest et centrale."],
+  ["Combien de temps prend un projet ?", "Cela dépend du type de projet — un site simple peut prendre quelques jours, un système complet plusieurs semaines. Le délai exact est donné après l'audit."],
+  ["Peut-on créer une solution sur mesure ?", "Oui, chaque système est adapté à votre activité, votre budget et vos objectifs précis."],
+  ["Proposez-vous l'acquisition publicitaire ?", "Oui, stratégie, campagnes, tracking et optimisation, avec un budget publicitaire séparé de nos honoraires."],
+  ["Travaillez-vous avec Shopify ?", "Oui, nous pouvons créer ou optimiser des boutiques Shopify en plus de nos solutions propres."],
+  ["Pouvez-vous créer une application ?", "Oui, nous concevons aussi des applications web et des solutions SaaS sur mesure."],
+  ["Pouvez-vous automatiser une activité ?", "Oui, CRM, WhatsApp, workflows et IA font partie de nos domaines d'intervention."],
+  ["Peut-on commencer par un audit ?", "Oui, c'est même ce que nous recommandons pour les projets les plus importants."],
+];
+
+const PAYS_VITRINE = [
+  ["🇨🇮", "Côte d'Ivoire"], ["🇸🇳", "Sénégal"], ["🇲🇱", "Mali"], ["🇧🇫", "Burkina Faso"],
+  ["🇧🇯", "Bénin"], ["🇹🇬", "Togo"], ["🇨🇲", "Cameroun"], ["🇬🇳", "Guinée"],
+  ["🇨🇩", "RDC"], ["🇨🇬", "Congo"], ["🇬🇦", "Gabon"],
+];
+
+const REALISATIONS_DEMO_VITRINE = [
+  { categorie: "E-commerce", nom: "Azali Express", description: "Boutique e-commerce COD complète, avec design dédié, carrousels dynamiques et parcours d'achat optimisé.", technos: ["React", "Supabase", "Vercel"], demo: false },
+  { categorie: "E-commerce", nom: "Luxury Car", description: "Boutique premium pour véhicules et matériel lourd, avec 3 modes d'acquisition (louer, commander, payer).", technos: ["React", "Supabase", "Design premium"], demo: false },
+  { categorie: "SaaS", nom: "RecuVente", description: "Plateforme de gestion multi-métiers : e-commerce, livraison, comptabilité, CRM.", technos: ["React", "Supabase", "IA"], demo: false },
+];
+
+function VitrineBusinessPublique() {
+  const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+  const [faqOuverte, setFaqOuverte] = useState(null);
+  const [formulaire, setFormulaire] = useState({ nom: "", entreprise: "", whatsapp: "", email: "", pays: "", type_projet: "", budget: "", besoin: "" });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [formulaireEnvoye, setFormulaireEnvoye] = useState(false);
+  const [erreurFormulaire, setErreurFormulaire] = useState("");
+
+  const NUMERO_WHATSAPP = "0709281403"; // à ajuster si besoin
+
+  // Titre d'onglet + meta description spécifiques à la vitrine commerciale (au lieu de ceux,
+  // génériques, du produit RecuVente). Pas de nettoyage au démontage : les liens de cette page
+  // (Connexion, etc.) sont de vrais rechargements de page, pas des transitions internes.
+  useEffect(() => {
+    document.title = "RecuVente Business — Sites, boutiques, tunnels et systèmes qui génèrent des clients";
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "Nous créons des sites web, boutiques e-commerce, tunnels de vente, systèmes d'acquisition, automatisations et solutions IA pour développer les entreprises en Afrique.");
+  }, []);
+
+  function allerVersSection(id) {
+    setMenuMobileOuvert(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function soumettreFormulaire() {
+    if (!formulaire.nom.trim() || !formulaire.whatsapp.trim()) {
+      setErreurFormulaire("Merci de renseigner au moins ton nom et ton WhatsApp.");
+      return;
+    }
+    setEnvoiEnCours(true);
+    setErreurFormulaire("");
+    const { error } = await supabase.rpc("soumettre_prospect_vitrine_publique", {
+      p_nom: formulaire.nom,
+      p_entreprise: formulaire.entreprise || null,
+      p_whatsapp: formulaire.whatsapp,
+      p_email: formulaire.email || null,
+      p_pays: formulaire.pays || null,
+      p_type_projet: formulaire.type_projet || null,
+      p_budget: formulaire.budget || null,
+      p_besoin: formulaire.besoin || null,
+    });
+    setEnvoiEnCours(false);
+    if (error) {
+      setErreurFormulaire("Une erreur est survenue, réessaie ou contacte-nous directement sur WhatsApp.");
+      return;
+    }
+    setFormulaireEnvoye(true);
+  }
+
+  const styleBtnPrimaire = { background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "white", border: "none", borderRadius: 10, padding: "14px 26px", fontWeight: 700, fontSize: 14, cursor: "pointer", textDecoration: "none", display: "inline-block", boxShadow: "0 10px 24px rgba(79,70,229,0.3)" };
+  const styleBtnSecondaire = { background: "white", color: "#16231F", border: "1.5px solid #E2E4EA", borderRadius: 10, padding: "14px 26px", fontWeight: 700, fontSize: 14, cursor: "pointer", textDecoration: "none", display: "inline-block" };
+
+  return (
+    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: "#0A0A12", color: "white" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        .rv-vit-fade { animation: rvVitFade 0.6s ease both; }
+        @keyframes rvVitFade { from { opacity:0; transform:translateY(14px);} to {opacity:1; transform:translateY(0);} }
+        .rv-vit-card { transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; }
+        .rv-vit-card:hover { transform: translateY(-4px); border-color: rgba(124,58,237,0.5) !important; }
+        .rv-vit-nav-link { transition: color 0.2s ease; }
+        .rv-vit-nav-link:hover { color: white !important; }
+      `}</style>
+
+      {/* Navigation */}
+      <div style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(10,10,18,0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>RecuVente <span style={{ color: "#7C3AED" }}>Business</span></div>
+          <div style={{ display: "none" }} className="rv-vit-nav-desktop">
+            {[["accueil", "Accueil"], ["solutions", "Solutions"], ["offres", "Offres"], ["realisations", "Réalisations"], ["apropos", "À propos"], ["faq", "FAQ"], ["contact", "Contact"]].map(([id, label]) => (
+              <span key={id} onClick={() => allerVersSection(id)} className="rv-vit-nav-link" style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 600, cursor: "pointer", marginLeft: 22 }}>{label}</span>
+            ))}
+          </div>
+          <style>{`@media(min-width:900px){.rv-vit-nav-desktop{display:flex!important;align-items:center;}}`}</style>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => allerVersSection("contact")} style={{ ...styleBtnPrimaire, padding: "9px 16px", fontSize: 12.5 }}>Démarrer un projet</button>
+            <a href="?login=1" style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5, fontWeight: 600, textDecoration: "none" }}>Connexion</a>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div id="accueil" style={{ position: "relative", padding: "80px 20px 70px", overflow: "hidden", textAlign: "center" }}>
+        <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(124,58,237,0.25), transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", zIndex: 2, maxWidth: 780, margin: "0 auto" }}>
+          <div className="rv-vit-fade" style={{ display: "inline-block", border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#A78BFA", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "7px 16px", borderRadius: 999, marginBottom: 24 }}>
+            BUSINESS • DIGITAL • IA • E-COMMERCE
+          </div>
+          <div className="rv-vit-fade" style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", fontWeight: 600, marginBottom: 10, animationDelay: "0.05s" }}>
+            Nous transformons vos idées en systèmes qui génèrent des clients.
+          </div>
+          <div className="rv-vit-fade" style={{ fontSize: "clamp(30px,5.5vw,50px)", fontWeight: 800, lineHeight: 1.15, marginBottom: 20, animationDelay: "0.1s" }}>
+            Transformez votre activité en <span style={{ background: "linear-gradient(135deg,#7C3AED,#A78BFA)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>machine à générer des clients.</span>
+          </div>
+          <div className="rv-vit-fade" style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", lineHeight: 1.7, marginBottom: 32, animationDelay: "0.2s" }}>
+            Nous créons votre site, votre boutique, votre tunnel de vente et votre système d'acquisition pour transformer votre audience en clients.
+          </div>
+          <div className="rv-vit-fade" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animationDelay: "0.3s" }}>
+            <button onClick={() => allerVersSection("contact")} style={styleBtnPrimaire}>Démarrer mon projet</button>
+            <button onClick={() => allerVersSection("solutions")} style={styleBtnSecondaire}>Voir ce que nous pouvons créer</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Ce que nous pouvons créer */}
+      <div id="solutions" style={{ padding: "70px 20px", maxWidth: 1200, margin: "0 auto" }}>
+        <RevealOnScroll>
+          <div style={{ textAlign: "center", marginBottom: 44 }}>
+            <div style={{ color: "#A78BFA", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>NOS SOLUTIONS</div>
+            <div style={{ fontSize: "clamp(24px,3.5vw,34px)", fontWeight: 800 }}>Une idée. Un objectif. Un système.</div>
+          </div>
+        </RevealOnScroll>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+          {SOLUTIONS_VITRINE.map((s, i) => (
+            <RevealOnScroll key={i} delai={(i % 4) * 60}>
+              <div className="rv-vit-card" style={{ background: "#12121C", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 22, height: "100%", boxSizing: "border-box" }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{s.icone}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>{s.titre}</div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{s.texte}</div>
+              </div>
+            </RevealOnScroll>
+          ))}
+        </div>
+      </div>
+
+      {/* Compétences */}
+      <div style={{ padding: "70px 20px", background: "#0D0D16" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <RevealOnScroll>
+            <div style={{ textAlign: "center", marginBottom: 40 }}>
+              <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800 }}>Ce que nous savons faire</div>
+            </div>
+          </RevealOnScroll>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 20 }}>
+            {COMPETENCES_VITRINE.map((c, i) => (
+              <RevealOnScroll key={i} delai={i * 80}>
+                <div>
+                  <div style={{ color: "#A78BFA", fontWeight: 700, fontSize: 12, letterSpacing: "0.06em", marginBottom: 14 }}>{c.titre}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {c.items.map((item) => (
+                      <div key={item} style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: "#7C3AED" }}>✓</span> {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </RevealOnScroll>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Profils clients */}
+      <div style={{ padding: "70px 20px", maxWidth: 1200, margin: "0 auto" }}>
+        <RevealOnScroll>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800 }}>Comment nous pouvons vous aider</div>
+          </div>
+        </RevealOnScroll>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+          {PROFILS_CLIENTS_VITRINE.map((p, i) => (
+            <RevealOnScroll key={i} delai={(i % 3) * 70}>
+              <div className="rv-vit-card" style={{ background: "#12121C", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 22 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 8, color: "#A78BFA" }}>{p.titre}</div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>{p.texte}</div>
+              </div>
+            </RevealOnScroll>
+          ))}
+        </div>
+      </div>
+
+      {/* Offres */}
+      <div id="offres" style={{ padding: "70px 20px", background: "#0D0D16" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <RevealOnScroll>
+            <div style={{ textAlign: "center", marginBottom: 44 }}>
+              <div style={{ color: "#A78BFA", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>NOS OFFRES</div>
+              <div style={{ fontSize: "clamp(24px,3.5vw,34px)", fontWeight: 800 }}>Des solutions claires, à chaque étape</div>
+            </div>
+          </RevealOnScroll>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+            {OFFRES_VITRINE.map((o, i) => (
+              <RevealOnScroll key={i} delai={(i % 3) * 70}>
+                <div className="rv-vit-card" style={{ background: o.vedette ? "linear-gradient(160deg,#1a1030,#0D0D16)" : "#12121C", border: `1px solid ${o.vedette ? "rgba(124,58,237,0.5)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, padding: 24, height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+                  {o.vedette && <div style={{ display: "inline-block", background: "#7C3AED", fontSize: 9.5, fontWeight: 700, padding: "3px 10px", borderRadius: 999, marginBottom: 12, alignSelf: "flex-start" }}>LE PLUS COMPLET</div>}
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>{o.titre}</div>
+                  <div style={{ color: "#A78BFA", fontWeight: 700, fontSize: 13.5, marginBottom: 12 }}>{o.prix}</div>
+                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 18, flex: 1 }}>{o.texte}</div>
+                  <button onClick={() => { setFormulaire((f) => ({ ...f, type_projet: o.titre })); allerVersSection("contact"); }} style={{ ...styleBtnSecondaire, width: "100%", textAlign: "center", padding: "11px 0", fontSize: 12.5 }}>{o.cta}</button>
+                </div>
+              </RevealOnScroll>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Réalisations */}
+      <div id="realisations" style={{ padding: "70px 20px", maxWidth: 1200, margin: "0 auto" }}>
+        <RevealOnScroll>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ color: "#A78BFA", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>RÉALISATIONS</div>
+            <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800 }}>Ce que nous avons construit</div>
+          </div>
+        </RevealOnScroll>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+          {REALISATIONS_DEMO_VITRINE.map((r, i) => (
+            <RevealOnScroll key={i} delai={i * 80}>
+              <div style={{ background: "#12121C", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 20 }}>
+                <div style={{ fontSize: 10, color: "#A78BFA", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>{r.categorie}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>{r.nom}</div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 12 }}>{r.description}</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {r.technos.map((t) => <span key={t} style={{ fontSize: 10, background: "rgba(124,58,237,0.12)", color: "#A78BFA", padding: "3px 9px", borderRadius: 999 }}>{t}</span>)}
+                </div>
+              </div>
+            </RevealOnScroll>
+          ))}
+        </div>
+      </div>
+
+      {/* À propos */}
+      <div id="apropos" style={{ padding: "70px 20px", background: "#0D0D16" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center" }}>
+          <RevealOnScroll>
+            <div style={{ color: "#A78BFA", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>QUI SOMMES-NOUS</div>
+            <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800, marginBottom: 16 }}>Des bâtisseurs, pas des vendeurs de promesses</div>
+            <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>
+              Nous sommes basés à Abidjan, en Côte d'Ivoire, et nous concevons et exploitons nous-mêmes les produits que nous proposons — Azali Express, notre boutique e-commerce en paiement à la livraison, et RecuVente, la plateforme que vous consultez actuellement. Avant de construire un système pour votre activité, nous faisons tourner les nôtres au quotidien.
+            </div>
+          </RevealOnScroll>
+        </div>
+      </div>
+
+      {/* RecuVente comme preuve */}
+      <div style={{ padding: "70px 20px", background: "linear-gradient(160deg,#12121C,#0A0A12)" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
+          <RevealOnScroll>
+            <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800, marginBottom: 16 }}>Voici ce que nous pouvons faire pour vous</div>
+            <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, marginBottom: 32, maxWidth: 620, margin: "0 auto 32px" }}>
+              Cette plateforme que vous consultez — RecuVente — est elle-même un exemple de ce que nous pouvons construire.
+            </div>
+          </RevealOnScroll>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
+            {["CRM", "Prospection IA", "Pipeline", "Facturation", "Dashboard", "Gestion clients", "Gestion projets", "Automatisation", "E-commerce", "Acquisition"].map((f, i) => (
+              <RevealOnScroll key={f} delai={i * 40}>
+                <div style={{ background: "#12121C", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 10, padding: "12px 8px", fontSize: 11.5, fontWeight: 600 }}>{f}</div>
+              </RevealOnScroll>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Processus */}
+      <div style={{ padding: "70px 20px", maxWidth: 1100, margin: "0 auto" }}>
+        <RevealOnScroll>
+          <div style={{ textAlign: "center", marginBottom: 44 }}>
+            <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800 }}>De l'idée au système</div>
+          </div>
+        </RevealOnScroll>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 20 }}>
+          {PROCESSUS_VITRINE.map((p, i) => (
+            <RevealOnScroll key={p.n} delai={i * 60}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(124,58,237,0.12)", border: "1.5px solid #7C3AED", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: "#A78BFA", margin: "0 auto 12px" }}>{p.n}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{p.titre}</div>
+                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>{p.texte}</div>
+              </div>
+            </RevealOnScroll>
+          ))}
+        </div>
+      </div>
+
+      {/* Zone Afrique */}
+      <div style={{ padding: "50px 20px", background: "#0D0D16", textAlign: "center" }}>
+        <RevealOnScroll>
+          <div style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", marginBottom: 24, maxWidth: 560, margin: "0 auto 24px" }}>
+            Nous concevons des solutions adaptées aux réalités des entreprises africaines.
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", maxWidth: 700, margin: "0 auto" }}>
+            {PAYS_VITRINE.map(([drapeau, nom]) => (
+              <span key={nom} style={{ fontSize: 12, background: "#12121C", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 999, padding: "6px 12px" }}>{drapeau} {nom}</span>
+            ))}
+          </div>
+        </RevealOnScroll>
+      </div>
+
+      {/* FAQ */}
+      <div id="faq" style={{ padding: "70px 20px", maxWidth: 800, margin: "0 auto" }}>
+        <RevealOnScroll>
+          <div style={{ textAlign: "center", marginBottom: 36 }}>
+            <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800 }}>Questions fréquentes</div>
+          </div>
+        </RevealOnScroll>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {FAQ_VITRINE.map(([q, r], i) => (
+            <div key={i} onClick={() => setFaqOuverte(faqOuverte === i ? null : i)} style={{ background: "#12121C", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "14px 18px", cursor: "pointer" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 600, fontSize: 13.5 }}>
+                {q} <span style={{ color: "#A78BFA" }}>{faqOuverte === i ? "−" : "+"}</span>
+              </div>
+              {faqOuverte === i && <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginTop: 10 }}>{r}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Formulaire de contact */}
+      <div id="contact" style={{ padding: "70px 20px", background: "linear-gradient(160deg,#1a1030,#0A0A12)" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+          <RevealOnScroll>
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <div style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: 800, marginBottom: 10 }}>Parlez-nous de votre projet</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Réponse sous 24h, généralement bien plus vite.</div>
+            </div>
+          </RevealOnScroll>
+
+          {formulaireEnvoye ? (
+            <div style={{ background: "#12121C", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 14, padding: 32, textAlign: "center" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Merci {formulaire.nom.split(" ")[0]} !</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>Votre projet est bien enregistré, nous vous contactons très vite sur WhatsApp.</div>
+            </div>
+          ) : (
+            <div style={{ background: "#12121C", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24 }}>
+              <input placeholder="Nom *" value={formulaire.nom} onChange={(e) => setFormulaire({ ...formulaire, nom: e.target.value })} style={inputVitrineStyle} />
+              <input placeholder="Entreprise" value={formulaire.entreprise} onChange={(e) => setFormulaire({ ...formulaire, entreprise: e.target.value })} style={inputVitrineStyle} />
+              <input placeholder="WhatsApp *" value={formulaire.whatsapp} onChange={(e) => setFormulaire({ ...formulaire, whatsapp: e.target.value })} style={inputVitrineStyle} />
+              <input placeholder="Email" value={formulaire.email} onChange={(e) => setFormulaire({ ...formulaire, email: e.target.value })} style={inputVitrineStyle} />
+              <input placeholder="Pays" value={formulaire.pays} onChange={(e) => setFormulaire({ ...formulaire, pays: e.target.value })} style={inputVitrineStyle} />
+              <select value={formulaire.type_projet} onChange={(e) => setFormulaire({ ...formulaire, type_projet: e.target.value })} style={{ ...inputVitrineStyle, background: "#0A0A12" }}>
+                <option value="">Type de projet</option>
+                {["Site web", "E-commerce", "Tunnel de vente", "Acquisition", "Automatisation", "IA", "Application", "SaaS", "Consulting", "Autre"].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input placeholder="Budget estimé (FCFA)" value={formulaire.budget} onChange={(e) => setFormulaire({ ...formulaire, budget: e.target.value })} style={inputVitrineStyle} />
+              <textarea placeholder="Décrivez votre besoin" value={formulaire.besoin} onChange={(e) => setFormulaire({ ...formulaire, besoin: e.target.value })} rows={3} style={{ ...inputVitrineStyle, fontFamily: "inherit", resize: "vertical" }} />
+              {erreurFormulaire && <div style={{ color: "#F87171", fontSize: 12, marginBottom: 12 }}>{erreurFormulaire}</div>}
+              <button onClick={soumettreFormulaire} disabled={envoiEnCours} style={{ ...styleBtnPrimaire, width: "100%", textAlign: "center", opacity: envoiEnCours ? 0.7 : 1 }}>
+                {envoiEnCours ? "Envoi..." : "Envoyer mon projet"}
+              </button>
+            </div>
+          )}
+
+          <div style={{ textAlign: "center", marginTop: 16 }}>
+            <a href={`https://wa.me/${cleanPhoneForWhatsApp(NUMERO_WHATSAPP)}?text=${encodeURIComponent("Bonjour, je souhaite discuter d'un projet avec vous.")}`} target="_blank" rel="noopener noreferrer" style={{ color: "#A78BFA", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+              💬 Ou écrivez-nous directement sur WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: "24px 20px", textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 11.5, color: "rgba(255,255,255,0.4)" }}>
+        © {new Date().getFullYear()} RecuVente Business — Tous droits réservés
+      </div>
+
+      {/* WhatsApp flottant */}
+      <a
+        href={`https://wa.me/${cleanPhoneForWhatsApp(NUMERO_WHATSAPP)}?text=${encodeURIComponent("Bonjour, je souhaite discuter d'un projet avec vous.")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ position: "fixed", right: 18, bottom: 18, width: 54, height: 54, borderRadius: "50%", background: "#25d366", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, textDecoration: "none", boxShadow: "0 8px 20px rgba(37,211,102,0.4)", zIndex: 45 }}
+      >
+        💬
+      </a>
+    </div>
+  );
+}
+
+const inputVitrineStyle = { width: "100%", padding: "11px 13px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "#0A0A12", color: "white", fontSize: 13, marginBottom: 10, boxSizing: "border-box" };
 
 function LandingPage() {
   const [plans, setPlans] = useState([]);

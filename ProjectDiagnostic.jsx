@@ -94,13 +94,20 @@ export default function ProjectDiagnostic({ onFermer }) {
   const sessionIdRef = useRef((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
   // Best-effort, ne bloque jamais et ne casse jamais le tunnel si l'analytics échoue.
-  function logEvent(type, extra = {}) {
-    supabase.rpc("enregistrer_evenement_diagnostic", {
-      p_session_id: sessionIdRef.current,
-      p_event_type: type,
-      p_objective: extra.objective || objectif?.label || null,
-      p_etape: extra.etape || null,
-    }).catch(() => {});
+  async function logEvent(type, extra = {}) {
+    // async/try-catch plutôt que .catch() chaîné : selon la version, supabase.rpc(...) ne
+    // renvoie pas toujours un objet avec .catch() directement disponible avant d'être "awaité" —
+    // c'est exactement ce qui faisait planter tout le diagnostic à l'ouverture.
+    try {
+      await supabase.rpc("enregistrer_evenement_diagnostic", {
+        p_session_id: sessionIdRef.current,
+        p_event_type: type,
+        p_objective: extra.objective || objectif?.label || null,
+        p_etape: extra.etape || null,
+      });
+    } catch (e) {
+      // best-effort : les analytics ne doivent jamais casser le tunnel pour le visiteur
+    }
   }
 
   useEffect(() => { logEvent("diagnostic_started"); }, []);

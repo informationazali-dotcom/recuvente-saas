@@ -86,8 +86,8 @@ export const AGENTS = {
     name: "CTO IA",
     role: "Architecture, bugs, sécurité",
     department: "Tech",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // détecte de vrais problèmes de données (produits sans coût/photo...) — ne corrige jamais le code lui-même
+    endpoint: "/api/admin-panel", // { action: "cto_ask", question: "..." }
   },
   customerSuccess: {
     id: "customer_success",
@@ -120,6 +120,14 @@ export const AGENTS = {
     department: "Opérations",
     status: "active", // une vraie règle tourne déjà : score ≥ 81 → strategic_priority (voir diagnostic_vitrine_publique.sql)
     endpoint: null, // pas d'interface dédiée pour l'instant, c'est une règle SQL, pas un agent conversationnel
+  },
+  azaliLeads: {
+    id: "azali_leads",
+    name: "Chasseur d'opportunités Azali",
+    role: "Trouve de vraies demandes publiques de clients (pas du démarchage à froid)",
+    department: "Ventes",
+    status: "active", // recherche web réelle + catalogue réel Azali, rapport à lire — ne contacte jamais personne
+    endpoint: "/api/admin-panel", // { action: "azali_leads_ask", question: "..." }
   },
 };
 

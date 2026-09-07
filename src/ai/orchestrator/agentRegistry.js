@@ -46,8 +46,8 @@ export const AGENTS = {
     name: "CRO / Sales IA",
     role: "Pipeline commercial et closing",
     department: "Ventes",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // Phase C : analyse le pipeline réel, détecte goulot + prospects oubliés
+    endpoint: "/api/admin-panel", // { action: "sales_ask", question: "..." }
   },
   prospecting: {
     id: "prospecting",

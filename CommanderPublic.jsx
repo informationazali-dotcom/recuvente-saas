@@ -6,6 +6,10 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+function formaterDevise(code) {
+  return code === "XOF" || code === "XAF" ? "F CFA" : code;
+}
+
 export default function CommanderPublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [erreur, setErreur] = useState(null);
@@ -67,7 +71,7 @@ export default function CommanderPublic({ workspaceId }) {
               { key: "client", label: "Ton nom", type: "text" },
               { key: "tel", label: "Ton téléphone", type: "text" },
               { key: "produit", label: "Ce que tu veux commander", type: "text" },
-              { key: "montant", label: `Montant (${entreprise.devise})`, type: "number" },
+              { key: "montant", label: `Montant (${formaterDevise(entreprise.devise)})`, type: "number" },
             ].map((champ) => (
               <div key={champ.key} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: "#6B7168", display: "block", marginBottom: 4 }}>{champ.label}</label>

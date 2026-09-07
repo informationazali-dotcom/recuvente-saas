@@ -1214,7 +1214,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button
                 onClick={envoyerCommandeBien}
                 disabled={envoiBienEnCours}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 800, fontSize: 14, cursor: "pointer" }}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 800, fontSize: 14, cursor: "pointer", touchAction: "manipulation" }}
               >
                 {envoiBienEnCours ? "Envoi..." : `Confirmer ma demande`}
               </button>
@@ -1690,7 +1690,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => ajouterAuPanier(produitOuvert, quantite)}
-                      style={{ flexShrink: 0, background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                      style={{ flexShrink: 0, background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", touchAction: "manipulation" }}
                     >
                       🛒
                     </button>
@@ -1704,7 +1704,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                         setAfficherFormulaire(true);
                         momentOuvertureFormulaireRef.current = Date.now();
                       }}
-                      style={{ flex: 1, background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                      style={{ flex: 1, background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer", touchAction: "manipulation" }}
                     >
                       {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
                     </button>
@@ -2003,7 +2003,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button
                 onClick={envoyerCommande}
                 disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4 }}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
                 {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
               </button>

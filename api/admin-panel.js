@@ -590,6 +590,80 @@ Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces donné
   return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
 }
 
+// ===== POST "cto_ask" : CTO IA (§13) — détection de vrais problèmes de données, jamais de
+// correction automatique du code. Lecture seule, zéro risque pour la production.
+async function gererCtoAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: "Question manquante" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const { data: workspace, error: wsError } = await supabaseAdmin.from("workspaces").select("id, name").eq("slug", "azaliexpress").maybeSingle();
+  if (wsError) return res.status(400).json({ error: wsError.message });
+  if (!workspace) return res.status(400).json({ error: "Intégration requise : espace 'azaliexpress' introuvable" });
+
+  const { data: produits, error: pError } = await supabaseAdmin.from("produits").select("nom, cout_achat, photo_url, stock_initial").eq("workspace_id", workspace.id);
+  if (pError) return res.status(400).json({ error: pError.message });
+  const { data: prospects } = await supabaseAdmin.from("prospects_business").select("nom, whatsapp").eq("proprietaire_email", "oulipaiexpress@gmail.com");
+
+  const contexteReel = {
+    produits_sans_cout_connu: (produits || []).filter((p) => !p.cout_achat || Number(p.cout_achat) === 0).map((p) => p.nom),
+    produits_sans_photo: (produits || []).filter((p) => !p.photo_url).map((p) => p.nom),
+    produits_en_rupture: (produits || []).filter((p) => Number(p.stock_initial || 0) <= 0).map((p) => p.nom),
+    prospects_sans_whatsapp: (prospects || []).filter((p) => !p.whatsapp).map((p) => p.nom),
+  };
+
+  const prompt = `Tu es le CTO IA de RecuVente Business. Tu détectes des problèmes de QUALITÉ DE DONNÉES réels — tu ne modifies jamais de code, tu ne corriges rien automatiquement, tu signales seulement. Voici les problèmes réels détectés à l'instant :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, direct, UNIQUEMENT à partir de ces données. Priorise par impact business (un produit sans coût fausse le calcul de bénéfice, sans photo réduit les ventes). Si la question dépasse ces données, dis "Information non disponible — cette donnée n'est pas encore connectée à l'agent CTO" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  await supabaseAdmin.from("ai_action_logs").insert([{ agent_key: "cto", action: "cto_ask", reason: question, input_data: contexteReel, result_data: { reponse: reponseTexte }, validation_required: false, approved_by: user.email }]);
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
+// ===== POST "azali_leads_ask" : Chasseur d'opportunités Azali — cherche des DEMANDES
+// publiques réelles (pas du démarchage à froid). Renvoie un rapport à lire, ne contacte
+// jamais personne lui-même.
+async function gererAzaliLeadsAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: "Décris ce que tu cherches" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const { data: workspace } = await supabaseAdmin.from("workspaces").select("id, name").eq("slug", "azaliexpress").maybeSingle();
+  const { data: produits } = await supabaseAdmin.from("produits").select("nom").eq("workspace_id", workspace?.id || "").limit(15);
+  const catalogue = (produits || []).map((p) => p.nom).filter(Boolean);
+
+  const prompt = `Tu es un agent de veille commerciale pour Azali Express (boutique e-commerce COD à Abidjan, Côte d'Ivoire). Voici un extrait réel de son catalogue : ${catalogue.join(", ") || "(catalogue non trouvé)"}.
+
+Cherche sur le web des PERSONNES QUI DEMANDENT DÉJÀ PUBLIQUEMENT à acheter un produit correspondant à ce catalogue en Côte d'Ivoire (groupes Facebook publics, forums, posts publics) — PAS des comptes d'entreprises à démarcher à froid, uniquement de vraies demandes explicites et récentes.
+
+Demande du dirigeant : "${question}"
+
+Réponds en français avec un rapport d'opportunités réelles trouvées (avec lien si possible), ou dis clairement qu'aucune demande explicite n'a été trouvée. N'invente jamais une opportunité. Ce rapport est pour lecture humaine seulement — tu ne contactes personne, tu ne rédiges pas de message d'approche non plus ici.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1500, messages: [{ role: "user", content: prompt }], tools: [{ type: "web_search_20250305", name: "web_search" }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  await supabaseAdmin.from("ai_action_logs").insert([{ agent_key: "azali_leads", action: "azali_leads_ask", reason: question, input_data: { catalogue }, result_data: { reponse: reponseTexte }, validation_required: false, approved_by: user.email }]);
+  return res.status(200).json({ reponse: reponseTexte, contexte: { catalogue_utilise: catalogue, note: "Rapport de veille uniquement — aucun contact automatique." } });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -602,6 +676,8 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "cs_ask") return gererCsAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "copywriter_ask") return gererCopywriterAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "pm_ask") return gererPmAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "cto_ask") return gererCtoAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "azali_leads_ask") return gererAzaliLeadsAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

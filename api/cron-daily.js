@@ -345,10 +345,84 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
       statut: "NEW",
     }));
     if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
-    return { inseres: lignesAInserer.length, doublons_ignores: prospectsTrouves.length - nouveaux.length };
+    return { inseres: lignesAInserer.length, doublons_ignores: prospectsTrouves.length - nouveaux.length, prospectsChauds: lignesAInserer.filter((p) => p.score >= 70) };
   } catch (e) {
     return { inseres: 0, erreur: e.message };
   }
+}
+
+// ===== Boîte de réception IA (§21) — génère de vraies alertes à partir de signaux réels,
+// avec anti-doublon (pas d'alerte répétée si une similaire existe déjà depuis moins de 24h).
+async function creerAlerteSiNouvelle(titre, description, priority, source_agent) {
+  const hier = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data: existante } = await supabaseAdmin
+    .from("ai_alerts")
+    .select("id")
+    .eq("title", titre)
+    .gte("created_at", hier)
+    .maybeSingle();
+  if (existante) return false;
+  await supabaseAdmin.from("ai_alerts").insert([{ title: titre, description, priority, source_agent }]);
+  return true;
+}
+
+async function genererAlertesIA(nouveauxProspectsChauds) {
+  let creees = 0;
+
+  // Signal 1 : nouveau prospect RecuVente chaud trouvé dans cette exécution.
+  for (const p of nouveauxProspectsChauds) {
+    const ok = await creerAlerteSiNouvelle(
+      `🟢 Nouveau prospect chaud : ${p.nom}`,
+      `Score ${p.score}/100, secteur "${p.secteur}", ${p.ville}. Trouvé par l'agent Prospection.`,
+      "HIGH",
+      "prospecting"
+    );
+    if (ok) creees++;
+  }
+
+  // Signal 2 : prospect stratégique (Business Engine) jamais relancé.
+  const { data: strategiques } = await supabaseAdmin
+    .from("prospects_business")
+    .select("nom, statut")
+    .eq("proprietaire_email", "oulipaiexpress@gmail.com")
+    .eq("strategic_priority", true)
+    .in("statut", ["nouveau", "contacte"]);
+  for (const p of strategiques || []) {
+    const ok = await creerAlerteSiNouvelle(
+      `🔴 Prospect stratégique non relancé : ${p.nom}`,
+      `Marqué priorité stratégique, toujours au statut "${p.statut}".`,
+      "CRITICAL",
+      "sales"
+    );
+    if (ok) creees++;
+  }
+
+  // Signal 3 : clients Azali fidèles sans achat depuis 30j+ (résumé, pas un par client).
+  const { data: workspace } = await supabaseAdmin.from("workspaces").select("id").eq("slug", "azaliexpress").maybeSingle();
+  if (workspace) {
+    const { data: commandes } = await supabaseAdmin.from("commandes").select("client, created_at").eq("workspace_id", workspace.id).eq("statut", "confirmee");
+    const parClient = {};
+    (commandes || []).forEach((c) => {
+      const nom = (c.client || "").trim();
+      if (!nom) return;
+      if (!parClient[nom]) parClient[nom] = { nb: 0, derniere: c.created_at };
+      parClient[nom].nb += 1;
+      if (new Date(c.created_at) > new Date(parClient[nom].derniere)) parClient[nom].derniere = c.created_at;
+    });
+    const trenteJours = Date.now() - 30 * 24 * 3600 * 1000;
+    const aRisque = Object.values(parClient).filter((c) => c.nb >= 2 && new Date(c.derniere).getTime() < trenteJours);
+    if (aRisque.length > 0) {
+      const ok = await creerAlerteSiNouvelle(
+        `🟠 ${aRisque.length} client${aRisque.length > 1 ? "s" : ""} fidèle${aRisque.length > 1 ? "s" : ""} Azali sans achat depuis 30j+`,
+        "Détail complet disponible dans Customer Success IA.",
+        "MEDIUM",
+        "customer_success"
+      );
+      if (ok) creees++;
+    }
+  }
+
+  return { alertesCreees: creees };
 }
 
 async function lancerProspectionAutomatique() {
@@ -383,12 +457,15 @@ export default async function handler(req, res) {
   // c'est la tâche la plus lente (3 appels IA + recherche web) et celle qu'on ne veut
   // jamais voir coupée en plein milieu par une limite de temps.
   const resultatProspection = await lancerProspectionAutomatique();
+  const tousLesProspectsChauds = resultatProspection.flatMap((r) => r.prospectsChauds || []);
+  const resultatAlertes = await genererAlertesIA(tousLesProspectsChauds);
   const sauvegardeReussie = await sauvegarderQuotidiennement();
   const resultatEssais = await verifierEssaisEtRappels();
   const resultatStock = await verifierStockBas();
 
   return res.status(200).json({
     prospection: resultatProspection,
+    alertes: resultatAlertes,
     sauvegardeReussie,
     ...resultatEssais,
     ...resultatStock,

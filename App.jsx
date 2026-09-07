@@ -3162,6 +3162,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
   const [showRendezVousBusiness, setShowRendezVousBusiness] = useState(false);
   const [showDashboardBusiness, setShowDashboardBusiness] = useState(false);
+  const [showDepensesBusiness, setShowDepensesBusiness] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -4532,13 +4533,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showDepensesBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowDepensesBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4552,7 +4553,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showDepensesBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4789,6 +4790,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               📄 Propositions & Factures
+            </button>
+            <button
+              onClick={() => setShowDepensesBusiness(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              💸 Dépenses
             </button>
             <button
               onClick={() => setShowRendezVousBusiness(true)}
@@ -5835,6 +5842,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
+      {showDepensesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <DepensesBusinessModal email={session.user.email} onClose={() => setShowDepensesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
       {showDashboardBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && (
         <DashboardBusinessModal
@@ -5843,6 +5851,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onOuvrirProspects={() => { setShowDashboardBusiness(false); setShowProspectsBusiness(true); }}
           onOuvrirFactures={() => { setShowDashboardBusiness(false); setShowFacturesBusiness(true); }}
           onOuvrirRdv={() => { setShowDashboardBusiness(false); setShowRendezVousBusiness(true); }}
+          onOuvrirDepenses={() => { setShowDashboardBusiness(false); setShowDepensesBusiness(true); }}
         />
       )}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
@@ -7474,19 +7483,20 @@ function joursDepuis(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFactures, onOuvrirRdv }) {
+function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFactures, onOuvrirRdv, onOuvrirDepenses }) {
   const [donnees, setDonnees] = useState(null);
   const [periodeGraphique, setPeriodeGraphique] = useState(30); // 7, 30, ou 90
 
   useEffect(() => {
     async function charger() {
       // Une seule vague de requêtes groupées, en parallèle — pas de requête en cascade.
-      const [{ data: prospects }, { data: factures }, { data: rdvs }] = await Promise.all([
+      const [{ data: prospects }, { data: factures }, { data: rdvs }, { data: depenses }] = await Promise.all([
         supabase.from("prospects_business").select("*").eq("proprietaire_email", email),
         supabase.from("factures_business").select("*").eq("proprietaire_email", email),
         supabase.from("rendezvous_business").select("*, prospects_business(nom, telephone, entreprise)").eq("proprietaire_email", email),
+        supabase.from("depenses_business").select("*").eq("proprietaire_email", email),
       ]);
-      setDonnees({ prospects: prospects || [], factures: factures || [], rdvs: rdvs || [] });
+      setDonnees({ prospects: prospects || [], factures: factures || [], rdvs: rdvs || [], depenses: depenses || [] });
     }
     charger();
   }, [email]);
@@ -7501,7 +7511,7 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
     );
   }
 
-  const { prospects, factures, rdvs } = donnees;
+  const { prospects, factures, rdvs, depenses } = donnees;
   const maintenant = new Date();
   const aujourdhuiStr = maintenant.toISOString().slice(0, 10);
 
@@ -7509,6 +7519,8 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
   const facturesGagnees = factures; // toutes les factures/propositions émises
   const caSigne = factures.filter((f) => f.type === "facture").reduce((s, f) => s + calculerTotalFacture(f), 0);
   const caEncaisse = factures.filter((f) => f.type === "facture" && f.statut === "payee").reduce((s, f) => s + calculerTotalFacture(f), 0);
+  const totalDepenses = depenses.reduce((s, d) => s + Number(d.montant), 0);
+  const beneficeNet = caEncaisse - totalDepenses;
   const caEnAttente = factures.filter((f) => f.type === "facture" && ["envoyee", "partiel", "en_retard"].includes(f.statut)).reduce((s, f) => s + calculerTotalFacture(f), 0);
   const caRestantObjectif = Math.max(0, OBJECTIF_BUSINESS_FCFA - caEncaisse);
   const pourcentageObjectif = Math.min(100, (caEncaisse / OBJECTIF_BUSINESS_FCFA) * 100);
@@ -7625,6 +7637,8 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
           <KpiCard icone="📄" label="Propositions" valeur={propositionsEnvoyees} couleur="#e8920a" onClick={onOuvrirFactures} />
           <KpiCard icone="🏆" label="Ventes gagnées" valeur={ventesGagnees} couleur="#1a7a3c" onClick={onOuvrirProspects} />
           <KpiCard icone="💰" label="CA encaissé" valeur={`${(caEncaisse / 1000).toFixed(0)}k`} couleur="#1a7a3c" onClick={onOuvrirFactures} />
+          <KpiCard icone="💸" label="Dépenses" valeur={`${(totalDepenses / 1000).toFixed(0)}k`} couleur="#D64933" onClick={onOuvrirDepenses} />
+          <KpiCard icone="📊" label="Bénéfice net" valeur={`${(beneficeNet / 1000).toFixed(0)}k`} couleur={beneficeNet >= 0 ? "#1a7a3c" : "#D64933"} />
         </div>
 
         {/* Pipeline synthétique */}
@@ -7766,6 +7780,171 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+const CATEGORIES_DEPENSES_SUGGESTIONS = ["Publicité", "Logiciels / Abonnements", "Freelance / Sous-traitance", "Hébergement / Domaine", "Formation", "Transport", "Matériel", "Communication", "Autre"];
+
+function DepenseFormModal({ depenseExistante, onClose, onSave }) {
+  const [form, setForm] = useState(depenseExistante || {
+    libelle: "", montant: "", categorie: "", date_depense: new Date().toISOString().slice(0, 10), note: "",
+  });
+  const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{depenseExistante ? "Modifier la dépense" : "Ajouter une dépense"}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16 }}>Enregistrer une sortie d'argent</div>
+
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Libellé</div>
+        <input placeholder="Ex: Abonnement Meta Ads" value={form.libelle} onChange={(e) => setForm({ ...form, libelle: e.target.value })} style={inputStyle} />
+
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Montant</div>
+        <div style={{ position: "relative", marginBottom: 10 }}>
+          <input type="number" placeholder="0" value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} style={{ ...inputStyle, marginBottom: 0, paddingRight: 50 }} />
+          <span style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#8A9089", fontWeight: 700 }}>FCFA</span>
+        </div>
+
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Catégorie</div>
+        <div style={{ position: "relative", marginBottom: 4 }}>
+          <input
+            placeholder="Sélectionner..."
+            value={form.categorie}
+            onChange={(e) => setForm({ ...form, categorie: e.target.value })}
+            onFocus={() => setSuggestionsOuvertes(true)}
+            onBlur={() => setTimeout(() => setSuggestionsOuvertes(false), 150)}
+            style={{ ...inputStyle, marginBottom: 0 }}
+          />
+          {suggestionsOuvertes && (
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #DDD8CC", borderRadius: 8, marginTop: 4, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 180, overflowY: "auto" }}>
+              {CATEGORIES_DEPENSES_SUGGESTIONS.filter((c) => c.toLowerCase().includes((form.categorie || "").toLowerCase())).map((c) => (
+                <div key={c} onMouseDown={() => setForm({ ...form, categorie: c })} style={{ padding: "9px 13px", fontSize: 13, cursor: "pointer" }}>{c}</div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 14 }}>Choisissez une suggestion ou tapez votre propre catégorie.</div>
+
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Date</div>
+        <input type="date" value={form.date_depense} onChange={(e) => setForm({ ...form, date_depense: e.target.value })} style={inputStyle} />
+
+        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Note</div>
+        <textarea placeholder="Optionnel" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
+
+        <button
+          onClick={() => { if (!form.libelle.trim() || !form.montant) return; onSave(form); }}
+          disabled={!form.libelle.trim() || !form.montant}
+          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: (!form.libelle.trim() || !form.montant) ? 0.5 : 1, marginTop: 4 }}
+        >
+          {depenseExistante ? "Enregistrer" : "Ajouter la dépense"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DepensesBusinessModal({ email, onClose }) {
+  const [depenses, setDepenses] = useState(null);
+  const [depenseEnEdition, setDepenseEnEdition] = useState(null);
+  const [afficherForm, setAfficherForm] = useState(false);
+
+  async function charger() {
+    const { data } = await supabase.from("depenses_business").select("*").eq("proprietaire_email", email).order("date_depense", { ascending: false });
+    setDepenses(data || []);
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function sauvegarder(form) {
+    const payload = { libelle: form.libelle, montant: Number(form.montant), categorie: form.categorie || null, date_depense: form.date_depense, note: form.note || null, proprietaire_email: email };
+    if (form.id) {
+      await supabase.from("depenses_business").update(payload).eq("id", form.id);
+    } else {
+      await supabase.from("depenses_business").insert([payload]);
+    }
+    setAfficherForm(false);
+    setDepenseEnEdition(null);
+    await charger();
+  }
+
+  async function supprimer(id) {
+    if (!window.confirm("Supprimer cette dépense ?")) return;
+    await supabase.from("depenses_business").delete().eq("id", id);
+    await charger();
+  }
+
+  const maintenant = new Date();
+  const totalMois = (depenses || []).filter((d) => { const dt = new Date(d.date_depense); return dt.getMonth() === maintenant.getMonth() && dt.getFullYear() === maintenant.getFullYear(); }).reduce((s, d) => s + Number(d.montant), 0);
+  const totalGlobal = (depenses || []).reduce((s, d) => s + Number(d.montant), 0);
+
+  const parCategorie = {};
+  (depenses || []).forEach((d) => {
+    const cat = d.categorie || "Sans catégorie";
+    parCategorie[cat] = (parCategorie[cat] || 0) + Number(d.montant);
+  });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>💸 Dépenses</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setDepenseEnEdition(null); setAfficherForm(true); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter une dépense</button>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+          <div style={{ background: "#FBEAE6", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 10.5, color: "#D64933", fontWeight: 700, textTransform: "uppercase" }}>Ce mois-ci</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#D64933" }}>{totalMois.toLocaleString("fr-FR")} FCFA</div>
+          </div>
+          <div style={{ background: "#F0EEE6", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 10.5, color: "#6B7168", fontWeight: 700, textTransform: "uppercase" }}>Total général</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#16231F" }}>{totalGlobal.toLocaleString("fr-FR")} FCFA</div>
+          </div>
+        </div>
+
+        {Object.keys(parCategorie).length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+            {Object.entries(parCategorie).sort((a, b) => b[1] - a[1]).map(([cat, montant]) => (
+              <div key={cat} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 999, padding: "5px 12px", fontSize: 11 }}>
+                {cat} : <strong>{montant.toLocaleString("fr-FR")}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {depenses === null && <SkeletonListe nombre={3} />}
+        {depenses !== null && depenses.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune dépense enregistrée pour l'instant.</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {(depenses || []).map((d) => (
+            <div key={d.id} onClick={() => { setDepenseEnEdition(d); setAfficherForm(true); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "10px 14px", cursor: "pointer", gap: 8, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{d.libelle}</div>
+                <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{d.categorie || "Sans catégorie"} · {new Date(d.date_depense).toLocaleDateString("fr-FR")}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#D64933" }}>− {Number(d.montant).toLocaleString("fr-FR")}</span>
+                <button onClick={(e) => { e.stopPropagation(); supprimer(d.id); }} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {afficherForm && (
+        <DepenseFormModal
+          depenseExistante={depenseEnEdition}
+          onClose={() => { setAfficherForm(false); setDepenseEnEdition(null); }}
+          onSave={sauvegarder}
+        />
+      )}
     </div>
   );
 }

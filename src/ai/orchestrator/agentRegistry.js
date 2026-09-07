@@ -78,8 +78,8 @@ export const AGENTS = {
     name: "RH IA",
     role: "Équipe, charge de travail, recrutement",
     department: "RH",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // charge de travail réelle livreurs/closers (Azali) sur 7 jours
+    endpoint: "/api/admin-panel", // { action: "hr_ask", question: "..." }
   },
   cto: {
     id: "cto",

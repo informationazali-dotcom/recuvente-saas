@@ -54,8 +54,8 @@ export const AGENTS = {
     name: "Prospection IA",
     role: "Recherche et qualification de prospects",
     department: "Ventes",
-    status: "active", // le cron quotidien existant (api/cron-daily.js) — c'est probablement "Golden IA"
-    endpoint: "/api/cron-daily",
+    status: "active", // c'est "Golden IA" : le bouton 🤖 existant dans l'app, testé et fonctionnel
+    endpoint: "/api/domains", // { action: "prospection", secteur, ville } → table "prospects"
   },
   ads: {
     id: "ads",

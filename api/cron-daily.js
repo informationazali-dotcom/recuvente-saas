@@ -306,15 +306,18 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
 }
 
 async function lancerProspectionAutomatique() {
-  // 3 recherches par jour (secteur+ville tirés au sort), pour rester dans le
-  // temps d'exécution autorisé par Vercel tout en alimentant le CRM en continu.
-  const resultats = [];
-  for (let i = 0; i < 3; i++) {
-    const secteur = tirerAuSort(SECTEURS_CIBLES);
-    const ville = tirerAuSort(VILLES_CIBLES);
-    const r = await chercherProspectsAvecClaude(secteur, ville);
-    resultats.push({ secteur, ville, ...r });
-  }
+  // En parallèle plutôt qu'en série : les 3 recherches partent en même temps, donc le temps
+  // total dépend de la plus lente des trois, pas de leur somme. C'est ce qui permet de rester
+  // dans le temps d'exécution autorisé par Vercel (voir aussi son ordre dans handler() plus bas :
+  // elle passe désormais en premier, avant sauvegarde/essais/stock, pour ne jamais être coupée
+  // si le temps manque).
+  const combinaisons = Array.from({ length: 3 }, () => ({ secteur: tirerAuSort(SECTEURS_CIBLES), ville: tirerAuSort(VILLES_CIBLES) }));
+  const resultats = await Promise.all(
+    combinaisons.map(async ({ secteur, ville }) => {
+      const r = await chercherProspectsAvecClaude(secteur, ville);
+      return { secteur, ville, ...r };
+    })
+  );
   return resultats;
 }
 
@@ -328,15 +331,18 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Non autorisé" });
   }
 
+  // Prospection en premier, tant que tout le temps d'exécution est encore disponible —
+  // c'est la tâche la plus lente (3 appels IA + recherche web) et celle qu'on ne veut
+  // jamais voir coupée en plein milieu par une limite de temps.
+  const resultatProspection = await lancerProspectionAutomatique();
   const sauvegardeReussie = await sauvegarderQuotidiennement();
   const resultatEssais = await verifierEssaisEtRappels();
   const resultatStock = await verifierStockBas();
-  const resultatProspection = await lancerProspectionAutomatique();
 
   return res.status(200).json({
+    prospection: resultatProspection,
     sauvegardeReussie,
     ...resultatEssais,
     ...resultatStock,
-    prospection: resultatProspection,
   });
 }

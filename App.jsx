@@ -3163,6 +3163,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showRendezVousBusiness, setShowRendezVousBusiness] = useState(false);
   const [showDashboardBusiness, setShowDashboardBusiness] = useState(false);
   const [showDepensesBusiness, setShowDepensesBusiness] = useState(false);
+  const [showCreances, setShowCreances] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -3236,6 +3237,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   async function deleteBienLocation(id) {
     await supabase.from("biens_location").delete().eq("id", id);
     await loadBiensLocation();
+  }
+
+  async function enregistrerPaiementCreance(commandeId, nouveauMontantPaye) {
+    await supabase.from("commandes").update({ montant_paye: nouveauMontantPaye }).eq("id", commandeId);
+    await loadCommandes();
   }
 
   const [logements, setLogements] = useState([]);
@@ -4533,13 +4539,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showDepensesBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showDepensesBusiness || showCreances || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowDepensesBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowDepensesBusiness(false); setShowCreances(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4553,7 +4559,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showDepensesBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showDepensesBusiness, showCreances, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4728,6 +4734,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         )}
         {[
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
+          ...(workspace.activity_type === "retail" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "creances", label: "📒 Créances" }] : []),
           ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
@@ -4735,7 +4742,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         ].map((t) => (
           <button
             key={t.key}
-            onClick={() => setVue(t.key)}
+            onClick={() => (t.key === "creances" ? setShowCreances(true) : setVue(t.key))}
             style={{
               display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
               background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
@@ -5843,6 +5850,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showDepensesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <DepensesBusinessModal email={session.user.email} onClose={() => setShowDepensesBusiness(false)} />}
+      {showCreances && !accesBloque && <CreancesModal commandes={commandes} currency={workspace.currency} onEnregistrerPaiement={enregistrerPaiementCreance} onClose={() => setShowCreances(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
       {showDashboardBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && (
         <DashboardBusinessModal
@@ -7945,6 +7953,99 @@ function DepensesBusinessModal({ email, onClose }) {
           onSave={sauvegarder}
         />
       )}
+    </div>
+  );
+}
+
+function CreancesModal({ commandes, currency, onEnregistrerPaiement, onClose }) {
+  const [clientOuvert, setClientOuvert] = useState(null);
+  const [montantSaisi, setMontantSaisi] = useState({});
+
+  // Une créance = une vente dont le montant payé est inférieur au montant total.
+  const ventesAvecCreance = commandes.filter((c) => Number(c.montant_paye || 0) < Number(c.montant || 0));
+
+  // Regroupées par client, avec le total dû par personne.
+  const parClient = {};
+  ventesAvecCreance.forEach((c) => {
+    const cle = `${c.client}|${c.tel}`;
+    if (!parClient[cle]) parClient[cle] = { client: c.client, tel: c.tel, ventes: [], totalDu: 0 };
+    const solde = Number(c.montant) - Number(c.montant_paye || 0);
+    parClient[cle].ventes.push({ ...c, solde });
+    parClient[cle].totalDu += solde;
+  });
+  const clients = Object.values(parClient).sort((a, b) => b.totalDu - a.totalDu);
+  const totalGeneralDu = clients.reduce((s, c) => s + c.totalDu, 0);
+
+  async function encaisser(commande) {
+    const montant = Number(montantSaisi[commande.id] || 0);
+    const solde = Number(commande.montant) - Number(commande.montant_paye || 0);
+    if (!montant || montant <= 0) return;
+    if (montant > solde) { alert(`Ce client ne doit que ${solde.toLocaleString("fr-FR")} ${currency} sur cette vente.`); return; }
+    await onEnregistrerPaiement(commande.id, Number(commande.montant_paye || 0) + montant);
+    setMontantSaisi((m) => ({ ...m, [commande.id]: "" }));
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 560, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>📒 Créances</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
+          Ce que tes clients te doivent encore, sur des ventes déjà réalisées mais pas totalement payées.
+        </div>
+
+        <div style={{ background: "#FBEAE6", borderRadius: 10, padding: "12px 16px", marginBottom: 18, textAlign: "center" }}>
+          <div style={{ fontSize: 10.5, color: "#D64933", fontWeight: 700, textTransform: "uppercase" }}>Total dû par tous les clients</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#D64933" }}>{totalGeneralDu.toLocaleString("fr-FR")} {currency}</div>
+        </div>
+
+        {clients.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune créance en cours — tout est payé. 🎉</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {clients.map((c) => {
+            const cle = `${c.client}|${c.tel}`;
+            const ouvert = clientOuvert === cle;
+            return (
+              <div key={cle} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+                <div onClick={() => setClientOuvert(ouvert ? null : cle)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.client}</div>
+                    <div style={{ fontSize: 11, color: "#8A9089" }}>{c.tel} · {c.ventes.length} vente{c.ventes.length > 1 ? "s" : ""} en cours</div>
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#D64933" }}>{c.totalDu.toLocaleString("fr-FR")} {currency}</div>
+                </div>
+                {ouvert && (
+                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8, borderTop: "1px solid #ECE8DC", paddingTop: 10 }}>
+                    {c.ventes.map((v) => (
+                      <div key={v.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "9px 12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                          <span>{v.produit}</span>
+                          <span style={{ color: "#8A9089" }}>{new Date(v.created_at).toLocaleDateString("fr-FR")}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>
+                          Payé {Number(v.montant_paye || 0).toLocaleString("fr-FR")} / {Number(v.montant).toLocaleString("fr-FR")} — reste <strong style={{ color: "#D64933" }}>{v.solde.toLocaleString("fr-FR")} {currency}</strong>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                          <input
+                            type="number"
+                            placeholder={`Montant reçu (max ${v.solde.toLocaleString("fr-FR")})`}
+                            value={montantSaisi[v.id] || ""}
+                            onChange={(e) => setMontantSaisi((m) => ({ ...m, [v.id]: e.target.value }))}
+                            style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box" }}
+                          />
+                          <button onClick={() => encaisser(v)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Encaisser</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

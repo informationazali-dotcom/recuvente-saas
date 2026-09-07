@@ -668,7 +668,7 @@ function ReunionEquipeModal({ workspace, onClose }) {
 const SOLUTIONS_VITRINE = [
   { icone: "🌐", titre: "Site Web", texte: "Sites professionnels, vitrines, pages de services, landing pages." },
   { icone: "🛒", titre: "Boutique E-commerce", texte: "Boutiques e-commerce, pages produits, catalogues, optimisation conversion." },
-  { icone: "🚀", titre: "Tunnel de Vente", texte: "Landing page → capture → qualification → WhatsApp → rendez-vous → vente." },
+  { icone: "🚀", titre: "Tunnel de Vente", texte: "Une page qui capte vos visiteurs, les qualifie automatiquement, et vous les envoie prêts à acheter sur WhatsApp — sans que vous ayez à relancer un par un." },
   { icone: "📈", titre: "Acquisition", texte: "Meta Ads, stratégie publicitaire, tracking, optimisation et génération de prospects." },
   { icone: "🤖", titre: "Automatisation & IA", texte: "Automatisation des tâches commerciales, CRM, IA, WhatsApp, workflows." },
   { icone: "💼", titre: "Système Business", texte: "CRM + acquisition + vente + paiement + gestion client + automatisation." },
@@ -695,7 +695,7 @@ const OFFRES_VITRINE = [
   { titre: "Audit Business", prix: "À partir de 150 000 FCFA", texte: "Analyse de l'activité + recommandations + plan d'action.", cta: "Demander un audit" },
   { titre: "Site Web", prix: "À partir de 250 000 FCFA", texte: "Site professionnel adapté à l'activité.", cta: "Créer mon site" },
   { titre: "Boutique E-commerce", prix: "À partir de 350 000 FCFA", texte: "Boutique + pages produits + optimisation conversion.", cta: "Créer ma boutique" },
-  { titre: "Tunnel de Vente", prix: "À partir de 500 000 FCFA", texte: "Landing + capture + qualification + conversion.", cta: "Créer mon tunnel" },
+  { titre: "Tunnel de Vente", prix: "À partir de 500 000 FCFA", texte: "Une page qui transforme vos visiteurs en clients prêts à acheter : ils remplissent un court formulaire, sont automatiquement qualifiés, et atterrissent dans votre WhatsApp — vous n'avez plus qu'à conclure la vente.", cta: "Créer mon tunnel" },
   { titre: "Acquisition", prix: "À partir de 750 000 FCFA / mois", texte: "Stratégie + campagnes + optimisation + reporting. Budget publicitaire séparé.", cta: "Développer mon acquisition" },
   { titre: "Business System", prix: "À partir de 1 500 000 FCFA", texte: "Un système complet pour structurer acquisition, vente, gestion et automatisation.", cta: "Construire mon système", vedette: true },
 ];
@@ -816,7 +816,7 @@ function VitrineBusinessPublique() {
           </div>
           <style>{`@media(min-width:900px){.rv-vit-nav-desktop{display:flex!important;align-items:center;}}`}</style>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => allerVersSection("contact")} style={{ ...styleBtnPrimaire, padding: "9px 16px", fontSize: 12.5 }}>Démarrer un projet</button>
+            <button onClick={() => setDiagnosticOuvert(true)} style={{ ...styleBtnPrimaire, padding: "9px 16px", fontSize: 12.5 }}>Démarrer un projet</button>
             <a href="?login=1" style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5, fontWeight: 600, textDecoration: "none" }}>Connexion</a>
           </div>
         </div>
@@ -839,7 +839,7 @@ function VitrineBusinessPublique() {
             Nous créons votre site, votre boutique, votre tunnel de vente et votre système d'acquisition pour transformer votre audience en clients.
           </div>
           <div className="rv-vit-fade" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animationDelay: "0.3s" }}>
-            <button onClick={() => allerVersSection("contact")} style={styleBtnPrimaire}>Démarrer mon projet</button>
+            <button onClick={() => setDiagnosticOuvert(true)} style={styleBtnPrimaire}>Démarrer mon projet</button>
             <button onClick={() => allerVersSection("solutions")} style={styleBtnSecondaire}>Voir ce que nous pouvons créer</button>
           </div>
         </div>
@@ -943,7 +943,7 @@ function VitrineBusinessPublique() {
                   <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>{o.titre}</div>
                   <div style={{ color: "#A78BFA", fontWeight: 700, fontSize: 13.5, marginBottom: 12 }}>{o.prix}</div>
                   <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 18, flex: 1 }}>{o.texte}</div>
-                  <button onClick={() => { setFormulaire((f) => ({ ...f, type_projet: o.titre })); allerVersSection("contact"); }} style={{ ...styleBtnSecondaire, width: "100%", textAlign: "center", padding: "11px 0", fontSize: 12.5 }}>{o.cta}</button>
+                  <button onClick={() => setDiagnosticOuvert(true)} style={{ ...styleBtnSecondaire, width: "100%", textAlign: "center", padding: "11px 0", fontSize: 12.5 }}>{o.cta}</button>
                 </div>
               </RevealOnScroll>
             ))}

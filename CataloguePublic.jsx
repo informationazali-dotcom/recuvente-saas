@@ -353,8 +353,23 @@ const REGLES_TELEPHONE_PAR_PAYS = {
   TG: { longueur: 8, exemple: "90 12 34 56" },
 };
 
+const INDICATIFS_PAYS_TEL = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
+
+// Retire l'indicatif pays si le client l'a tapé lui-même (ex: +225 07 00 00 00 00), pour que
+// le numéro enregistré reste toujours au même format local, quel que soit ce que le client a
+// tapé. Sans ça, la base de données mélange des formats différents selon les clients.
+function normaliserTelephoneLocal(numero, codePays) {
+  let chiffres = (numero || "").replace(/\D/g, "");
+  const regle = REGLES_TELEPHONE_PAR_PAYS[codePays];
+  const indicatif = INDICATIFS_PAYS_TEL[codePays];
+  if (indicatif && regle && chiffres.startsWith(indicatif) && chiffres.length === indicatif.length + regle.longueur) {
+    chiffres = chiffres.slice(indicatif.length);
+  }
+  return chiffres;
+}
+
 function validerTelephone(numero, codePays) {
-  const chiffres = (numero || "").replace(/\D/g, "");
+  const chiffres = normaliserTelephoneLocal(numero, codePays);
   const regle = REGLES_TELEPHONE_PAR_PAYS[codePays];
 
   if (regle) {
@@ -935,7 +950,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
-      p_tel: form.tel,
+      p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
       p_zone: form.zone,
       p_items: items,
       p_type_livraison: (() => {
@@ -963,7 +978,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     if (codePromoApplique) {
       supabase.rpc("incrementer_utilisation_code_promo", { p_workspace_id: workspaceId, p_code: codePromoApplique.code }).then(() => {});
     }
-    supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: form.tel, p_produit_id: produitOuvert.produit_id }).then(() => {});
+    supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: normaliserTelephoneLocal(form.tel, entreprise.country), p_produit_id: produitOuvert.produit_id }).then(() => {});
     setEnvoye(true);
   }
 
@@ -978,7 +993,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       supabase.rpc("enregistrer_panier_abandonne", {
         p_workspace_id: workspaceId,
         p_client_nom: form.client || null,
-        p_tel: form.tel,
+        p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
         p_produit_id: produitOuvert.produit_id,
         p_produit_nom: produitOuvert.produit_nom,
         p_montant: Number(produitOuvert.prix_vente) || null,
@@ -2404,7 +2419,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
-      p_tel: form.tel,
+      p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
       p_zone: form.zone,
       p_items: items,
       p_type_livraison: aChoixLivraison ? typeLivraisonChoisi : "livraison",

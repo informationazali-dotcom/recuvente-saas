@@ -517,6 +517,79 @@ Brief du dirigeant : "${question}"`;
   return res.status(200).json({ reponse: reponseTexte, contexte: { note: "Brouillon uniquement — DRAFT. Rien n'est envoyé automatiquement (§29)." } });
 }
 
+// ===== POST "pm_ask" : Project Manager IA (§15) — transforme chaque prospect "Gagné" en
+// tâche de projet suivie. Création de tâches = action AUTOMATIQUE selon ta propre matrice
+// d'autorisation (§26), donc aucune validation requise ici : c'est purement interne
+// (table ai_tasks), rien n'est envoyé à qui que ce soit.
+async function gererPmAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: "Question manquante" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const { data: prospectsGagnes, error: pError } = await supabaseAdmin
+    .from("prospects_business")
+    .select("id, nom, entreprise")
+    .eq("proprietaire_email", "oulipaiexpress@gmail.com")
+    .eq("statut", "gagne");
+  if (pError) return res.status(400).json({ error: pError.message });
+
+  const { data: tachesExistantes, error: tError } = await supabaseAdmin
+    .from("ai_tasks")
+    .select("related_id")
+    .eq("agent_key", "project_manager")
+    .eq("related_type", "prospect");
+  if (tError) return res.status(400).json({ error: tError.message });
+  const idsAvecTache = new Set((tachesExistantes || []).map((t) => t.related_id));
+
+  const nouveauxProspects = (prospectsGagnes || []).filter((p) => !idsAvecTache.has(p.id));
+  let tachesCreees = 0;
+  if (nouveauxProspects.length > 0) {
+    await supabaseAdmin.from("ai_tasks").insert(
+      nouveauxProspects.map((p) => ({
+        agent_key: "project_manager",
+        title: `Lancer le projet — ${p.nom}${p.entreprise ? ` (${p.entreprise})` : ""}`,
+        description: "Prospect gagné, projet à démarrer : brief, tâches, échéances.",
+        status: "pending",
+        priority: "MEDIUM",
+        related_type: "prospect",
+        related_id: p.id,
+      }))
+    );
+    tachesCreees = nouveauxProspects.length;
+  }
+
+  const { data: toutesLesTaches } = await supabaseAdmin
+    .from("ai_tasks")
+    .select("title, status, priority, created_at")
+    .eq("agent_key", "project_manager");
+
+  const contexteReel = {
+    nouvelles_taches_creees_maintenant: tachesCreees,
+    taches_en_attente: (toutesLesTaches || []).filter((t) => t.status === "pending").map((t) => t.title),
+    taches_en_cours: (toutesLesTaches || []).filter((t) => t.status === "in_progress").map((t) => t.title),
+    taches_terminees_count: (toutesLesTaches || []).filter((t) => t.status === "done").length,
+  };
+
+  const prompt = `Tu es le Project Manager IA de RecuVente Business. Chaque prospect qui passe au statut "Gagné" devient automatiquement un projet à suivre. Voici l'état réel des projets/tâches, extrait à l'instant :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces données. Si la question dépasse ces données (détail d'avancement fin, livrables précis), dis "Information non disponible — cette donnée n'est pas encore connectée à l'agent Project Manager" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  await supabaseAdmin.from("ai_action_logs").insert([{ agent_key: "project_manager", action: "pm_ask", reason: question, input_data: contexteReel, result_data: { reponse: reponseTexte }, validation_required: false, approved_by: user.email }]);
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -528,6 +601,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "data_ask") return gererDataAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "cs_ask") return gererCsAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "copywriter_ask") return gererCopywriterAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "pm_ask") return gererPmAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

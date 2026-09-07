@@ -22,8 +22,8 @@ export const AGENTS = {
     name: "Directeur Général IA",
     role: "Opérations et exécution quotidienne",
     department: "Opérations",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // opérations du jour, Azali Express, à partir des vraies commandes
+    endpoint: "/api/admin-panel", // { action: "gm_ask", question: "..." }
   },
   cfo: {
     id: "cfo",
@@ -70,8 +70,8 @@ export const AGENTS = {
     name: "Copywriter IA",
     role: "Rédaction commerciale",
     department: "Marketing",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // rédige de vrais brouillons (pub, email, WhatsApp) — jamais d'envoi automatique
+    endpoint: "/api/admin-panel", // { action: "copywriter_ask", question: "<brief>" }
   },
   hr: {
     id: "hr",
@@ -94,8 +94,8 @@ export const AGENTS = {
     name: "Customer Success IA",
     role: "Satisfaction et rétention client",
     department: "Support",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // détecte les clients fidèles sans achat depuis 30j+, à partir des vraies commandes
+    endpoint: "/api/admin-panel", // { action: "cs_ask", question: "..." }
   },
   projectManager: {
     id: "project_manager",
@@ -110,16 +110,16 @@ export const AGENTS = {
     name: "Data / Analytics IA",
     role: "Analyse et détection d'anomalies",
     department: "Data",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // compare semaine actuelle vs précédente sur des données réelles (commandes, prospects)
+    endpoint: "/api/admin-panel", // { action: "data_ask", question: "..." }
   },
   automation: {
     id: "automation",
     name: "Automation IA",
     role: "Règles et workflows",
     department: "Opérations",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // une vraie règle tourne déjà : score ≥ 81 → strategic_priority (voir diagnostic_vitrine_publique.sql)
+    endpoint: null, // pas d'interface dédiée pour l'instant, c'est une règle SQL, pas un agent conversationnel
   },
 };
 

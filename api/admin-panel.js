@@ -664,6 +664,54 @@ Réponds en français avec un rapport d'opportunités réelles trouvées (avec l
   return res.status(200).json({ reponse: reponseTexte, contexte: { catalogue_utilise: catalogue, note: "Rapport de veille uniquement — aucun contact automatique." } });
 }
 
+// ===== POST "subscriber_growth_ask" : analyse du tunnel d'abonnés RecuVente (objectif n°1)
+// à partir de la table "prospects" (celle de l'agent Prospection / Golden IA).
+async function gererSubscriberGrowthAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: "Question manquante" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const { data: prospects, error } = await supabaseAdmin.from("prospects").select("nom, statut, score, secteur, ville, created_at");
+  if (error) return res.status(400).json({ error: error.message });
+
+  const STATUTS = ["NEW", "CONTACTED", "RESPONDED", "HOT", "CUSTOMER", "LOST", "DO_NOT_CONTACT"];
+  const parStatut = {};
+  STATUTS.forEach((s) => { parStatut[s] = (prospects || []).filter((p) => p.statut === s).length; });
+
+  const troisJours = Date.now() - 3 * 24 * 3600 * 1000;
+  const nonContactesEnAttente = (prospects || [])
+    .filter((p) => p.statut === "NEW" && new Date(p.created_at).getTime() < troisJours)
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, 10)
+    .map((p) => ({ nom: p.nom, score: p.score, secteur: p.secteur, ville: p.ville }));
+
+  const contexteReel = {
+    total_prospects_trouves: (prospects || []).length,
+    repartition_tunnel: parStatut,
+    taux_conversion_contacte_vers_abonne: parStatut.CONTACTED > 0 ? `${Math.round((parStatut.CUSTOMER / (parStatut.CONTACTED + parStatut.CUSTOMER)) * 100)}%` : "pas assez de données",
+    prospects_non_contactes_depuis_3j_plus: nonContactesEnAttente,
+  };
+
+  const prompt = `Tu es l'agent de croissance des abonnés RecuVente (l'objectif n°1 de Koffi : trouver et convertir plus de personnes en abonnés RecuVente). Voici l'état réel du tunnel, extrait à l'instant :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces chiffres. Priorise les prospects "NEW" non contactés depuis 3 jours ou plus (score élevé d'abord) — chaque jour sans contact est une opportunité perdue. Si la question dépasse ces données, dis "Information non disponible" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  await supabaseAdmin.from("ai_action_logs").insert([{ agent_key: "prospecting", action: "subscriber_growth_ask", reason: question, input_data: contexteReel, result_data: { reponse: reponseTexte }, validation_required: false, approved_by: user.email }]);
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -678,6 +726,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "pm_ask") return gererPmAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "cto_ask") return gererCtoAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "azali_leads_ask") return gererAzaliLeadsAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "subscriber_growth_ask") return gererSubscriberGrowthAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

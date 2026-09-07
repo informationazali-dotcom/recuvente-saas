@@ -10562,7 +10562,7 @@ function ProspectsIAModal({ onClose }) {
 
   async function chargerProspects() {
     setChargement(true);
-    let q = supabase.from("prospects").select("*").order("score", { ascending: false });
+    let q = supabase.from("prospects").select("*").order("created_at", { ascending: false });
     if (filtreStatut) q = q.eq("statut", filtreStatut);
     const { data } = await q;
     setProspects(data || []);
@@ -10606,8 +10606,20 @@ function ProspectsIAModal({ onClose }) {
 
   function ouvrirWhatsApp(prospect) {
     const numeroPropre = String(prospect.telephone || "").replace(/\D/g, "");
+    if (!numeroPropre) {
+      if (prospect.site_web) window.open(prospect.site_web.startsWith("http") ? prospect.site_web : `https://${prospect.site_web}`, "_blank");
+      return;
+    }
     window.open(`https://wa.me/${numeroPropre}?text=${encodeURIComponent(prospect.message_suggere || "")}`, "_blank");
     changerStatut(prospect.id, "CONTACTED");
+  }
+
+  const SOURCES_LABEL = {
+    cron_auto_horaire: { texte: "🤖 Trouvé automatiquement", couleur: "#1a7a3c" },
+    recherche_manuelle: { texte: "🔍 Recherche manuelle", couleur: "#2452E8" },
+  };
+  function estNouveau(prospect) {
+    return prospect.created_at && (Date.now() - new Date(prospect.created_at).getTime()) < 48 * 3600 * 1000;
   }
 
   const couleurStatut = { NEW: "#8A9089", CONTACTED: "#e8920a", RESPONDED: "#1a7a3c", HOT: "#D64933", CUSTOMER: "#1a7a3c", LOST: "#999", DO_NOT_CONTACT: "#666" };
@@ -10661,11 +10673,17 @@ function ProspectsIAModal({ onClose }) {
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {prospects.map((p) => (
-              <div key={p.id} style={{ border: "1px solid #ECE8DC", borderRadius: 12, padding: 14 }}>
+              <div key={p.id} style={{ border: estNouveau(p) ? "1.5px solid #7C3AED" : "1px solid #ECE8DC", borderRadius: 12, padding: 14, position: "relative" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 13.5 }}>{p.nom || p.entreprise}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 800, fontSize: 13.5 }}>{p.nom || p.entreprise}</div>
+                      {estNouveau(p) && <span style={{ background: "#7C3AED", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 999 }}>🆕 NOUVEAU</span>}
+                    </div>
                     <div style={{ fontSize: 11, color: "#8A9089" }}>{p.secteur} {p.ville ? `· ${p.ville}` : ""}</div>
+                    <div style={{ fontSize: 10, color: SOURCES_LABEL[p.source]?.couleur || "#8A9089", fontWeight: 700, marginTop: 3 }}>
+                      {SOURCES_LABEL[p.source]?.texte || p.source || ""} {p.created_at ? `· ${new Date(p.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+                    </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ fontWeight: 900, fontSize: 16, color: p.score >= 70 ? "#1a7a3c" : p.score >= 40 ? "#e8920a" : "#999" }}>{p.score}</div>

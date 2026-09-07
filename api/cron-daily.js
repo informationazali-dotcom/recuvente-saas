@@ -245,6 +245,36 @@ function tirerAuSort(liste) {
   return liste[Math.floor(Math.random() * liste.length)];
 }
 
+// Toutes les combinaisons secteur×ville possibles, dans un ordre fixe — sert à tourner
+// systématiquement dessus (round-robin) plutôt qu'au hasard, pour ne pas re-chercher 10 fois
+// la même combinaison pendant qu'une autre n'est jamais essayée. L'ordre lui-même est mélangé
+// une fois au chargement (pas à chaque exécution), donc stable d'un run à l'autre.
+const TOUTES_COMBINAISONS = SECTEURS_CIBLES.flatMap((secteur) => VILLES_CIBLES.map((ville) => ({ secteur, ville })));
+
+async function prochainesCombinaisons(nombre) {
+  // Le curseur est stocké dans ai_memory (créée en Phase A) — mémoire partagée entre agents,
+  // donc l'agent Prospection s'en sert exactement pour ce qu'elle est faite.
+  const { data: memoire } = await supabaseAdmin
+    .from("ai_memory")
+    .select("value")
+    .eq("proprietaire_email", "oulipaiexpress@gmail.com")
+    .eq("scope", "prospecting")
+    .eq("key", "cursor_combinaison")
+    .maybeSingle();
+  const indexDepart = memoire?.value?.index || 0;
+
+  const combinaisons = [];
+  for (let i = 0; i < nombre; i++) {
+    combinaisons.push(TOUTES_COMBINAISONS[(indexDepart + i) % TOUTES_COMBINAISONS.length]);
+  }
+  const nouvelIndex = (indexDepart + nombre) % TOUTES_COMBINAISONS.length;
+  await supabaseAdmin.from("ai_memory").upsert(
+    [{ proprietaire_email: "oulipaiexpress@gmail.com", scope: "prospecting", key: "cursor_combinaison", value: { index: nouvelIndex }, updated_at: new Date().toISOString() }],
+    { onConflict: "proprietaire_email,scope,key" }
+  );
+  return combinaisons;
+}
+
 async function chercherProspectsAvecClaude(secteur, ville) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return { inseres: 0, erreur: "ANTHROPIC_API_KEY manquante" };
@@ -285,7 +315,23 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
     if (!matchJSON) return { inseres: 0 };
 
     const prospectsTrouves = JSON.parse(matchJSON[0]);
-    const lignesAInserer = prospectsTrouves.map((p) => ({
+
+    // Déduplication : on ne réinsère pas une entreprise déjà connue (même site/réseau, ou
+    // même nom) — sinon le CRM se remplit de doublons au lieu de vraies nouvelles opportunités,
+    // ce qui va exactement à l'encontre de l'objectif (trouver PLUS de personnes DISTINCTES).
+    const { data: existants } = await supabaseAdmin.from("prospects").select("nom, site_web");
+    const nomsConnus = new Set((existants || []).map((p) => (p.nom || "").trim().toLowerCase()));
+    const sitesConnus = new Set((existants || []).map((p) => (p.site_web || "").trim().toLowerCase()).filter(Boolean));
+
+    const nouveaux = prospectsTrouves.filter((p) => {
+      const nom = (p.nom || "").trim().toLowerCase();
+      const site = (p.site_web_ou_reseau || "").trim().toLowerCase();
+      if (nom && nomsConnus.has(nom)) return false;
+      if (site && sitesConnus.has(site)) return false;
+      return true;
+    });
+
+    const lignesAInserer = nouveaux.map((p) => ({
       nom: p.nom || null,
       entreprise: p.nom || null,
       secteur: p.secteur || secteur,
@@ -299,7 +345,7 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
       statut: "NEW",
     }));
     if (lignesAInserer.length > 0) await supabaseAdmin.from("prospects").insert(lignesAInserer);
-    return { inseres: lignesAInserer.length };
+    return { inseres: lignesAInserer.length, doublons_ignores: prospectsTrouves.length - nouveaux.length };
   } catch (e) {
     return { inseres: 0, erreur: e.message };
   }
@@ -311,7 +357,9 @@ async function lancerProspectionAutomatique() {
   // dans le temps d'exécution autorisé par Vercel (voir aussi son ordre dans handler() plus bas :
   // elle passe désormais en premier, avant sauvegarde/essais/stock, pour ne jamais être coupée
   // si le temps manque).
-  const combinaisons = Array.from({ length: 3 }, () => ({ secteur: tirerAuSort(SECTEURS_CIBLES), ville: tirerAuSort(VILLES_CIBLES) }));
+  // Round-robin (pas aléatoire) sur secteur×ville : maximise la couverture réelle plutôt que
+  // de retomber souvent sur les mêmes combinaisons par hasard.
+  const combinaisons = await prochainesCombinaisons(3);
   const resultats = await Promise.all(
     combinaisons.map(async ({ secteur, ville }) => {
       const r = await chercherProspectsAvecClaude(secteur, ville);

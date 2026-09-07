@@ -3170,6 +3170,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showPmIA, setShowPmIA] = useState(false);
   const [showCtoIA, setShowCtoIA] = useState(false);
   const [showAzaliLeadsIA, setShowAzaliLeadsIA] = useState(false);
+  const [showAIInbox, setShowAIInbox] = useState(false);
+  const [alertesNonLues, setAlertesNonLues] = useState(0);
+
+  useEffect(() => {
+    if (session?.user?.email !== "oulipaiexpress@gmail.com") return;
+    supabase.from("ai_alerts").select("id", { count: "exact", head: true }).eq("is_read", false).then(({ count }) => setAlertesNonLues(count || 0));
+  }, [session?.user?.email, showAIInbox]);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
@@ -4823,6 +4830,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </button>
         )}
         {session?.user?.email === "oulipaiexpress@gmail.com" && (
+          <button
+            onClick={() => setShowAIInbox(true)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            <span>📬 Boîte de réception IA</span>
+            {alertesNonLues > 0 && <span style={{ background: "#D64933", color: "white", fontSize: 10.5, fontWeight: 700, borderRadius: 999, padding: "1px 7px" }}>{alertesNonLues}</span>}
+          </button>
+        )}
+        {session?.user?.email === "oulipaiexpress@gmail.com" && (
           <>
             <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", padding: "16px 12px 6px" }}>BUSINESS</div>
             <button
@@ -5889,6 +5905,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
+      {showAIInbox && session?.user?.email === "oulipaiexpress@gmail.com" && <AIInboxModal onClose={() => setShowAIInbox(false)} />}
       {showAICompany && session?.user?.email === "oulipaiexpress@gmail.com" && (
         <AICompanyModal
           onClose={() => setShowAICompany(false)}
@@ -10319,6 +10336,56 @@ const PmIAModal = creerModaleAgentIA({ titre: "🗂️ Project Manager IA", acti
 const CtoIAModal = creerModaleAgentIA({ titre: "🛠️ CTO IA", action: "cto_ask", placeholder: "Ex : Quels problèmes de données faut-il corriger en priorité ?", note: "Détecte les vrais problèmes (produits sans coût/photo, prospects incomplets). Ne modifie jamais rien lui-même." });
 const AzaliLeadsIAModal = creerModaleAgentIA({ titre: "🔎 Chasseur d'opportunités Azali", action: "azali_leads_ask", placeholder: "Ex : Trouve des gens qui cherchent à acheter des perruques à Abidjan.", note: "Cherche de vraies demandes publiques, pas du démarchage à froid. Rapport à lire — ne contacte personne." });
 const SubscriberGrowthIAModal = creerModaleAgentIA({ titre: "📈 Croissance abonnés RecuVente", action: "subscriber_growth_ask", placeholder: "Ex : Quels prospects dois-je contacter en priorité aujourd'hui ?", note: "Analyse le tunnel trouvé → contacté → répondu → abonné, et signale les prospects oubliés." });
+
+function AIInboxModal({ onClose }) {
+  const [alertes, setAlertes] = useState(null);
+  const [erreur, setErreur] = useState("");
+
+  async function charger() {
+    const { data, error } = await supabase.from("ai_alerts").select("*").order("created_at", { ascending: false }).limit(50);
+    if (error) { setErreur(error.message); return; }
+    setAlertes(data || []);
+  }
+  useEffect(() => { charger(); }, []);
+
+  async function marquerLu(id) {
+    await supabase.from("ai_alerts").update({ is_read: true }).eq("id", id);
+    charger();
+  }
+
+  const couleurPriorite = { CRITICAL: "#D64933", HIGH: "#e8920a", MEDIUM: "#2452E8", LOW: "#8A9089" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 640, maxHeight: "90vh", overflow: "auto", padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>📬 Boîte de réception IA</div>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 18 }}>Générées automatiquement par les agents à chaque exécution horaire — pas besoin de leur poser de question.</div>
+
+        {erreur && <div style={{ color: "#D64933", fontSize: 12.5 }}>{erreur}</div>}
+        {alertes === null && !erreur && <div style={{ color: "#8A9089", fontSize: 13 }}>Chargement...</div>}
+        {alertes && alertes.length === 0 && <div style={{ textAlign: "center", padding: "30px 0", color: "#8A9089" }}>Aucune alerte pour l'instant. 🎉</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(alertes || []).map((a) => (
+            <div key={a.id} style={{ background: a.is_read ? "#FAFAF7" : "white", border: `1px solid ${a.is_read ? "#ECE8DC" : couleurPriorite[a.priority] || "#DDD8CC"}`, borderLeft: `4px solid ${couleurPriorite[a.priority] || "#8A9089"}`, borderRadius: 10, padding: "12px 14px", opacity: a.is_read ? 0.6 : 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{a.title}</div>
+                  {a.description && <div style={{ fontSize: 12, color: "#6B7168", marginTop: 3 }}>{a.description}</div>}
+                  <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 4 }}>{a.source_agent} · {new Date(a.created_at).toLocaleString("fr-FR")}</div>
+                </div>
+                {!a.is_read && <button onClick={() => marquerLu(a.id)} style={{ flexShrink: 0, background: "#EAF3DE", border: "none", color: "#1a7a3c", fontSize: 11, fontWeight: 600, borderRadius: 7, padding: "5px 9px", cursor: "pointer" }}>✓ Lu</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CeoIAModal({ onClose }) {
   const [question, setQuestion] = useState("");

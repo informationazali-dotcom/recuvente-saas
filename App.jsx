@@ -667,13 +667,13 @@ function ReunionEquipeModal({ workspace, onClose }) {
 
 const SOLUTIONS_VITRINE = [
   { icone: "01", titre: "Tunnel de vente", texte: "Une expérience pensée pour faire avancer le visiteur : attention → confiance → qualification → conversation → décision." },
-  { icone: "02", titre: "E-commerce", texte: "Boutiques et pages produits conçues pour réduire les frictions, clarifier l'offre et faciliter le passage à l'achat." },
-  { icone: "03", titre: "Acquisition", texte: "Pages, campagnes et tracking alignés autour d'un même objectif : transformer le trafic en opportunités commerciales." },
-  { icone: "04", titre: "Automatisation & IA", texte: "CRM, WhatsApp, workflows et IA pour accélérer les tâches répétitives et garder le suivi commercial sous contrôle." },
-  { icone: "05", titre: "Business System", texte: "Un écosystème cohérent qui relie acquisition, vente, clients, opérations et données au même endroit." },
-  { icone: "06", titre: "Sites premium", texte: "Des interfaces rapides, responsives et structurées pour donner immédiatement une perception professionnelle à votre activité." },
-  { icone: "07", titre: "Applications / SaaS", texte: "Des produits web sur mesure pour transformer une idée, un processus métier ou un besoin complexe en outil exploitable." },
-  { icone: "08", titre: "Stratégie & audit", texte: "Nous identifions les blocages de votre parcours commercial avant de construire les éléments qui doivent réellement les résoudre." },
+  { icone: "02", titre: "Boutique Shopify", texte: "Création et optimisation de boutiques Shopify : pages produits, checkout, parcours d'achat conçus pour vendre, pas juste pour exister." },
+  { icone: "03", titre: "Facebook, Google & TikTok Ads", texte: "Campagnes publicitaires créées, pilotées et optimisées sur les trois plateformes qui ramènent le plus de clients aujourd'hui." },
+  { icone: "04", titre: "Agents IA & Automatisation", texte: "Des agents qui travaillent pour vous 24h/24 : trouvent des prospects, analysent vos chiffres, rédigent vos messages, surveillent votre activité." },
+  { icone: "05", titre: "Applications & SaaS", texte: "Des produits web sur mesure pour transformer une idée, un processus métier ou un besoin complexe en outil exploitable." },
+  { icone: "06", titre: "Création d'entreprise", texte: "De l'idée à la structure opérationnelle : positionnement, offre, premiers outils, premiers clients. Nous vous accompagnons à chaque étape." },
+  { icone: "07", titre: "Business System", texte: "Un écosystème cohérent qui relie acquisition, vente, clients, opérations et données au même endroit." },
+  { icone: "08", titre: "Sites Web Premium", texte: "Des interfaces rapides, responsives et structurées pour donner immédiatement une perception professionnelle à votre activité." },
 ];
 
 const COMPETENCES_VITRINE = [
@@ -694,9 +694,10 @@ const PROFILS_CLIENTS_VITRINE = [
 const OFFRES_VITRINE = [
   { titre: "Diagnostic stratégique", prix: "À partir de 150 000 FCFA", texte: "Analyse de votre activité, de votre offre et de votre parcours commercial. Vous repartez avec des priorités concrètes.", cta: "Analyser mon activité" },
   { titre: "Site Web Premium", prix: "À partir de 250 000 FCFA", texte: "Une présence digitale professionnelle, rapide et pensée pour présenter votre valeur sans noyer le visiteur.", cta: "Créer mon site" },
-  { titre: "E-commerce Conversion", prix: "À partir de 350 000 FCFA", texte: "Boutique, pages produits et parcours d'achat conçus pour réduire les frictions et faciliter la décision.", cta: "Construire ma boutique" },
+  { titre: "Boutique Shopify", prix: "À partir de 350 000 FCFA", texte: "Boutique, pages produits et parcours d'achat conçus pour réduire les frictions et faciliter la décision.", cta: "Construire ma boutique" },
   { titre: "Tunnel de Vente", prix: "À partir de 500 000 FCFA", texte: "Une expérience de conversion complète : promesse, preuve, objections, qualification et passage vers WhatsApp ou votre étape de vente.", cta: "Concevoir mon tunnel", vedette: true },
-  { titre: "Acquisition", prix: "À partir de 750 000 FCFA / mois", texte: "Stratégie, campagnes, tracking et optimisation. Le budget publicitaire reste séparé de nos honoraires.", cta: "Développer mon acquisition" },
+  { titre: "Publicité (Meta, Google, TikTok)", prix: "À partir de 750 000 FCFA / mois", texte: "Stratégie, campagnes, tracking et optimisation sur les plateformes qui comptent. Le budget publicitaire reste séparé de nos honoraires.", cta: "Lancer mes campagnes" },
+  { titre: "Agents IA sur mesure", prix: "Sur devis", texte: "Des agents qui travaillent pour votre entreprise en continu : prospection automatique, analyse de vos chiffres, rédaction, alertes. Construits et testés, pas des promesses.", cta: "Discuter de mon projet IA" },
   { titre: "Business System", prix: "À partir de 1 500 000 FCFA", texte: "Un système global pour connecter acquisition, vente, gestion client, opérations et automatisation.", cta: "Construire mon système" },
 ];
 
@@ -902,7 +903,7 @@ function VitrineBusinessPublique() {
                 Transformez vos visiteurs en <span style={{background:"linear-gradient(110deg,#C4B5FD 0%,#8B5CF6 45%,#60A5FA 100%)",WebkitBackgroundClip:"text",backgroundClip:"text",color:"transparent"}}>opportunités.</span>
               </h1>
               <p style={{fontSize:16,color:"rgba(255,255,255,.62)",lineHeight:1.75,maxWidth:620,margin:"0 0 28px"}}>
-                Nous concevons des tunnels, boutiques et systèmes commerciaux où chaque écran a une mission : <strong style={{color:"#fff"}}>capturer l'attention, créer de la confiance, lever les objections et provoquer la prochaine action.</strong>
+                Site, boutique Shopify, tunnel de vente, publicité Meta/Google/TikTok, application, agents IA : <strong style={{color:"#fff"}}>nous construisons l'outil exact dont votre activité a besoin pour vendre plus, pas un site vitrine de plus.</strong>
               </p>
               <div style={{display:"flex",gap:11,flexWrap:"wrap",marginBottom:25}}>
                 <button onClick={()=>setDiagnosticOuvert(true)} style={styleBtnPrimaire}>Faire analyser mon projet <span>→</span></button>
@@ -1035,7 +1036,7 @@ function VitrineBusinessPublique() {
 
         <section id="offres" style={{padding:"88px 24px",background:"linear-gradient(180deg,#08080E,#050509)"}}>
           <div className="rv-shell" style={{maxWidth:1240,margin:"0 auto"}}>
-            <RevealOnScroll><div style={{textAlign:"center",marginBottom:46}}><div className="rv-section-label" style={{marginBottom:11}}>OFFRES</div><div className="rv-title" style={{fontSize:"clamp(31px,4.4vw,51px)",fontWeight:800}}>Commencez par le bon niveau de système.</div><div style={{maxWidth:620,margin:"14px auto 0",fontSize:13.5,color:"rgba(255,255,255,.48)",lineHeight:1.7}}>Pas besoin de construire 100 choses quand une seule amélioration peut débloquer votre parcours commercial.</div></div></RevealOnScroll>
+            <RevealOnScroll><div style={{textAlign:"center",marginBottom:46}}><div className="rv-section-label" style={{marginBottom:11}}>OFFRES</div><div className="rv-title" style={{fontSize:"clamp(31px,4.4vw,51px)",fontWeight:800}}>Une expertise, sept façons de la déployer.</div><div style={{maxWidth:620,margin:"14px auto 0",fontSize:13.5,color:"rgba(255,255,255,.48)",lineHeight:1.7}}>Site, boutique, publicité, tunnel, IA ou système complet — vous ne payez que ce dont vous avez réellement besoin, jamais un pack générique.</div></div></RevealOnScroll>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:14}}>
               {OFFRES_VITRINE.map((o,i)=>
                 <RevealOnScroll key={i} delai={(i%3)*60}><div className="rv-card" style={{height:"100%",display:"flex",flexDirection:"column",padding:25,borderRadius:19,border:`1px solid ${o.vedette?"rgba(139,92,246,.48)":"rgba(255,255,255,.08)"}`,background:o.vedette?"radial-gradient(circle at 50% 0%,rgba(124,58,237,.18),transparent 45%),#0C0A14":"#0B0B12",boxShadow:o.vedette?"0 20px 70px rgba(109,40,217,.12)":"none"}}>

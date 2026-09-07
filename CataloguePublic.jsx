@@ -362,8 +362,14 @@ function normaliserTelephoneLocal(numero, codePays) {
   let chiffres = (numero || "").replace(/\D/g, "");
   const regle = REGLES_TELEPHONE_PAR_PAYS[codePays];
   const indicatif = INDICATIFS_PAYS_TEL[codePays];
-  if (indicatif && regle && chiffres.startsWith(indicatif) && chiffres.length === indicatif.length + regle.longueur) {
-    chiffres = chiffres.slice(indicatif.length);
+  if (indicatif && regle) {
+    // "00" est aussi utilisé comme indicatif international (ex: 00225 07 00 00 00 00),
+    // en plus du "+" — on le retire d'abord s'il est présent, avant de chercher l'indicatif pays.
+    if (chiffres.startsWith("00" + indicatif) && chiffres.length === 2 + indicatif.length + regle.longueur) {
+      chiffres = chiffres.slice(2 + indicatif.length);
+    } else if (chiffres.startsWith(indicatif) && chiffres.length === indicatif.length + regle.longueur) {
+      chiffres = chiffres.slice(indicatif.length);
+    }
   }
   return chiffres;
 }
@@ -1173,11 +1179,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Du</div>
-                      <input type="date" value={formBien.dateDebut} onChange={(e) => setFormBien({ ...formBien, dateDebut: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+                      <input type="date" value={formBien.dateDebut} onChange={(e) => setFormBien({ ...formBien, dateDebut: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, boxSizing: "border-box" }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Au</div>
-                      <input type="date" value={formBien.dateFin} onChange={(e) => setFormBien({ ...formBien, dateFin: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+                      <input type="date" value={formBien.dateFin} onChange={(e) => setFormBien({ ...formBien, dateFin: e.target.value })} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, boxSizing: "border-box" }} />
                     </div>
                   </div>
                   {nbJours > 0 && (
@@ -1199,9 +1205,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 </div>
               )}
 
-              <input placeholder="Ton nom complet" value={formBien.client} onChange={(e) => setFormBien({ ...formBien, client: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 8, boxSizing: "border-box" }} />
-              <input placeholder="Ton numéro de téléphone" value={formBien.tel} onChange={(e) => setFormBien({ ...formBien, tel: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 8, boxSizing: "border-box" }} />
-              <input placeholder="Ta ville / commune (optionnel)" value={formBien.zone} onChange={(e) => setFormBien({ ...formBien, zone: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 12, boxSizing: "border-box" }} />
+              <input placeholder="Ton nom complet" value={formBien.client} onChange={(e) => setFormBien({ ...formBien, client: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Ton numéro de téléphone" value={formBien.tel} onChange={(e) => setFormBien({ ...formBien, tel: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Ta ville / commune (optionnel)" value={formBien.zone} onChange={(e) => setFormBien({ ...formBien, zone: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 12, boxSizing: "border-box" }} />
 
               {erreurEnvoiBien && <div style={{ color: "#D64933", fontSize: 12, marginBottom: 10, fontWeight: 600 }}>{erreurEnvoiBien}</div>}
 
@@ -1557,7 +1563,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                     value={formAvis.commentaire}
                     onChange={(e) => setFormAvis({ ...formAvis, commentaire: e.target.value })}
                     rows={3}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 13.5, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit" }}
                   />
                   {photoAvisApercu ? (
                     <div style={{ position: "relative", display: "inline-block", marginBottom: 10 }}>
@@ -1947,7 +1953,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       placeholder="Code promo (optionnel)"
                       value={codePromoInput}
                       onChange={(e) => setCodePromoInput(e.target.value)}
-                      style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box", textTransform: "uppercase" }}
+                      style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, boxSizing: "border-box", textTransform: "uppercase" }}
                     />
                     <button
                       onClick={() => verifierCodePromo(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0))}
@@ -2507,9 +2513,9 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
               style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
               aria-hidden="true"
             />
-            <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
-            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
-            <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
+            <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 14, boxSizing: "border-box" }} />
 
             {aChoixLivraison && (
               <div style={{ marginBottom: 14 }}>
@@ -2584,7 +2590,7 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Rechercher un véhicule, une machine..."
-            style={{ flex: 1, border: "none", background: "transparent", padding: "10px 12px", fontSize: 13, outline: "none", color: "white", fontFamily: "'Inter', sans-serif" }}
+            style={{ flex: 1, border: "none", background: "transparent", padding: "10px 12px", fontSize: 16, outline: "none", color: "white", fontFamily: "'Inter', sans-serif" }}
           />
         </div>
 
@@ -3085,7 +3091,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 placeholder={t("rechercherProduit") || "Rechercher un produit, une marque..."}
-                style={{ flex: 1, border: "none", background: "transparent", padding: estFixe ? "6px 8px" : "10px 10px", fontSize: 13, outline: "none" }}
+                style={{ flex: 1, border: "none", background: "transparent", padding: estFixe ? "6px 8px" : "10px 10px", fontSize: 16, outline: "none" }}
               />
             </div>
 
@@ -3238,7 +3244,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 placeholder={t("rechercher")}
-                style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid rgba(255,255,255,0.4)", fontSize: 13.5, boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 999, border: "1.5px solid rgba(255,255,255,0.4)", fontSize: 16, boxSizing: "border-box" }}
               />
             </div>
           )}
@@ -3472,7 +3478,7 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
             <input
               type="email"
               placeholder={t("votreEmail") || "Votre adresse email..."}
-              style={{ padding: "10px 14px", borderRadius: 8, border: "none", fontSize: 12.5, minWidth: 220 }}
+              style={{ padding: "10px 14px", borderRadius: 8, border: "none", fontSize: 16, minWidth: 220 }}
             />
             <button style={{ background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
               {t("sabonner") || "S'abonner"}
@@ -4390,9 +4396,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 6, textAlign: "center" }}>{config.contactFormTitre}</div>
           <div style={{ fontSize: 12.5, color: "#68756d", marginBottom: 18, textAlign: "center" }}>{config.contactFormTexte}</div>
           <div style={{ display: "grid", gap: 10, maxWidth: 420, margin: "0 auto" }}>
-            <input id={`${idBase}-nom`} placeholder="Nom" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13 }} />
-            <input id={`${idBase}-tel`} placeholder="Téléphone" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13 }} />
-            <textarea id={`${idBase}-msg`} placeholder="Message" rows={3} style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 13, resize: "vertical" }} />
+            <input id={`${idBase}-nom`} placeholder="Nom" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 16 }} />
+            <input id={`${idBase}-tel`} placeholder="Téléphone" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 16 }} />
+            <textarea id={`${idBase}-msg`} placeholder="Message" rows={3} style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 16, resize: "vertical" }} />
             <button onClick={envoyer} style={{ border: 0, borderRadius: 10, padding: "12px", background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
               Envoyer sur WhatsApp
             </button>

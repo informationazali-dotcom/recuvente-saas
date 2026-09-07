@@ -3172,6 +3172,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAzaliLeadsIA, setShowAzaliLeadsIA] = useState(false);
   const [showAIInbox, setShowAIInbox] = useState(false);
   const [showHrIA, setShowHrIA] = useState(false);
+  const [showAdsIA, setShowAdsIA] = useState(false);
   const [alertesNonLues, setAlertesNonLues] = useState(0);
 
   useEffect(() => {
@@ -5935,6 +5936,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onOpenCto={() => setShowCtoIA(true)}
           onOpenAzaliLeads={() => setShowAzaliLeadsIA(true)}
           onOpenHr={() => setShowHrIA(true)}
+          onOpenAds={() => setShowAdsIA(true)}
         />
       )}
       {showSalesIA && session?.user?.email === "oulipaiexpress@gmail.com" && <SalesIAModal onClose={() => setShowSalesIA(false)} />}
@@ -5947,6 +5949,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showCtoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CtoIAModal onClose={() => setShowCtoIA(false)} />}
       {showAzaliLeadsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <AzaliLeadsIAModal onClose={() => setShowAzaliLeadsIA(false)} />}
       {showHrIA && session?.user?.email === "oulipaiexpress@gmail.com" && <HrIAModal onClose={() => setShowHrIA(false)} />}
+      {showAdsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <AdsIAModal onClose={() => setShowAdsIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
@@ -10086,7 +10089,7 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
   );
 }
 
-function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter, onOpenPm, onOpenCto, onOpenAzaliLeads, onOpenHr }) {
+function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter, onOpenPm, onOpenCto, onOpenAzaliLeads, onOpenHr, onOpenAds }) {
   const [selectionne, setSelectionne] = useState(null);
 
   const departements = {};
@@ -10108,6 +10111,7 @@ function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, on
     if (agent.id === "cto") { onClose(); onOpenCto(); return; }
     if (agent.id === "azali_leads") { onClose(); onOpenAzaliLeads(); return; }
     if (agent.id === "hr") { onClose(); onOpenHr(); return; }
+    if (agent.id === "ads") { onClose(); onOpenAds(); return; }
     setSelectionne(agent);
   }
 
@@ -10374,6 +10378,7 @@ const CtoIAModal = creerModaleAgentIA({ titre: "🛠️ CTO IA", action: "cto_as
 const AzaliLeadsIAModal = creerModaleAgentIA({ titre: "🔎 Chasseur d'opportunités Azali", action: "azali_leads_ask", placeholder: "Ex : Trouve des gens qui cherchent à acheter des perruques à Abidjan.", note: "Cherche de vraies demandes publiques, pas du démarchage à froid. Rapport à lire — ne contacte personne." });
 const SubscriberGrowthIAModal = creerModaleAgentIA({ titre: "📈 Croissance abonnés RecuVente", action: "subscriber_growth_ask", placeholder: "Ex : Quels prospects dois-je contacter en priorité aujourd'hui ?", note: "Analyse le tunnel trouvé → contacté → répondu → abonné, et signale les prospects oubliés." });
 const HrIAModal = creerModaleAgentIA({ titre: "👥 RH IA", action: "hr_ask", placeholder: "Ex : La charge est-elle bien répartie entre les livreurs ?", note: "Charge de travail réelle (livreurs/closers) sur les 7 derniers jours — Azali Express." });
+const AdsIAModal = creerModaleAgentIA({ titre: "📣 CMO / Ads IA", action: "ads_ask", placeholder: "Ex : Quel est l'état de mon compte publicitaire RecuVente ?", note: "Lecture seule pour l'instant — lit ton vrai compte Meta Ads. Ne crée ni ne modifie aucune campagne tant qu'aucun moyen de paiement n'est configuré." });
 
 function AIInboxModal({ onClose }) {
   const [alertes, setAlertes] = useState(null);

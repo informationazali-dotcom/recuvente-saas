@@ -5514,7 +5514,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} />
+              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} produits={produits} />
             ))}
           </div>
         </div>
@@ -5536,6 +5536,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           confirmateurNom={session.user.email.split("@")[0]}
           onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }}
           onRendreCaution={rendreCaution}
+          produits={produits}
         />
       )}
 
@@ -8319,8 +8320,25 @@ const STATUTS = {
   retournee: { label: "Retournée", color: "#8A6412", bg: "#FBF3E3" },
 };
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution, produits = [] }) {
   const [open, setOpen] = useState(false);
+
+  // Bénéfice de CETTE commande précise — même logique que le calcul global du tableau de
+  // bord (CA − coût produit − coût livraison), appliquée à une seule commande.
+  const COUT_LIVRAISON_UNITAIRE = 1500;
+  const beneficeCommande = useMemo(() => {
+    if (commande.statut !== "confirmee") return null;
+    const match = String(commande.produit || "").match(/^(.*?)\s*x\s*(\d+)\s*$/i);
+    const nomProduit = match ? match[1].trim() : String(commande.produit || "").trim();
+    const quantite = match ? Number(match[2]) || 1 : 1;
+    const trouve = produits.find((p) => p.nom?.toLowerCase() === nomProduit.toLowerCase());
+    if (!trouve) return { connu: false };
+    const coutProduit = (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite;
+    const coutLivraison = workspace?.activity_type === "retail"
+      ? (commande.mode_vente === "livraison" || commande.mode_vente === "expedition" ? COUT_LIVRAISON_UNITAIRE : 0)
+      : COUT_LIVRAISON_UNITAIRE;
+    return { connu: true, montant: Number(commande.montant) - coutProduit - coutLivraison };
+  }, [commande.statut, commande.produit, commande.montant, commande.mode_vente, produits, workspace?.activity_type]);
   const [dernierAppel, setDernierAppel] = useState(null);
 
   function chargerDernierAppel() {
@@ -8575,6 +8593,17 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>{Number(commande.montant).toLocaleString("fr-FR")} {currency}</div>
+          {beneficeCommande && (
+            beneficeCommande.connu ? (
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: beneficeCommande.montant >= 0 ? "#1a7a3c" : "#D64933", marginTop: 2 }}>
+                💰 Bénéfice : {beneficeCommande.montant.toLocaleString("fr-FR")} {currency}
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, color: "#e8920a", marginTop: 2 }} title="Le nom du produit sur cette commande ne correspond à aucun produit avec un coût enregistré">
+                ⚠️ Coût produit inconnu
+              </div>
+            )
+          )}
           <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
             Facture, WhatsApp... <span style={{ fontSize: 9 }}>{open ? "▲" : "▼"}</span>
           </div>
@@ -14285,7 +14314,7 @@ function ProduitsViewSaas({ produitsAvecBenefice, currency, onGererCatalogue }) 
   );
 }
 
-function ValidationsViewSaas({ commandes, currency, onStatusChanged, livreurs, closers, onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution }) {
+function ValidationsViewSaas({ commandes, currency, onStatusChanged, livreurs, closers, onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution, produits }) {
   const [tab, setTab] = useState("validees");
   const [datePreset, setDatePreset] = useState("semaine");
   const [customStart, setCustomStart] = useState("");
@@ -14477,6 +14506,7 @@ function ValidationsViewSaas({ commandes, currency, onStatusChanged, livreurs, c
                     confirmateurNom={confirmateurNom}
                     onCelebrate={onCelebrate}
                     onRendreCaution={onRendreCaution}
+                    produits={produits}
                   />
                 ))}
               </div>

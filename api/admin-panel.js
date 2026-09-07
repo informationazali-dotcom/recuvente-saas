@@ -712,6 +712,60 @@ Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces chiffr
   return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
 }
 
+// ===== POST "hr_ask" : RH IA (§12) — charge de travail réelle de l'équipe Azali
+// (livreurs/closers), à partir des vraies commandes qui leur sont assignées.
+async function gererHrAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: "Question manquante" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const { data: workspace, error: wsError } = await supabaseAdmin.from("workspaces").select("id, name").eq("slug", "azaliexpress").maybeSingle();
+  if (wsError) return res.status(400).json({ error: wsError.message });
+  if (!workspace) return res.status(400).json({ error: "Intégration requise : espace 'azaliexpress' introuvable" });
+
+  const { data: livreurs } = await supabaseAdmin.from("livreurs").select("nom").eq("workspace_id", workspace.id);
+  const { data: closers } = await supabaseAdmin.from("closers").select("nom").eq("workspace_id", workspace.id);
+  const septJours = Date.now() - 7 * 24 * 3600 * 1000;
+  const { data: commandes7j } = await supabaseAdmin.from("commandes").select("livreur, closer, statut, created_at").eq("workspace_id", workspace.id).gte("created_at", new Date(septJours).toISOString());
+
+  const chargeLivreurs = (livreurs || []).map((l) => ({
+    nom: l.nom,
+    commandes_7j: (commandes7j || []).filter((c) => c.livreur === l.nom).length,
+    echouees_7j: (commandes7j || []).filter((c) => c.livreur === l.nom && c.statut === "echouee").length,
+  }));
+  const chargeClosers = (closers || []).map((c) => ({
+    nom: c.nom,
+    commandes_7j: (commandes7j || []).filter((cmd) => cmd.closer === c.nom).length,
+  }));
+  const commandesSansLivreur = (commandes7j || []).filter((c) => c.statut === "en_cours" && !c.livreur).length;
+
+  const contexteReel = {
+    entreprise: workspace.name,
+    equipe_livreurs: chargeLivreurs,
+    equipe_closers: chargeClosers,
+    commandes_en_cours_sans_livreur_assigne: commandesSansLivreur,
+  };
+
+  const prompt = `Tu es l'agent RH IA de ${workspace.name}. Voici la charge de travail réelle de l'équipe sur les 7 derniers jours, extraite à l'instant :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces chiffres. Signale tout déséquilibre de charge important entre membres de l'équipe. Si la question dépasse ces données (recrutement, évaluations, compétences), dis "Information non disponible — cette donnée n'est pas encore connectée à l'agent RH" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  await supabaseAdmin.from("ai_action_logs").insert([{ agent_key: "hr", action: "hr_ask", reason: question, input_data: contexteReel, result_data: { reponse: reponseTexte }, validation_required: false, approved_by: user.email }]);
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -727,6 +781,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "cto_ask") return gererCtoAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "azali_leads_ask") return gererAzaliLeadsAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "subscriber_growth_ask") return gererSubscriberGrowthAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "hr_ask") return gererHrAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

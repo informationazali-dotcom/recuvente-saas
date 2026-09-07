@@ -30,9 +30,9 @@ const ETAPES_PAR_PARCOURS = {
   libre: ["blocagePrincipal", "analyse", "resume", "capture", "termine"],
 };
 
-const cardStyle = { background: "#12121C", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease" };
+const cardStyle = { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease" };
 const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "#0A0A12", color: "white", fontSize: 16, marginBottom: 10, boxSizing: "border-box" };
-const btnPrimaire = { background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "white", border: "none", borderRadius: 10, padding: "13px 24px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" };
+const btnPrimaire = { background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "white", border: "none", borderRadius: 10, padding: "13px 24px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", boxShadow: "0 4px 18px rgba(124,58,237,0.35)" };
 const btnFantome = { background: "transparent", color: "rgba(255,255,255,0.5)", border: "none", fontSize: 12.5, cursor: "pointer", padding: "8px 4px" };
 
 function ChoixCartes({ options, valeur, onChoisir, multi }) {
@@ -43,7 +43,14 @@ function ChoixCartes({ options, valeur, onChoisir, multi }) {
         <div
           key={o}
           onClick={() => onChoisir(o)}
-          style={{ ...cardStyle, borderColor: estCoche(o) ? "#7C3AED" : "rgba(255,255,255,0.1)", background: estCoche(o) ? "rgba(124,58,237,0.12)" : "#12121C" }}
+          onMouseEnter={(e) => { if (!estCoche(o)) e.currentTarget.style.borderColor = "rgba(167,139,250,0.5)"; }}
+          onMouseLeave={(e) => { if (!estCoche(o)) e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
+          style={{
+            ...cardStyle,
+            borderColor: estCoche(o) ? "#7C3AED" : "rgba(255,255,255,0.1)",
+            background: estCoche(o) ? "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(79,70,229,0.1))" : "rgba(255,255,255,0.03)",
+            boxShadow: estCoche(o) ? "0 0 0 1px rgba(124,58,237,0.4), 0 4px 16px rgba(124,58,237,0.25)" : "none",
+          }}
         >
           {multi && <span style={{ marginRight: 8 }}>{estCoche(o) ? "☑" : "☐"}</span>}
           {o}
@@ -237,24 +244,38 @@ export default function ProjectDiagnostic({ onFermer }) {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(6,6,10,0.92)", backdropFilter: "blur(6px)", overflowY: "auto", display: "flex", justifyContent: "center", padding: "40px 16px" }}>
-      <style>{`@keyframes rvDiagFade { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }`}</style>
-      <div style={{ maxWidth: 560, width: "100%", height: "fit-content" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "radial-gradient(ellipse at top, #0d0b1f 0%, #06050c 60%)", overflowY: "auto", display: "flex", justifyContent: "center", padding: "40px 16px" }}>
+      <style>{`
+        @keyframes rvDiagFade { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
+        @keyframes rvOrbFloatA { 0%,100% { transform: translate(-10%,-10%) scale(1); } 50% { transform: translate(8%,6%) scale(1.15); } }
+        @keyframes rvOrbFloatB { 0%,100% { transform: translate(6%,8%) scale(1.1); } 50% { transform: translate(-8%,-6%) scale(1); } }
+        @keyframes rvProgressShimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        @keyframes rvOrbitSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes rvOrbitSpinRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+        @keyframes rvCorePulse { 0%,100% { box-shadow: 0 0 20px 4px rgba(124,58,237,0.5); } 50% { box-shadow: 0 0 34px 10px rgba(124,58,237,0.75); } }
+      `}</style>
+
+      {/* Halos de fond flottants — CSS pur (transform/opacity uniquement), aucun impact mobile */}
+      <div aria-hidden="true" style={{ position: "fixed", top: "-10%", left: "-5%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.35), transparent 70%)", filter: "blur(50px)", animation: "rvOrbFloatA 14s ease-in-out infinite", pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{ position: "fixed", bottom: "-15%", right: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.3), transparent 70%)", filter: "blur(60px)", animation: "rvOrbFloatB 17s ease-in-out infinite", pointerEvents: "none" }} />
+
+      <div style={{ maxWidth: 560, width: "100%", height: "fit-content", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
           <button onClick={fermerAvecSuivi} style={{ ...btnFantome, fontSize: 22, padding: "10px 12px" }}>✕</button>
         </div>
 
-        {/* Barre de progression discrète — jamais "Étape X / Y" */}
+        {/* Barre de progression, avec un léger effet lumineux animé */}
         {etape !== "termine" && (
-          <div style={{ height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 99, marginBottom: 28, overflow: "hidden" }}>
+          <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 99, marginBottom: 28, overflow: "hidden", boxShadow: "inset 0 0 4px rgba(0,0,0,0.4)" }}>
             <div style={{
-              height: "100%", background: "linear-gradient(90deg,#4F46E5,#7C3AED)", borderRadius: 99, transition: "width 0.3s ease",
+              height: "100%", borderRadius: 99, transition: "width 0.35s ease",
+              background: "linear-gradient(90deg,#4F46E5,#A78BFA,#7C3AED,#4F46E5)", backgroundSize: "200% 100%", animation: "rvProgressShimmer 3s linear infinite",
               width: etape === "objectif" ? "8%" : !etapesParcours ? "50%" : `${8 + (etapesParcours.indexOf(etape) + 1) * (84 / etapesParcours.length)}%`,
             }} />
           </div>
         )}
 
-        <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", color: "white" }}>
+        <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", color: "white", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "28px 24px", backdropFilter: "blur(14px)", boxShadow: "0 8px 40px rgba(0,0,0,0.35)" }}>
           {etape === "objectif" && (
             <EcranQuestion
               titre="Qu'est-ce que vous cherchez principalement à accomplir ?"
@@ -658,8 +679,12 @@ export default function ProjectDiagnostic({ onFermer }) {
           )}
 
           {etape === "analyse" && (
-            <div style={{ textAlign: "center", padding: "50px 0" }}>
-              <div style={{ fontSize: 30, marginBottom: 16 }}>⏳</div>
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <div style={{ position: "relative", width: 90, height: 90, margin: "0 auto 22px" }}>
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid transparent", borderTopColor: "#A78BFA", borderRightColor: "rgba(167,139,250,0.3)", animation: "rvOrbitSpin 1.6s linear infinite" }} />
+                <div style={{ position: "absolute", inset: 12, borderRadius: "50%", border: "2px solid transparent", borderBottomColor: "#7C3AED", borderLeftColor: "rgba(124,58,237,0.25)", animation: "rvOrbitSpinRev 2.2s linear infinite" }} />
+                <div style={{ position: "absolute", inset: 32, borderRadius: "50%", background: "radial-gradient(circle,#7C3AED,#4F46E5)", animation: "rvCorePulse 1.8s ease-in-out infinite" }} />
+              </div>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Nous commençons à comprendre votre projet.</div>
             </div>
           )}
@@ -677,7 +702,7 @@ export default function ProjectDiagnostic({ onFermer }) {
                   <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.75)", lineHeight: 1.6 }}>D'après vos réponses, {texte.charAt(0).toLowerCase() + texte.slice(1)}</div>
                 </div>
               ))}
-              <div style={{ background: "#12121C", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 12, padding: 16, marginTop: 20 }}>
+              <div style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.12), rgba(79,70,229,0.06))", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 12, padding: 16, marginTop: 20, boxShadow: "0 4px 20px rgba(124,58,237,0.15)" }}>
                 <div style={{ fontSize: 10.5, color: "#A78BFA", fontWeight: 700, letterSpacing: "0.08em", marginBottom: 8 }}>CE QUE NOUS RECOMMANDONS</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Priorité : {diagnostic.levierPrincipal}</div>
                 {diagnostic.recommandations.map((r) => (
@@ -726,7 +751,7 @@ export default function ProjectDiagnostic({ onFermer }) {
 
           {etape === "termine" && (
             <div style={{ textAlign: "center", animation: "rvDiagFade 0.4s ease both" }}>
-              <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
+              <div style={{ fontSize: 44, marginBottom: 14, filter: "drop-shadow(0 0 16px rgba(52,211,153,0.6))" }}>✅</div>
               <div style={{ fontSize: "clamp(19px,3vw,24px)", fontWeight: 800, marginBottom: 10 }}>Merci {capture.nom.split(" ")[0]} !</div>
               <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", marginBottom: 26, lineHeight: 1.6 }}>
                 Votre projet est enregistré. Un expert revient vers vous sous 24h, généralement bien plus vite.

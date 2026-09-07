@@ -62,8 +62,8 @@ export const AGENTS = {
     name: "Ads IA",
     role: "Publicité Meta / Google / TikTok",
     department: "Marketing",
-    status: "inactive", // bloqué : aucune intégration Meta/Google/TikTok Ads connectée
-    endpoint: null,
+    status: "active", // Meta Ads connecté (RecuVente) — lecture seule pour l'instant, pas de création de campagne
+    endpoint: "/api/admin-panel", // { action: "ads_ask", question: "..." }
   },
   copywriter: {
     id: "copywriter",

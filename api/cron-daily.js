@@ -289,6 +289,7 @@ Pour CHAQUE entreprise trouvée, réponds uniquement avec un objet JSON dans un 
   "secteur": "...",
   "ville": "...",
   "site_web_ou_reseau": "URL réelle trouvée",
+  "telephone_whatsapp": "numéro de téléphone/WhatsApp trouvé publiquement (au format international, ex: 2250700000000), ou vide si introuvable",
   "probleme_identifie": "ce qui suggère qu'ils géreraient mieux avec RecuVente",
   "score": nombre de 0 à 100 selon le potentiel,
   "message_suggere": "message court, humain, personnalisé en français ivoirien, présentant RecuVente et son prix, adapté à ce prospect précis"
@@ -337,8 +338,9 @@ Ne réponds QUE le tableau JSON, sans texte autour. N'invente aucune entreprise 
       secteur: p.secteur || secteur,
       ville: p.ville || ville,
       pays: "CI",
-      source: "agent_ia_auto",
+      source: "cron_auto_horaire",
       site_web: p.site_web_ou_reseau || null,
+      telephone: p.telephone_whatsapp || null,
       probleme_identifie: p.probleme_identifie || null,
       score: Number(p.score) || 0,
       message_suggere: p.message_suggere || null,

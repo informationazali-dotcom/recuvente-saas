@@ -3168,6 +3168,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCsIA, setShowCsIA] = useState(false);
   const [showCopywriterIA, setShowCopywriterIA] = useState(false);
   const [showPmIA, setShowPmIA] = useState(false);
+  const [showCtoIA, setShowCtoIA] = useState(false);
+  const [showAzaliLeadsIA, setShowAzaliLeadsIA] = useState(false);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
@@ -5899,6 +5901,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onOpenCs={() => setShowCsIA(true)}
           onOpenCopywriter={() => setShowCopywriterIA(true)}
           onOpenPm={() => setShowPmIA(true)}
+          onOpenCto={() => setShowCtoIA(true)}
+          onOpenAzaliLeads={() => setShowAzaliLeadsIA(true)}
         />
       )}
       {showSalesIA && session?.user?.email === "oulipaiexpress@gmail.com" && <SalesIAModal onClose={() => setShowSalesIA(false)} />}
@@ -5908,6 +5912,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showCsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CustomerSuccessIAModal onClose={() => setShowCsIA(false)} />}
       {showCopywriterIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CopywriterIAModal onClose={() => setShowCopywriterIA(false)} />}
       {showPmIA && session?.user?.email === "oulipaiexpress@gmail.com" && <PmIAModal onClose={() => setShowPmIA(false)} />}
+      {showCtoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CtoIAModal onClose={() => setShowCtoIA(false)} />}
+      {showAzaliLeadsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <AzaliLeadsIAModal onClose={() => setShowAzaliLeadsIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
@@ -10027,7 +10033,7 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
   );
 }
 
-function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter, onOpenPm }) {
+function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter, onOpenPm, onOpenCto, onOpenAzaliLeads }) {
   const [selectionne, setSelectionne] = useState(null);
 
   const departements = {};
@@ -10046,6 +10052,8 @@ function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, on
     if (agent.id === "customer_success") { onClose(); onOpenCs(); return; }
     if (agent.id === "copywriter") { onClose(); onOpenCopywriter(); return; }
     if (agent.id === "project_manager") { onClose(); onOpenPm(); return; }
+    if (agent.id === "cto") { onClose(); onOpenCto(); return; }
+    if (agent.id === "azali_leads") { onClose(); onOpenAzaliLeads(); return; }
     setSelectionne(agent);
   }
 
@@ -10308,6 +10316,8 @@ const DataIAModal = creerModaleAgentIA({ titre: "📊 Data / Analytics IA", acti
 const CustomerSuccessIAModal = creerModaleAgentIA({ titre: "💚 Customer Success IA", action: "cs_ask", placeholder: "Ex : Quels clients fidèles risquent de partir ?", note: "Clients ayant 2+ commandes confirmées, sans achat depuis 30+ jours." });
 const CopywriterIAModal = creerModaleAgentIA({ titre: "✍️ Copywriter IA", action: "copywriter_ask", placeholder: "Ex : Écris un message WhatsApp pour relancer un client qui a abandonné son panier.", note: "Rédige un brouillon prêt à copier-coller. N'envoie jamais rien lui-même (§29)." });
 const PmIAModal = creerModaleAgentIA({ titre: "🗂️ Project Manager IA", action: "pm_ask", placeholder: "Ex : Quels projets sont en attente de démarrage ?", note: "Chaque prospect \"Gagné\" devient automatiquement une tâche de projet suivie." });
+const CtoIAModal = creerModaleAgentIA({ titre: "🛠️ CTO IA", action: "cto_ask", placeholder: "Ex : Quels problèmes de données faut-il corriger en priorité ?", note: "Détecte les vrais problèmes (produits sans coût/photo, prospects incomplets). Ne modifie jamais rien lui-même." });
+const AzaliLeadsIAModal = creerModaleAgentIA({ titre: "🔎 Chasseur d'opportunités Azali", action: "azali_leads_ask", placeholder: "Ex : Trouve des gens qui cherchent à acheter des perruques à Abidjan.", note: "Cherche de vraies demandes publiques, pas du démarchage à froid. Rapport à lire — ne contacte personne." });
 
 function CeoIAModal({ onClose }) {
   const [question, setQuestion] = useState("");

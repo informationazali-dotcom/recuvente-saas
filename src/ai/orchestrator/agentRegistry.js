@@ -102,8 +102,8 @@ export const AGENTS = {
     name: "Project Manager IA",
     role: "Suivi de projets et livraison",
     department: "Opérations",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // crée une vraie tâche pour chaque prospect "Gagné" (table ai_tasks)
+    endpoint: "/api/admin-panel", // { action: "pm_ask", question: "..." }
   },
   data: {
     id: "data",

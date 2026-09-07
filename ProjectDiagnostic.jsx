@@ -30,7 +30,7 @@ const ETAPES_PAR_PARCOURS = {
   libre: ["blocagePrincipal", "analyse", "resume", "capture", "termine"],
 };
 
-const cardStyle = { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease" };
+const cardStyle = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(167,139,250,0.18)", borderRadius: 14, padding: "16px 18px", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "white", textAlign: "left", transition: "border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease" };
 const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "#0A0A12", color: "white", fontSize: 16, marginBottom: 10, boxSizing: "border-box" };
 const btnPrimaire = { background: "linear-gradient(135deg,#4F46E5,#7C3AED)", color: "white", border: "none", borderRadius: 10, padding: "13px 24px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", boxShadow: "0 4px 18px rgba(124,58,237,0.35)" };
 const btnFantome = { background: "transparent", color: "rgba(255,255,255,0.5)", border: "none", fontSize: 12.5, cursor: "pointer", padding: "8px 4px" };
@@ -43,13 +43,13 @@ function ChoixCartes({ options, valeur, onChoisir, multi }) {
         <div
           key={o}
           onClick={() => onChoisir(o)}
-          onMouseEnter={(e) => { if (!estCoche(o)) e.currentTarget.style.borderColor = "rgba(167,139,250,0.5)"; }}
-          onMouseLeave={(e) => { if (!estCoche(o)) e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
+          onMouseEnter={(e) => { if (!estCoche(o)) { e.currentTarget.style.borderColor = "rgba(167,139,250,0.7)"; e.currentTarget.style.transform = "translateY(-1px)"; } }}
+          onMouseLeave={(e) => { if (!estCoche(o)) { e.currentTarget.style.borderColor = "rgba(167,139,250,0.18)"; e.currentTarget.style.transform = "translateY(0)"; } }}
           style={{
             ...cardStyle,
-            borderColor: estCoche(o) ? "#7C3AED" : "rgba(255,255,255,0.1)",
-            background: estCoche(o) ? "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(79,70,229,0.1))" : "rgba(255,255,255,0.03)",
-            boxShadow: estCoche(o) ? "0 0 0 1px rgba(124,58,237,0.4), 0 4px 16px rgba(124,58,237,0.25)" : "none",
+            borderColor: estCoche(o) ? "#A78BFA" : "rgba(167,139,250,0.18)",
+            background: estCoche(o) ? "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(79,70,229,0.15))" : "rgba(255,255,255,0.04)",
+            boxShadow: estCoche(o) ? "0 0 0 1px rgba(167,139,250,0.6), 0 6px 24px rgba(124,58,237,0.35)" : "0 2px 8px rgba(0,0,0,0.15)",
           }}
         >
           {multi && <span style={{ marginRight: 8 }}>{estCoche(o) ? "☑" : "☐"}</span>}
@@ -263,8 +263,16 @@ export default function ProjectDiagnostic({ onFermer }) {
       `}</style>
 
       {/* Halos de fond flottants — CSS pur (transform/opacity uniquement), aucun impact mobile */}
-      <div aria-hidden="true" style={{ position: "fixed", top: "-10%", left: "-5%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.35), transparent 70%)", filter: "blur(50px)", animation: "rvOrbFloatA 14s ease-in-out infinite", pointerEvents: "none" }} />
-      <div aria-hidden="true" style={{ position: "fixed", bottom: "-15%", right: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.3), transparent 70%)", filter: "blur(60px)", animation: "rvOrbFloatB 17s ease-in-out infinite", pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{ position: "fixed", top: "-15%", left: "-10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.55), transparent 65%)", filter: "blur(40px)", animation: "rvOrbFloatA 14s ease-in-out infinite", pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{ position: "fixed", bottom: "-20%", right: "-12%", width: 650, height: 650, borderRadius: "50%", background: "radial-gradient(circle, rgba(79,70,229,0.5), transparent 65%)", filter: "blur(50px)", animation: "rvOrbFloatB 17s ease-in-out infinite", pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{ position: "fixed", top: "30%", left: "50%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(236,72,153,0.25), transparent 70%)", filter: "blur(45px)", animation: "rvOrbFloatA 20s ease-in-out infinite reverse", pointerEvents: "none" }} />
+      <div aria-hidden="true" style={{
+        position: "fixed", inset: 0, pointerEvents: "none", opacity: 0.5,
+        backgroundImage: "linear-gradient(rgba(167,139,250,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,0.07) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+        maskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+        WebkitMaskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+      }} />
 
       <div style={{ maxWidth: 560, width: "100%", height: "fit-content", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
@@ -273,16 +281,17 @@ export default function ProjectDiagnostic({ onFermer }) {
 
         {/* Barre de progression, avec un léger effet lumineux animé */}
         {etape !== "termine" && (
-          <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 99, marginBottom: 28, overflow: "hidden", boxShadow: "inset 0 0 4px rgba(0,0,0,0.4)" }}>
+          <div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 99, marginBottom: 28, overflow: "hidden", boxShadow: "inset 0 0 4px rgba(0,0,0,0.4)" }}>
             <div style={{
               height: "100%", borderRadius: 99, transition: "width 0.35s ease",
-              background: "linear-gradient(90deg,#4F46E5,#A78BFA,#7C3AED,#4F46E5)", backgroundSize: "200% 100%", animation: "rvProgressShimmer 3s linear infinite",
+              background: "linear-gradient(90deg,#4F46E5,#A78BFA,#EC4899,#7C3AED,#4F46E5)", backgroundSize: "300% 100%", animation: "rvProgressShimmer 3s linear infinite",
+              boxShadow: "0 0 12px rgba(167,139,250,0.8)",
               width: etape === "objectif" ? "8%" : !etapesParcours ? "50%" : `${8 + (etapesParcours.indexOf(etape) + 1) * (84 / etapesParcours.length)}%`,
             }} />
           </div>
         )}
 
-        <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", color: "white", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "28px 24px", backdropFilter: "blur(14px)", boxShadow: "0 8px 40px rgba(0,0,0,0.35)" }}>
+        <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", color: "white", background: "linear-gradient(135deg, rgba(124,58,237,0.1), rgba(255,255,255,0.03))", border: "1px solid rgba(167,139,250,0.25)", borderRadius: 22, padding: "30px 26px", backdropFilter: "blur(20px) saturate(150%)", boxShadow: "0 8px 50px rgba(124,58,237,0.25), 0 0 0 1px rgba(255,255,255,0.05) inset" }}>
           {etape === "objectif" && (
             <EcranQuestion
               titre="Qu'est-ce que vous cherchez principalement à accomplir ?"

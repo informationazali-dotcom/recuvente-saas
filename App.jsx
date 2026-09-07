@@ -10318,6 +10318,7 @@ const CopywriterIAModal = creerModaleAgentIA({ titre: "✍️ Copywriter IA", ac
 const PmIAModal = creerModaleAgentIA({ titre: "🗂️ Project Manager IA", action: "pm_ask", placeholder: "Ex : Quels projets sont en attente de démarrage ?", note: "Chaque prospect \"Gagné\" devient automatiquement une tâche de projet suivie." });
 const CtoIAModal = creerModaleAgentIA({ titre: "🛠️ CTO IA", action: "cto_ask", placeholder: "Ex : Quels problèmes de données faut-il corriger en priorité ?", note: "Détecte les vrais problèmes (produits sans coût/photo, prospects incomplets). Ne modifie jamais rien lui-même." });
 const AzaliLeadsIAModal = creerModaleAgentIA({ titre: "🔎 Chasseur d'opportunités Azali", action: "azali_leads_ask", placeholder: "Ex : Trouve des gens qui cherchent à acheter des perruques à Abidjan.", note: "Cherche de vraies demandes publiques, pas du démarchage à froid. Rapport à lire — ne contacte personne." });
+const SubscriberGrowthIAModal = creerModaleAgentIA({ titre: "📈 Croissance abonnés RecuVente", action: "subscriber_growth_ask", placeholder: "Ex : Quels prospects dois-je contacter en priorité aujourd'hui ?", note: "Analyse le tunnel trouvé → contacté → répondu → abonné, et signale les prospects oubliés." });
 
 function CeoIAModal({ onClose }) {
   const [question, setQuestion] = useState("");
@@ -10390,6 +10391,7 @@ function CeoIAModal({ onClose }) {
 }
 
 function ProspectsIAModal({ onClose }) {
+  const [afficherCroissance, setAfficherCroissance] = useState(false);
   const [secteur, setSecteur] = useState("");
   const [ville, setVille] = useState("");
   const [recherche, setRecherche] = useState(false);
@@ -10456,8 +10458,12 @@ function ProspectsIAModal({ onClose }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 820, maxHeight: "90vh", overflow: "auto", padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div style={{ fontWeight: 800, fontSize: 18 }}>🤖 Agent de recherche de prospects</div>
-          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setAfficherCroissance(true)} style={{ border: "1px solid #DDD8CC", background: "white", color: "#1a7a3c", fontSize: 12, fontWeight: 600, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>📈 Analyser le tunnel</button>
+            <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+          </div>
         </div>
+        {afficherCroissance && <SubscriberGrowthIAModal onClose={() => setAfficherCroissance(false)} />}
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 20 }}>
           <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10 }}>

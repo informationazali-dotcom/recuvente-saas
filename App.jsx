@@ -5472,7 +5472,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
 
       {vue === "validations" && !accesBloque && (
-        <ValidationsViewSaas commandes={commandes} currency={workspace.currency} />
+        <ValidationsViewSaas
+          commandes={commandes}
+          currency={workspace.currency}
+          onStatusChanged={loadCommandes}
+          livreurs={livreurs}
+          closers={closers}
+          onAssignLivreur={assignLivreur}
+          onAssignCloser={assignCloser}
+          onReschedule={reprogrammerCommande}
+          workspace={workspace}
+          confirmateurNom={session.user.email.split("@")[0]}
+          onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }}
+          onRendreCaution={rendreCaution}
+        />
       )}
 
       {vue === "biens_location" && !accesBloque && (
@@ -8253,6 +8266,13 @@ const STATUTS = {
 
 function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution }) {
   const [open, setOpen] = useState(false);
+  const [dernierAppel, setDernierAppel] = useState(null);
+
+  function chargerDernierAppel() {
+    supabase.from("appels_commande").select("motif, created_at").eq("commande_id", commande.id).order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => setDernierAppel(data || null));
+  }
+  useEffect(() => { chargerDernierAppel(); }, [commande.id]);
+
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAppel, setShowAppel] = useState(false);
@@ -8480,6 +8500,17 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             {commande.statut === "confirmee" && commande.confirmed_by && (
               <span style={{ fontSize: 10.5, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>✅ validé par {commande.confirmed_by}</span>
             )}
+            {commande.statut !== "confirmee" && dernierAppel && (() => {
+              const labels = {
+                confirme_telephone: { texte: "✅ Confirmé par téléphone", couleur: "#1F9D6E", bg: "#EAF7F1" },
+                pas_de_reponse: { texte: "📵 Ne décroche pas", couleur: "#8A6412", bg: "#FBF3E3" },
+                rappeler_plus_tard: { texte: "🕒 À rappeler", couleur: "#8A6412", bg: "#FBF3E3" },
+                faux_numero: { texte: "🚫 Faux numéro", couleur: "#D64933", bg: "#FBEAE6" },
+                refuse: { texte: "❌ Refusé par le client", couleur: "#D64933", bg: "#FBEAE6" },
+              };
+              const l = labels[dernierAppel.motif] || { texte: dernierAppel.motif, couleur: "#6B7168", bg: "#F0EEE6" };
+              return <span style={{ fontSize: 10.5, fontWeight: 600, color: l.couleur, background: l.bg, padding: "2px 8px", borderRadius: 999 }}>{l.texte}</span>;
+            })()}
             {workspace?.activity_type === "retail" && commande.statut === "en_cours" && Number(commande.montant_paye || 0) < Number(commande.montant) && (
               <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B23A22", background: "#FBEAE6", padding: "2px 8px", borderRadius: 999 }}>
                 💰 Solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency}
@@ -8855,6 +8886,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                   onClick={async () => {
                     await supabase.from("appels_commande").insert([{ workspace_id: workspace.id, commande_id: commande.id, motif: motif.key, appele_par: confirmateurNom || "Équipe" }]);
                     setShowAppel(false);
+                    chargerDernierAppel();
                     await onStatusChanged();
                   }}
                   style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "13px 16px", textAlign: "left", fontWeight: 600, fontSize: 14, cursor: "pointer", color: motif.couleur }}
@@ -8894,6 +8926,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                   await onReschedule?.(commande.id, dateRappelChoisie);
                   setShowAppel(false);
                   setDateRappelChoisie("");
+                  chargerDernierAppel();
                   await onStatusChanged();
                 }}
                 disabled={!dateRappelChoisie}
@@ -14175,7 +14208,7 @@ function ProduitsViewSaas({ produitsAvecBenefice, currency, onGererCatalogue }) 
   );
 }
 
-function ValidationsViewSaas({ commandes, currency }) {
+function ValidationsViewSaas({ commandes, currency, onStatusChanged, livreurs, closers, onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution }) {
   const [tab, setTab] = useState("validees");
   const [datePreset, setDatePreset] = useState("semaine");
   const [customStart, setCustomStart] = useState("");
@@ -14353,15 +14386,21 @@ function ValidationsViewSaas({ commandes, currency }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {group.orders.map((c) => (
-                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${c.statut === "echouee" ? "#D64933" : "#E8A93D"}`, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{c.client}</div>
-                        <div style={{ fontSize: 12, color: "#6B7168" }}>{c.produit} · {c.statut === "echouee" ? "Échouée" : "En cours"}</div>
-                      </div>
-                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
-                    </div>
-                  </div>
+                  <CommandeCard
+                    key={c.id}
+                    commande={c}
+                    currency={currency}
+                    onStatusChanged={onStatusChanged}
+                    livreurs={livreurs}
+                    closers={closers}
+                    onAssignLivreur={onAssignLivreur}
+                    onAssignCloser={onAssignCloser}
+                    onReschedule={onReschedule}
+                    workspace={workspace}
+                    confirmateurNom={confirmateurNom}
+                    onCelebrate={onCelebrate}
+                    onRendreCaution={onRendreCaution}
+                  />
                 ))}
               </div>
             </div>

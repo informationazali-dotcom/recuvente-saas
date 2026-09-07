@@ -766,6 +766,55 @@ Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces chiffr
   return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
 }
 
+// ===== POST "ads_ask" : CMO/Ads IA (§7/§8) — lit le VRAI compte publicitaire Meta (RecuVente).
+// Lecture seule pour l'instant : pas de création/modification de campagne tant qu'aucun moyen
+// de paiement n'est configuré sur le compte — coder une action de dépense non testable serait
+// exactement le genre de "fausse intégration" que le cahier des charges interdit (§35/§43).
+async function gererAdsAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: "Question manquante" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const metaToken = process.env.META_ADS_ACCESS_TOKEN;
+  const metaAccountId = process.env.META_AD_ACCOUNT_ID;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+  if (!metaToken || !metaAccountId) return res.status(500).json({ error: "Intégration requise : META_ADS_ACCESS_TOKEN / META_AD_ACCOUNT_ID non configurés" });
+
+  const GRAPH = "https://graph.facebook.com/v25.0";
+
+  const respCompte = await fetch(`${GRAPH}/${metaAccountId}?fields=name,currency,account_status,amount_spent,balance&access_token=${metaToken}`);
+  const compte = await respCompte.json();
+  if (!respCompte.ok) return res.status(400).json({ error: compte?.error?.message || "Erreur API Meta (compte)" });
+
+  const respCampagnes = await fetch(`${GRAPH}/${metaAccountId}/campaigns?fields=name,status,objective,daily_budget,lifetime_budget&limit=50&access_token=${metaToken}`);
+  const campagnesData = await respCampagnes.json();
+  if (!respCampagnes.ok) return res.status(400).json({ error: campagnesData?.error?.message || "Erreur API Meta (campagnes)" });
+
+  const contexteReel = {
+    compte: { nom: compte.name, devise: compte.currency, statut: compte.account_status, deja_depense: compte.amount_spent },
+    moyen_de_paiement_configure: compte.account_status !== undefined ? "à vérifier manuellement dans Business Manager" : "inconnu",
+    campagnes: (campagnesData.data || []).map((c) => ({ nom: c.name, statut: c.status, objectif: c.objective, budget_jour: c.daily_budget, budget_total: c.lifetime_budget })),
+    total_campagnes: (campagnesData.data || []).length,
+  };
+
+  const prompt = `Tu es l'agent CMO/Ads IA de RecuVente. Voici les VRAIES données de son compte publicitaire Meta, extraites à l'instant via l'API :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces données. IMPORTANT : tu ne peux pas encore créer ni modifier de campagne (lecture seule pour l'instant) — si le dirigeant demande de lancer/modifier une campagne, dis-le clairement plutôt que de prétendre l'avoir fait. Si la question dépasse ces données, dis "Information non disponible" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  await supabaseAdmin.from("ai_action_logs").insert([{ agent_key: "ads", action: "ads_ask", reason: question, input_data: contexteReel, result_data: { reponse: reponseTexte }, validation_required: false, approved_by: user.email }]);
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -782,6 +831,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "azali_leads_ask") return gererAzaliLeadsAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "subscriber_growth_ask") return gererSubscriberGrowthAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "hr_ask") return gererHrAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "ads_ask") return gererAdsAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

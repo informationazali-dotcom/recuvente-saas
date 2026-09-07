@@ -3171,6 +3171,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCtoIA, setShowCtoIA] = useState(false);
   const [showAzaliLeadsIA, setShowAzaliLeadsIA] = useState(false);
   const [showAIInbox, setShowAIInbox] = useState(false);
+  const [showHrIA, setShowHrIA] = useState(false);
   const [alertesNonLues, setAlertesNonLues] = useState(0);
 
   useEffect(() => {
@@ -5933,6 +5934,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onOpenPm={() => setShowPmIA(true)}
           onOpenCto={() => setShowCtoIA(true)}
           onOpenAzaliLeads={() => setShowAzaliLeadsIA(true)}
+          onOpenHr={() => setShowHrIA(true)}
         />
       )}
       {showSalesIA && session?.user?.email === "oulipaiexpress@gmail.com" && <SalesIAModal onClose={() => setShowSalesIA(false)} />}
@@ -5944,6 +5946,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showPmIA && session?.user?.email === "oulipaiexpress@gmail.com" && <PmIAModal onClose={() => setShowPmIA(false)} />}
       {showCtoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CtoIAModal onClose={() => setShowCtoIA(false)} />}
       {showAzaliLeadsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <AzaliLeadsIAModal onClose={() => setShowAzaliLeadsIA(false)} />}
+      {showHrIA && session?.user?.email === "oulipaiexpress@gmail.com" && <HrIAModal onClose={() => setShowHrIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
@@ -10083,7 +10086,7 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
   );
 }
 
-function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter, onOpenPm, onOpenCto, onOpenAzaliLeads }) {
+function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter, onOpenPm, onOpenCto, onOpenAzaliLeads, onOpenHr }) {
   const [selectionne, setSelectionne] = useState(null);
 
   const departements = {};
@@ -10104,6 +10107,7 @@ function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, on
     if (agent.id === "project_manager") { onClose(); onOpenPm(); return; }
     if (agent.id === "cto") { onClose(); onOpenCto(); return; }
     if (agent.id === "azali_leads") { onClose(); onOpenAzaliLeads(); return; }
+    if (agent.id === "hr") { onClose(); onOpenHr(); return; }
     setSelectionne(agent);
   }
 
@@ -10369,6 +10373,7 @@ const PmIAModal = creerModaleAgentIA({ titre: "🗂️ Project Manager IA", acti
 const CtoIAModal = creerModaleAgentIA({ titre: "🛠️ CTO IA", action: "cto_ask", placeholder: "Ex : Quels problèmes de données faut-il corriger en priorité ?", note: "Détecte les vrais problèmes (produits sans coût/photo, prospects incomplets). Ne modifie jamais rien lui-même." });
 const AzaliLeadsIAModal = creerModaleAgentIA({ titre: "🔎 Chasseur d'opportunités Azali", action: "azali_leads_ask", placeholder: "Ex : Trouve des gens qui cherchent à acheter des perruques à Abidjan.", note: "Cherche de vraies demandes publiques, pas du démarchage à froid. Rapport à lire — ne contacte personne." });
 const SubscriberGrowthIAModal = creerModaleAgentIA({ titre: "📈 Croissance abonnés RecuVente", action: "subscriber_growth_ask", placeholder: "Ex : Quels prospects dois-je contacter en priorité aujourd'hui ?", note: "Analyse le tunnel trouvé → contacté → répondu → abonné, et signale les prospects oubliés." });
+const HrIAModal = creerModaleAgentIA({ titre: "👥 RH IA", action: "hr_ask", placeholder: "Ex : La charge est-elle bien répartie entre les livreurs ?", note: "Charge de travail réelle (livreurs/closers) sur les 7 derniers jours — Azali Express." });
 
 function AIInboxModal({ onClose }) {
   const [alertes, setAlertes] = useState(null);

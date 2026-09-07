@@ -276,12 +276,86 @@ Réponds en français, de façon directe et actionnable, UNIQUEMENT à partir de
   return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
 }
 
+// ===== POST "cfo_ask" : agent CFO IA (§6) — trésorerie réelle d'Azali Express =====
+async function gererCfoAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) {
+    return res.status(400).json({ error: "Question manquante" });
+  }
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+  }
+
+  // On retrouve l'espace par son slug plutôt que d'exiger un ID technique.
+  const { data: workspace, error: wsError } = await supabaseAdmin
+    .from("workspaces")
+    .select("id, name, currency")
+    .eq("slug", "azaliexpress")
+    .maybeSingle();
+  if (wsError) return res.status(400).json({ error: wsError.message });
+  if (!workspace) return res.status(400).json({ error: "Intégration requise : espace 'azaliexpress' introuvable (slug différent ?)" });
+
+  const { data: commandes, error: cmdError } = await supabaseAdmin
+    .from("commandes")
+    .select("montant, statut, created_at")
+    .eq("workspace_id", workspace.id);
+  if (cmdError) return res.status(400).json({ error: cmdError.message });
+
+  const sommeParStatut = (statut) => commandes.filter((c) => c.statut === statut).reduce((s, c) => s + Number(c.montant || 0), 0);
+  const septJours = Date.now() - 7 * 24 * 3600 * 1000;
+
+  const contexteReel = {
+    entreprise: workspace.name,
+    devise: workspace.currency,
+    ca_confirme: sommeParStatut("confirmee"),
+    montant_en_cours: sommeParStatut("en_cours"),
+    montant_echoue: sommeParStatut("echouee"),
+    montant_retourne: sommeParStatut("retournee"),
+    total_commandes: commandes.length,
+    commandes_7_derniers_jours: commandes.filter((c) => new Date(c.created_at).getTime() > septJours).length,
+    ca_confirme_7_derniers_jours: commandes.filter((c) => c.statut === "confirmee" && new Date(c.created_at).getTime() > septJours).reduce((s, c) => s + Number(c.montant || 0), 0),
+  };
+
+  const prompt = `Tu es le CFO IA de ${workspace.name} (l'activité e-commerce de Koffi). Voici les VRAIES données actuelles de trésorerie, extraites à l'instant de sa base de commandes :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, de façon directe et actionnable, UNIQUEMENT à partir des chiffres ci-dessus. IMPORTANT : ces chiffres ne déduisent PAS les coûts produits ni les frais de livraison — c'est une vue encaissement/risque, pas un vrai bénéfice net. Si la question porte sur la rentabilité réelle, les marges, ou autre chose que ces données ne couvrent pas, dis clairement "Information non disponible — cette donnée n'est pas encore connectée à l'agent CFO" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+
+  await supabaseAdmin.from("ai_action_logs").insert([{
+    agent_key: "cfo",
+    action: "cfo_ask",
+    reason: question,
+    input_data: contexteReel,
+    result_data: { reponse: reponseTexte },
+    validation_required: false,
+    approved_by: user.email,
+  }]);
+
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
 
   if (req.method === "POST" && req.body?.action === "ceo_ask") return gererCeoAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "sales_ask") return gererSalesAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "cfo_ask") return gererCfoAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

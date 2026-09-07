@@ -30,8 +30,8 @@ export const AGENTS = {
     name: "CFO IA",
     role: "Finance, trésorerie, rentabilité",
     department: "Finance",
-    status: "inactive",
-    endpoint: null,
+    status: "active", // Phase C : trésorerie réelle d'Azali Express (encaissement/risque, pas encore la marge nette)
+    endpoint: "/api/admin-panel", // { action: "cfo_ask", question: "..." }
   },
   cmo: {
     id: "cmo",

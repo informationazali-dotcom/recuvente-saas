@@ -193,11 +193,95 @@ Réponds en français, de façon directe et actionnable, UNIQUEMENT à partir de
   return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
 }
 
+// ===== POST "sales_ask" : agent Sales/CRO IA (§9) — analyse le pipeline réel =====
+async function gererSalesAsk(req, res, user) {
+  const { question } = req.body;
+  if (!question || !question.trim()) {
+    return res.status(400).json({ error: "Question manquante" });
+  }
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+  }
+
+  const { data: prospects, error: prospectsError } = await supabaseAdmin
+    .from("prospects_business")
+    .select("nom, entreprise, statut, score, strategic_priority, created_at")
+    .eq("proprietaire_email", "oulipaiexpress@gmail.com");
+  if (prospectsError) return res.status(400).json({ error: prospectsError.message });
+
+  const ETAPES = ["nouveau", "contacte", "qualifie", "proposition", "gagne", "perdu"];
+  const parEtape = {};
+  ETAPES.forEach((e) => { parEtape[e] = prospects.filter((p) => p.statut === e).length; });
+
+  // Goulot d'étranglement : la plus grosse chute en % entre deux étapes actives consécutives
+  const etapesActives = ["nouveau", "contacte", "qualifie", "proposition", "gagne"];
+  let goulot = null, pireChute = -1;
+  for (let i = 0; i < etapesActives.length - 1; i++) {
+    const avant = parEtape[etapesActives[i]];
+    const apres = parEtape[etapesActives[i + 1]];
+    if (avant > 0) {
+      const chute = 1 - apres / avant;
+      if (chute > pireChute) { pireChute = chute; goulot = `${etapesActives[i]} → ${etapesActives[i + 1]}`; }
+    }
+  }
+
+  const cinqJours = Date.now() - 5 * 24 * 3600 * 1000;
+  const prospectsChauds = prospects
+    .filter((p) => p.score >= 70 && !["gagne", "perdu"].includes(p.statut))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((p) => ({ nom: p.nom, entreprise: p.entreprise, score: p.score, statut: p.statut }));
+  const prospectsOublies = prospects
+    .filter((p) => ["nouveau", "contacte"].includes(p.statut) && new Date(p.created_at).getTime() < cinqJours)
+    .map((p) => ({ nom: p.nom, entreprise: p.entreprise, statut: p.statut, depuis_le: p.created_at }));
+
+  const contexteReel = {
+    total_prospects: prospects.length,
+    repartition_pipeline: parEtape,
+    goulot_etranglement_probable: goulot,
+    prospects_chauds_non_conclus: prospectsChauds,
+    prospects_oublies_5j_plus: prospectsOublies,
+  };
+
+  const prompt = `Tu es l'agent Sales/CRO IA de RecuVente Business (l'activité de services de Koffi). Voici les VRAIES données actuelles de son pipeline commercial, extraites à l'instant :
+
+${JSON.stringify(contexteReel, null, 2)}
+
+Question du dirigeant : "${question}"
+
+Réponds en français, de façon directe et actionnable, UNIQUEMENT à partir des chiffres ci-dessus. Priorité : signaler les prospects oubliés et le goulot d'étranglement s'ils sont pertinents pour la question. Si la question porte sur quelque chose que ces données ne couvrent pas, dis clairement "Information non disponible — cette donnée n'est pas encore connectée à l'agent Sales" plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+
+  const reponseTexte = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+
+  await supabaseAdmin.from("ai_action_logs").insert([{
+    agent_key: "sales",
+    action: "sales_ask",
+    reason: question,
+    input_data: contexteReel,
+    result_data: { reponse: reponseTexte },
+    validation_required: false,
+    approved_by: user.email,
+  }]);
+
+  return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
 
   if (req.method === "POST" && req.body?.action === "ceo_ask") return gererCeoAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "sales_ask") return gererSalesAsk(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

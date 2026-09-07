@@ -66,6 +66,12 @@ function cleanPhoneForWhatsApp(tel) {
   return "225" + digits;
 }
 
+// Le code réel stocké (XOF) reste intact en base et dans toute logique interne — cette
+// fonction ne change QUE ce qui s'affiche à l'écran ou sur les documents (factures, etc.).
+function formaterDevise(code) {
+  return code === "XOF" || code === "XAF" ? "F CFA" : code;
+}
+
 // Utilisé par VitrineBusinessPublique (animation d'apparition au défilement). Défini ici
 // explicitement : il existe aussi dans CataloguePublic.jsx, mais ce n'est PAS un import — ne
 // pas dépendre du regroupement de Rollup entre fichiers pour qu'un composant existe.
@@ -186,7 +192,7 @@ async function genererFacturePDF(commande, workspace) {
   doc.setFontSize(10.5);
   doc.rect(15, y, 180, 12);
   doc.text(commande.produit || "", 18, y + 8, { maxWidth: 130 });
-  const montantTxt = `${Number(commande.montant).toLocaleString("fr-FR")} ${workspace.currency}`;
+  const montantTxt = `${Number(commande.montant).toLocaleString("fr-FR")} ${formaterDevise(workspace.currency)}`;
   doc.text(montantTxt, 190, y + 8, { align: "right" });
 
   y += 20;
@@ -2980,9 +2986,9 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
   };
 
   const statsRow1 = [
-    { icon: "💰", label: libelles.ca, value: `${money(caConfirme)} ${workspace?.currency || "XOF"}`, accent: "#00f5a0" },
+    { icon: "💰", label: libelles.ca, value: `${money(caConfirme)} ${formaterDevise(workspace?.currency) || "F CFA"}`, accent: "#00f5a0" },
     { icon: "📦", label: libelles.commandes, value: money(commandesCount), accent: "#fff" },
-    { icon: "📈", label: "Bénéfice réel", value: `${money(beneficeReel)} ${workspace?.currency || "XOF"}`, accent: beneficeReel >= 0 ? "#7dffbd" : "#ff9c9c" },
+    { icon: "📈", label: "Bénéfice réel", value: `${money(beneficeReel)} ${formaterDevise(workspace?.currency) || "F CFA"}`, accent: beneficeReel >= 0 ? "#7dffbd" : "#ff9c9c" },
     libelles.quatrieme,
   ];
   const statsRow2 = [
@@ -3118,7 +3124,7 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
               <div key={c.id || i} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderTop:i?"1px solid rgba(255,255,255,.07)":"none" }}>
                 <div style={{ width:7, height:7, borderRadius:"50%", background:c.statut === "confirmee" ? "#00f5a0" : c.statut === "echouee" ? "#ff7070" : "#ffb000", flexShrink:0 }} />
                 <div style={{ flex:1, minWidth:0, color:"rgba(255,255,255,.76)", fontSize:9.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.client || "Client"} · {c.produit || "Commande"}</div>
-                <strong style={{ color:"#fff", fontFamily:"'IBM Plex Mono',monospace", fontSize:9.5, whiteSpace:"nowrap" }}>{money(c.montant)} {workspace?.currency || "XOF"}</strong>
+                <strong style={{ color:"#fff", fontFamily:"'IBM Plex Mono',monospace", fontSize:9.5, whiteSpace:"nowrap" }}>{money(c.montant)} {formaterDevise(workspace?.currency) || "F CFA"}</strong>
               </div>
             )) : <div style={{ color:"rgba(255,255,255,.48)", fontSize:10, padding:"8px 0" }}>Aucune activité récente.</div>}
           </div>
@@ -4633,7 +4639,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       <LivreurPortalSaas
         livreur={monProfilLivreur}
         commandes={commandes.filter((c) => c.livreur === monProfilLivreur.nom)}
-        currency={workspace.currency}
+        currency={formaterDevise(workspace.currency)}
         onStatusChanged={loadCommandes}
       />
     );
@@ -4654,7 +4660,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       <CloserPortalSaas
         closer={monProfilCloser}
         commandes={commandes}
-        currency={workspace.currency}
+        currency={formaterDevise(workspace.currency)}
         workspace={workspace}
         onStatusChanged={loadCommandes}
       />
@@ -5139,7 +5145,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           produitStockCritique={produitStockCritique}
           meilleurLivreur={meilleurLivreur}
           beneficeReel={beneficeReel}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           onVoirAujourdhui={() => setVue("aujourdhui")}
           palierActuel={palierActuel}
           palierSuivant={palierSuivant}
@@ -5243,7 +5249,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               clientsARelancer={clientsARelancer}
               depotsParLivreur={depotsParLivreur}
               produitsEnProgression={produitsEnProgression}
-              currency={workspace.currency}
+              currency={formaterDevise(workspace.currency)}
               onVoirRecovery={() => setVue("recovery")}
               onVoirCompta={() => setVue("compta")}
               onVoirClients={() => setVue("clients")}
@@ -5514,7 +5520,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={workspace.currency} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} produits={produits} />
+              <CommandeCard key={c.id} commande={c} currency={formaterDevise(workspace.currency)} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} produits={produits} />
             ))}
           </div>
         </div>
@@ -5525,7 +5531,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "validations" && !accesBloque && (
         <ValidationsViewSaas
           commandes={commandes}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           onStatusChanged={loadCommandes}
           livreurs={livreurs}
           closers={closers}
@@ -5543,7 +5549,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "biens_location" && !accesBloque && (
         <BiensLocationView
           biensLocation={biensLocation}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           workspaceId={workspace.id}
           estLucirica={workspace.slug === "luxury-car"}
           onAdd={addBienLocation}
@@ -5556,7 +5562,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "logements" && !accesBloque && (
         <LogementsView
           logements={logements}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           onAdd={addLogement}
           onToggleDisponibilite={toggleDisponibiliteLogement}
           onDelete={deleteLogement}
@@ -5566,7 +5572,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "menu_restaurant" && !accesBloque && (
         <MenuRestaurantView
           plats={plats}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           onAdd={addPlat}
           onToggleDisponibilite={toggleDisponibilitePlat}
           onDelete={deletePlat}
@@ -5580,14 +5586,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         <CuisineView
           commandes={commandes.filter((c) => c.statut !== "annulee" && c.statut !== "echouee")}
           onChangerStatutCuisine={changerStatutCuisine}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
         />
       )}
 
       {vue === "produits_vue" && !accesBloque && (
         <ProduitsViewSaas
           produitsAvecBenefice={produitsAvecBenefice}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           onGererCatalogue={() => setShowProduits(true)}
         />
       )}
@@ -5671,7 +5677,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         <RecoveryCenterView
           commandes={commandesRecuperables}
           toutesCommandes={commandes}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           nomEntreprise={workspace.name}
         />
       )}
@@ -5681,7 +5687,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           toutesCommandes={commandes}
           beneficeReel={beneficeReel}
           caConfirme={caConfirme}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           depotsParLivreur={depotsParLivreur}
           rentabiliteParCloser={rentabiliteParCloser}
           rentabiliteParZone={rentabiliteParZone}
@@ -5691,7 +5697,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
 
       {vue === "simulateur" && !accesBloque && (
-        <SimulateurCampagneView currency={workspace.currency} />
+        <SimulateurCampagneView currency={formaterDevise(workspace.currency)} />
       )}
 
       {vue === "rapprochement" && !accesBloque && (
@@ -5788,7 +5794,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée pour l'instant.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {depotsParLivreur.map((l) => (
-              <LivreurCarteEcartCaisse key={l.nom} l={l} workspaceId={workspace.id} currency={workspace.currency} />
+              <LivreurCarteEcartCaisse key={l.nom} l={l} workspaceId={workspace.id} currency={formaterDevise(workspace.currency)} />
             ))}
           </div>
 
@@ -5922,20 +5928,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           ))}
         </div>
       )}
-      {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={workspace.currency} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={workspace.currency} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
+      {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={formaterDevise(workspace.currency)} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={formaterDevise(workspace.currency)} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
       {showTeam && !accesBloque && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showRapportSemaine && (
         <RapportSemaineModal
           rapport={rapportSemaine}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           workspaceName={workspace.name}
           onClose={() => setShowRapportSemaine(false)}
         />
       )}
       {showReunion && <ReunionEquipeModal workspace={workspace} onClose={() => setShowReunion(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
-      {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={workspace.currency} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
+      {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={formaterDevise(workspace.currency)} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} />}
       {showStoreBuilder && !accesBloque && (
@@ -5956,7 +5962,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showBatch && (
         <BatchRelanceModalSaas
           orders={[...todoAujourdhui.aRelivrer, ...todoAujourdhui.jamaisContactees, ...todoAujourdhui.sansNouvelles]}
-          currency={workspace.currency}
+          currency={formaterDevise(workspace.currency)}
           onClose={() => setShowBatch(false)}
           onLog={async (commandeId, note) => {
             await supabase.from("relances").insert([{ commande_id: commandeId, note }]);
@@ -5964,9 +5970,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           }}
         />
       )}
-      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={workspace.currency} />}
-      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={workspace.currency} />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
+      {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
@@ -6017,8 +6023,8 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
       {showVisiteursEnLigne && !accesBloque && <VisiteursEnLigneModal workspaceId={workspace.id} onClose={() => setShowVisiteursEnLigne(false)} />}
       {showTraficBoutique && !accesBloque && <TraficBoutiqueModal workspaceId={workspace.id} onClose={() => setShowTraficBoutique(false)} />}
-      {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowCodesPromo(false)} />}
-      {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={workspace.currency} onClose={() => setShowPaniersAbandonnes(false)} />}
+      {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={formaterDevise(workspace.currency)} onClose={() => setShowCodesPromo(false)} />}
+      {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={formaterDevise(workspace.currency)} onClose={() => setShowPaniersAbandonnes(false)} />}
     </div>
   );
 }
@@ -12392,7 +12398,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
       {depotsParLivreur.length === 0 && <div style={{ color: "#8A9089", fontSize: 13 }}>Aucune livraison confirmée sur cette période.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {depotsParLivreur.map((l) => (
-          <LivreurDetailComptableSaas key={l.nom} l={l} produits={produitsParLivreur[l.nom] || []} currency={workspace.currency} />
+          <LivreurDetailComptableSaas key={l.nom} l={l} produits={produitsParLivreur[l.nom] || []} currency={formaterDevise(workspace.currency)} />
         ))}
       </div>
     </div>

@@ -6,6 +6,10 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+function formaterDevise(code) {
+  return code === "XOF" || code === "XAF" ? "F CFA" : code;
+}
+
 const ETAPES = [
   { key: "en_cours", label: "Commande reçue" },
   { key: "confirmee", label: "Livrée" },
@@ -51,7 +55,7 @@ export default function SuiviPublic({ commandeId }) {
             <div style={{ fontSize: 13, color: "#6B7168", marginTop: 6 }}>Bonjour {commande.client?.split(" ")[0]}</div>
             <div style={{ fontWeight: 700, fontSize: 18, marginTop: 4 }}>{commande.produit}</div>
             <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 22, color: "#1a7a3c", marginTop: 6 }}>
-              {Number(commande.montant).toLocaleString("fr-FR")} {commande.devise}
+              {Number(commande.montant).toLocaleString("fr-FR")} {formaterDevise(commande.devise)}
             </div>
 
             {etapeActuelle === -1 ? (

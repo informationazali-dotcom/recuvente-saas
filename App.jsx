@@ -4,6 +4,7 @@ import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
+import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -3159,6 +3160,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAvis, setShowAvis] = useState(false);
   const [showProspectsIA, setShowProspectsIA] = useState(false);
   const [showCeoIA, setShowCeoIA] = useState(false);
+  const [showAICompany, setShowAICompany] = useState(false);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
@@ -4804,6 +4806,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </button>
         )}
         {session?.user?.email === "oulipaiexpress@gmail.com" && (
+          <button
+            onClick={() => setShowAICompany(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🏢 AI Company
+          </button>
+        )}
+        {session?.user?.email === "oulipaiexpress@gmail.com" && (
           <>
             <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", padding: "16px 12px 6px" }}>BUSINESS</div>
             <button
@@ -5870,6 +5880,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
+      {showAICompany && session?.user?.email === "oulipaiexpress@gmail.com" && (
+        <AICompanyModal
+          onClose={() => setShowAICompany(false)}
+          onOpenCeo={() => setShowCeoIA(true)}
+          onOpenProspecting={() => setShowProspectsIA(true)}
+        />
+      )}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
@@ -9984,6 +10001,70 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting }) {
+  const [selectionne, setSelectionne] = useState(null);
+
+  const departements = {};
+  Object.values(AGENTS).forEach((a) => {
+    if (!departements[a.department]) departements[a.department] = [];
+    departements[a.department].push(a);
+  });
+
+  function cliquerAgent(agent) {
+    if (agent.id === "ceo") { onClose(); onOpenCeo(); return; }
+    if (agent.id === "prospecting") { onClose(); onOpenProspecting(); return; }
+    setSelectionne(agent);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#0F1B16", borderRadius: 16, width: "100%", maxWidth: 820, maxHeight: "90vh", overflow: "auto", padding: 24, color: "white" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>🏢 AI Company — Organigramme</div>
+          <button onClick={onClose} style={{ border: "none", background: "none", color: "white", fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
+          🟢 actif = vraiment connecté à une logique réelle et testée · ⚪ inactif = pas encore construit
+        </div>
+
+        {selectionne ? (
+          <div>
+            <button onClick={() => setSelectionne(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 12.5, cursor: "pointer", marginBottom: 14 }}>← Retour à l'organigramme</button>
+            <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{selectionne.name}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 16 }}>{selectionne.role} · {selectionne.department}</div>
+            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: 16, fontSize: 13, lineHeight: 1.6 }}>
+              {selectionne.status === "active"
+                ? "Cet agent est connecté à une vraie logique testée."
+                : "Cet agent n'est pas encore actif — c'est une fiche de poste prévue, aucune logique réelle ne tourne derrière pour l'instant. Il sera construit dans une prochaine phase."}
+            </div>
+          </div>
+        ) : (
+          Object.entries(departements).map(([dep, agents]) => (
+            <div key={dep} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{dep}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                {agents.map((a) => (
+                  <div
+                    key={a.id}
+                    onClick={() => cliquerAgent(a)}
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 14, cursor: "pointer" }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: a.status === "active" ? "#7fd6a3" : "rgba(255,255,255,0.25)", flexShrink: 0 }} />
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>{a.name}</div>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)" }}>{a.role}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

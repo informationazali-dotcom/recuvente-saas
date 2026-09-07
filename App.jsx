@@ -3158,12 +3158,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showProduits, setShowProduits] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
   const [showProspectsIA, setShowProspectsIA] = useState(false);
+  const [showCeoIA, setShowCeoIA] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
   const [showRendezVousBusiness, setShowRendezVousBusiness] = useState(false);
   const [showDashboardBusiness, setShowDashboardBusiness] = useState(false);
-  const [showDepensesBusiness, setShowDepensesBusiness] = useState(false);
-  const [showCreances, setShowCreances] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
@@ -3237,11 +3236,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   async function deleteBienLocation(id) {
     await supabase.from("biens_location").delete().eq("id", id);
     await loadBiensLocation();
-  }
-
-  async function enregistrerPaiementCreance(commandeId, nouveauMontantPaye) {
-    await supabase.from("commandes").update({ montant_paye: nouveauMontantPaye }).eq("id", commandeId);
-    await loadCommandes();
   }
 
   const [logements, setLogements] = useState([]);
@@ -4539,13 +4533,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showDepensesBusiness || showCreances || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowDepensesBusiness(false); setShowCreances(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4559,7 +4553,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showDepensesBusiness, showCreances, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -4734,7 +4728,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         )}
         {[
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recovery", label: "🎯 Récupération" }] : []),
-          ...(workspace.activity_type === "retail" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "creances", label: "📒 Créances" }] : []),
           ...(workspace.role === "owner" ? [{ key: "score_business", label: "🧭 Score Business" }] : []),
           ...(estEcommerce && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "simulateur", label: "📊 Simulateur pub" }] : []),
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "rapprochement", label: "🔗 Rapprochement" }] : []),
@@ -4742,7 +4735,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         ].map((t) => (
           <button
             key={t.key}
-            onClick={() => (t.key === "creances" ? setShowCreances(true) : setVue(t.key))}
+            onClick={() => setVue(t.key)}
             style={{
               display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
               background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
@@ -4797,12 +4790,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
             >
               📄 Propositions & Factures
-            </button>
-            <button
-              onClick={() => setShowDepensesBusiness(true)}
-              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-            >
-              💸 Dépenses
             </button>
             <button
               onClick={() => setShowRendezVousBusiness(true)}
@@ -4990,6 +4977,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
                 {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowProspectsIA(true)} aria-label="Prospects IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤖</button>}
+                {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowCeoIA(true)} aria-label="CEO IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧠</button>}
               </div>
             </div>
           )}
@@ -5847,10 +5835,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={workspace.currency} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
+      {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
-      {showDepensesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <DepensesBusinessModal email={session.user.email} onClose={() => setShowDepensesBusiness(false)} />}
-      {showCreances && !accesBloque && <CreancesModal commandes={commandes} currency={workspace.currency} onEnregistrerPaiement={enregistrerPaiementCreance} onClose={() => setShowCreances(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
       {showDashboardBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && (
         <DashboardBusinessModal
@@ -5859,7 +5846,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onOuvrirProspects={() => { setShowDashboardBusiness(false); setShowProspectsBusiness(true); }}
           onOuvrirFactures={() => { setShowDashboardBusiness(false); setShowFacturesBusiness(true); }}
           onOuvrirRdv={() => { setShowDashboardBusiness(false); setShowRendezVousBusiness(true); }}
-          onOuvrirDepenses={() => { setShowDashboardBusiness(false); setShowDepensesBusiness(true); }}
         />
       )}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
@@ -7491,20 +7477,19 @@ function joursDepuis(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFactures, onOuvrirRdv, onOuvrirDepenses }) {
+function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFactures, onOuvrirRdv }) {
   const [donnees, setDonnees] = useState(null);
   const [periodeGraphique, setPeriodeGraphique] = useState(30); // 7, 30, ou 90
 
   useEffect(() => {
     async function charger() {
       // Une seule vague de requêtes groupées, en parallèle — pas de requête en cascade.
-      const [{ data: prospects }, { data: factures }, { data: rdvs }, { data: depenses }] = await Promise.all([
+      const [{ data: prospects }, { data: factures }, { data: rdvs }] = await Promise.all([
         supabase.from("prospects_business").select("*").eq("proprietaire_email", email),
         supabase.from("factures_business").select("*").eq("proprietaire_email", email),
         supabase.from("rendezvous_business").select("*, prospects_business(nom, telephone, entreprise)").eq("proprietaire_email", email),
-        supabase.from("depenses_business").select("*").eq("proprietaire_email", email),
       ]);
-      setDonnees({ prospects: prospects || [], factures: factures || [], rdvs: rdvs || [], depenses: depenses || [] });
+      setDonnees({ prospects: prospects || [], factures: factures || [], rdvs: rdvs || [] });
     }
     charger();
   }, [email]);
@@ -7519,7 +7504,7 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
     );
   }
 
-  const { prospects, factures, rdvs, depenses } = donnees;
+  const { prospects, factures, rdvs } = donnees;
   const maintenant = new Date();
   const aujourdhuiStr = maintenant.toISOString().slice(0, 10);
 
@@ -7527,8 +7512,6 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
   const facturesGagnees = factures; // toutes les factures/propositions émises
   const caSigne = factures.filter((f) => f.type === "facture").reduce((s, f) => s + calculerTotalFacture(f), 0);
   const caEncaisse = factures.filter((f) => f.type === "facture" && f.statut === "payee").reduce((s, f) => s + calculerTotalFacture(f), 0);
-  const totalDepenses = depenses.reduce((s, d) => s + Number(d.montant), 0);
-  const beneficeNet = caEncaisse - totalDepenses;
   const caEnAttente = factures.filter((f) => f.type === "facture" && ["envoyee", "partiel", "en_retard"].includes(f.statut)).reduce((s, f) => s + calculerTotalFacture(f), 0);
   const caRestantObjectif = Math.max(0, OBJECTIF_BUSINESS_FCFA - caEncaisse);
   const pourcentageObjectif = Math.min(100, (caEncaisse / OBJECTIF_BUSINESS_FCFA) * 100);
@@ -7645,8 +7628,6 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
           <KpiCard icone="📄" label="Propositions" valeur={propositionsEnvoyees} couleur="#e8920a" onClick={onOuvrirFactures} />
           <KpiCard icone="🏆" label="Ventes gagnées" valeur={ventesGagnees} couleur="#1a7a3c" onClick={onOuvrirProspects} />
           <KpiCard icone="💰" label="CA encaissé" valeur={`${(caEncaisse / 1000).toFixed(0)}k`} couleur="#1a7a3c" onClick={onOuvrirFactures} />
-          <KpiCard icone="💸" label="Dépenses" valeur={`${(totalDepenses / 1000).toFixed(0)}k`} couleur="#D64933" onClick={onOuvrirDepenses} />
-          <KpiCard icone="📊" label="Bénéfice net" valeur={`${(beneficeNet / 1000).toFixed(0)}k`} couleur={beneficeNet >= 0 ? "#1a7a3c" : "#D64933"} />
         </div>
 
         {/* Pipeline synthétique */}
@@ -7786,264 +7767,6 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
               <div style={{ fontSize: 9.5, color: "#8A9089" }}>{panierMoyen === null ? "Pas assez de données" : "FCFA / vente"}</div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const CATEGORIES_DEPENSES_SUGGESTIONS = ["Publicité", "Logiciels / Abonnements", "Freelance / Sous-traitance", "Hébergement / Domaine", "Formation", "Transport", "Matériel", "Communication", "Autre"];
-
-function DepenseFormModal({ depenseExistante, onClose, onSave }) {
-  const [form, setForm] = useState(depenseExistante || {
-    libelle: "", montant: "", categorie: "", date_depense: new Date().toISOString().slice(0, 10), note: "",
-  });
-  const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>{depenseExistante ? "Modifier la dépense" : "Ajouter une dépense"}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
-        </div>
-        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16 }}>Enregistrer une sortie d'argent</div>
-
-        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Libellé</div>
-        <input placeholder="Ex: Abonnement Meta Ads" value={form.libelle} onChange={(e) => setForm({ ...form, libelle: e.target.value })} style={inputStyle} />
-
-        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Montant</div>
-        <div style={{ position: "relative", marginBottom: 10 }}>
-          <input type="number" placeholder="0" value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} style={{ ...inputStyle, marginBottom: 0, paddingRight: 50 }} />
-          <span style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#8A9089", fontWeight: 700 }}>FCFA</span>
-        </div>
-
-        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Catégorie</div>
-        <div style={{ position: "relative", marginBottom: 4 }}>
-          <input
-            placeholder="Sélectionner..."
-            value={form.categorie}
-            onChange={(e) => setForm({ ...form, categorie: e.target.value })}
-            onFocus={() => setSuggestionsOuvertes(true)}
-            onBlur={() => setTimeout(() => setSuggestionsOuvertes(false), 150)}
-            style={{ ...inputStyle, marginBottom: 0 }}
-          />
-          {suggestionsOuvertes && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #DDD8CC", borderRadius: 8, marginTop: 4, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 180, overflowY: "auto" }}>
-              {CATEGORIES_DEPENSES_SUGGESTIONS.filter((c) => c.toLowerCase().includes((form.categorie || "").toLowerCase())).map((c) => (
-                <div key={c} onMouseDown={() => setForm({ ...form, categorie: c })} style={{ padding: "9px 13px", fontSize: 13, cursor: "pointer" }}>{c}</div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 14 }}>Choisissez une suggestion ou tapez votre propre catégorie.</div>
-
-        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Date</div>
-        <input type="date" value={form.date_depense} onChange={(e) => setForm({ ...form, date_depense: e.target.value })} style={inputStyle} />
-
-        <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 4 }}>Note</div>
-        <textarea placeholder="Optionnel" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }} />
-
-        <button
-          onClick={() => { if (!form.libelle.trim() || !form.montant) return; onSave(form); }}
-          disabled={!form.libelle.trim() || !form.montant}
-          style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "11px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", opacity: (!form.libelle.trim() || !form.montant) ? 0.5 : 1, marginTop: 4 }}
-        >
-          {depenseExistante ? "Enregistrer" : "Ajouter la dépense"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DepensesBusinessModal({ email, onClose }) {
-  const [depenses, setDepenses] = useState(null);
-  const [depenseEnEdition, setDepenseEnEdition] = useState(null);
-  const [afficherForm, setAfficherForm] = useState(false);
-
-  async function charger() {
-    const { data } = await supabase.from("depenses_business").select("*").eq("proprietaire_email", email).order("date_depense", { ascending: false });
-    setDepenses(data || []);
-  }
-
-  useEffect(() => { charger(); }, []);
-
-  async function sauvegarder(form) {
-    const payload = { libelle: form.libelle, montant: Number(form.montant), categorie: form.categorie || null, date_depense: form.date_depense, note: form.note || null, proprietaire_email: email };
-    if (form.id) {
-      await supabase.from("depenses_business").update(payload).eq("id", form.id);
-    } else {
-      await supabase.from("depenses_business").insert([payload]);
-    }
-    setAfficherForm(false);
-    setDepenseEnEdition(null);
-    await charger();
-  }
-
-  async function supprimer(id) {
-    if (!window.confirm("Supprimer cette dépense ?")) return;
-    await supabase.from("depenses_business").delete().eq("id", id);
-    await charger();
-  }
-
-  const maintenant = new Date();
-  const totalMois = (depenses || []).filter((d) => { const dt = new Date(d.date_depense); return dt.getMonth() === maintenant.getMonth() && dt.getFullYear() === maintenant.getFullYear(); }).reduce((s, d) => s + Number(d.montant), 0);
-  const totalGlobal = (depenses || []).reduce((s, d) => s + Number(d.montant), 0);
-
-  const parCategorie = {};
-  (depenses || []).forEach((d) => {
-    const cat = d.categorie || "Sans catégorie";
-    parCategorie[cat] = (parCategorie[cat] || 0) + Number(d.montant);
-  });
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 19 }}>💸 Dépenses</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => { setDepenseEnEdition(null); setAfficherForm(true); }} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter une dépense</button>
-            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-          <div style={{ background: "#FBEAE6", borderRadius: 10, padding: "12px 16px" }}>
-            <div style={{ fontSize: 10.5, color: "#D64933", fontWeight: 700, textTransform: "uppercase" }}>Ce mois-ci</div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: "#D64933" }}>{totalMois.toLocaleString("fr-FR")} FCFA</div>
-          </div>
-          <div style={{ background: "#F0EEE6", borderRadius: 10, padding: "12px 16px" }}>
-            <div style={{ fontSize: 10.5, color: "#6B7168", fontWeight: 700, textTransform: "uppercase" }}>Total général</div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: "#16231F" }}>{totalGlobal.toLocaleString("fr-FR")} FCFA</div>
-          </div>
-        </div>
-
-        {Object.keys(parCategorie).length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
-            {Object.entries(parCategorie).sort((a, b) => b[1] - a[1]).map(([cat, montant]) => (
-              <div key={cat} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 999, padding: "5px 12px", fontSize: 11 }}>
-                {cat} : <strong>{montant.toLocaleString("fr-FR")}</strong>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {depenses === null && <SkeletonListe nombre={3} />}
-        {depenses !== null && depenses.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune dépense enregistrée pour l'instant.</div>}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {(depenses || []).map((d) => (
-            <div key={d.id} onClick={() => { setDepenseEnEdition(d); setAfficherForm(true); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 9, padding: "10px 14px", cursor: "pointer", gap: 8, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{d.libelle}</div>
-                <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{d.categorie || "Sans catégorie"} · {new Date(d.date_depense).toLocaleDateString("fr-FR")}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: "#D64933" }}>− {Number(d.montant).toLocaleString("fr-FR")}</span>
-                <button onClick={(e) => { e.stopPropagation(); supprimer(d.id); }} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {afficherForm && (
-        <DepenseFormModal
-          depenseExistante={depenseEnEdition}
-          onClose={() => { setAfficherForm(false); setDepenseEnEdition(null); }}
-          onSave={sauvegarder}
-        />
-      )}
-    </div>
-  );
-}
-
-function CreancesModal({ commandes, currency, onEnregistrerPaiement, onClose }) {
-  const [clientOuvert, setClientOuvert] = useState(null);
-  const [montantSaisi, setMontantSaisi] = useState({});
-
-  // Une créance = une vente dont le montant payé est inférieur au montant total.
-  const ventesAvecCreance = commandes.filter((c) => Number(c.montant_paye || 0) < Number(c.montant || 0));
-
-  // Regroupées par client, avec le total dû par personne.
-  const parClient = {};
-  ventesAvecCreance.forEach((c) => {
-    const cle = `${c.client}|${c.tel}`;
-    if (!parClient[cle]) parClient[cle] = { client: c.client, tel: c.tel, ventes: [], totalDu: 0 };
-    const solde = Number(c.montant) - Number(c.montant_paye || 0);
-    parClient[cle].ventes.push({ ...c, solde });
-    parClient[cle].totalDu += solde;
-  });
-  const clients = Object.values(parClient).sort((a, b) => b.totalDu - a.totalDu);
-  const totalGeneralDu = clients.reduce((s, c) => s + c.totalDu, 0);
-
-  async function encaisser(commande) {
-    const montant = Number(montantSaisi[commande.id] || 0);
-    const solde = Number(commande.montant) - Number(commande.montant_paye || 0);
-    if (!montant || montant <= 0) return;
-    if (montant > solde) { alert(`Ce client ne doit que ${solde.toLocaleString("fr-FR")} ${currency} sur cette vente.`); return; }
-    await onEnregistrerPaiement(commande.id, Number(commande.montant_paye || 0) + montant);
-    setMontantSaisi((m) => ({ ...m, [commande.id]: "" }));
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 560, maxHeight: "88vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <div style={{ fontWeight: 700, fontSize: 19 }}>📒 Créances</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>×</button>
-        </div>
-        <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.5 }}>
-          Ce que tes clients te doivent encore, sur des ventes déjà réalisées mais pas totalement payées.
-        </div>
-
-        <div style={{ background: "#FBEAE6", borderRadius: 10, padding: "12px 16px", marginBottom: 18, textAlign: "center" }}>
-          <div style={{ fontSize: 10.5, color: "#D64933", fontWeight: 700, textTransform: "uppercase" }}>Total dû par tous les clients</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#D64933" }}>{totalGeneralDu.toLocaleString("fr-FR")} {currency}</div>
-        </div>
-
-        {clients.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune créance en cours — tout est payé. 🎉</div>}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {clients.map((c) => {
-            const cle = `${c.client}|${c.tel}`;
-            const ouvert = clientOuvert === cle;
-            return (
-              <div key={cle} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
-                <div onClick={() => setClientOuvert(ouvert ? null : cle)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.client}</div>
-                    <div style={{ fontSize: 11, color: "#8A9089" }}>{c.tel} · {c.ventes.length} vente{c.ventes.length > 1 ? "s" : ""} en cours</div>
-                  </div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#D64933" }}>{c.totalDu.toLocaleString("fr-FR")} {currency}</div>
-                </div>
-                {ouvert && (
-                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8, borderTop: "1px solid #ECE8DC", paddingTop: 10 }}>
-                    {c.ventes.map((v) => (
-                      <div key={v.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 8, padding: "9px 12px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                          <span>{v.produit}</span>
-                          <span style={{ color: "#8A9089" }}>{new Date(v.created_at).toLocaleDateString("fr-FR")}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>
-                          Payé {Number(v.montant_paye || 0).toLocaleString("fr-FR")} / {Number(v.montant).toLocaleString("fr-FR")} — reste <strong style={{ color: "#D64933" }}>{v.solde.toLocaleString("fr-FR")} {currency}</strong>
-                        </div>
-                        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                          <input
-                            type="number"
-                            placeholder={`Montant reçu (max ${v.solde.toLocaleString("fr-FR")})`}
-                            value={montantSaisi[v.id] || ""}
-                            onChange={(e) => setMontantSaisi((m) => ({ ...m, [v.id]: e.target.value }))}
-                            style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box" }}
-                          />
-                          <button onClick={() => encaisser(v)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Encaisser</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       </div>
     </div>
@@ -10227,6 +9950,76 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CeoIAModal({ onClose }) {
+  const [question, setQuestion] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const [reponse, setReponse] = useState(null);
+  const [historique, setHistorique] = useState([]);
+
+  async function poserQuestion() {
+    if (!question.trim()) { setErreur("Écris une question."); return; }
+    setEnCours(true);
+    setErreur("");
+    setReponse(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const resp = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "ceo_ask", question }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { setErreur(data.error || "Erreur pendant la réponse."); setEnCours(false); return; }
+      setReponse(data);
+      setHistorique((h) => [{ question, ...data }, ...h]);
+      setQuestion("");
+    } catch (e) {
+      setErreur(e.message);
+    }
+    setEnCours(false);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 640, maxHeight: "90vh", overflow: "auto", padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>🧠 CEO IA</div>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+          <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10 }}>
+            Pose une question sur tes prospects (Business Engine). Phase A : il lit uniquement prospects_business, en lecture seule — aucune action réelle.
+          </div>
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && poserQuestion()}
+            placeholder="Ex : Combien ai-je de prospects stratégiques ?"
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box" }}
+          />
+          {erreur && <div style={{ color: "#D64933", fontSize: 12, marginBottom: 8 }}>{erreur}</div>}
+          <button onClick={poserQuestion} disabled={enCours} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: "#1a1a1a", color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}>
+            {enCours ? "Réflexion..." : "Demander"}
+          </button>
+        </div>
+
+        {historique.map((h, i) => (
+          <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < historique.length - 1 ? "1px solid #ECE8DC" : "none" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>❓ {h.question}</div>
+            <div style={{ fontSize: 13, color: "#333", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{h.reponse}</div>
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 10.5, color: "#999", cursor: "pointer" }}>Voir les vrais chiffres utilisés</summary>
+              <pre style={{ fontSize: 10.5, color: "#666", background: "#FAFAF7", padding: 8, borderRadius: 6, overflow: "auto" }}>{JSON.stringify(h.contexte, null, 2)}</pre>
+            </details>
+          </div>
+        ))}
       </div>
     </div>
   );

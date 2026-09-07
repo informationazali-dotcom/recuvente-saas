@@ -3163,6 +3163,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAICompany, setShowAICompany] = useState(false);
   const [showSalesIA, setShowSalesIA] = useState(false);
   const [showCfoIA, setShowCfoIA] = useState(false);
+  const [showGmIA, setShowGmIA] = useState(false);
+  const [showDataIA, setShowDataIA] = useState(false);
+  const [showCsIA, setShowCsIA] = useState(false);
+  const [showCopywriterIA, setShowCopywriterIA] = useState(false);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
@@ -5889,10 +5893,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onOpenProspecting={() => setShowProspectsIA(true)}
           onOpenSales={() => setShowSalesIA(true)}
           onOpenCfo={() => setShowCfoIA(true)}
+          onOpenGm={() => setShowGmIA(true)}
+          onOpenData={() => setShowDataIA(true)}
+          onOpenCs={() => setShowCsIA(true)}
+          onOpenCopywriter={() => setShowCopywriterIA(true)}
         />
       )}
       {showSalesIA && session?.user?.email === "oulipaiexpress@gmail.com" && <SalesIAModal onClose={() => setShowSalesIA(false)} />}
       {showCfoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CfoIAModal onClose={() => setShowCfoIA(false)} />}
+      {showGmIA && session?.user?.email === "oulipaiexpress@gmail.com" && <GmIAModal onClose={() => setShowGmIA(false)} />}
+      {showDataIA && session?.user?.email === "oulipaiexpress@gmail.com" && <DataIAModal onClose={() => setShowDataIA(false)} />}
+      {showCsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CustomerSuccessIAModal onClose={() => setShowCsIA(false)} />}
+      {showCopywriterIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CopywriterIAModal onClose={() => setShowCopywriterIA(false)} />}
       {showProspectsBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsBusinessModal email={session.user.email} onClose={() => setShowProspectsBusiness(false)} />}
       {showFacturesBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <FacturesBusinessModal email={session.user.email} onClose={() => setShowFacturesBusiness(false)} />}
       {showRendezVousBusiness && session?.user?.email === "oulipaiexpress@gmail.com" && <RendezVousBusinessModal email={session.user.email} onClose={() => setShowRendezVousBusiness(false)} />}
@@ -10012,7 +10024,7 @@ function CodesPromoModal({ workspaceId, currency, onClose }) {
   );
 }
 
-function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo }) {
+function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, onOpenCfo, onOpenGm, onOpenData, onOpenCs, onOpenCopywriter }) {
   const [selectionne, setSelectionne] = useState(null);
 
   const departements = {};
@@ -10026,6 +10038,10 @@ function AICompanyModal({ onClose, onOpenCeo, onOpenProspecting, onOpenSales, on
     if (agent.id === "prospecting") { onClose(); onOpenProspecting(); return; }
     if (agent.id === "sales") { onClose(); onOpenSales(); return; }
     if (agent.id === "cfo") { onClose(); onOpenCfo(); return; }
+    if (agent.id === "general_manager") { onClose(); onOpenGm(); return; }
+    if (agent.id === "data") { onClose(); onOpenData(); return; }
+    if (agent.id === "customer_success") { onClose(); onOpenCs(); return; }
+    if (agent.id === "copywriter") { onClose(); onOpenCopywriter(); return; }
     setSelectionne(agent);
   }
 
@@ -10211,6 +10227,82 @@ function CfoIAModal({ onClose }) {
     </div>
   );
 }
+
+// Générateur générique pour les agents "question → réponse IA" — évite de dupliquer 4 fois
+// le même composant (GM, Data, Customer Success, Copywriter suivent tous ce schéma).
+function creerModaleAgentIA({ titre, action, placeholder, note }) {
+  return function ModaleAgent({ onClose }) {
+    const [question, setQuestion] = useState("");
+    const [enCours, setEnCours] = useState(false);
+    const [erreur, setErreur] = useState("");
+    const [historique, setHistorique] = useState([]);
+
+    async function poserQuestion() {
+      if (!question.trim()) { setErreur("Écris quelque chose."); return; }
+      setEnCours(true);
+      setErreur("");
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const resp = await fetch("/api/admin-panel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+          body: JSON.stringify({ action, question }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) { setErreur(data.error || "Erreur pendant la réponse."); setEnCours(false); return; }
+        setHistorique((h) => [{ question, ...data }, ...h]);
+        setQuestion("");
+      } catch (e) {
+        setErreur(e.message);
+      }
+      setEnCours(false);
+    }
+
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 640, maxHeight: "90vh", overflow: "auto", padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+            <div style={{ fontWeight: 800, fontSize: 18 }}>{titre}</div>
+            <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}>×</button>
+          </div>
+
+          <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+            {note && <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10 }}>{note}</div>}
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder={placeholder}
+              rows={3}
+              style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" }}
+            />
+            {erreur && <div style={{ color: "#D64933", fontSize: 12, marginBottom: 8 }}>{erreur}</div>}
+            <button onClick={poserQuestion} disabled={enCours} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: "#1a1a1a", color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: enCours ? 0.6 : 1 }}>
+              {enCours ? "Réflexion..." : "Demander"}
+            </button>
+          </div>
+
+          {historique.map((h, i) => (
+            <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < historique.length - 1 ? "1px solid #ECE8DC" : "none" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>❓ {h.question}</div>
+              <div style={{ fontSize: 13, color: "#333", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{h.reponse}</div>
+              {h.contexte && (
+                <details style={{ marginTop: 8 }}>
+                  <summary style={{ fontSize: 10.5, color: "#999", cursor: "pointer" }}>Voir les vrais chiffres utilisés</summary>
+                  <pre style={{ fontSize: 10.5, color: "#666", background: "#FAFAF7", padding: 8, borderRadius: 6, overflow: "auto" }}>{JSON.stringify(h.contexte, null, 2)}</pre>
+                </details>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+}
+
+const GmIAModal = creerModaleAgentIA({ titre: "🧭 Directeur Général IA", action: "gm_ask", placeholder: "Ex : Que devons-nous accomplir aujourd'hui ?", note: "Opérations du jour — Azali Express, à partir des vraies commandes." });
+const DataIAModal = creerModaleAgentIA({ titre: "📊 Data / Analytics IA", action: "data_ask", placeholder: "Ex : Y a-t-il une anomalie cette semaine ?", note: "Compare la semaine actuelle à la précédente, sur des données réelles." });
+const CustomerSuccessIAModal = creerModaleAgentIA({ titre: "💚 Customer Success IA", action: "cs_ask", placeholder: "Ex : Quels clients fidèles risquent de partir ?", note: "Clients ayant 2+ commandes confirmées, sans achat depuis 30+ jours." });
+const CopywriterIAModal = creerModaleAgentIA({ titre: "✍️ Copywriter IA", action: "copywriter_ask", placeholder: "Ex : Écris un message WhatsApp pour relancer un client qui a abandonné son panier.", note: "Rédige un brouillon prêt à copier-coller. N'envoie jamais rien lui-même (§29)." });
 
 function CeoIAModal({ onClose }) {
   const [question, setQuestion] = useState("");

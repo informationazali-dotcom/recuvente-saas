@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass } from "lucide-react";
+import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass, Menu, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic from "./CataloguePublic.jsx";
@@ -3159,6 +3159,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAvis, setShowAvis] = useState(false);
   const [showProspectsIA, setShowProspectsIA] = useState(false);
   const [showCeoIA, setShowCeoIA] = useState(false);
+  const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const [showProspectsBusiness, setShowProspectsBusiness] = useState(false);
   const [showFacturesBusiness, setShowFacturesBusiness] = useState(false);
   const [showRendezVousBusiness, setShowRendezVousBusiness] = useState(false);
@@ -4637,6 +4638,22 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           100% { transform: translateY(90px) rotate(360deg); opacity: 0; }
         }
         .rv-saas-sidebar { display: none; }
+        .rv-saas-sidebar.rv-mobile-menu-ouvert {
+          display: flex;
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          background: linear-gradient(180deg, #050807 0%, #0A130F 40%, #0F1B16 75%, #16231F 100%);
+          flex-direction: column;
+          padding: 24px 14px;
+          padding-top: calc(24px + env(safe-area-inset-top));
+          z-index: 200;
+          overflow-y: auto;
+        }
+        .rv-saas-mobile-menu-fermer { display: flex; }
+        @media (min-width: 900px) {
+          .rv-saas-mobile-menu-fermer { display: none; }
+        }
         .rv-saas-content { }
         .rv-saas-tabs-mobile { }
         .rv-saas-bottomnav { display: flex; }
@@ -4681,7 +4698,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         }
       `}</style>
 
-      <div className="rv-saas-sidebar">
+      <div className={`rv-saas-sidebar${menuMobileOuvert ? " rv-mobile-menu-ouvert" : ""}`} onClickCapture={(e) => { if (e.target.closest("button") && !e.target.closest(".rv-saas-mobile-menu-fermer")) setMenuMobileOuvert(false); }}>
+        <button
+          className="rv-saas-mobile-menu-fermer"
+          onClick={() => setMenuMobileOuvert(false)}
+          aria-label="Fermer le menu"
+          style={{ alignItems: "center", justifyContent: "center", alignSelf: "flex-end", width: 34, height: 34, borderRadius: 9, border: "none", background: "rgba(255,255,255,0.1)", color: "white", cursor: "pointer", marginBottom: 10, flexShrink: 0 }}
+        >
+          <X size={18} />
+        </button>
         <div className="rv-saas-sidebar-filigrane">RECUVENTE</div>
         <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: "white", marginBottom: 14, padding: "0 8px" }}>
@@ -5712,6 +5737,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         }}
       >
         {[
+          { key: "__menu__", label: "Menu", icon: Menu, action: () => setMenuMobileOuvert(true) },
           { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),

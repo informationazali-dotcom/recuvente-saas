@@ -4771,6 +4771,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </button>
         )}
         {session?.user?.email === "oulipaiexpress@gmail.com" && (
+          <button
+            onClick={() => setShowCeoIA(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🧠 CEO IA
+          </button>
+        )}
+        {session?.user?.email === "oulipaiexpress@gmail.com" && (
           <>
             <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", padding: "16px 12px 6px" }}>BUSINESS</div>
             <button

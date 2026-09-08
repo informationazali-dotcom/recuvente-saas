@@ -976,6 +976,17 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setErreurEnvoi(resultat?.message || t("erreurGenerique"));
       return;
     }
+    // Signal immédiat à Facebook, dès la commande passée — comme Shopify. Le tableau de bord
+    // renverra le même signal à la confirmation si celui-ci échoue pour une raison quelconque
+    // (le serveur ignore les doublons automatiquement, jamais compté deux fois).
+    const idCommandeCreee = resultat.commande_id || resultat.id;
+    if (idCommandeCreee) {
+      fetch("/api/facebook-capi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commandeId: idCommandeCreee }),
+      }).catch(() => {});
+    }
     trackEvenement("Lead", {
       content_ids: [produitOuvert.produit_id],
       value: items.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0),
@@ -2443,6 +2454,14 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     if (error || !data?.[0]?.succes) {
       setErreur(data?.[0]?.message || "Une erreur est survenue, réessaie.");
       return;
+    }
+    const idCommandePanier = data[0].commande_id || data[0].id;
+    if (idCommandePanier) {
+      fetch("/api/facebook-capi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commandeId: idCommandePanier }),
+      }).catch(() => {});
     }
     onViderPanier();
     setEtape("envoye");

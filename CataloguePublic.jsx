@@ -1205,9 +1205,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 </div>
               )}
 
-              <input placeholder="Ton nom complet" value={formBien.client} onChange={(e) => setFormBien({ ...formBien, client: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 8, boxSizing: "border-box" }} />
-              <input placeholder="Ton numéro de téléphone" value={formBien.tel} onChange={(e) => setFormBien({ ...formBien, tel: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 8, boxSizing: "border-box" }} />
-              <input placeholder="Ta ville / commune (optionnel)" value={formBien.zone} onChange={(e) => setFormBien({ ...formBien, zone: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 12, boxSizing: "border-box" }} />
+              <input placeholder="Ton nom complet" value={formBien.client} onChange={(e) => setFormBien({ ...formBien, client: e.target.value })} autoComplete="name" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Ton numéro de téléphone" value={formBien.tel} onChange={(e) => setFormBien({ ...formBien, tel: e.target.value })} type="tel" inputMode="tel" autoComplete="tel" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 8, boxSizing: "border-box" }} />
+              <input placeholder="Ta ville / commune (optionnel)" value={formBien.zone} onChange={(e) => setFormBien({ ...formBien, zone: e.target.value })} autoComplete="address-level2" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 12, boxSizing: "border-box" }} />
 
               {erreurEnvoiBien && <div style={{ color: "#D64933", fontSize: 12, marginBottom: 10, fontWeight: 600 }}>{erreurEnvoiBien}</div>}
 
@@ -1748,18 +1748,23 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 value={form.client}
                 onChange={(e) => setForm({ ...form, client: e.target.value })}
                 autoFocus
+                autoComplete="name"
                 style={inputStyle}
               />
               <input
                 placeholder={t("tonTelephone")}
                 value={form.tel}
                 onChange={(e) => setForm({ ...form, tel: e.target.value })}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 style={inputStyle}
               />
               <input
                 placeholder={t("taVille")}
                 value={form.zone}
                 onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                autoComplete="address-level2"
                 style={inputStyle}
               />
 
@@ -2513,9 +2518,9 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
               style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
               aria-hidden="true"
             />
-            <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
-            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
-            <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 14, boxSizing: "border-box" }} />
+            <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} autoComplete="name" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} type="tel" inputMode="tel" autoComplete="tel" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} autoComplete="address-level2" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 14, boxSizing: "border-box" }} />
 
             {aChoixLivraison && (
               <div style={{ marginBottom: 14 }}>

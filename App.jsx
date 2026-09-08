@@ -15416,7 +15416,7 @@ function IntegrationsModal({ workspace, onClose }) {
               </button>
             </div>
             <div style={{ fontSize: 11, color: "#5B21B6", marginTop: 8, opacity: 0.8 }}>
-              Seuls tes produits publiés avec un prix et une photo apparaîtront dans le flux. Aucune connexion ni autorisation Meta requise de notre côté — c'est toi qui contrôles la synchronisation depuis ton propre compte.
+              Seuls tes produits publiés avec un prix ET une photo apparaîtront dans le flux — Meta rejette systématiquement les fiches sans image. Aucune connexion ni autorisation Meta requise de notre côté — c'est toi qui contrôles la synchronisation depuis ton propre compte.
             </div>
           </div>
 

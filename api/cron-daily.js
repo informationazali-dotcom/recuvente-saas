@@ -427,6 +427,34 @@ async function genererAlertesIA(nouveauxProspectsChauds) {
   return { alertesCreees: creees };
 }
 
+// ===== Relance des envois Meta/Facebook en échec (§9 fiabilisation) — une commande dont
+// l'envoi immédiat a échoué (coupure réseau côté client, Facebook temporairement indisponible)
+// ne doit jamais rester bloquée indéfiniment. On retente ici, sans dépendre du navigateur.
+async function retenterEnvoisCAPIEnAttente() {
+  const limite = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+  const { data: commandesEnAttente } = await supabaseAdmin
+    .from("commandes")
+    .select("id")
+    .eq("purchase_event_envoye", false)
+    .gte("created_at", limite)
+    .limit(50);
+
+  if (!commandesEnAttente || commandesEnAttente.length === 0) return { retentees: 0 };
+
+  const origine = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://recuvente-saas.vercel.app";
+  await executerParLots(
+    commandesEnAttente.map((c) => async () => {
+      await fetch(`${origine}/api/facebook-capi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-cron-secret": process.env.CRON_SECRET },
+        body: JSON.stringify({ commandeId: c.id }),
+      }).catch(() => {});
+    }),
+    3
+  );
+  return { retentees: commandesEnAttente.length };
+}
+
 async function lancerProspectionAutomatique() {
   // En parallèle plutôt qu'en série : les 3 recherches partent en même temps, donc le temps
   // total dépend de la plus lente des trois, pas de leur somme. C'est ce qui permet de rester
@@ -464,6 +492,7 @@ export default async function handler(req, res) {
   const sauvegardeReussie = await sauvegarderQuotidiennement();
   const resultatEssais = await verifierEssaisEtRappels();
   const resultatStock = await verifierStockBas();
+  const resultatRetryCAPI = await retenterEnvoisCAPIEnAttente();
 
   return res.status(200).json({
     prospection: resultatProspection,
@@ -471,5 +500,6 @@ export default async function handler(req, res) {
     sauvegardeReussie,
     ...resultatEssais,
     ...resultatStock,
+    retryCAPI: resultatRetryCAPI,
   });
 }

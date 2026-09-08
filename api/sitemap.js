@@ -40,7 +40,11 @@ async function genererFluxProduits(req, res, workspaceId, origine) {
 
   const devise = workspace.currency === "XOF" || workspace.currency === "XAF" ? "XOF" : (workspace.currency || "XOF");
 
-  const items = (produits || []).map((p) => {
+  // Un produit sans photo est systématiquement rejeté par Meta (et abîme la qualité globale
+  // du flux) — mieux vaut ne pas l'y envoyer du tout plutôt que de le faire refuser.
+  const produitsAvecPhoto = (produits || []).filter((p) => p.photo_url || p.photo);
+
+  const items = produitsAvecPhoto.map((p) => {
     const lien = `${origine}/?catalogue=${encodeURIComponent(workspaceId)}&produit=${p.id}`;
     const image = p.photo_url || p.photo || "";
     const disponible = Number(p.stock) > 0 ? "in stock" : "out of stock";
@@ -51,9 +55,10 @@ async function genererFluxProduits(req, res, workspaceId, origine) {
     <link>${echapperXML(lien)}</link>
     <g:image_link>${echapperXML(image)}</g:image_link>
     <g:availability>${disponible}</g:availability>
-    <g:price>${Number(p.prix_vente).toFixed(0)} ${devise}</g:price>
+    <g:price>${Number(p.prix_vente).toFixed(2)} ${devise}</g:price>
     <g:condition>new</g:condition>
     <g:brand>${echapperXML(workspace.nom || "RecuVente")}</g:brand>
+    <g:identifier_exists>false</g:identifier_exists>
   </item>`;
   }).join("\n");
 

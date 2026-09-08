@@ -111,7 +111,7 @@ export default async function handler(req, res) {
     .select("id");
 
   if (!verrouGagne || verrouGagne.length === 0) {
-    return res.status(200).json({ envoye: false, raison: "Déjà envoyé (ou en cours d'envoi) pour cette commande" });
+    return res.status(200).json({ envoye: false, raison: "Déjà envoyé précédemment pour cette commande" });
   }
 
   // Advanced Matching : plus Facebook reçoit d'informations sur le client (même hachées),

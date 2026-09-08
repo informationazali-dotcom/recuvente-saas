@@ -72,6 +72,28 @@ function formaterDevise(code) {
   return code === "XOF" || code === "XAF" ? "F CFA" : code;
 }
 
+// Charge un script externe seulement au moment où il est vraiment nécessaire (carte des
+// livreurs, scan de document) — jamais pour un visiteur de la boutique publique, qui n'en a
+// aucun besoin. Ne charge jamais deux fois la même bibliothèque.
+const rvScriptsCharges = {};
+function chargerScriptExterne(url, cssUrl) {
+  if (rvScriptsCharges[url]) return rvScriptsCharges[url];
+  rvScriptsCharges[url] = new Promise((resolve, reject) => {
+    if (cssUrl && !document.querySelector(`link[href="${cssUrl}"]`)) {
+      const lien = document.createElement("link");
+      lien.rel = "stylesheet";
+      lien.href = cssUrl;
+      document.head.appendChild(lien);
+    }
+    const script = document.createElement("script");
+    script.src = url;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return rvScriptsCharges[url];
+}
+
 // Utilisé par VitrineBusinessPublique (animation d'apparition au défilement). Défini ici
 // explicitement : il existe aussi dans CataloguePublic.jsx, mais ce n'est PAS un import — ne
 // pas dépendre du regroupement de Rollup entre fichiers pour qu'un composant existe.
@@ -13409,13 +13431,12 @@ function RapprochementView({ workspace, commandes, onValide }) {
 
   async function scannerRecu(fichier) {
     if (!fichier) return;
-    if (!window.Tesseract) {
-      alert("Le lecteur de reçu n'est pas encore chargé, réessaie dans quelques secondes.");
-      return;
-    }
     setScanEnCours(true);
     setDernierScan(null);
     try {
+      if (!window.Tesseract) {
+        await chargerScriptExterne("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
+      }
       const { data } = await window.Tesseract.recognize(fichier, "fra");
       const texteOCR = data.text || "";
 
@@ -14561,11 +14582,21 @@ function CarteLivreursSaas({ livreurs }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
+  const [leafletPret, setLeafletPret] = useState(!!window.L);
 
   const enTourneeAvecPosition = livreurs.filter((l) => l.en_tournee && l.position_lat && l.position_lng);
 
+  // Leaflet (la carte) n'est chargé qu'ici, au moment où cette carte s'affiche vraiment —
+  // jamais pour un visiteur de la boutique publique, qui n'a jamais besoin de cette carte.
   useEffect(() => {
-    if (!window.L || !mapRef.current) return;
+    if (window.L) { setLeafletPret(true); return; }
+    chargerScriptExterne("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
+      .then(() => setLeafletPret(true))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!leafletPret || !window.L || !mapRef.current) return;
 
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = window.L.map(mapRef.current, { zoomControl: true, attributionControl: true }).setView([5.359952, -4.008256], 12);
@@ -14595,7 +14626,7 @@ function CarteLivreursSaas({ livreurs }) {
     }
 
     setTimeout(() => mapInstanceRef.current && mapInstanceRef.current.invalidateSize(), 100);
-  }, [JSON.stringify(enTourneeAvecPosition.map((l) => [l.id, l.position_lat, l.position_lng]))]);
+  }, [leafletPret, JSON.stringify(enTourneeAvecPosition.map((l) => [l.id, l.position_lat, l.position_lng]))]);
 
   return (
     <div style={{ marginBottom: 16 }}>

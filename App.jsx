@@ -14847,6 +14847,7 @@ function AideModal({ onClose }) {
 
 function IntegrationsModal({ workspace, onClose }) {
   const [copie, setCopie] = useState(false);
+  const [copieFlux, setCopieFlux] = useState(false);
   const [journalAudit, setJournalAudit] = useState(null);
   const [afficherJournalAudit, setAfficherJournalAudit] = useState(false);
 
@@ -15388,6 +15389,37 @@ function IntegrationsModal({ workspace, onClose }) {
           </div>
 
           <div style={{ height: 1, background: "#C3D4F0", margin: "14px 0" }} />
+
+          <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5, color: "#5B21B6", marginBottom: 4 }}>
+              🛍️ Canal de vente — vends sur Facebook & Instagram Shop
+            </div>
+            <div style={{ fontSize: 12.5, color: "#5B21B6", marginBottom: 12, lineHeight: 1.5 }}>
+              Copie ce lien et ajoute-le dans ton Meta Commerce Manager (business.facebook.com/commerce) → ton catalogue → "Ajouter des articles" → "Flux de données" → colle ce lien comme "Flux programmé". Tes produits apparaîtront automatiquement sur ta boutique Facebook et Instagram, mis à jour chaque jour.
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                readOnly
+                value={`https://${typeof window !== "undefined" ? window.location.host : "recuvente-saas.vercel.app"}/api/sitemap?flux=${workspace.id}`}
+                onFocus={(e) => e.target.select()}
+                style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD6FE", fontSize: 12, background: "white", color: "#5B21B6" }}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://${window.location.host}/api/sitemap?flux=${workspace.id}`);
+                  setCopieFlux(true);
+                  setTimeout(() => setCopieFlux(false), 2000);
+                }}
+                style={{ background: "#5B21B6", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+              >
+                {copieFlux ? "✅ Copié" : "Copier"}
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: "#5B21B6", marginTop: 8, opacity: 0.8 }}>
+              Seuls tes produits publiés avec un prix et une photo apparaîtront dans le flux. Aucune connexion ni autorisation Meta requise de notre côté — c'est toi qui contrôles la synchronisation depuis ton propre compte.
+            </div>
+          </div>
+
 
           <div style={{ fontWeight: 700, fontSize: 13, color: "#1E4B8C", marginBottom: 4 }}>
             🔒 Token Conversions API (recommandé, pour du COD)

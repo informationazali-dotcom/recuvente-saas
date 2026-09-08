@@ -11129,7 +11129,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
-  const [livraison, setLivraison] = useState({ livraison_gratuite: false, frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [], produits_similaires_collection_id: "" });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, livraison_gratuite_qte_min: "", frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [], produits_similaires_collection_id: "" });
   const [collectionsDispo, setCollectionsDispo] = useState([]);
 
   useEffect(() => {
@@ -11155,6 +11155,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       });
       setLivraison({
         livraison_gratuite: !!selected.livraison_gratuite,
+        livraison_gratuite_qte_min: selected.livraison_gratuite_qte_min ?? "",
         frais_livraison_produit: selected.frais_livraison_produit ?? "",
         frais_expedition_produit: selected.frais_expedition_produit ?? "",
         bundles: Array.isArray(selected.bundles) ? selected.bundles : [],
@@ -11573,6 +11574,31 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     🎁 Livraison gratuite pour ce produit
                   </label>
                   {!livraison.livraison_gratuite && (
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer", marginBottom: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={livraison.livraison_gratuite_qte_min !== "" && livraison.livraison_gratuite_qte_min != null}
+                          onChange={(e) => setLivraison((v) => ({ ...v, livraison_gratuite_qte_min: e.target.checked ? 2 : "" }))}
+                        />
+                        📦 Livraison gratuite à partir d'une certaine quantité
+                      </label>
+                      {livraison.livraison_gratuite_qte_min !== "" && livraison.livraison_gratuite_qte_min != null && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 26 }}>
+                          <span style={{ fontSize: 12.5, color: "#6B7168" }}>À partir de</span>
+                          <input
+                            type="number"
+                            min="2"
+                            value={livraison.livraison_gratuite_qte_min}
+                            onChange={(e) => setLivraison((v) => ({ ...v, livraison_gratuite_qte_min: e.target.value }))}
+                            style={{ ...champStyle, width: 70 }}
+                          />
+                          <span style={{ fontSize: 12.5, color: "#6B7168" }}>exemplaires achetés</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!livraison.livraison_gratuite && (
                     <div className="rv-pm-grid2" style={{ marginBottom: 10 }}>
                       <Champ label={`Frais livraison locale (${currency})`}>
                         <input type="number" className="rv-pm-field" placeholder="Frais boutique par défaut" value={livraison.frais_livraison_produit} onChange={(e) => setLivraison((v) => ({ ...v, frais_livraison_produit: e.target.value }))} style={champStyle} />
@@ -11667,6 +11693,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                       onClick={() => {
                         onUpdateLivraisonBundles(selected.id, {
                           livraison_gratuite: livraison.livraison_gratuite,
+                          livraison_gratuite_qte_min: livraison.livraison_gratuite_qte_min === "" ? null : Number(livraison.livraison_gratuite_qte_min),
                           frais_livraison_produit: livraison.frais_livraison_produit === "" ? null : Number(livraison.frais_livraison_produit),
                           frais_expedition_produit: livraison.frais_expedition_produit === "" ? null : Number(livraison.frais_expedition_produit),
                           bundles: livraison.bundles,

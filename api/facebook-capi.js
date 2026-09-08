@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
   const { data: commande, error: erreurCommande } = await supabaseAdmin
     .from("commandes")
-    .select("id, workspace_id, client, tel, montant, statut, created_at, confirmed_at, purchase_event_envoye, fb_fbp, fb_fbc, fb_user_agent, fb_event_source_url")
+    .select("id, workspace_id, client, tel, zone, montant, statut, created_at, confirmed_at, purchase_event_envoye, fb_fbp, fb_fbc, fb_user_agent, fb_event_source_url")
     .eq("id", commandeId)
     .single();
 
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
   const { data: workspace, error: erreurWorkspace } = await supabaseAdmin
     .from("workspaces")
-    .select("facebook_pixel_id, facebook_capi_token, currency")
+    .select("facebook_pixel_id, facebook_capi_token, currency, country")
     .eq("id", commande.workspace_id)
     .single();
 
@@ -73,6 +73,13 @@ export default async function handler(req, res) {
     // Pas de pixel/token configuré pour cet espace — on ignore silencieusement, ce n'est pas une erreur
     return res.status(200).json({ envoye: false, raison: "Pixel Facebook ou token Conversions API non configuré" });
   }
+
+  // Advanced Matching : plus Facebook reçoit d'informations sur le client (même hachées),
+  // mieux son algorithme reconnaît qui achète vraiment et optimise les publicités en
+  // conséquence — Shopify envoie systématiquement ces champs, pas seulement le téléphone.
+  const nomComplet = String(commande.client || "").trim().split(/\s+/);
+  const prenom = nomComplet[0] || "";
+  const nomFamille = nomComplet.length > 1 ? nomComplet.slice(1).join(" ") : "";
 
   // fbp/fbc/user_agent/event_source_url permettent à Facebook de relier précisément cet achat
   // à la publicité qui l'a généré — sans ça, l'optimisation des pubs est très limitée.
@@ -84,6 +91,10 @@ export default async function handler(req, res) {
     event_source_url: commande.fb_event_source_url || undefined,
     user_data: {
       ph: [hasher(normaliserTelephone(commande.tel))].filter(Boolean),
+      fn: prenom ? [hasher(prenom)] : undefined,
+      ln: nomFamille ? [hasher(nomFamille)] : undefined,
+      ct: commande.zone ? [hasher(commande.zone)] : undefined,
+      country: workspace.country ? [hasher(workspace.country)] : undefined,
       client_user_agent: commande.fb_user_agent || undefined,
       fbp: commande.fb_fbp || undefined,
       fbc: commande.fb_fbc || undefined,

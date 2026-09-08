@@ -101,8 +101,55 @@ function nettoyerHTML(html) {
 }
 
 function lireCookieMeta(nom) {
-  const match = document.cookie.match(new RegExp("(^| )" + nom + "=([^;]+)"));
-  return match ? match[2] : null;
+  const match = document.cookie.match(new RegExp("(^|;\\s*)" + nom + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+// Attribution Meta persistante : on conserve fbp/fbc même si le visiteur navigue
+// dans la boutique avant de commander. Aucun email n'est nécessaire.
+function obtenirAttributionMeta() {
+  if (typeof window === "undefined") return { fbp: null, fbc: null };
+  const params = new URLSearchParams(window.location.search);
+  const fbclid = params.get("fbclid");
+  let fbp = lireCookieMeta("_fbp");
+  let fbc = lireCookieMeta("_fbc");
+
+  try {
+    const sauvegardee = JSON.parse(localStorage.getItem("rv_meta_attribution") || "null");
+    if (!fbp && sauvegardee?.fbp) fbp = sauvegardee.fbp;
+    if (!fbc && sauvegardee?.fbc) fbc = sauvegardee.fbc;
+  } catch (_) {}
+
+  // Si Meta n'a pas encore créé _fbc, on le reconstruit à partir du fbclid.
+  if (!fbc && fbclid) {
+    fbc = `fb.1.${Date.now()}.${fbclid}`;
+  }
+
+  try {
+    if (fbp || fbc) {
+      localStorage.setItem("rv_meta_attribution", JSON.stringify({ fbp: fbp || null, fbc: fbc || null, updated_at: Date.now() }));
+    }
+  } catch (_) {}
+
+  return { fbp: fbp || null, fbc: fbc || null };
+}
+
+function obtenirSourceCampagnePersistante() {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get("utm_source") || params.get("source");
+  const campaign = params.get("utm_campaign");
+  const fbclid = params.get("fbclid");
+  const ttclid = params.get("ttclid");
+  let valeur = source || campaign ? [source, campaign].filter(Boolean).join(" — ") : null;
+  if (!valeur && fbclid) valeur = "Facebook/Instagram Ads";
+  if (!valeur && ttclid) valeur = "TikTok Ads";
+  try {
+    const ancienne = localStorage.getItem("rv_source_campagne");
+    if (valeur) localStorage.setItem("rv_source_campagne", valeur);
+    else valeur = ancienne || null;
+  } catch (_) {}
+  return valeur;
 }
 
 const TRADUCTIONS = {
@@ -437,16 +484,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [bienEnvoye, setBienEnvoye] = useState(false);
   const [collectionsManuelles, setCollectionsManuelles] = useState([]);
   const [avisBoutique, setAvisBoutique] = useState([]);
-  const [sourceCampagne] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const params = new URLSearchParams(window.location.search);
-    const utmSource = params.get("utm_source");
-    const utmCampaign = params.get("utm_campaign");
-    if (utmSource || utmCampaign) return [utmSource, utmCampaign].filter(Boolean).join(" — ");
-    if (params.get("fbclid")) return "Facebook/Instagram Ads";
-    if (params.get("ttclid")) return "TikTok Ads";
-    return null;
-  });
+  const [sourceCampagne] = useState(() => obtenirSourceCampagnePersistante());
   const [erreur, setErreur] = useState(null);
   const [panier, setPanier] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`rv_panier_${workspaceId}`) || "[]"); } catch (_) { return []; }
@@ -459,12 +497,22 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
 
   function ajouterAuPanier(p, quantiteAjoutee = 1) {
+    const quantiteAjouteeSure = Math.max(1, Number(quantiteAjoutee) || 1);
+    trackEvenement("AddToCart", {
+      content_ids: [p.produit_id],
+      contents: [{ id: p.produit_id, quantity: quantiteAjouteeSure, item_price: Number(p.prix_vente) || 0 }],
+      content_type: "product",
+      content_name: p.produit_nom,
+      value: (Number(p.prix_vente) || 0) * quantiteAjouteeSure,
+      currency: entreprise?.devise || "XOF",
+      num_items: quantiteAjouteeSure,
+    });
     setPanier((liste) => {
       const existant = liste.find((it) => it.produit_id === p.produit_id);
       if (existant) {
-        return liste.map((it) => it.produit_id === p.produit_id ? { ...it, quantite: it.quantite + quantiteAjoutee } : it);
+        return liste.map((it) => it.produit_id === p.produit_id ? { ...it, quantite: it.quantite + quantiteAjouteeSure } : it);
       }
-      return [...liste, { produit_id: p.produit_id, produit_nom: p.produit_nom, prix_unitaire: Number(p.prix_vente), photo_url: p.photo_url, quantite: quantiteAjoutee, livraison_gratuite: !!p.livraison_gratuite, frais_livraison_produit: p.frais_livraison_produit, frais_expedition_produit: p.frais_expedition_produit }];
+      return [...liste, { produit_id: p.produit_id, produit_nom: p.produit_nom, prix_unitaire: Number(p.prix_vente), photo_url: p.photo_url, quantite: quantiteAjouteeSure, livraison_gratuite: !!p.livraison_gratuite, frais_livraison_produit: p.frais_livraison_produit, frais_expedition_produit: p.frais_expedition_produit }];
     });
     setPanierOuvert(true);
   }
@@ -631,17 +679,52 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     })(window, document, "ttq");
   }
 
-  function trackEvenement(nom, params) {
-    if (window.fbq) window.fbq("track", nom, params);
+  function trackEvenement(nom, params = {}, options = {}) {
+    // eventID est indispensable lorsqu'un même événement est envoyé par le navigateur
+    // ET par Conversions API. Pour Purchase, il doit être exactement le même des deux côtés.
+    if (window.fbq) {
+      if (options.eventID) {
+        window.fbq("track", nom, params, { eventID: options.eventID });
+      } else {
+        window.fbq("track", nom, params);
+      }
+    }
     if (window.ttq) {
       window.ttq.track(nom, {
         content_id: params?.content_ids?.[0],
-        content_type: "product",
+        content_type: params?.content_type || "product",
         content_name: params?.content_name,
         value: params?.value,
         currency: params?.currency,
+        quantity: params?.num_items,
       });
     }
+  }
+
+  async function envoyerEvenementCapi(commandeId) {
+    if (!commandeId) return false;
+    const cle = `rv_capi_purchase_${commandeId}`;
+    try {
+      if (sessionStorage.getItem(cle) === "sent") return true;
+    } catch (_) {}
+
+    for (let tentative = 0; tentative < 3; tentative++) {
+      try {
+        const reponse = await fetch("/api/facebook-capi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commandeId }),
+          keepalive: true,
+        });
+        const resultat = await reponse.json().catch(() => ({}));
+        if (reponse.ok && (resultat.envoye || resultat.raison === "Déjà envoyé précédemment pour cette commande")) {
+          try { sessionStorage.setItem(cle, "sent"); } catch (_) {}
+          return true;
+        }
+      } catch (_) {}
+      if (tentative < 2) await new Promise((resolve) => setTimeout(resolve, 500 * (tentative + 1)));
+    }
+    return false;
   }
 
   useEffect(() => {
@@ -780,7 +863,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   }, [workspaceId]);
 
   function ouvrirProduit(p) {
-    trackEvenement("ViewContent", { content_ids: [p.produit_id], content_name: p.produit_nom, value: Number(p.prix_vente), currency: entreprise?.devise || "XOF" });
+    trackEvenement("ViewContent", {
+      content_ids: [p.produit_id],
+      contents: [{ id: p.produit_id, quantity: 1, item_price: Number(p.prix_vente) || 0 }],
+      content_type: "product",
+      content_name: p.produit_nom,
+      value: Number(p.prix_vente) || 0,
+      currency: entreprise?.devise || "XOF",
+      num_items: 1,
+    });
     setProduitOuvert(p);
     setAfficherFormulaire(false);
     setForm({ client: "", tel: "", zone: "" });
@@ -964,8 +1055,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         const fraisExpeditionP = livraisonGratuiteP ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
         return !livraisonGratuiteP && fraisExpeditionP > 0 ? typeLivraisonChoisi : "livraison";
       })(),
-      p_fbp: lireCookieMeta("_fbp"),
-      p_fbc: lireCookieMeta("_fbc"),
+      p_fbp: obtenirAttributionMeta().fbp,
+      p_fbc: obtenirAttributionMeta().fbc,
       p_user_agent: navigator.userAgent,
       p_event_source_url: window.location.href,
       p_source_campagne: sourceCampagne,
@@ -980,18 +1071,37 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     // renverra le même signal à la confirmation si celui-ci échoue pour une raison quelconque
     // (le serveur ignore les doublons automatiquement, jamais compté deux fois).
     const idCommandeCreee = resultat.commande_id || resultat.id;
+    const valeurCommande = Number(resultat.montant ?? resultat.total ?? items.reduce((s, it) => s + Number(it.prix_unitaire) * Number(it.quantite), 0));
+    const deviseCommande = entreprise?.devise || "XOF";
+    const contenusCommande = items.map((it) => ({
+      id: it.produit_id,
+      quantity: Number(it.quantite) || 1,
+      item_price: Number(it.prix_unitaire) || 0,
+    }));
+
+    // 1) CAPI côté serveur. 2) Purchase côté navigateur avec exactement le même event_id.
+    // Cela permet à Meta de dédupliquer les deux signaux au lieu de compter deux achats.
     if (idCommandeCreee) {
-      fetch("/api/facebook-capi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commandeId: idCommandeCreee }),
-      }).catch(() => {});
+      const eventIdPurchase = `commande-${idCommandeCreee}`;
+      trackEvenement("Purchase", {
+        content_ids: contenusCommande.map((x) => x.id),
+        contents: contenusCommande,
+        content_type: "product",
+        value: valeurCommande,
+        currency: deviseCommande,
+        num_items: contenusCommande.reduce((s, x) => s + x.quantity, 0),
+      }, { eventID: eventIdPurchase });
+      envoyerEvenementCapi(idCommandeCreee);
     }
+
     trackEvenement("Lead", {
-      content_ids: [produitOuvert.produit_id],
-      value: items.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0),
-      currency: entreprise?.devise || "XOF",
-    });
+      content_ids: contenusCommande.map((x) => x.id),
+      contents: contenusCommande,
+      content_type: "product",
+      value: valeurCommande,
+      currency: deviseCommande,
+      num_items: contenusCommande.reduce((s, x) => s + x.quantity, 0),
+    }, { eventID: idCommandeCreee ? `lead-${idCommandeCreee}` : undefined });
     if (codePromoApplique) {
       supabase.rpc("incrementer_utilisation_code_promo", { p_workspace_id: workspaceId, p_code: codePromoApplique.code }).then(() => {});
     }
@@ -1709,8 +1819,12 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       onClick={() => {
                         trackEvenement("InitiateCheckout", {
                           content_ids: [produitOuvert.produit_id],
+                          contents: [{ id: produitOuvert.produit_id, quantity: quantite, item_price: Number(prixUnitaireEffectif) || 0 }],
+                          content_type: "product",
+                          content_name: produitOuvert.produit_nom,
                           value: prixUnitaireEffectif * quantite,
                           currency: entreprise?.devise || "XOF",
+                          num_items: quantite,
                         });
                         setAfficherFormulaire(true);
                         momentOuvertureFormulaireRef.current = Date.now();
@@ -2457,8 +2571,8 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       p_zone: form.zone,
       p_items: items,
       p_type_livraison: aChoixLivraison ? typeLivraisonChoisi : "livraison",
-      p_fbp: lireCookieMeta("_fbp"),
-      p_fbc: lireCookieMeta("_fbc"),
+      p_fbp: obtenirAttributionMeta().fbp,
+      p_fbc: obtenirAttributionMeta().fbc,
       p_user_agent: navigator.userAgent,
       p_event_source_url: window.location.href,
     });
@@ -2469,11 +2583,21 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     }
     const idCommandePanier = data[0].commande_id || data[0].id;
     if (idCommandePanier) {
-      fetch("/api/facebook-capi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commandeId: idCommandePanier }),
-      }).catch(() => {});
+      const contenusCommande = items.map((it) => ({
+        id: it.produit_id,
+        quantity: Number(it.quantite) || 1,
+        item_price: Number(it.prix_unitaire) || 0,
+      }));
+      const valeurCommande = Number(data[0].montant ?? data[0].total ?? totalAvecLivraison);
+      trackEvenement("Purchase", {
+        content_ids: contenusCommande.map((x) => x.id),
+        contents: contenusCommande,
+        content_type: "product",
+        value: valeurCommande,
+        currency: entreprise?.devise || "XOF",
+        num_items: contenusCommande.reduce((s, x) => s + x.quantity, 0),
+      }, { eventID: `commande-${idCommandePanier}` });
+      envoyerEvenementCapi(idCommandePanier);
     }
     onViderPanier();
     setEtape("envoye");

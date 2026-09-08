@@ -1,10 +1,17 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
-import App from "./App.jsx";
-import SuiviPublic from "./SuiviPublic.jsx";
-import CommanderPublic from "./CommanderPublic.jsx";
-import CataloguePublic from "./CataloguePublic.jsx";
+
+// Chargement à la demande : chaque route ne télécharge QUE le code dont elle a besoin.
+// Avant, les 4 (App entier + Suivi + Commander + Catalogue) étaient chargés d'un bloc,
+// peu importe lequel s'affichait vraiment — un client cliquant sur une pub pour voir un
+// produit téléchargeait alors tout le tableau de bord, tout le CRM et tous les agents IA
+// avant même de voir le premier produit. C'est la cause la plus probable des chargements
+// lents et de la faible conversion publicitaire observés sur la boutique.
+const App = lazy(() => import("./App.jsx"));
+const SuiviPublic = lazy(() => import("./SuiviPublic.jsx"));
+const CommanderPublic = lazy(() => import("./CommanderPublic.jsx"));
+const CataloguePublic = lazy(() => import("./CataloguePublic.jsx"));
 
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
@@ -30,20 +37,33 @@ if (estVueAdmin) {
   document.body.classList.add("rv-admin-app");
 }
 
+// Écran de chargement minimal pendant que le morceau de code nécessaire arrive — reste très
+// léger volontairement, il fait déjà partie du tout petit bundle initial.
+function ChargementInitial() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 34, height: 34, borderRadius: "50%", border: "3px solid #ECE8DC", borderTopColor: "#1a7a3c", animation: "rvSpin 0.7s linear infinite" }} />
+      <style>{`@keyframes rvSpin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
-      {suiviId ? (
-        <SuiviPublic commandeId={suiviId} />
-      ) : commanderId ? (
-        <CommanderPublic workspaceId={commanderId} />
-      ) : catalogueId ? (
-        <CataloguePublic workspaceId={catalogueId} />
-      ) : estDomainePersonnalise ? (
-        <CataloguePublic domaine={hostname} />
-      ) : (
-        <App />
-      )}
+      <Suspense fallback={<ChargementInitial />}>
+        {suiviId ? (
+          <SuiviPublic commandeId={suiviId} />
+        ) : commanderId ? (
+          <CommanderPublic workspaceId={commanderId} />
+        ) : catalogueId ? (
+          <CataloguePublic workspaceId={catalogueId} />
+        ) : estDomainePersonnalise ? (
+          <CataloguePublic domaine={hostname} />
+        ) : (
+          <App />
+        )}
+      </Suspense>
     </Sentry.ErrorBoundary>
   </React.StrictMode>
 );

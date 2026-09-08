@@ -913,7 +913,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         return;
       }
     }
-    const livraisonGratuiteV = !!produitOuvert.livraison_gratuite;
+    const livraisonGratuiteV = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
     const fraisExpeditionV = livraisonGratuiteV ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
     const aChoixLivraisonV = !livraisonGratuiteV && fraisExpeditionV > 0;
     if (aChoixLivraisonV && !typeLivraisonChoisi) {
@@ -960,7 +960,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_zone: form.zone,
       p_items: items,
       p_type_livraison: (() => {
-        const livraisonGratuiteP = !!produitOuvert.livraison_gratuite;
+        const livraisonGratuiteP = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
         const fraisExpeditionP = livraisonGratuiteP ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
         return !livraisonGratuiteP && fraisExpeditionP > 0 ? typeLivraisonChoisi : "livraison";
       })(),
@@ -1238,7 +1238,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   // ===== ÉCRAN FICHE PRODUIT (commande directe) =====
   if (produitOuvert) {
-    const livraisonGratuite = !!produitOuvert.livraison_gratuite;
+    const livraisonGratuite = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
     const fraisLivraisonEffectif = livraisonGratuite ? 0 : Number(produitOuvert.frais_livraison_produit ?? entreprise.fraisLivraison ?? 0);
     const fraisExpeditionEffectif = livraisonGratuite ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
     const aChoixLivraison = !livraisonGratuite && fraisExpeditionEffectif > 0;
@@ -1797,6 +1797,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   </button>
                 </div>
               </div>
+
+              {produitOuvert.livraison_gratuite_qte_min && !produitOuvert.livraison_gratuite && (
+                Number(quantite) >= Number(produitOuvert.livraison_gratuite_qte_min) ? (
+                  <div style={{ background: "#EAF3DE", border: "1px solid #C8E0B0", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#3B6D11", fontWeight: 700 }}>
+                    🎁 Livraison gratuite débloquée pour cette commande !
+                  </div>
+                ) : (
+                  <div style={{ background: "#FBF3E3", border: "1px solid #F0DBA8", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#8A6412", fontWeight: 700 }}>
+                    🎁 Encore {Number(produitOuvert.livraison_gratuite_qte_min) - Number(quantite)} exemplaire{Number(produitOuvert.livraison_gratuite_qte_min) - Number(quantite) > 1 ? "s" : ""} pour la livraison gratuite !
+                  </div>
+                )
+              )}
 
               {optionsProduitListe.length > 0 && (
                 <div style={{ marginBottom: 14 }}>

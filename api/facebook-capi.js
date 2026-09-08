@@ -24,29 +24,44 @@ export default async function handler(req, res) {
   const { commandeId } = req.body;
   if (!commandeId) return res.status(400).json({ error: "commandeId manquant" });
 
-  // Vérifie que la personne qui appelle est bien connectée et membre de l'espace concerné
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace("Bearer ", "");
-  if (!token) return res.status(401).json({ error: "Non authentifié" });
-
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-  if (userError || !userData?.user) return res.status(401).json({ error: "Session invalide" });
-
   const { data: commande, error: erreurCommande } = await supabaseAdmin
     .from("commandes")
-    .select("id, workspace_id, client, tel, montant, statut, confirmed_at, fb_fbp, fb_fbc, fb_user_agent, fb_event_source_url")
+    .select("id, workspace_id, client, tel, montant, statut, created_at, confirmed_at, purchase_event_envoye, fb_fbp, fb_fbc, fb_user_agent, fb_event_source_url")
     .eq("id", commandeId)
     .single();
 
   if (erreurCommande || !commande) return res.status(404).json({ error: "Commande introuvable" });
 
-  const { data: membership } = await supabaseAdmin
-    .from("workspace_members")
-    .select("id")
-    .eq("workspace_id", commande.workspace_id)
-    .eq("user_id", userData.user.id)
-    .maybeSingle();
-  if (!membership) return res.status(403).json({ error: "Accès refusé" });
+  // Deux façons légitimes d'appeler cette fonction :
+  // 1. Depuis le tableau de bord (admin connecté) — utilisé comme filet de sécurité au moment
+  //    de la confirmation, si l'envoi immédiat a échoué pour une raison ou une autre.
+  // 2. Depuis la boutique publique, SANS session (le client n'est jamais connecté) — c'est le
+  //    déclenchement principal, juste après la commande, façon Shopify : Facebook apprend vite.
+  //    Pour rester sûr sans authentification, on exige que la commande soit toute récente
+  //    (moins de 10 minutes) — impossible à deviner/rejouer plus tard pour quelqu'un d'externe.
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.replace("Bearer ", "");
+
+  if (token) {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !userData?.user) return res.status(401).json({ error: "Session invalide" });
+    const { data: membership } = await supabaseAdmin
+      .from("workspace_members")
+      .select("id")
+      .eq("workspace_id", commande.workspace_id)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    if (!membership) return res.status(403).json({ error: "Accès refusé" });
+  } else {
+    const ageMinutes = (Date.now() - new Date(commande.created_at).getTime()) / 60000;
+    if (ageMinutes > 10) return res.status(403).json({ error: "Commande trop ancienne pour un envoi non authentifié" });
+  }
+
+  // Jamais deux fois le même achat envoyé à Facebook, peu importe combien de fois cette
+  // fonction est appelée pour cette commande (immédiat + filet de sécurité à la confirmation).
+  if (commande.purchase_event_envoye) {
+    return res.status(200).json({ envoye: false, raison: "Déjà envoyé précédemment pour cette commande" });
+  }
 
   const { data: workspace, error: erreurWorkspace } = await supabaseAdmin
     .from("workspaces")
@@ -59,13 +74,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ envoye: false, raison: "Pixel Facebook ou token Conversions API non configuré" });
   }
 
-  // "website" (et non "system_generated") car la commande vient bien du site public,
-  // même si l'événement est envoyé plus tard, au moment de la confirmation par l'équipe.
-  // fbp/fbc/user_agent/event_source_url permettent à Facebook de relier précisément
-  // cet achat à la publicité qui l'a généré — sans ça, l'optimisation des pubs est très limitée.
+  // fbp/fbc/user_agent/event_source_url permettent à Facebook de relier précisément cet achat
+  // à la publicité qui l'a généré — sans ça, l'optimisation des pubs est très limitée.
   const evenement = {
     event_name: "Purchase",
-    event_time: Math.floor(new Date(commande.confirmed_at || Date.now()).getTime() / 1000),
+    event_time: Math.floor(new Date(commande.created_at || Date.now()).getTime() / 1000),
     action_source: "website",
     event_id: `commande-${commande.id}`,
     event_source_url: commande.fb_event_source_url || undefined,
@@ -95,6 +108,8 @@ export default async function handler(req, res) {
     if (!reponseFacebook.ok) {
       return res.status(400).json({ envoye: false, error: resultatFacebook.error?.message || "Erreur Facebook" });
     }
+
+    await supabaseAdmin.from("commandes").update({ purchase_event_envoye: true }).eq("id", commande.id);
 
     return res.status(200).json({ envoye: true, resultatFacebook });
   } catch (e) {

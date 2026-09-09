@@ -4,6 +4,8 @@ import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
+import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
+import NetworkDashboard from "./network/NetworkDashboard.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
@@ -2203,6 +2205,7 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
     { key: "location_immobiliere", icon: "🏠", titre: "Location immobilière", desc: "Suivi des loyers, locataires, relances de paiement" },
     { key: "restaurant", icon: "🍽️", titre: "Restaurant / Maquis / Fast-food", desc: "Menu, tables, suivi cuisine en temps réel" },
     { key: "location_vehicule", icon: "🚗", titre: "Location de véhicules / matériel", desc: "Véhicules, motos, matériel — dates, caution, disponibilité" },
+    { key: "network_marketing", icon: "🟣", titre: "Marketing de réseau", desc: "Une boutique centrale, des filleuls avec leur lien, attribution et commissions automatiques" },
     { key: "personnalise", icon: "🗂️", titre: "Autre activité (conseil, agence, clinique, association...)", desc: "Dossiers/commandes, clients, services, comptabilité, équipe — sans écrans spécifiques à un secteur" },
   ];
 
@@ -2527,7 +2530,7 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
 
 function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
   const [ouvert, setOuvert] = useState(false);
-  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" };
+  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", network_marketing: "🟣" };
 
   return (
     <div style={{ position: "relative", marginBottom: 18, display: "flex", gap: 6 }}>
@@ -2576,7 +2579,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   const [regenLienEnCours, setRegenLienEnCours] = useState(false);
   const [regenLienFait, setRegenLienFait] = useState(null);
   const activityType = workspace?.activity_type || 'cod_ecommerce';
-  const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures'})[activityType] || 'E-commerce';
+  const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures',network_marketing:'Marketing de réseau'})[activityType] || 'E-commerce';
   const sectionCatalog = {
     header:{icon:'🧭',label:'En-tête (fixe)',description:'Logo, recherche, compte, panier et menu — toujours affiché en haut de la boutique, comme sur Amazon/Shopify.'},
     announcement:{icon:'📣',label:'Barre d’annonce',description:'Message promotionnel ou information importante.'},
@@ -3159,11 +3162,12 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
 }
 
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace }) {
-  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || (workspace.activity_type === "location_vehicule" && workspace.slug === "luxury-car");
+  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || workspace.activity_type === "network_marketing" || (workspace.activity_type === "location_vehicule" && workspace.slug === "luxury-car");
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
   const [closers, setClosers] = useState([]);
+  const [filleuls, setFilleuls] = useState([]);
   const [produits, setProduits] = useState([]);
   const [plats, setPlats] = useState([]);
   const [tablesRestaurant, setTablesRestaurant] = useState([]);
@@ -3290,6 +3294,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   async function loadClosers() {
     const { data } = await supabase.from("closers").select("*").eq("workspace_id", workspace.id).order("nom");
     setClosers(data || []);
+  }
+
+  async function loadFilleuls() {
+    if (workspace.activity_type !== "network_marketing") return;
+    const { data } = await supabase.from("filleuls").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false });
+    setFilleuls(data || []);
   }
 
   async function loadProduits() {
@@ -3690,6 +3700,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   useEffect(() => {
     loadLivreurs();
     loadClosers();
+    loadFilleuls();
     loadProduits();
     if (workspace.activity_type === "restaurant") {
       loadPlats();
@@ -4689,6 +4700,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     );
   }
 
+  const monProfilFilleul = filleuls.find((f) => f.user_id === session.user.id || (f.email && f.email.toLowerCase() === session.user.email.toLowerCase()));
+
+  if (workspace.role === "filleul" && monProfilFilleul) {
+    return <FilleulPortalSaas filleul={monProfilFilleul} workspace={workspace} currency={formaterDevise(workspace.currency)} />;
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", width: "100%", maxWidth: "100vw", overflowX: "hidden", boxSizing: "border-box" }}>
       <style>{`@media(max-width:800px){body,html,#root{overflow-x:clip!important}}`}</style>
@@ -4828,6 +4845,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
           ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
+          ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "reseau", label: "🟣 Réseau" }] : []),
         ].map((t) => (
           <button
             key={t.key}
@@ -5693,6 +5711,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             ))}
           </div>
         </div>
+      )}
+
+      {vue === "reseau" && !accesBloque && (
+        <NetworkDashboard
+          workspace={workspace}
+          filleuls={filleuls}
+          produits={produits}
+          currency={formaterDevise(workspace.currency)}
+          onFilleulsChange={loadFilleuls}
+        />
       )}
 
       {vue === "recovery" && !accesBloque && (

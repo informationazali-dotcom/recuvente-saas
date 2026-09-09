@@ -71,7 +71,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {/* Onglets */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid #ECE8DC" }}>
-        {[{ key: "filleuls", label: "Filleuls" }, { key: "commissions", label: "💰 Commissions" }].map((o) => (
+        {[{ key: "filleuls", label: "Filleuls" }, { key: "commissions", label: "💰 Commissions" }, { key: "produits", label: "🏷️ Commissions produits" }].map((o) => (
           <button key={o.key} onClick={() => setOnglet(o.key)} style={{
             background: "none", border: "none", padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
             color: onglet === o.key ? "#1a7a3c" : "#8A9089",
@@ -121,6 +121,10 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
           statsPourFilleul={statsPourFilleul}
           onPayer={(f) => setFilleulAPayer(f)}
         />
+      )}
+
+      {onglet === "produits" && (
+        <ProduitsCommissionsPanel workspace={workspace} produits={produits} currency={currency} />
       )}
 
       {showAjout && (
@@ -415,6 +419,103 @@ function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, curre
           {enCours ? "Enregistrement..." : "✅ Confirmer le paiement"}
         </button>
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Annuler</button>
+      </div>
+    </div>
+  );
+}
+
+// Configuration de la commission par produit (§11 de la mission). Volontairement
+// séparé du gros formulaire produit existant dans App-complet.jsx — pour ne pas
+// toucher à un composant déjà massif — mais entièrement intégré dans "🟣 Réseau",
+// pas un écran à part : c'est un onglet de plus, comme Filleuls/Commissions.
+function ProduitsCommissionsPanel({ workspace, produits, currency }) {
+  const [lignes, setLignes] = useState(() =>
+    Object.fromEntries((produits || []).map((p) => [p.id, {
+      commission_type: p.commission_type || "pourcentage",
+      commission_valeur: p.commission_valeur != null ? String(p.commission_valeur) : "",
+    }]))
+  );
+  const [enregistrement, setEnregistrement] = useState({});
+  const [confirmes, setConfirmes] = useState({});
+
+  function majLigne(produitId, champ, valeur) {
+    setLignes((l) => ({ ...l, [produitId]: { ...l[produitId], [champ]: valeur } }));
+    setConfirmes((c) => ({ ...c, [produitId]: false }));
+  }
+
+  async function enregistrer(produitId) {
+    const ligne = lignes[produitId];
+    const valeurNombre = Number(ligne.commission_valeur);
+    if (!ligne.commission_valeur || isNaN(valeurNombre) || valeurNombre < 0) return;
+    setEnregistrement((e) => ({ ...e, [produitId]: true }));
+    await supabase
+      .from("produits")
+      .update({ commission_type: ligne.commission_type, commission_valeur: valeurNombre })
+      .eq("id", produitId)
+      .eq("workspace_id", workspace.id);
+    setEnregistrement((e) => ({ ...e, [produitId]: false }));
+    setConfirmes((c) => ({ ...c, [produitId]: true }));
+    setTimeout(() => setConfirmes((c) => ({ ...c, [produitId]: false })), 1800);
+  }
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
+
+  if (!produits || produits.length === 0) {
+    return (
+      <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>
+        Aucun produit dans cette boutique pour l'instant. Ajoute des produits dans « 📦 Produits », puis reviens ici définir leur commission.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12, lineHeight: 1.5 }}>
+        Définis la commission que touche un filleul sur chaque produit vendu via son lien. Un produit sans commission configurée ne génère aucune commission (mais la vente reste normalement attribuée).
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {produits.map((p) => {
+          const ligne = lignes[p.id] || { commission_type: "pourcentage", commission_valeur: "" };
+          const exemple = ligne.commission_valeur
+            ? ligne.commission_type === "pourcentage"
+              ? `≈ ${Math.round((Number(p.prix_vente || p.prix || 0) * Number(ligne.commission_valeur)) / 100).toLocaleString("fr-FR")} ${currency} / vente`
+              : `${Number(ligne.commission_valeur).toLocaleString("fr-FR")} ${currency} / unité`
+            : null;
+          return (
+            <div key={p.id} style={{ ...carte, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 140, flex: "1 1 160px" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{p.nom}</div>
+                <div style={{ fontSize: 11, color: "#8A9089" }}>{Number(p.prix_vente || p.prix || 0).toLocaleString("fr-FR")} {currency}</div>
+              </div>
+              <select
+                value={ligne.commission_type}
+                onChange={(e) => majLigne(p.id, "commission_type", e.target.value)}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
+              >
+                <option value="pourcentage">%</option>
+                <option value="montant_fixe">Montant fixe</option>
+              </select>
+              <input
+                type="number"
+                placeholder={ligne.commission_type === "pourcentage" ? "10" : "2000"}
+                value={ligne.commission_valeur}
+                onChange={(e) => majLigne(p.id, "commission_valeur", e.target.value)}
+                style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
+              />
+              {exemple && <div style={{ fontSize: 10.5, color: "#8A9089", minWidth: 130 }}>{exemple}</div>}
+              <button
+                onClick={() => enregistrer(p.id)}
+                disabled={enregistrement[p.id]}
+                style={{
+                  background: confirmes[p.id] ? "#EAF3DE" : "#1a7a3c", color: confirmes[p.id] ? "#1a7a3c" : "white",
+                  border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                {enregistrement[p.id] ? "..." : confirmes[p.id] ? "✅ Enregistré" : "Enregistrer"}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

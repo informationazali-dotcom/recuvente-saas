@@ -11293,12 +11293,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         });
         const resultatIA = await reponseIA.json();
         if (reponseIA.ok && resultatIA?.fiche) {
-          const { titre_ameliore, description, points_forts, categorie_suggeree } = resultatIA.fiche;
-          const descriptionComplete = [
-            description,
-            Array.isArray(points_forts) && points_forts.length > 0 ? "\n\n" + points_forts.map((p) => `✓ ${p}`).join("\n") : "",
-          ].join("");
-          await onUpdateDescription(resultat.id, descriptionComplete);
+          const { description_html } = resultatIA.fiche;
+          if (description_html) await onUpdateDescription(resultat.id, description_html);
         }
       } catch (e) { /* la génération IA est un plus, pas bloquant si elle échoue */ }
       setIaEnCours(false);
@@ -11400,7 +11396,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#3B6D11", cursor: "pointer", marginBottom: 10, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "8px 10px" }}>
                   <input type="checkbox" checked={genererAvecIA} onChange={(e) => setGenererAvecIA(e.target.checked)} />
-                  ✨ Rédiger la fiche produit avec l'IA (titre, description, arguments de vente)
+                  ✨ Créer une vraie page produit avec l'IA (plusieurs sections, avec des repères pour savoir où ajouter tes photos/vidéos)
                 </label>
 
                 {creationErreur && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8, fontWeight: 600 }}>⚠️ {creationErreur}</div>}

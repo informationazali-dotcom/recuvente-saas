@@ -11405,11 +11405,11 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
       <style>{`
         .rv-pm-body { display: flex; min-height: 0; flex: 1; }
-        .rv-pm-list { width: 340px; flex-shrink: 0; border-right: 1px solid #ECE8DC; }
+        .rv-pm-list { width: 340px; flex-shrink: 0; border-right: 1px solid #ECE8DC; overflow-y: auto; }
         .rv-pm-detail { flex: 1; min-width: 0; }
         @media (max-width: 860px) {
           .rv-pm-body { flex-direction: column; overflow-y: auto; }
-          .rv-pm-list { width: 100%; border-right: none; border-bottom: 1px solid #ECE8DC; max-height: 260px; }
+          .rv-pm-list { width: 100%; border-right: none; border-bottom: 1px solid #ECE8DC; max-height: 260px; overflow-y: auto; }
         }
         .rv-pm-field:focus { outline: 2px solid #1a7a3c; outline-offset: -1px; }
       `}</style>

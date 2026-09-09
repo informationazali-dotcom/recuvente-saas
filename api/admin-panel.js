@@ -825,23 +825,31 @@ async function gererGenererFicheProduitIA(req, res, user) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
 
-  const prompt = `Tu es un rédacteur e-commerce expérimenté, spécialisé dans les fiches produits qui donnent envie d'acheter en Afrique de l'Ouest (paiement à la livraison).
+  const prompt = `Tu es un rédacteur e-commerce expérimenté, spécialisé dans les pages produits qui donnent envie d'acheter en Afrique de l'Ouest (paiement à la livraison) — le genre de page qu'on voit chez les vraies marques, pas un simple paragraphe.
 
 Nom du produit : "${nom_produit.trim()}"
 
-Rédige une fiche produit convaincante, en français, à partir de ce seul nom. Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
+Rédige une page produit complète, structurée en plusieurs sections, en français. Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
 {
   "titre_ameliore": "un titre de produit clair et vendeur, à partir du nom donné",
-  "description": "une description complète en 3-4 phrases, qui met en avant l'usage et les bénéfices concrets du produit — pas de blabla vague",
-  "points_forts": ["argument de vente 1", "argument de vente 2", "argument de vente 3", "argument de vente 4"],
+  "description_html": "la page produit complète, en HTML, structurée en 3 à 4 sections",
   "categorie_suggeree": "une catégorie e-commerce simple (ex: Mode, Électronique, Beauté, Maison, Auto...)"
 }
 
-IMPORTANT : n'invente jamais de prix, de certification, de marque, de chiffre de vente, ou de caractéristique technique précise (comme une capacité en mAh, un poids exact) que tu ne peux pas connaître à partir du seul nom — reste sur des bénéfices et usages généraux et honnêtes. Réponds uniquement le JSON, sans texte autour.`;
+Pour "description_html", construis une vraie page produit, avec cette logique :
+1. Une section d'accroche qui parle du besoin ou du problème que le produit résout (un <h3> + un <p>).
+2. Juste après cette première section, insère un <h4> commençant par "📸 Astuce photo :" qui suggère PRÉCISÉMENT quelle photo ajouterait de l'impact ici (ex: "le produit tenu en main", "avant/après", "en situation d'usage réelle") — c'est un repère pour le marchand, pas une vraie image.
+3. Une section "Pourquoi ce produit" avec 3-4 arguments de vente concrets, en <ul><li>.
+4. Une section "Comment l'utiliser" ou "Pour qui" selon ce qui est le plus pertinent pour ce produit (<h3> + <p>).
+5. Avant la toute dernière section, insère un <h4> commençant par "🎥 Astuce vidéo :" suggérant ce qu'une courte vidéo de démonstration pourrait montrer.
+
+Utilise UNIQUEMENT ces balises HTML, rien d'autre : <h3>, <h4>, <p>, <ul>, <li>, <strong>. N'utilise jamais de balise <img> ou <video> toi-même — tu ne fais QUE suggérer où le marchand doit ajouter les siennes via les repères "Astuce photo"/"Astuce vidéo".
+
+IMPORTANT : n'invente jamais de prix, de certification, de marque, de chiffre de vente, ou de caractéristique technique précise (comme une capacité en mAh, un poids exact) que tu ne peux pas connaître à partir du seul nom — reste sur des bénéfices et usages généraux et honnêtes. Réponds uniquement le JSON, sans texte autour, sans les balises \`\`\`json.`;
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 600, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1200, messages: [{ role: "user", content: prompt }] }),
   });
   const data = await resp.json();
   if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });

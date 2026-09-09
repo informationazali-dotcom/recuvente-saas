@@ -15021,6 +15021,7 @@ function IntegrationsModal({ workspace, onClose }) {
     URL.revokeObjectURL(url);
   }
 
+  const [generationBoutiqueEnCours, setGenerationBoutiqueEnCours] = useState(false);
   const [personnalisation, setPersonnalisation] = useState({
     logo_url: workspace.logo_url || "",
     banniere_url: workspace.banniere_url || "",
@@ -15412,6 +15413,33 @@ function IntegrationsModal({ workspace, onClose }) {
           </div>
 
           <div style={{ fontSize: 11.5, color: "#8A6412", marginBottom: 4 }}>Description courte (optionnel)</div>
+          <button
+            onClick={async () => {
+              setGenerationBoutiqueEnCours(true);
+              try {
+                const { data: sessionData } = await supabase.auth.getSession();
+                const reponse = await fetch("/api/admin-panel", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+                  body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: workspace.name, type_activite: workspace.activity_type }),
+                });
+                const resultat = await reponse.json();
+                if (reponse.ok && resultat?.config) {
+                  setPersonnalisation((p) => ({
+                    ...p,
+                    description_boutique: resultat.config.description_boutique || p.description_boutique,
+                    politique_livraison: resultat.config.politique_livraison || p.politique_livraison,
+                    politique_retours: resultat.config.politique_retours || p.politique_retours,
+                  }));
+                }
+              } catch (e) { /* rien de cassé si ça échoue, le marchand garde ses champs vides à remplir */ }
+              setGenerationBoutiqueEnCours(false);
+            }}
+            disabled={generationBoutiqueEnCours}
+            style={{ display: "block", width: "100%", background: "#F5F3FF", border: "1px solid #DDD6FE", color: "#5B21B6", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12, cursor: generationBoutiqueEnCours ? "default" : "pointer", marginBottom: 10 }}
+          >
+            {generationBoutiqueEnCours ? "✨ Rédaction en cours..." : "✨ Remplir description + politiques avec l'IA"}
+          </button>
           <textarea
             value={personnalisation.description_boutique || ""}
             onChange={(e) => setPersonnalisation({ ...personnalisation, description_boutique: e.target.value })}

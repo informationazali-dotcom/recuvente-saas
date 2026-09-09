@@ -16,6 +16,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
   const [filtreStatut, setFiltreStatut] = useState("toutes");
   const [filleulAPayer, setFilleulAPayer] = useState(null);
   const [maxFilleuls, setMaxFilleuls] = useState(null);
+  const [maxCommandesMois, setMaxCommandesMois] = useState(null);
 
   async function charger() {
     setChargement(true);
@@ -23,16 +24,20 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
       supabase.from("filleuls_commissions").select("*").eq("workspace_id", workspace.id),
       supabase.from("filleuls_attributions").select("*").eq("workspace_id", workspace.id),
       supabase.from("filleuls_paiements_commissions").select("*").eq("workspace_id", workspace.id).order("paye_le", { ascending: false }),
-      supabase.from("subscriptions").select("*, subscription_plans(max_filleuls)").eq("workspace_id", workspace.id).maybeSingle(),
+      supabase.from("subscriptions").select("*, subscription_plans(max_filleuls, max_commandes_reseau_mois)").eq("workspace_id", workspace.id).maybeSingle(),
     ]);
     setCommissions(comm || []);
     setAttributions(attrib || []);
     setPaiements(pay || []);
     setMaxFilleuls(sub?.subscription_plans?.max_filleuls ?? null);
+    setMaxCommandesMois(sub?.subscription_plans?.max_commandes_reseau_mois ?? null);
     setChargement(false);
   }
 
   useEffect(() => { charger(); }, [workspace.id]);
+
+  const debutMoisCourant = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const commandesAttribueesCeMois = attributions.filter((a) => a.filleul_id && new Date(a.created_at) >= debutMoisCourant).length;
 
   const filleulsActifs = filleuls.filter((f) => f.statut === "actif").length;
   const caReseau = commissions.reduce((s, c) => s + Number(c.montant_base || 0), 0);
@@ -64,8 +69,14 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
       </div>
 
       {maxFilleuls != null && filleuls.length >= maxFilleuls && (
-        <div style={{ fontSize: 12, color: "#8A6412", background: "#FFF8E7", border: "1px solid #f5e2a9", borderRadius: 10, padding: "10px 14px", marginBottom: 16, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: "#8A6412", background: "#FFF8E7", border: "1px solid #f5e2a9", borderRadius: 10, padding: "10px 14px", marginBottom: 12, lineHeight: 1.5 }}>
           ⚠️ Ton réseau atteint la limite de ton abonnement ({maxFilleuls} filleuls). Tes filleuls et tes données restent intacts, mais passe à un forfait supérieur pour continuer à en recruter de nouveaux.
+        </div>
+      )}
+
+      {maxCommandesMois != null && commandesAttribueesCeMois >= maxCommandesMois && (
+        <div style={{ fontSize: 12, color: "#8A6412", background: "#FFF8E7", border: "1px solid #f5e2a9", borderRadius: 10, padding: "10px 14px", marginBottom: 16, lineHeight: 1.5 }}>
+          ⚠️ Ton réseau a atteint {commandesAttribueesCeMois} commandes attribuées ce mois-ci, la limite de ton abonnement ({maxCommandesMois}/mois). Les ventes continuent d'être enregistrées normalement, mais passe à un forfait supérieur pour lever cette limite.
         </div>
       )}
 
@@ -76,6 +87,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
         <div style={carte}><div style={label}>Commissions disponibles</div><div style={{ ...valeur, color: "#1a7a3c" }}>{commADisponibles.toLocaleString("fr-FR")} {currency}</div></div>
         <div style={carte}><div style={label}>Commissions payées</div><div style={valeur}>{commPayees.toLocaleString("fr-FR")} {currency}</div></div>
         <div style={carte}><div style={label}>Ventes non attribuées</div><div style={valeur}>{nonAttribuees}</div></div>
+        <div style={carte}><div style={label}>Commandes réseau ce mois</div><div style={valeur}>{commandesAttribueesCeMois}{maxCommandesMois != null ? ` / ${maxCommandesMois}` : ""}</div></div>
       </div>
 
       {/* Onglets */}

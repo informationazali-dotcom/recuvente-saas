@@ -11289,11 +11289,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       } catch (e) { /* la photo est un plus, pas bloquant si elle échoue */ }
     }
 
-    // Prix trouvé sur la page du lien produit — jamais deviné, seulement s'il a vraiment été
-    // trouvé sur la page (ex: dans les données structurées du site).
-    if (prixTrouveViaLien) {
-      try { await onUpdatePrixVente(resultat.id, prixTrouveViaLien); } catch (e) {}
-    }
+    // Le prix trouvé sur la page d'origine (souvent en dollars sur AliExpress) n'est JAMAIS
+    // appliqué automatiquement comme prix de vente — l'appliquer tel quel en F CFA afficherait
+    // un prix complètement faux sur la boutique. Il reste seulement affiché comme référence
+    // pour toi (voir plus haut), à toi de fixer ton propre prix, dans ta propre devise.
 
     // Fiche produit rédigée par l'IA à partir du seul nom — titre, description et arguments
     // de vente, pour que la fiche ait l'air professionnelle sans avoir à tout rédiger soi-même.
@@ -11310,6 +11309,29 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         if (reponseIA.ok && resultatIA?.fiche) {
           const { description_html } = resultatIA.fiche;
           if (description_html) await onUpdateDescription(resultat.id, description_html);
+        }
+
+        // C'est le tout premier produit de cette boutique : on en profite pour aussi générer
+        // la description et les politiques de la boutique elle-même — "toute la boutique"
+        // se met en place d'un coup, pas juste ce produit isolé.
+        if (produits.length === 0) {
+          const { data: sessionData2 } = await supabase.auth.getSession();
+          const { data: infosWorkspace } = await supabase.from("workspaces").select("name, activity_type, description_boutique").eq("id", workspaceId).maybeSingle();
+          if (infosWorkspace && !infosWorkspace.description_boutique) {
+            const reponseConfig = await fetch("/api/admin-panel", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData2.session?.access_token}` },
+              body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: infosWorkspace.name, type_activite: infosWorkspace.activity_type, workspace_id: workspaceId }),
+            });
+            const resultatConfig = await reponseConfig.json();
+            if (reponseConfig.ok && resultatConfig?.config) {
+              await supabase.from("workspaces").update({
+                description_boutique: resultatConfig.config.description_boutique || null,
+                politique_livraison: resultatConfig.config.politique_livraison || null,
+                politique_retours: resultatConfig.config.politique_retours || null,
+              }).eq("id", workspaceId);
+            }
+          }
         }
       } catch (e) { /* la génération IA est un plus, pas bloquant si elle échoue */ }
       setIaEnCours(false);
@@ -11382,6 +11404,13 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
             {ajoutOuvert && (
               <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
+                {produits.length === 0 && (
+                  <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EAF3DE)", border: "1px solid #DDD6FE", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 12, color: "#3B2F63", lineHeight: 1.5 }}>
+                    <strong>🚀 Deux façons de démarrer ta boutique :</strong><br />
+                    <strong>① Générer avec l'IA</strong> — colle un lien produit ci-dessous, et l'IA crée le premier produit ET configure ta boutique (description, politiques) en même temps.<br />
+                    <strong>② Créer moi-même</strong> — remplis simplement le nom et ajoute ta photo, sans l'IA.
+                  </div>
+                )}
                 <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, padding: 10, marginBottom: 10 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 700, color: "#5B21B6", marginBottom: 6 }}>🔗 Ou colle un lien produit (AliExpress, etc.)</div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -11409,7 +11438,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           } else {
                             if (resultat.nom) setNouveauNom(resultat.nom);
                             if (resultat.photo_url) { setPhotoDejaHebergeeUrl(resultat.photo_url); setNouvellePhotoApercu(resultat.photo_url); setNouvellePhotoFichier(null); }
-                            if (resultat.prix_trouve) setPrixTrouveViaLien(resultat.prix_trouve);
+                            if (resultat.prix_trouve) setPrixTrouveViaLien({ montant: resultat.prix_trouve, devise: resultat.devise_prix_trouve || "USD" });
                             if (!resultat.nom && !resultat.photo_url) setExtractionErreur("Rien d'exploitable trouvé sur cette page.");
                           }
                         } catch (e) {
@@ -11424,7 +11453,11 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     </button>
                   </div>
                   {extractionErreur && <div style={{ color: "#D64933", fontSize: 11, marginTop: 6 }}>{extractionErreur}</div>}
-                  {prixTrouveViaLien && <div style={{ color: "#3B6D11", fontSize: 11, marginTop: 6, fontWeight: 700 }}>💰 Prix trouvé sur la page : {Number(prixTrouveViaLien).toLocaleString("fr-FR")} — vérifie qu'il correspond bien à ta devise avant de valider.</div>}
+                  {prixTrouveViaLien && (
+                    <div style={{ background: "#FBF3E3", border: "1px solid #F0DBA8", borderRadius: 6, padding: "6px 8px", marginTop: 6, fontSize: 11, color: "#8A6412", fontWeight: 600, lineHeight: 1.5 }}>
+                      💰 Prix vu sur la page d'origine : <strong>{Number(prixTrouveViaLien.montant).toLocaleString("fr-FR")} {prixTrouveViaLien.devise}</strong> — c'est une référence, pas ton prix de vente. Fixe ton propre prix (en {currency}) une fois le produit créé, en tenant compte de tes frais réels (achat, import, marge).
+                    </div>
+                  )}
                   <div style={{ fontSize: 10, color: "#8A8098", marginTop: 6 }}>Le nom et la photo se remplissent automatiquement s'ils sont trouvés — rien n'est deviné.</div>
                 </div>
 

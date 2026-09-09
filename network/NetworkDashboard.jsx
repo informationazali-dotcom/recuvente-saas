@@ -29,19 +29,26 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
     setProspectsCharges(true);
   }
 
+  const [valeurStockReseau, setValeurStockReseau] = useState(0);
+  const [prospectsActifsCount, setProspectsActifsCount] = useState(0);
+
   async function charger() {
     setChargement(true);
-    const [{ data: comm }, { data: attrib }, { data: pay }, { data: sub }] = await Promise.all([
+    const [{ data: comm }, { data: attrib }, { data: pay }, { data: sub }, { data: stockReseau }, { count: nbProspectsActifs }] = await Promise.all([
       supabase.from("filleuls_commissions").select("*").eq("workspace_id", workspace.id),
       supabase.from("filleuls_attributions").select("*").eq("workspace_id", workspace.id),
       supabase.from("filleuls_paiements_commissions").select("*").eq("workspace_id", workspace.id).order("paye_le", { ascending: false }),
       supabase.from("subscriptions").select("*, subscription_plans(max_filleuls, max_commandes_reseau_mois)").eq("workspace_id", workspace.id).maybeSingle(),
+      supabase.from("filleuls_stock").select("quantite_restante, prix_acquisition_moyen").eq("workspace_id", workspace.id),
+      supabase.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).not("statut", "in", "(inscrit,perdu)"),
     ]);
     setCommissions(comm || []);
     setAttributions(attrib || []);
     setPaiements(pay || []);
     setMaxFilleuls(sub?.subscription_plans?.max_filleuls ?? null);
     setMaxCommandesMois(sub?.subscription_plans?.max_commandes_reseau_mois ?? null);
+    setValeurStockReseau((stockReseau || []).reduce((s, r) => s + Number(r.quantite_restante || 0) * Number(r.prix_acquisition_moyen || 0), 0));
+    setProspectsActifsCount(nbProspectsActifs || 0);
     setChargement(false);
   }
 
@@ -99,6 +106,8 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
         <div style={carte}><div style={label}>Commissions payées</div><div style={valeur}>{commPayees.toLocaleString("fr-FR")} {currency}</div></div>
         <div style={carte}><div style={label}>Ventes non attribuées</div><div style={valeur}>{nonAttribuees}</div></div>
         <div style={carte}><div style={label}>Commandes réseau ce mois</div><div style={valeur}>{commandesAttribueesCeMois}{maxCommandesMois != null ? ` / ${maxCommandesMois}` : ""}</div></div>
+        <div style={carte}><div style={label}>Valeur stock réseau</div><div style={valeur}>{valeurStockReseau.toLocaleString("fr-FR")} {currency}</div></div>
+        <div style={carte}><div style={label}>Prospects actifs</div><div style={valeur}>{prospectsActifsCount}</div></div>
       </div>
 
       {/* Onglets */}

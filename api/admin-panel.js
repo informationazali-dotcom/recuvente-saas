@@ -965,7 +965,7 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
     return res.status(400).json({ error: "Impossible d'ouvrir ce lien." });
   }
 
-  let nom = null, imageUrl = null, prix = null;
+  let nom = null, imageUrl = null, prix = null, devisePrix = null;
 
   // 1) Priorité aux données structurées (JSON-LD "Product") — la source la plus fiable quand
   // elle existe, car conçue justement pour décrire un produit sans ambiguïté.
@@ -982,7 +982,10 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
             const img = item.image;
             imageUrl = imageUrl || (Array.isArray(img) ? img[0] : img) || null;
             const offre = Array.isArray(item.offers) ? item.offers[0] : item.offers;
-            if (offre && offre.price) prix = Number(offre.price) || null;
+            if (offre && offre.price) {
+              prix = Number(offre.price) || null;
+              devisePrix = offre.priceCurrency || null;
+            }
           }
         }
       }
@@ -1028,6 +1031,7 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
     nom: nom ? nom.trim().slice(0, 150) : null,
     photo_url: photoHebergeeUrl,
     prix_trouve: prix,
+    devise_prix_trouve: devisePrix,
   });
 }
 

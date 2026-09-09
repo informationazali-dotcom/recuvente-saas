@@ -15,17 +15,20 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
   const [onglet, setOnglet] = useState("filleuls"); // filleuls | commissions
   const [filtreStatut, setFiltreStatut] = useState("toutes");
   const [filleulAPayer, setFilleulAPayer] = useState(null);
+  const [maxFilleuls, setMaxFilleuls] = useState(null);
 
   async function charger() {
     setChargement(true);
-    const [{ data: comm }, { data: attrib }, { data: pay }] = await Promise.all([
+    const [{ data: comm }, { data: attrib }, { data: pay }, { data: sub }] = await Promise.all([
       supabase.from("filleuls_commissions").select("*").eq("workspace_id", workspace.id),
       supabase.from("filleuls_attributions").select("*").eq("workspace_id", workspace.id),
       supabase.from("filleuls_paiements_commissions").select("*").eq("workspace_id", workspace.id).order("paye_le", { ascending: false }),
+      supabase.from("subscriptions").select("*, subscription_plans(max_filleuls)").eq("workspace_id", workspace.id).maybeSingle(),
     ]);
     setCommissions(comm || []);
     setAttributions(attrib || []);
     setPaiements(pay || []);
+    setMaxFilleuls(sub?.subscription_plans?.max_filleuls ?? null);
     setChargement(false);
   }
 
@@ -55,10 +58,16 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
     <div style={{ padding: "0 4px 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F" }}>🟣 Mon Réseau</div>
-        <button onClick={() => setShowAjout(true)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+        <button onClick={() => setShowAjout(true)} disabled={maxFilleuls != null && filleuls.length >= maxFilleuls} style={{ background: (maxFilleuls != null && filleuls.length >= maxFilleuls) ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: (maxFilleuls != null && filleuls.length >= maxFilleuls) ? "not-allowed" : "pointer" }}>
           + Ajouter un filleul
         </button>
       </div>
+
+      {maxFilleuls != null && filleuls.length >= maxFilleuls && (
+        <div style={{ fontSize: 12, color: "#8A6412", background: "#FFF8E7", border: "1px solid #f5e2a9", borderRadius: 10, padding: "10px 14px", marginBottom: 16, lineHeight: 1.5 }}>
+          ⚠️ Ton réseau atteint la limite de ton abonnement ({maxFilleuls} filleuls). Tes filleuls et tes données restent intacts, mais passe à un forfait supérieur pour continuer à en recruter de nouveaux.
+        </div>
+      )}
 
       {/* Vue générale */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 20 }}>
@@ -84,6 +93,9 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {onglet === "filleuls" && (
         <>
+          {filleuls.length > 1 && (
+            <TopClassements filleuls={filleuls} commissions={commissions} produits={produits} currency={currency} statsPourFilleul={statsPourFilleul} />
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {!chargement && filleuls.length === 0 && (
               <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>
@@ -517,6 +529,65 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Classements (§27-29 de la mission) : top vendeurs et top produits, calculés
+// à partir des commissions déjà chargées — pas de requête supplémentaire.
+// V1 volontairement simple : toutes périodes confondues, sans filtre de date.
+function TopClassements({ filleuls, commissions, produits, currency, statsPourFilleul }) {
+  const topFilleuls = [...filleuls]
+    .map((f) => ({ filleul: f, ventes: statsPourFilleul(f.id).ventes }))
+    .filter((x) => x.ventes > 0)
+    .sort((a, b) => b.ventes - a.ventes)
+    .slice(0, 5);
+
+  const parProduit = {};
+  for (const c of commissions) {
+    if (!c.produit_id) continue;
+    if (!parProduit[c.produit_id]) parProduit[c.produit_id] = { ventes: 0, ca: 0 };
+    parProduit[c.produit_id].ventes += 1;
+    parProduit[c.produit_id].ca += Number(c.montant_base || 0);
+  }
+  const topProduits = Object.entries(parProduit)
+    .map(([produitId, stats]) => ({ produit: produits?.find((p) => p.id === produitId), ...stats }))
+    .filter((x) => x.produit)
+    .sort((a, b) => b.ventes - a.ventes)
+    .slice(0, 5);
+
+  if (topFilleuls.length === 0 && topProduits.length === 0) return null;
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16 };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10, marginBottom: 16 }}>
+      {topFilleuls.length > 0 && (
+        <div style={carte}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#16231F", marginBottom: 10 }}>🏆 Top vendeurs</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {topFilleuls.map((x, i) => (
+              <div key={x.filleul.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span>{i + 1}. {x.filleul.nom}</span>
+                <span style={{ fontWeight: 700 }}>{x.ventes} vente{x.ventes > 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {topProduits.length > 0 && (
+        <div style={carte}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#16231F", marginBottom: 10 }}>🔥 Top produits (réseau)</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {topProduits.map((x, i) => (
+              <div key={x.produit.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span>{i + 1}. {x.produit.nom}</span>
+                <span style={{ fontWeight: 700 }}>{x.ventes} vente{x.ventes > 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

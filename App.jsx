@@ -6594,7 +6594,7 @@ function TeamModal({ workspace, onClose, pleinePage }) {
     setRetraitEnCours(null);
   }
 
-  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)", secretaire: "Secrétaire" };
+  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)", secretaire: "Secrétaire", filleul: "Filleul (vendeur réseau)" };
 
   const contenu = (
     <>
@@ -6674,10 +6674,10 @@ function TeamModal({ workspace, onClose, pleinePage }) {
   );
 }
 
-function InviteMemberForm({ workspace, onClose, onInvited }) {
+function InviteMemberForm({ workspace, onClose, onInvited, filleulPreselectionne }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("closer");
+  const [role, setRole] = useState(filleulPreselectionne ? "filleul" : "closer");
   const [titre, setTitre] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -6689,6 +6689,7 @@ function InviteMemberForm({ workspace, onClose, onInvited }) {
     { key: "livreur", label: "Livreur — ses livraisons" },
     { key: "comptable", label: "Comptable — lecture financière" },
     { key: "rh", label: "RH — gestion de l'équipe uniquement" },
+    ...(workspace.activity_type === "network_marketing" ? [{ key: "filleul", label: "Filleul — son lien de vente, ses ventes, ses commissions" }] : []),
   ].filter((r) => workspace.role === "owner" || (r.key !== "admin" && r.key !== "rh"));
 
   async function submit() {

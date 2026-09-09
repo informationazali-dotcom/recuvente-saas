@@ -11117,6 +11117,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [recherche, setRecherche] = useState("");
   const [nouveauNom, setNouveauNom] = useState("");
   const [nouveauCout, setNouveauCout] = useState("");
+  const [nouvellePhotoFichier, setNouvellePhotoFichier] = useState(null);
+  const [nouvellePhotoApercu, setNouvellePhotoApercu] = useState("");
+  const [genererAvecIA, setGenererAvecIA] = useState(true);
+  const [iaEnCours, setIaEnCours] = useState(false);
   const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
@@ -11256,13 +11260,55 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     } catch (e) {
       resultat = null;
     }
-    setCreationEnCours(false);
     if (!resultat) {
+      setCreationEnCours(false);
       setCreationErreur("La création a échoué. Vérifie ta connexion et réessaie.");
       return;
     }
+
+    // Photo envoyée avec la création — pas besoin de revenir remplir le produit après coup.
+    if (nouvellePhotoFichier) {
+      try {
+        const fichierCompresse = await compresserImage(nouvellePhotoFichier);
+        const extension = fichierCompresse.name.split(".").pop();
+        const chemin = `${resultat.id}-${Date.now()}.${extension}`;
+        const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+        if (!erreurUpload) {
+          const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+          await onUpdatePhoto(resultat.id, data.publicUrl);
+        }
+      } catch (e) { /* la photo est un plus, pas bloquant si elle échoue */ }
+    }
+
+    // Fiche produit rédigée par l'IA à partir du seul nom — titre, description et arguments
+    // de vente, pour que la fiche ait l'air professionnelle sans avoir à tout rédiger soi-même.
+    if (genererAvecIA) {
+      setIaEnCours(true);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const reponseIA = await fetch("/api/admin-panel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+          body: JSON.stringify({ action: "generer_fiche_produit_ia", nom_produit: nomCree }),
+        });
+        const resultatIA = await reponseIA.json();
+        if (reponseIA.ok && resultatIA?.fiche) {
+          const { titre_ameliore, description, points_forts, categorie_suggeree } = resultatIA.fiche;
+          const descriptionComplete = [
+            description,
+            Array.isArray(points_forts) && points_forts.length > 0 ? "\n\n" + points_forts.map((p) => `✓ ${p}`).join("\n") : "",
+          ].join("");
+          await onUpdateDescription(resultat.id, descriptionComplete);
+        }
+      } catch (e) { /* la génération IA est un plus, pas bloquant si elle échoue */ }
+      setIaEnCours(false);
+    }
+
+    setCreationEnCours(false);
     setNouveauNom("");
     setNouveauCout("");
+    setNouvellePhotoFichier(null);
+    setNouvellePhotoApercu("");
     setAjoutOuvert(false);
     // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
     if (resultat?.id) setSelectedId(resultat.id);
@@ -11324,8 +11370,43 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
                 <input placeholder="Nom du produit" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
                 <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+
+                {nouvellePhotoApercu ? (
+                  <div style={{ position: "relative", display: "inline-block", marginBottom: 10 }}>
+                    <img src={nouvellePhotoApercu} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: "1px solid #DDD8CC" }} />
+                    <button
+                      onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); }}
+                      style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 12, cursor: "pointer" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "white", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 10 }}>
+                    📷 Ajouter une photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const fichier = e.target.files?.[0];
+                        if (!fichier) return;
+                        setNouvellePhotoFichier(fichier);
+                        setNouvellePhotoApercu(URL.createObjectURL(fichier));
+                      }}
+                    />
+                  </label>
+                )}
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#3B6D11", cursor: "pointer", marginBottom: 10, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "8px 10px" }}>
+                  <input type="checkbox" checked={genererAvecIA} onChange={(e) => setGenererAvecIA(e.target.checked)} />
+                  ✨ Rédiger la fiche produit avec l'IA (titre, description, arguments de vente)
+                </label>
+
                 {creationErreur && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8, fontWeight: 600 }}>⚠️ {creationErreur}</div>}
-                <button onClick={ajouter} disabled={creationEnCours || !nouveauNom.trim()} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: creationEnCours ? "default" : "pointer", opacity: creationEnCours || !nouveauNom.trim() ? 0.6 : 1 }}>{creationEnCours ? "Création..." : "Créer le produit"}</button>
+                <button onClick={ajouter} disabled={creationEnCours || !nouveauNom.trim()} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: creationEnCours ? "default" : "pointer", opacity: creationEnCours || !nouveauNom.trim() ? 0.6 : 1 }}>
+                  {iaEnCours ? "✨ Rédaction en cours..." : creationEnCours ? "Création..." : "Créer le produit"}
+                </button>
               </div>
             )}
 

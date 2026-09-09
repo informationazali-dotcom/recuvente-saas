@@ -11,10 +11,17 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
   const [chargement, setChargement] = useState(true);
   const [lienCopie, setLienCopie] = useState(false);
   const [stock, setStock] = useState([]);
+  const [prospects, setProspects] = useState([]);
+  const [coachings, setCoachings] = useState([]);
 
   async function chargerStock() {
     const { data } = await supabase.from("filleuls_stock").select("*, produits(nom)").eq("filleul_id", filleul.id).gt("quantite_restante", 0);
     setStock(data || []);
+  }
+
+  async function chargerProspects() {
+    const { data } = await supabase.from("filleuls_prospects").select("*").eq("prospecte_par_filleul_id", filleul.id).order("created_at", { ascending: false });
+    setProspects(data || []);
   }
 
   useEffect(() => {
@@ -32,6 +39,9 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       setCommissions(comm || []);
       setVentes(attrib || []);
       if (filleul.mode_vente === "revendeur") await chargerStock();
+      await chargerProspects();
+      const { data: coachData } = await supabase.from("filleuls_coachings").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false });
+      setCoachings(coachData || []);
       setChargement(false);
     }
     charger();
@@ -100,6 +110,22 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
 
       {filleul.mode_vente === "revendeur" && (
         <MonStock filleul={filleul} workspace={workspace} produits={produits} currency={currency} stock={stock} onChange={chargerStock} />
+      )}
+
+      <MesProspects filleul={filleul} workspace={workspace} prospects={prospects} onChange={chargerProspects} />
+
+      {coachings.length > 0 && (
+        <div style={{ ...carte, marginBottom: 16 }}>
+          <div style={label}>🎓 Notes de mon coach</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+            {coachings.map((c) => (
+              <div key={c.id} style={{ fontSize: 12, background: "#F7FAF7", borderRadius: 8, padding: "8px 10px" }}>
+                {c.note}
+                <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3 }}>{new Date(c.created_at).toLocaleDateString("fr-FR")}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Historique commissions */}
@@ -206,6 +232,57 @@ function MonStock({ filleul, workspace, produits, currency, stock, onChange }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// "Mes prospects" (§12 de la mission) : le filleul prospecte pour développer son
+// propre réseau. Il ne voit/gère que SES prospects (garanti par RLS).
+function MesProspects({ filleul, workspace, prospects, onChange }) {
+  const [showAjout, setShowAjout] = useState(false);
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 };
+  const statutLabel = { nouveau: "🆕", contacte: "📞", presente: "🗣️", suivi: "🔄", inscrit: "✅", perdu: "❌" };
+
+  async function creer() {
+    if (!nom.trim()) return;
+    setEnCours(true);
+    await supabase.from("filleuls_prospects").insert([{ workspace_id: workspace.id, prospecte_par_filleul_id: filleul.id, nom: nom.trim(), telephone: telephone.trim() || null }]);
+    setNom(""); setTelephone(""); setShowAjout(false);
+    setEnCours(false);
+    await onChange();
+  }
+
+  return (
+    <div style={carte}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#16231F" }}>🎯 Mes prospects</div>
+        <button onClick={() => setShowAjout(!showAjout)} style={{ background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 7, padding: "6px 11px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+          + Ajouter
+        </button>
+      </div>
+
+      {showAjout && (
+        <div style={{ marginBottom: 12 }}>
+          <input placeholder="Nom" value={nom} onChange={(e) => setNom(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 6 }} />
+          <input placeholder="Téléphone (optionnel)" value={telephone} onChange={(e) => setTelephone(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 6 }} />
+          <button onClick={creer} disabled={enCours} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+            {enCours ? "..." : "Créer"}
+          </button>
+        </div>
+      )}
+
+      {prospects.length === 0 && <div style={{ fontSize: 12, color: "#8A9089" }}>Aucun prospect pour l'instant — commence à en ajouter pour développer ton équipe.</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {prospects.map((p) => (
+          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0" }}>
+            <span>{p.nom}</span>
+            <span>{statutLabel[p.statut] || ""} {p.statut}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -2736,6 +2736,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
         ...(Array.isArray(c.statsItems)&&c.statsItems.length?{statsItems:c.statsItems.slice(0,4)}:{}),
         ...(c.scrollingAlertTexte?{scrollingAlertTexte:c.scrollingAlertTexte}:{}),
         ...(Array.isArray(c.sections)&&c.sections.length?{sections:c.sections}:{}),
+        ...(c.customHtmlCode?{customHtmlCode:c.customHtmlCode}:{}),
       }));
       setGenererIAFait(true);
       setTimeout(()=>setGenererIAFait(false),3000);
@@ -11439,6 +11440,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               ...(Array.isArray(c.statsItems) && c.statsItems.length ? { statsItems: c.statsItems.slice(0, 4) } : {}),
               ...(c.scrollingAlertTexte ? { scrollingAlertTexte: c.scrollingAlertTexte } : {}),
               ...(Array.isArray(c.sections) && c.sections.length ? { sections: c.sections } : {}),
+              ...(c.customHtmlCode ? { customHtmlCode: c.customHtmlCode } : {}),
             };
             await supabase.from("workspaces").update({
               description_boutique: c.description_boutique || null,

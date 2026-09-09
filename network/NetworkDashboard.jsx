@@ -17,6 +17,17 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
   const [filleulAPayer, setFilleulAPayer] = useState(null);
   const [maxFilleuls, setMaxFilleuls] = useState(null);
   const [maxCommandesMois, setMaxCommandesMois] = useState(null);
+  const [prospects, setProspects] = useState([]);
+  const [prospectsCharges, setProspectsCharges] = useState(false);
+  const [prospectSelectionne, setProspectSelectionne] = useState(null);
+  const [showAjoutProspect, setShowAjoutProspect] = useState(false);
+  const [filtreStatutProspect, setFiltreStatutProspect] = useState("toutes");
+
+  async function chargerProspects() {
+    const { data } = await supabase.from("filleuls_prospects").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false });
+    setProspects(data || []);
+    setProspectsCharges(true);
+  }
 
   async function charger() {
     setChargement(true);
@@ -92,8 +103,8 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {/* Onglets */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid #ECE8DC" }}>
-        {[{ key: "filleuls", label: "Filleuls" }, { key: "commissions", label: "💰 Commissions" }, { key: "produits", label: "🏷️ Commissions produits" }].map((o) => (
-          <button key={o.key} onClick={() => setOnglet(o.key)} style={{
+        {[{ key: "filleuls", label: "Filleuls" }, { key: "commissions", label: "💰 Commissions" }, { key: "produits", label: "🏷️ Commissions produits" }, { key: "prospects", label: "🎯 Prospects" }].map((o) => (
+          <button key={o.key} onClick={() => { setOnglet(o.key); if (o.key === "prospects" && !prospectsCharges) chargerProspects(); }} style={{
             background: "none", border: "none", padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
             color: onglet === o.key ? "#1a7a3c" : "#8A9089",
             borderBottom: onglet === o.key ? "2px solid #1a7a3c" : "2px solid transparent", marginBottom: -1,
@@ -149,6 +160,30 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {onglet === "produits" && (
         <ProduitsCommissionsPanel workspace={workspace} produits={produits} currency={currency} />
+      )}
+
+      {onglet === "prospects" && (
+        <ProspectsPanel
+          workspace={workspace}
+          filleuls={filleuls}
+          prospects={prospects}
+          filtreStatut={filtreStatutProspect}
+          setFiltreStatut={setFiltreStatutProspect}
+          onAjouter={() => setShowAjoutProspect(true)}
+          onSelectionner={(p) => setProspectSelectionne(p)}
+        />
+      )}
+
+      {showAjoutProspect && (
+        <AjoutProspectModal workspace={workspace} onClose={() => setShowAjoutProspect(false)} onCree={async () => { setShowAjoutProspect(false); await chargerProspects(); }} />
+      )}
+
+      {prospectSelectionne && (
+        <FicheProspectModal
+          prospect={prospectSelectionne}
+          onClose={() => setProspectSelectionne(null)}
+          onChange={async () => { await chargerProspects(); await onFilleulsChange?.(); }}
+        />
       )}
 
       {showAjout && (
@@ -240,6 +275,25 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
   const [quantiteAchat, setQuantiteAchat] = useState("");
   const [prixAchat, setPrixAchat] = useState("");
   const [erreurStock, setErreurStock] = useState("");
+  const [coachings, setCoachings] = useState([]);
+  const [noteCoaching, setNoteCoaching] = useState("");
+  const [enCoursCoaching, setEnCoursCoaching] = useState(false);
+
+  async function chargerCoachings() {
+    const { data } = await supabase.from("filleuls_coachings").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false });
+    setCoachings(data || []);
+  }
+  useEffect(() => { chargerCoachings(); }, [filleul.id]);
+
+  async function ajouterCoaching() {
+    if (!noteCoaching.trim()) return;
+    setEnCoursCoaching(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    await supabase.from("filleuls_coachings").insert([{ workspace_id: workspace.id, filleul_id: filleul.id, note: noteCoaching.trim(), cree_par: sessionData?.session?.user?.id || null }]);
+    setNoteCoaching("");
+    await chargerCoachings();
+    setEnCoursCoaching(false);
+  }
 
   async function chargerStock() {
     setChargeStock(true);
@@ -368,6 +422,20 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
             </div>
           </div>
         )}
+
+        <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>🎓 Coaching</div>
+          <textarea placeholder="Note de coaching (visible par le filleul)..." value={noteCoaching} onChange={(e) => setNoteCoaching(e.target.value)} rows={2} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8, resize: "vertical" }} />
+          <button onClick={ajouterCoaching} disabled={enCoursCoaching} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+            Ajouter la note
+          </button>
+          {coachings.map((c) => (
+            <div key={c.id} style={{ fontSize: 11, background: "#F7FAF7", borderRadius: 7, padding: "6px 9px", marginBottom: 5 }}>
+              {c.note}
+              <div style={{ fontSize: 9.5, color: "#8A9089", marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString("fr-FR")}</div>
+            </div>
+          ))}
+        </div>
 
         <button onClick={basculerStatut} disabled={enCours} style={{ width: "100%", background: filleul.statut === "actif" ? "#FBEAEA" : "#EAF3DE", color: filleul.statut === "actif" ? "#D64933" : "#1a7a3c", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
           {filleul.statut === "actif" ? "⏸️ Suspendre ce filleul" : "✅ Réactiver ce filleul"}
@@ -705,6 +773,170 @@ function TopClassements({ filleuls, commissions, produits, currency, statsPourFi
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Onglet Prospects (§12-13 de la mission) : la partie amont du parcours filleul,
+// avant même l'inscription — prospection, relances, conversion.
+function ProspectsPanel({ workspace, filleuls, prospects, filtreStatut, setFiltreStatut, onAjouter, onSelectionner }) {
+  const statuts = [
+    { key: "toutes", label: "Tous" }, { key: "nouveau", label: "Nouveau" }, { key: "contacte", label: "Contacté" },
+    { key: "presente", label: "Présenté" }, { key: "suivi", label: "En suivi" }, { key: "inscrit", label: "Inscrit" }, { key: "perdu", label: "Perdu" },
+  ];
+  const statutLabel = { nouveau: "🆕 Nouveau", contacte: "📞 Contacté", presente: "🗣️ Présenté", suivi: "🔄 En suivi", inscrit: "✅ Inscrit", perdu: "❌ Perdu" };
+  const prospectsFiltres = filtreStatut === "toutes" ? prospects : prospects.filter((p) => p.statut === filtreStatut);
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {statuts.map((s) => (
+            <button key={s.key} onClick={() => setFiltreStatut(s.key)} style={{
+              border: `1px solid ${filtreStatut === s.key ? "#6b3fd4" : "#ECE8DC"}`,
+              background: filtreStatut === s.key ? "#f0ecfb" : "white",
+              color: filtreStatut === s.key ? "#5b3ba8" : "#6B7168",
+              borderRadius: 20, padding: "6px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+            }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={onAjouter} style={{ background: "#6b3fd4", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+          + Prospect
+        </button>
+      </div>
+
+      {prospectsFiltres.length === 0 && <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun prospect dans ce filtre.</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {prospectsFiltres.map((p) => {
+          const prospecteur = filleuls.find((f) => f.id === p.prospecte_par_filleul_id);
+          return (
+            <div key={p.id} onClick={() => onSelectionner(p)} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "12px 16px" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{p.nom}</div>
+                <div style={{ fontSize: 11, color: "#8A9089" }}>{p.telephone || "—"} {prospecteur ? `· prospecté par ${prospecteur.nom}` : ""}</div>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700 }}>{statutLabel[p.statut] || p.statut}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AjoutProspectModal({ workspace, onClose, onCree }) {
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [source, setSource] = useState("");
+  const [enCours, setEnCours] = useState(false);
+
+  async function creer() {
+    if (!nom.trim()) return;
+    setEnCours(true);
+    await supabase.from("filleuls_prospects").insert([{ workspace_id: workspace.id, nom: nom.trim(), telephone: telephone.trim() || null, source: source.trim() || null }]);
+    setEnCours(false);
+    onCree();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380 }}>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14, color: "#16231F" }}>Nouveau prospect</div>
+        <input placeholder="Nom" value={nom} onChange={(e) => setNom(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }} autoFocus />
+        <input placeholder="Téléphone (optionnel)" value={telephone} onChange={(e) => setTelephone(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }} />
+        <input placeholder="Source (ex: Facebook, bouche à oreille...)" value={source} onChange={(e) => setSource(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }} />
+        <button onClick={creer} disabled={enCours} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginBottom: 8 }}>
+          {enCours ? "..." : "Créer le prospect"}
+        </button>
+        <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Annuler</button>
+      </div>
+    </div>
+  );
+}
+
+function FicheProspectModal({ prospect, onClose, onChange }) {
+  const [relances, setRelances] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [note, setNote] = useState("");
+  const [statut, setStatut] = useState(prospect.statut);
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  useEffect(() => {
+    supabase.from("filleuls_prospects_relances").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false })
+      .then(({ data }) => { setRelances(data || []); setChargement(false); });
+  }, [prospect.id]);
+
+  async function ajouterRelance() {
+    if (!note.trim()) return;
+    setEnCours(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    await supabase.from("filleuls_prospects_relances").insert([{ workspace_id: prospect.workspace_id, prospect_id: prospect.id, note: note.trim(), cree_par: sessionData?.session?.user?.id || null }]);
+    setNote("");
+    const { data } = await supabase.from("filleuls_prospects_relances").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false });
+    setRelances(data || []);
+    setEnCours(false);
+  }
+
+  async function majStatut(nouveauStatut) {
+    setStatut(nouveauStatut);
+    await supabase.from("filleuls_prospects").update({ statut: nouveauStatut, updated_at: new Date().toISOString() }).eq("id", prospect.id);
+    onChange();
+  }
+
+  async function convertir() {
+    setEnCours(true);
+    setErreur("");
+    const { error } = await supabase.rpc("convertir_prospect_en_filleul", { p_prospect_id: prospect.id });
+    setEnCours(false);
+    if (error) { setErreur("Échec de la conversion."); return; }
+    await onChange();
+    onClose();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100, overflowY: "auto" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 800, fontSize: 17, color: "#16231F" }}>{prospect.nom}</div>
+        <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 14 }}>{prospect.telephone || "—"} {prospect.source ? `· ${prospect.source}` : ""}</div>
+
+        <select value={statut} onChange={(e) => majStatut(e.target.value)} disabled={prospect.statut === "inscrit"} style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 12 }}>
+          <option value="nouveau">🆕 Nouveau</option>
+          <option value="contacte">📞 Contacté</option>
+          <option value="presente">🗣️ Présenté</option>
+          <option value="suivi">🔄 En suivi</option>
+          <option value="perdu">❌ Perdu</option>
+          <option value="inscrit" disabled>✅ Inscrit</option>
+        </select>
+
+        {prospect.statut !== "inscrit" && (
+          <button onClick={convertir} disabled={enCours} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 0", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginBottom: 14 }}>
+            {enCours ? "..." : "✅ Convertir en filleul (créer son lien)"}
+          </button>
+        )}
+        {erreur && <div style={{ fontSize: 11, color: "#D64933", marginBottom: 10 }}>{erreur}</div>}
+
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>Relances</div>
+        <textarea placeholder="Note sur ce contact..." value={note} onChange={(e) => setNote(e.target.value)} rows={2} style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, resize: "vertical" }} />
+        <button onClick={ajouterRelance} disabled={enCours} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer", marginBottom: 14 }}>
+          Ajouter la note
+        </button>
+
+        {chargement && <div style={{ fontSize: 11.5, color: "#8A9089" }}>Chargement...</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+          {relances.map((r) => (
+            <div key={r.id} style={{ fontSize: 11.5, background: "#F7FAF7", borderRadius: 8, padding: "8px 10px" }}>
+              <div>{r.note}</div>
+              <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3 }}>{new Date(r.created_at).toLocaleString("fr-FR")}</div>
+            </div>
+          ))}
+        </div>
+
+        <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Fermer</button>
+      </div>
     </div>
   );
 }

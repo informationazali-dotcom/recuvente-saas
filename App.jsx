@@ -1251,6 +1251,7 @@ function LandingPage() {
     ['🏠','Immobilier','Locataires, loyers, paiements, relances et dossiers.','Centralisez les opérations qui demandent rigueur, suivi et visibilité.'],
     ['🍽️','Restaurant','Menu, tables, commandes, préparation, service et livraison.','Faites circuler la commande sans perdre l’information entre les équipes.'],
     ['🚗','Location','Véhicules / matériel, réservations, dates, cautions et disponibilité.','Passez du suivi manuel à une activité organisée autour des bonnes données.'],
+    ['🟣','Marketing de réseau','Une boutique centrale, des filleuls avec leur lien, ventes attribuées et commissions calculées automatiquement.','Transformez votre boutique en réseau commercial sans perdre le contrôle.'],
     ['🗂️','Autre activité','Conseil, agence, clinique, association, formation, services et autres organisations.','Adaptez votre espace à votre métier sans renoncer au pilotage centralisé.']
   ];
   const pillars = [

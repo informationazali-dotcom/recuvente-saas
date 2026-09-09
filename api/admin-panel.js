@@ -951,6 +951,81 @@ IMPORTANT : n'invente aucun délai précis, aucune ville, aucun tarif de livrais
   return res.status(200).json({ config: configGeneree });
 }
 
+// ===== POST "generer_boutique_complete_ia" : contrairement à generer_configuration_boutique_ia
+// (3 champs de texte seulement), celle-ci génère un vrai design de départ compatible avec le
+// Store Builder existant (RVStoreBuilder / sectionCatalog dans App.jsx) : couleur, titre héros,
+// réassurance, chiffres clés, etc. On ne touche PAS à l'ordre des sections (config.sections) —
+// une valeur inventée par l'IA pourrait ne pas exister dans sectionCatalog et casser l'affichage ;
+// l'ordre par défaut, déjà adapté au secteur d'activité, reste inchangé.
+async function gererGenererBoutiqueCompleteIA(req, res, user) {
+  const { nom_entreprise, type_activite, produit_nom, produit_description } = req.body;
+  if (!nom_entreprise || !nom_entreprise.trim()) return res.status(400).json({ error: "Nom de l'entreprise manquant" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const typesLisibles = {
+    cod_ecommerce: "vente en ligne (paiement à la livraison)", retail: "commerce physique", restaurant: "restaurant",
+    location_immobiliere: "location immobilière", location_vehicule: "location de véhicules/matériel",
+    network_marketing: "marketing de réseau (boutique + vendeurs affiliés)", personnalise: "activité de services",
+  };
+  const typeTexte = typesLisibles[type_activite] || "vente en ligne";
+
+  const prompt = `Tu es à la fois designer e-commerce (30 ans d'expérience) et copywriter (30 ans d'expérience). Tu conçois les textes et les couleurs de la page d'accueil d'une boutique en ligne professionnelle pour une entreprise africaine (paiement à la livraison, Afrique de l'Ouest principalement).
+
+Nom de l'entreprise : "${nom_entreprise.trim()}"
+Type d'activité : ${typeTexte}
+${produit_nom ? `Produit phare : "${produit_nom.trim()}"` : ""}
+${produit_description ? `Description donnée par le marchand : "${produit_description.trim().slice(0, 300)}"` : ""}
+
+Réponds UNIQUEMENT avec un objet JSON dans ce format exact (respecte les noms de champs à la lettre) :
+{
+  "couleur": "#RRGGBB (une couleur de marque sobre et professionnelle, adaptée au secteur — jamais une couleur criarde)",
+  "description_boutique": "1-2 phrases qui présentent l'activité de façon engageante",
+  "politique_livraison": "texte générique mais professionnel, sans délai/ville/tarif précis inventé",
+  "politique_retours": "texte générique mais professionnel",
+  "announcement": "une courte phrase d'accroche pour la barre d'annonce en haut de la boutique (avec 1-2 emojis, style rassurant : livraison, paiement à la livraison, etc.)",
+  "heroTitle": "un titre d'accroche court et percutant pour la bannière principale (5-8 mots)",
+  "heroSubtitle": "une phrase qui complète le titre et donne envie de parcourir la boutique",
+  "buttonText": "texte du bouton d'action principal (2-4 mots, ex: Découvrir la collection)",
+  "imageTexteTitre": "titre de la section \\"pourquoi nous choisir\\"",
+  "imageTexteTexte": "un paragraphe qui explique ce qui rend cette boutique unique",
+  "richTextTitre": "titre de la section \\"à propos\\"",
+  "richTextTexte": "un paragraphe qui raconte l'histoire ou l'engagement de la marque",
+  "brandsCtaTitre": "titre court pour la section contact/WhatsApp",
+  "brandsCtaTexte": "1 phrase qui invite à contacter la boutique sur WhatsApp",
+  "statsItems": [
+    {"valeur": "ex: 500+", "label": "ex: Clients satisfaits"},
+    {"valeur": "...", "label": "..."},
+    {"valeur": "...", "label": "..."},
+    {"valeur": "...", "label": "..."}
+  ],
+  "scrollingAlertTexte": "un texte court qui défile en boucle (séparé par des •), reprenant les points forts (livraison, paiement, sécurité)"
+}
+
+IMPORTANT :
+- N'invente aucun chiffre, délai, ville ou tarif précis qui pourrait être faux — reste sur des formulations crédibles et génériques que le marchand pourra ajuster.
+- Les statsItems doivent rester plausibles pour une boutique qui démarre (pas de "10 000 clients" pour une nouvelle boutique).
+- Réponds uniquement le JSON, sans texte autour, sans balises \`\`\`json.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1400, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let configGeneree;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    configGeneree = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  return res.status(200).json({ config: configGeneree });
+}
+
 // ===== POST "extraire_produit_depuis_lien" : à partir d'un vrai lien produit (AliExpress et
 // similaires), récupère le nom, la photo et le prix quand ils sont publiquement disponibles sur
 // la page — jamais inventés. La photo est re-téléchargée et hébergée chez nous (pas de lien
@@ -960,15 +1035,39 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
   if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "Lien invalide" });
   if (!workspace_id) return res.status(400).json({ error: "Espace de travail manquant" });
 
-  let html;
-  try {
-    const reponsePage = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" },
+  // Beaucoup de sites (AliExpress en tête) bloquent une requête serveur trop nue. On imite un
+  // vrai navigateur avec des en-têtes complets, et si la version normale échoue, on retente sur
+  // la version mobile du site (m.aliexpress.com) — souvent moins protégée que la version desktop.
+  const entetesNavigateur = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Referer": "https://www.google.com/",
+  };
+
+  async function tenterRecuperation(cible) {
+    const controleur = new AbortController();
+    const delai = setTimeout(() => controleur.abort(), 12000);
+    try {
+      const reponsePage = await fetch(cible, { headers: entetesNavigateur, signal: controleur.signal });
+      clearTimeout(delai);
+      if (!reponsePage.ok) return null;
+      return await reponsePage.text();
+    } catch (e) {
+      clearTimeout(delai);
+      return null;
+    }
+  }
+
+  let html = await tenterRecuperation(url);
+  if (!html && /aliexpress\.com/i.test(url) && !/^https?:\/\/m\./i.test(url)) {
+    const urlMobile = url.replace(/^https?:\/\/(www\.)?/i, "https://m.");
+    html = await tenterRecuperation(urlMobile);
+  }
+  if (!html) {
+    return res.status(400).json({
+      error: "Ce site bloque la récupération automatique (protection anti-robot). Utilise plutôt \"Identifier depuis une photo\" — colle une capture d'écran du produit, ça fonctionne dans ce cas.",
     });
-    if (!reponsePage.ok) return res.status(400).json({ error: "Impossible d'ouvrir ce lien (page inaccessible)." });
-    html = await reponsePage.text();
-  } catch (e) {
-    return res.status(400).json({ error: "Impossible d'ouvrir ce lien." });
   }
 
   let nom = null, imageUrl = null, prix = null, devisePrix = null;
@@ -1010,7 +1109,7 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
   }
 
   if (!nom && !imageUrl) {
-    return res.status(400).json({ error: "Aucune information exploitable trouvée sur cette page. Essaie de copier le nom et la photo manuellement." });
+    return res.status(400).json({ error: "Aucune information exploitable trouvée sur cette page. Utilise plutôt \"Identifier depuis une photo\" — colle une capture d'écran du produit." });
   }
 
   // Rapatrie la photo chez nous plutôt que de garder un lien direct vers le site d'origine —
@@ -1122,6 +1221,11 @@ export default async function handler(req, res) {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
     return gererGenererConfigurationBoutiqueIA(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "generer_boutique_complete_ia") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererGenererBoutiqueCompleteIA(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "extraire_produit_depuis_lien") {
     const userMembre = await verifierMembreWorkspace(req, res);

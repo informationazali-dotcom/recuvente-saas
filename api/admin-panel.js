@@ -957,6 +957,24 @@ IMPORTANT : n'invente aucun délai précis, aucune ville, aucun tarif de livrais
 // réassurance, chiffres clés, etc. On ne touche PAS à l'ordre des sections (config.sections) —
 // une valeur inventée par l'IA pourrait ne pas exister dans sectionCatalog et casser l'affichage ;
 // l'ordre par défaut, déjà adapté au secteur d'activité, reste inchangé.
+// Nettoyage défensif d'un bloc HTML généré par l'IA avant qu'il n'atteigne
+// customHtmlCode, qui est injecté tel quel dans la boutique publique via
+// dangerouslySetInnerHTML (aucune sanitisation côté React). Retire tout ce qui
+// pourrait exécuter du code : balises actives, gestionnaires d'événements,
+// URLs "javascript:". Imparfait par nature (un filtre par expressions
+// régulières n'est jamais une sanitisation DOM complète), mais réduit
+// nettement le risque, combiné aux instructions strictes données à l'IA.
+function nettoyerHtmlIA(html) {
+  if (!html || typeof html !== "string") return "";
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<(object|embed|link|meta|base|form)\b[^>]*>/gi, "")
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(href|src)\s*=\s*("javascript:[^"]*"|'javascript:[^']*')/gi, '$1="#"')
+    .slice(0, 8000);
+}
+
 async function gererGenererBoutiqueCompleteIA(req, res, user) {
   const { nom_entreprise, type_activite, produit_nom, produit_description } = req.body;
   if (!nom_entreprise || !nom_entreprise.trim()) return res.status(400).json({ error: "Nom de l'entreprise manquant" });
@@ -996,11 +1014,14 @@ Deux décisions à prendre, avec le même niveau d'exigence qu'un vrai audit de 
 ${SECTIONS_VALIDES.join(", ")}
 Choisis entre 9 et 14 sections. "header" toujours en premier, "footer" toujours en dernier. Inclus au moins un moyen d'achat/contact clair (cod_form, contact_form, delivery ou whatsapp). Pense comme un vrai parcours de conversion : accroche → preuve/réassurance → offre → preuve sociale → réponse aux objections → appel à l'action final. N'ajoute pas de section juste pour remplir — chaque section doit avoir une raison d'être là pour CE secteur précis.
 
+Si, et seulement si, aucune des sections standards ne rend justice à ce que tu veux exprimer pour cette marque précise, tu peux inclure "custom_html" dans la liste ET fournir un champ "customHtmlCode" : un bloc HTML entièrement sur mesure, avec CSS uniquement en attributs style="" inline (pas de balise <style>, pas de classe externe), pensé pour un rendu mobile-first (utilise %, flex, rem — jamais de largeur fixe en pixels qui déborderait sur mobile). RÈGLES ABSOLUES pour ce bloc : aucune balise <script>, <iframe>, <form>, aucun attribut on* (onclick, onload...), aucune URL "javascript:". N'utilise JAMAIS une URL d'image inventée (elle serait cassée) — si tu veux un visuel, construis-le en CSS pur (dégradés, formes, emojis), jamais avec une balise <img src="..."> vers une image qui n'existe pas.
+
 2. CONTENU — rédige des textes qui sonnent comme une vraie marque établie, pas un placeholder générique ("Découvrez nos produits de qualité" est interdit). Sois concret, spécifique au secteur et au produit donné, jamais vague.
 
 Réponds UNIQUEMENT avec un objet JSON dans ce format exact (respecte les noms de champs à la lettre) :
 {
   "sections": ["header", "...", "footer"],
+  "customHtmlCode": "OPTIONNEL — uniquement si tu as inclus \\"custom_html\\" dans sections, sinon omets ce champ entièrement",
   "couleur": "#RRGGBB (une couleur de marque sobre, professionnelle, cohérente avec le secteur — jamais criarde ni générique #1a7a3c par défaut si un autre choix sert mieux la marque)",
   "description_boutique": "1-2 phrases qui présentent l'activité de façon engageante et spécifique",
   "politique_livraison": "texte générique mais professionnel, sans délai/ville/tarif précis inventé",
@@ -1044,6 +1065,18 @@ IMPORTANT :
     configGeneree = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
   } catch (e) {
     return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  // Le HTML généré par l'IA est systématiquement nettoyé avant de repartir vers le client —
+  // jamais fait confiance tel quel (voir nettoyerHtmlIA). S'il ne reste rien d'exploitable après
+  // nettoyage, on retire aussi "custom_html" des sections pour ne pas afficher un bloc vide.
+  if (configGeneree.customHtmlCode) {
+    configGeneree.customHtmlCode = nettoyerHtmlIA(configGeneree.customHtmlCode);
+    if (!configGeneree.customHtmlCode.trim() && Array.isArray(configGeneree.sections)) {
+      configGeneree.sections = configGeneree.sections.filter((s) => s !== "custom_html");
+    }
+  } else if (Array.isArray(configGeneree.sections)) {
+    configGeneree.sections = configGeneree.sections.filter((s) => s !== "custom_html");
   }
 
   // Validation stricte des sections proposées : on ne fait JAMAIS confiance telle quelle à une

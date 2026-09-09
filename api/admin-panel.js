@@ -28,6 +28,39 @@ async function verifierAdmin(req, res) {
   return userData.user;
 }
 
+// Contrairement à verifierAdmin (réservé au seul compte propriétaire de RecuVente, pour l'AI
+// Company OS), cette vérification sert les fonctionnalités IA destinées à TOUS les abonnés —
+// n'importe quel marchand connecté et membre de SA PROPRE boutique peut les utiliser.
+async function verifierMembreWorkspace(req, res) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) {
+    res.status(401).json({ error: "Non authentifié" });
+    return null;
+  }
+  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  if (userError || !userData.user) {
+    res.status(401).json({ error: "Session invalide" });
+    return null;
+  }
+  const workspaceId = req.body?.workspace_id;
+  if (!workspaceId) {
+    res.status(400).json({ error: "Espace de travail manquant" });
+    return null;
+  }
+  const { data: membership } = await supabaseAdmin
+    .from("workspace_members")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+  if (!membership) {
+    res.status(403).json({ error: "Accès refusé à cet espace de travail" });
+    return null;
+  }
+  return userData.user;
+}
+
 // ===== GET : données du panneau admin (fusion de admin-workspaces.js) =====
 async function gererGET(req, res) {
   const { data: workspaces, error: wsError } = await supabaseAdmin
@@ -912,7 +945,111 @@ IMPORTANT : n'invente aucun délai précis, aucune ville, aucun tarif de livrais
   return res.status(200).json({ config: configGeneree });
 }
 
+// ===== POST "extraire_produit_depuis_lien" : à partir d'un vrai lien produit (AliExpress et
+// similaires), récupère le nom, la photo et le prix quand ils sont publiquement disponibles sur
+// la page — jamais inventés. La photo est re-téléchargée et hébergée chez nous (pas de lien
+// direct vers un site externe, qui pourrait casser plus tard).
+async function gererExtraireProduitDepuisLien(req, res, user) {
+  const { url, workspace_id } = req.body;
+  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "Lien invalide" });
+  if (!workspace_id) return res.status(400).json({ error: "Espace de travail manquant" });
+
+  let html;
+  try {
+    const reponsePage = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" },
+    });
+    if (!reponsePage.ok) return res.status(400).json({ error: "Impossible d'ouvrir ce lien (page inaccessible)." });
+    html = await reponsePage.text();
+  } catch (e) {
+    return res.status(400).json({ error: "Impossible d'ouvrir ce lien." });
+  }
+
+  let nom = null, imageUrl = null, prix = null;
+
+  // 1) Priorité aux données structurées (JSON-LD "Product") — la source la plus fiable quand
+  // elle existe, car conçue justement pour décrire un produit sans ambiguïté.
+  const blocsJsonLd = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const bloc of blocsJsonLd) {
+    try {
+      const contenu = JSON.parse(bloc[1].trim());
+      const candidats = Array.isArray(contenu) ? contenu : [contenu];
+      for (const c of candidats) {
+        const items = c["@graph"] ? c["@graph"] : [c];
+        for (const item of items) {
+          if (item && (item["@type"] === "Product" || (Array.isArray(item["@type"]) && item["@type"].includes("Product")))) {
+            nom = nom || item.name || null;
+            const img = item.image;
+            imageUrl = imageUrl || (Array.isArray(img) ? img[0] : img) || null;
+            const offre = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+            if (offre && offre.price) prix = Number(offre.price) || null;
+          }
+        }
+      }
+    } catch (e) { /* bloc JSON-LD mal formé, on l'ignore simplement */ }
+  }
+
+  // 2) À défaut, repli sur les balises Open Graph (titre/image seulement — jamais de prix
+  // deviné depuis de simples balises génériques, trop peu fiable).
+  if (!nom) {
+    const m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+    if (m) nom = m[1];
+  }
+  if (!imageUrl) {
+    const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    if (m) imageUrl = m[1];
+  }
+
+  if (!nom && !imageUrl) {
+    return res.status(400).json({ error: "Aucune information exploitable trouvée sur cette page. Essaie de copier le nom et la photo manuellement." });
+  }
+
+  // Rapatrie la photo chez nous plutôt que de garder un lien direct vers le site d'origine —
+  // plus fiable dans le temps, et cohérent avec le reste du catalogue.
+  let photoHebergeeUrl = null;
+  if (imageUrl) {
+    try {
+      const reponseImage = await fetch(imageUrl);
+      if (reponseImage.ok) {
+        const buffer = Buffer.from(await reponseImage.arrayBuffer());
+        const typeContenu = reponseImage.headers.get("content-type") || "image/jpeg";
+        const extension = typeContenu.includes("png") ? "png" : typeContenu.includes("webp") ? "webp" : "jpg";
+        const chemin = `${workspace_id}-lien-${Date.now()}.${extension}`;
+        const { error: erreurUpload } = await supabaseAdmin.storage.from("produits").upload(chemin, buffer, { contentType: typeContenu, upsert: true });
+        if (!erreurUpload) {
+          const { data: dataUrl } = supabaseAdmin.storage.from("produits").getPublicUrl(chemin);
+          photoHebergeeUrl = dataUrl.publicUrl;
+        }
+      }
+    } catch (e) { /* pas grave si la photo échoue à être rapatriée, le nom reste utile seul */ }
+  }
+
+  return res.status(200).json({
+    nom: nom ? nom.trim().slice(0, 150) : null,
+    photo_url: photoHebergeeUrl,
+    prix_trouve: prix,
+  });
+}
+
 export default async function handler(req, res) {
+  // Ces 3 actions servent à tous les abonnés RecuVente (pas seulement le compte propriétaire) —
+  // vérifiées différemment, avant le contrôle admin qui, lui, reste réservé à l'AI Company OS.
+  if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererGenererFicheProduitIA(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "generer_configuration_boutique_ia") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererGenererConfigurationBoutiqueIA(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "extraire_produit_depuis_lien") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererExtraireProduitDepuisLien(req, res, userMembre);
+  }
+
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
 
@@ -929,8 +1066,6 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "subscriber_growth_ask") return gererSubscriberGrowthAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "hr_ask") return gererHrAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "ads_ask") return gererAdsAsk(req, res, user);
-  if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") return gererGenererFicheProduitIA(req, res, user);
-  if (req.method === "POST" && req.body?.action === "generer_configuration_boutique_ia") return gererGenererConfigurationBoutiqueIA(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

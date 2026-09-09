@@ -152,6 +152,27 @@ function obtenirSourceCampagnePersistante() {
   return valeur;
 }
 
+// Marketing de réseau : conserve le code du filleul (?ref=) tout au long du
+// parcours client, exactement comme sourceCampagne ci-dessus — un nouveau
+// ?ref= valide écrase l'ancien (dernier referral valide = attribution),
+// mais on ne stocke QUE si le code a été confirmé valide par le serveur
+// (voir validerReferralSiPresent), pour ne jamais faire confiance à une
+// valeur d'URL non vérifiée.
+function obtenirReferralPersistant() {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("rv_referral_code") || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function enregistrerReferralValide(code) {
+  try {
+    if (code) localStorage.setItem("rv_referral_code", code);
+  } catch (_) {}
+}
+
 const TRADUCTIONS = {
   fr: {
     rechercher: "Rechercher un produit...",
@@ -758,6 +779,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const sourceDetectee = paramsUrl.get("utm_source") || paramsUrl.get("source") || null;
     supabase.rpc("enregistrer_visite_boutique", { p_workspace_id: workspaceId, p_source: sourceDetectee }).then(() => {});
 
+    // Marketing de réseau : un ?ref=CODE dans l'URL est vérifié côté serveur avant
+    // d'être conservé. S'il est valide, il écrase le referral précédemment stocké
+    // (dernier referral valide du parcours). S'il est absent ou invalide, on ne
+    // touche pas au referral déjà en mémoire — la boutique fonctionne normalement
+    // sans ?ref=, exactement comme avant ce module.
+    const refDetecte = paramsUrl.get("ref");
+    if (refDetecte) {
+      supabase.rpc("valider_referral_public", { p_workspace_id: workspaceId, p_code: refDetecte }).then(({ data }) => {
+        const resultat = data && data[0];
+        if (resultat?.valide) enregistrerReferralValide(refDetecte);
+      });
+    }
+
     supabase.rpc("catalogue_public", { p_workspace_id: workspaceId }).then(({ data, error }) => {
       if (error || !data || data.length === 0) {
         setErreur("Ce catalogue est introuvable ou vide.");
@@ -1044,7 +1078,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       const remiseParUnite = codePromoApplique.montant_remise / quantite;
       items[0].prix_unitaire = Math.max(0, items[0].prix_unitaire - remiseParUnite);
     }
-    const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
+    // Marketing de réseau : si un referral filleul valide est actif pour cette visite,
+    // on passe par la RPC v2 (qui attribue la vente + calcule la commission) ; sinon,
+    // comportement rigoureusement inchangé — on garde la RPC d'origine.
+    const referralActifCommande = obtenirReferralPersistant();
+    const { data, error } = await supabase.rpc(referralActifCommande ? "creer_commande_multi_publique_v2" : "creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
@@ -1060,6 +1098,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_user_agent: navigator.userAgent,
       p_event_source_url: window.location.href,
       p_source_campagne: sourceCampagne,
+      ...(referralActifCommande ? { p_referral_code: referralActifCommande } : {}),
     });
     setEnvoi(false);
     const resultat = data && data[0];
@@ -2564,7 +2603,8 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     setEnvoi(true);
     setErreur("");
     const items = panier.map((it) => ({ produit_id: it.produit_id, produit_nom: it.produit_nom, quantite: it.quantite, prix_unitaire: it.prix_unitaire }));
-    const { data, error } = await supabase.rpc("creer_commande_multi_publique", {
+    const referralActifPanier = obtenirReferralPersistant();
+    const { data, error } = await supabase.rpc(referralActifPanier ? "creer_commande_multi_publique_v2" : "creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
@@ -2575,6 +2615,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       p_fbc: obtenirAttributionMeta().fbc,
       p_user_agent: navigator.userAgent,
       p_event_source_url: window.location.href,
+      ...(referralActifPanier ? { p_referral_code: referralActifPanier } : {}),
     });
     setEnvoi(false);
     if (error || !data?.[0]?.succes) {

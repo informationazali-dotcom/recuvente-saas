@@ -11127,6 +11127,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [identificationEnCours, setIdentificationEnCours] = useState(false);
   const [identificationErreur, setIdentificationErreur] = useState("");
   const [ficheIAPreGeneree, setFicheIAPreGeneree] = useState(null);
+  const [contextePourIA, setContextePourIA] = useState({ pourQui: "", difference: "" });
   const [genererAvecIA, setGenererAvecIA] = useState(true);
   const [iaEnCours, setIaEnCours] = useState(false);
   const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
@@ -11309,7 +11310,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         const reponseIA = await fetch("/api/admin-panel", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-          body: JSON.stringify({ action: "generer_fiche_produit_ia", nom_produit: nomCree, workspace_id: workspaceId }),
+          body: JSON.stringify({ action: "generer_fiche_produit_ia", nom_produit: nomCree, workspace_id: workspaceId, contexte: contextePourIA }),
         });
         const resultatIA = await reponseIA.json();
         if (reponseIA.ok && resultatIA?.fiche) {
@@ -11355,6 +11356,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     setPrixTrouveViaLien(null);
     setLienProduit("");
     setFicheIAPreGeneree(null);
+    setContextePourIA({ pourQui: "", difference: "" });
     setAjoutOuvert(false);
     // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
     if (resultat?.id) setSelectedId(resultat.id);
@@ -11549,6 +11551,26 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   <input type="checkbox" checked={genererAvecIA} onChange={(e) => setGenererAvecIA(e.target.checked)} />
                   ✨ Créer une vraie page produit avec l'IA (plusieurs sections, avec des repères pour savoir où ajouter tes photos/vidéos)
                 </label>
+
+                {genererAvecIA && !ficheIAPreGeneree && (
+                  <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 8, lineHeight: 1.4 }}>
+                      💡 Optionnel, mais ça change beaucoup la qualité du résultat — 10 secondes de plus pour une fiche vraiment adaptée à ton produit :
+                    </div>
+                    <input
+                      placeholder="Pour qui est ce produit ? (ex: femmes actives, étudiants...)"
+                      value={contextePourIA.pourQui}
+                      onChange={(e) => setContextePourIA((c) => ({ ...c, pourQui: e.target.value }))}
+                      style={{ width: "100%", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box", marginBottom: 6 }}
+                    />
+                    <input
+                      placeholder="Qu'est-ce qui le rend différent des autres ? (optionnel)"
+                      value={contextePourIA.difference}
+                      onChange={(e) => setContextePourIA((c) => ({ ...c, difference: e.target.value }))}
+                      style={{ width: "100%", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, boxSizing: "border-box" }}
+                    />
+                  </div>
+                )}
 
                 {creationErreur && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8, fontWeight: 600 }}>⚠️ {creationErreur}</div>}
                 <button onClick={ajouter} disabled={creationEnCours || !nouveauNom.trim()} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: creationEnCours ? "default" : "pointer", opacity: creationEnCours || !nouveauNom.trim() ? 0.6 : 1 }}>

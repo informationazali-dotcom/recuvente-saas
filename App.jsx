@@ -4752,7 +4752,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const monProfilFilleul = filleuls.find((f) => f.user_id === session.user.id || (f.email && f.email.toLowerCase() === session.user.email.toLowerCase()));
 
   if (workspace.role === "filleul" && monProfilFilleul) {
-    return <FilleulPortalSaas filleul={monProfilFilleul} workspace={workspace} currency={formaterDevise(workspace.currency)} />;
+    return <FilleulPortalSaas filleul={monProfilFilleul} workspace={workspace} currency={formaterDevise(workspace.currency)} produits={produits} />;
   }
 
   return (

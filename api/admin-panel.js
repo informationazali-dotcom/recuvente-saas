@@ -866,6 +866,52 @@ IMPORTANT : n'invente jamais de prix, de certification, de marque, de chiffre de
   return res.status(200).json({ fiche: ficheGeneree });
 }
 
+// ===== POST "generer_configuration_boutique_ia" : à la place d'une boutique vide à remplir
+// soi-même, l'IA propose une description, une politique de livraison et une politique de
+// retours de départ, à partir du seul nom de l'entreprise et de son type d'activité. Le
+// marchand reste libre de tout modifier avant d'enregistrer — rien n'est sauvegardé sans lui.
+async function gererGenererConfigurationBoutiqueIA(req, res, user) {
+  const { nom_entreprise, type_activite } = req.body;
+  if (!nom_entreprise || !nom_entreprise.trim()) return res.status(400).json({ error: "Nom de l'entreprise manquant" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const typesLisibles = { retail: "vente de produits en ligne (paiement à la livraison)", restaurant: "restaurant", biens_location: "location de biens/véhicules", logements: "location de logements" };
+  const typeTexte = typesLisibles[type_activite] || "vente en ligne";
+
+  const prompt = `Tu configures les premiers textes d'une boutique en ligne pour une entreprise africaine (paiement à la livraison, Afrique de l'Ouest principalement).
+
+Nom de l'entreprise : "${nom_entreprise.trim()}"
+Type d'activité : ${typeTexte}
+
+Réponds UNIQUEMENT avec un objet JSON dans ce format exact :
+{
+  "description_boutique": "une description courte (1-2 phrases) qui présente l'activité de façon engageante",
+  "politique_livraison": "un texte de politique de livraison générique mais professionnel, adapté à ce type d'activité, à revoir par le marchand",
+  "politique_retours": "un texte de politique de retours générique mais professionnel, à revoir par le marchand"
+}
+
+IMPORTANT : n'invente aucun délai précis, aucune ville, aucun tarif de livraison — utilise des formulations génériques que le marchand pourra ajuster ("selon votre zone", "sous quelques jours") plutôt que des chiffres inventés. Réponds uniquement le JSON, sans texte autour, sans balises \`\`\`json.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 500, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let configGeneree;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    configGeneree = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  return res.status(200).json({ config: configGeneree });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -884,6 +930,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "hr_ask") return gererHrAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "ads_ask") return gererAdsAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") return gererGenererFicheProduitIA(req, res, user);
+  if (req.method === "POST" && req.body?.action === "generer_configuration_boutique_ia") return gererGenererConfigurationBoutiqueIA(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

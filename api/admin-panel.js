@@ -970,25 +970,47 @@ async function gererGenererBoutiqueCompleteIA(req, res, user) {
   };
   const typeTexte = typesLisibles[type_activite] || "vente en ligne";
 
-  const prompt = `Tu es à la fois designer e-commerce (30 ans d'expérience) et copywriter (30 ans d'expérience). Tu conçois les textes et les couleurs de la page d'accueil d'une boutique en ligne professionnelle pour une entreprise africaine (paiement à la livraison, Afrique de l'Ouest principalement).
+  // Liste exacte des sections que le Store Builder sait afficher (sectionCatalog dans App.jsx).
+  // L'IA doit choisir UNIQUEMENT dans cette liste — toute clé hors de cette liste est retirée
+  // après coup (voir plus bas), pour ne jamais risquer de casser l'affichage de la boutique.
+  const SECTIONS_VALIDES = [
+    "header","announcement","hero","image_texte","collections","bestsellers","bundles","products",
+    "benefits","testimonials","promo","gallery","faq","whatsapp","cod_form","delivery","contact",
+    "flash_sale","stats","brands_cta","payment_methods","category_tiles","featured_product","rich_text",
+    "video","trust_logos","before_after","cta_banner","contact_form","diaporama","featured_collection",
+    "tabs","timeline","reviews_carousel","image_text_bubble","custom_html","scrolling_alert",
+    "two_images_text","wavy_banner","footer",
+  ];
 
+  const prompt = `Tu es un designer/développeur e-commerce freelance avec plus de 15 ans d'expérience, spécialisé Shopify — le genre de profil que les grandes marques payent cher pour construire des boutiques ultra-structurées, modernes et qui convertissent vraiment. On te confie la page d'accueil d'une nouvelle boutique. Ce n'est pas un exercice générique : conçois-la comme si c'était pour un vrai client exigeant, pas un brouillon.
+
+Contexte (paiement à la livraison, Afrique de l'Ouest principalement — le ton doit rester crédible pour ce marché, pas une imitation de style américain hors-sol) :
 Nom de l'entreprise : "${nom_entreprise.trim()}"
 Type d'activité : ${typeTexte}
 ${produit_nom ? `Produit phare : "${produit_nom.trim()}"` : ""}
 ${produit_description ? `Description donnée par le marchand : "${produit_description.trim().slice(0, 300)}"` : ""}
 
+Deux décisions à prendre, avec le même niveau d'exigence qu'un vrai audit de conversion :
+
+1. STRUCTURE — choisis et ordonne les sections de la page, uniquement parmi cette liste exacte (recopie les clés telles quelles) :
+${SECTIONS_VALIDES.join(", ")}
+Choisis entre 9 et 14 sections. "header" toujours en premier, "footer" toujours en dernier. Inclus au moins un moyen d'achat/contact clair (cod_form, contact_form, delivery ou whatsapp). Pense comme un vrai parcours de conversion : accroche → preuve/réassurance → offre → preuve sociale → réponse aux objections → appel à l'action final. N'ajoute pas de section juste pour remplir — chaque section doit avoir une raison d'être là pour CE secteur précis.
+
+2. CONTENU — rédige des textes qui sonnent comme une vraie marque établie, pas un placeholder générique ("Découvrez nos produits de qualité" est interdit). Sois concret, spécifique au secteur et au produit donné, jamais vague.
+
 Réponds UNIQUEMENT avec un objet JSON dans ce format exact (respecte les noms de champs à la lettre) :
 {
-  "couleur": "#RRGGBB (une couleur de marque sobre et professionnelle, adaptée au secteur — jamais une couleur criarde)",
-  "description_boutique": "1-2 phrases qui présentent l'activité de façon engageante",
+  "sections": ["header", "...", "footer"],
+  "couleur": "#RRGGBB (une couleur de marque sobre, professionnelle, cohérente avec le secteur — jamais criarde ni générique #1a7a3c par défaut si un autre choix sert mieux la marque)",
+  "description_boutique": "1-2 phrases qui présentent l'activité de façon engageante et spécifique",
   "politique_livraison": "texte générique mais professionnel, sans délai/ville/tarif précis inventé",
   "politique_retours": "texte générique mais professionnel",
-  "announcement": "une courte phrase d'accroche pour la barre d'annonce en haut de la boutique (avec 1-2 emojis, style rassurant : livraison, paiement à la livraison, etc.)",
-  "heroTitle": "un titre d'accroche court et percutant pour la bannière principale (5-8 mots)",
+  "announcement": "courte phrase d'accroche pour la barre d'annonce (1-2 emojis, style rassurant)",
+  "heroTitle": "titre d'accroche court et percutant pour la bannière principale (5-8 mots, spécifique au produit/secteur, jamais générique)",
   "heroSubtitle": "une phrase qui complète le titre et donne envie de parcourir la boutique",
-  "buttonText": "texte du bouton d'action principal (2-4 mots, ex: Découvrir la collection)",
+  "buttonText": "texte du bouton d'action principal (2-4 mots)",
   "imageTexteTitre": "titre de la section \\"pourquoi nous choisir\\"",
-  "imageTexteTexte": "un paragraphe qui explique ce qui rend cette boutique unique",
+  "imageTexteTexte": "un paragraphe concret qui explique ce qui rend cette boutique unique — pas de généralités",
   "richTextTitre": "titre de la section \\"à propos\\"",
   "richTextTexte": "un paragraphe qui raconte l'histoire ou l'engagement de la marque",
   "brandsCtaTitre": "titre court pour la section contact/WhatsApp",
@@ -999,17 +1021,18 @@ Réponds UNIQUEMENT avec un objet JSON dans ce format exact (respecte les noms d
     {"valeur": "...", "label": "..."},
     {"valeur": "...", "label": "..."}
   ],
-  "scrollingAlertTexte": "un texte court qui défile en boucle (séparé par des •), reprenant les points forts (livraison, paiement, sécurité)"
+  "scrollingAlertTexte": "texte court qui défile en boucle (séparé par des •), reprenant les points forts"
 }
 
 IMPORTANT :
 - N'invente aucun chiffre, délai, ville ou tarif précis qui pourrait être faux — reste sur des formulations crédibles et génériques que le marchand pourra ajuster.
 - Les statsItems doivent rester plausibles pour une boutique qui démarre (pas de "10 000 clients" pour une nouvelle boutique).
+- Aucun texte générique/placeholder — chaque phrase doit sonner comme écrite pour CETTE marque précise, pas interchangeable avec n'importe quelle autre boutique.
 - Réponds uniquement le JSON, sans texte autour, sans balises \`\`\`json.`;
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1400, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1800, messages: [{ role: "user", content: prompt }] }),
   });
   const data = await resp.json();
   if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
@@ -1021,6 +1044,25 @@ IMPORTANT :
     configGeneree = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
   } catch (e) {
     return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  // Validation stricte des sections proposées : on ne fait JAMAIS confiance telle quelle à une
+  // clé générée par l'IA. Toute clé hors de la liste connue est retirée ; si le résultat final
+  // est dégénéré (trop court, header/footer manquants), on retire complètement "sections" de la
+  // réponse — le Store Builder gardera alors l'ordre par défaut du secteur, déjà valide.
+  if (Array.isArray(configGeneree.sections)) {
+    let sections = configGeneree.sections.filter((s) => SECTIONS_VALIDES.includes(s));
+    sections = [...new Set(sections)];
+    const aUnMoyenDachat = sections.some((s) => ["cod_form", "contact_form", "delivery", "whatsapp"].includes(s));
+    if (sections.length < 6 || sections.length > 16 || !aUnMoyenDachat) {
+      delete configGeneree.sections;
+    } else {
+      if (sections[0] !== "header") sections = ["header", ...sections.filter((s) => s !== "header")];
+      if (sections[sections.length - 1] !== "footer") sections = [...sections.filter((s) => s !== "footer"), "footer"];
+      configGeneree.sections = sections;
+    }
+  } else {
+    delete configGeneree.sections;
   }
 
   return res.status(200).json({ config: configGeneree });

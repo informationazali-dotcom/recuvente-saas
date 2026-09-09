@@ -11119,6 +11119,11 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [nouveauCout, setNouveauCout] = useState("");
   const [nouvellePhotoFichier, setNouvellePhotoFichier] = useState(null);
   const [nouvellePhotoApercu, setNouvellePhotoApercu] = useState("");
+  const [photoDejaHebergeeUrl, setPhotoDejaHebergeeUrl] = useState(null);
+  const [prixTrouveViaLien, setPrixTrouveViaLien] = useState(null);
+  const [lienProduit, setLienProduit] = useState("");
+  const [extractionEnCours, setExtractionEnCours] = useState(false);
+  const [extractionErreur, setExtractionErreur] = useState("");
   const [genererAvecIA, setGenererAvecIA] = useState(true);
   const [iaEnCours, setIaEnCours] = useState(false);
   const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
@@ -11267,7 +11272,11 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     }
 
     // Photo envoyée avec la création — pas besoin de revenir remplir le produit après coup.
-    if (nouvellePhotoFichier) {
+    // Deux cas : une photo hébergée trouvée via un lien produit (déjà en ligne, rien à envoyer),
+    // ou une photo choisie manuellement par le marchand (à compresser puis envoyer).
+    if (photoDejaHebergeeUrl) {
+      try { await onUpdatePhoto(resultat.id, photoDejaHebergeeUrl); } catch (e) {}
+    } else if (nouvellePhotoFichier) {
       try {
         const fichierCompresse = await compresserImage(nouvellePhotoFichier);
         const extension = fichierCompresse.name.split(".").pop();
@@ -11280,6 +11289,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       } catch (e) { /* la photo est un plus, pas bloquant si elle échoue */ }
     }
 
+    // Prix trouvé sur la page du lien produit — jamais deviné, seulement s'il a vraiment été
+    // trouvé sur la page (ex: dans les données structurées du site).
+    if (prixTrouveViaLien) {
+      try { await onUpdatePrixVente(resultat.id, prixTrouveViaLien); } catch (e) {}
+    }
+
     // Fiche produit rédigée par l'IA à partir du seul nom — titre, description et arguments
     // de vente, pour que la fiche ait l'air professionnelle sans avoir à tout rédiger soi-même.
     if (genererAvecIA) {
@@ -11289,7 +11304,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         const reponseIA = await fetch("/api/admin-panel", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-          body: JSON.stringify({ action: "generer_fiche_produit_ia", nom_produit: nomCree }),
+          body: JSON.stringify({ action: "generer_fiche_produit_ia", nom_produit: nomCree, workspace_id: workspaceId }),
         });
         const resultatIA = await reponseIA.json();
         if (reponseIA.ok && resultatIA?.fiche) {
@@ -11305,6 +11320,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     setNouveauCout("");
     setNouvellePhotoFichier(null);
     setNouvellePhotoApercu("");
+    setPhotoDejaHebergeeUrl(null);
+    setPrixTrouveViaLien(null);
+    setLienProduit("");
     setAjoutOuvert(false);
     // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
     if (resultat?.id) setSelectedId(resultat.id);
@@ -11364,6 +11382,52 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
             {ajoutOuvert && (
               <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
+                <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "#5B21B6", marginBottom: 6 }}>🔗 Ou colle un lien produit (AliExpress, etc.)</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      placeholder="https://..."
+                      value={lienProduit}
+                      onChange={(e) => setLienProduit(e.target.value)}
+                      style={{ flex: 1, padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD6FE", fontSize: 13 }}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!lienProduit.trim()) return;
+                        setExtractionEnCours(true);
+                        setExtractionErreur("");
+                        try {
+                          const { data: sessionData } = await supabase.auth.getSession();
+                          const reponse = await fetch("/api/admin-panel", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+                            body: JSON.stringify({ action: "extraire_produit_depuis_lien", url: lienProduit.trim(), workspace_id: workspaceId }),
+                          });
+                          const resultat = await reponse.json();
+                          if (!reponse.ok) {
+                            setExtractionErreur(resultat?.error || "Impossible d'extraire ce produit.");
+                          } else {
+                            if (resultat.nom) setNouveauNom(resultat.nom);
+                            if (resultat.photo_url) { setPhotoDejaHebergeeUrl(resultat.photo_url); setNouvellePhotoApercu(resultat.photo_url); setNouvellePhotoFichier(null); }
+                            if (resultat.prix_trouve) setPrixTrouveViaLien(resultat.prix_trouve);
+                            if (!resultat.nom && !resultat.photo_url) setExtractionErreur("Rien d'exploitable trouvé sur cette page.");
+                          }
+                        } catch (e) {
+                          setExtractionErreur("Erreur pendant l'extraction, réessaie.");
+                        }
+                        setExtractionEnCours(false);
+                      }}
+                      disabled={extractionEnCours || !lienProduit.trim()}
+                      style={{ background: "#5B21B6", color: "white", border: "none", borderRadius: 7, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                    >
+                      {extractionEnCours ? "..." : "Extraire"}
+                    </button>
+                  </div>
+                  {extractionErreur && <div style={{ color: "#D64933", fontSize: 11, marginTop: 6 }}>{extractionErreur}</div>}
+                  {prixTrouveViaLien && <div style={{ color: "#3B6D11", fontSize: 11, marginTop: 6, fontWeight: 700 }}>💰 Prix trouvé sur la page : {Number(prixTrouveViaLien).toLocaleString("fr-FR")} — vérifie qu'il correspond bien à ta devise avant de valider.</div>}
+                  <div style={{ fontSize: 10, color: "#8A8098", marginTop: 6 }}>Le nom et la photo se remplissent automatiquement s'ils sont trouvés — rien n'est deviné.</div>
+                </div>
+
                 <input placeholder="Nom du produit" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
                 <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
 
@@ -11371,7 +11435,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   <div style={{ position: "relative", display: "inline-block", marginBottom: 10 }}>
                     <img src={nouvellePhotoApercu} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: "1px solid #DDD8CC" }} />
                     <button
-                      onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); }}
+                      onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); setPhotoDejaHebergeeUrl(null); }}
                       style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 12, cursor: "pointer" }}
                     >
                       ×
@@ -11389,6 +11453,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                         if (!fichier) return;
                         setNouvellePhotoFichier(fichier);
                         setNouvellePhotoApercu(URL.createObjectURL(fichier));
+                        setPhotoDejaHebergeeUrl(null);
                       }}
                     />
                   </label>
@@ -15421,7 +15486,7 @@ function IntegrationsModal({ workspace, onClose }) {
                 const reponse = await fetch("/api/admin-panel", {
                   method: "POST",
                   headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-                  body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: workspace.name, type_activite: workspace.activity_type }),
+                  body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: workspace.name, type_activite: workspace.activity_type, workspace_id: workspace.id }),
                 });
                 const resultat = await reponse.json();
                 if (reponse.ok && resultat?.config) {

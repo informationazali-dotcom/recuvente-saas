@@ -815,6 +815,49 @@ Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces donné
   return res.status(200).json({ reponse: reponseTexte, contexte: contexteReel });
 }
 
+// ===== POST "generer_fiche_produit_ia" : à partir d'un simple nom de produit, l'IA rédige un
+// titre accrocheur, une description complète et des arguments de vente — pour qu'une fiche
+// produit ait l'air professionnelle immédiatement, même sans savoir rédiger soi-même.
+// Ne génère JAMAIS de prix ni de chiffres inventés — uniquement du texte de présentation.
+async function gererGenererFicheProduitIA(req, res, user) {
+  const { nom_produit } = req.body;
+  if (!nom_produit || !nom_produit.trim()) return res.status(400).json({ error: "Nom du produit manquant" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const prompt = `Tu es un rédacteur e-commerce expérimenté, spécialisé dans les fiches produits qui donnent envie d'acheter en Afrique de l'Ouest (paiement à la livraison).
+
+Nom du produit : "${nom_produit.trim()}"
+
+Rédige une fiche produit convaincante, en français, à partir de ce seul nom. Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
+{
+  "titre_ameliore": "un titre de produit clair et vendeur, à partir du nom donné",
+  "description": "une description complète en 3-4 phrases, qui met en avant l'usage et les bénéfices concrets du produit — pas de blabla vague",
+  "points_forts": ["argument de vente 1", "argument de vente 2", "argument de vente 3", "argument de vente 4"],
+  "categorie_suggeree": "une catégorie e-commerce simple (ex: Mode, Électronique, Beauté, Maison, Auto...)"
+}
+
+IMPORTANT : n'invente jamais de prix, de certification, de marque, de chiffre de vente, ou de caractéristique technique précise (comme une capacité en mAh, un poids exact) que tu ne peux pas connaître à partir du seul nom — reste sur des bénéfices et usages généraux et honnêtes. Réponds uniquement le JSON, sans texte autour.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 600, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let ficheGeneree;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    ficheGeneree = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  return res.status(200).json({ fiche: ficheGeneree });
+}
+
 export default async function handler(req, res) {
   const user = await verifierAdmin(req, res);
   if (!user) return; // verifierAdmin a déjà renvoyé la bonne erreur
@@ -832,6 +875,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "subscriber_growth_ask") return gererSubscriberGrowthAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "hr_ask") return gererHrAsk(req, res, user);
   if (req.method === "POST" && req.body?.action === "ads_ask") return gererAdsAsk(req, res, user);
+  if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") return gererGenererFicheProduitIA(req, res, user);
   if (req.method === "POST") return gererPOST(req, res);
   return gererGET(req, res);
 }

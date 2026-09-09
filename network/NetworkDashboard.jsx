@@ -173,6 +173,8 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
       {filleulSelectionne && (
         <FicheFilleulModal
           filleul={filleulSelectionne}
+          filleuls={filleuls}
+          produits={produits}
           stats={statsPourFilleul(filleulSelectionne.id)}
           currency={currency}
           workspace={workspace}
@@ -228,8 +230,49 @@ function AjoutFilleulModal({ workspace, onClose, onCree }) {
   );
 }
 
-function FicheFilleulModal({ filleul, stats, currency, workspace, onClose, onChange }) {
+function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, workspace, onClose, onChange }) {
   const [enCours, setEnCours] = useState(false);
+  const [parrainId, setParrainId] = useState(filleul.parrain_id || "");
+  const [modeVente, setModeVente] = useState(filleul.mode_vente || "affilie");
+  const [stock, setStock] = useState([]);
+  const [chargeStock, setChargeStock] = useState(true);
+  const [produitAchatId, setProduitAchatId] = useState("");
+  const [quantiteAchat, setQuantiteAchat] = useState("");
+  const [prixAchat, setPrixAchat] = useState("");
+  const [erreurStock, setErreurStock] = useState("");
+
+  async function chargerStock() {
+    setChargeStock(true);
+    const { data } = await supabase.from("filleuls_stock").select("*, produits(nom)").eq("filleul_id", filleul.id).gt("quantite_restante", 0);
+    setStock(data || []);
+    setChargeStock(false);
+  }
+
+  useEffect(() => {
+    if (modeVente === "revendeur") chargerStock();
+  }, [filleul.id, modeVente]);
+
+  async function enregistrerAchat() {
+    if (!produitAchatId || !quantiteAchat || Number(quantiteAchat) <= 0) { setErreurStock("Choisis un produit et une quantité."); return; }
+    setErreurStock("");
+    setEnCours(true);
+    const produitChoisi = (produits || []).find((p) => p.id === produitAchatId);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const { error } = await supabase.rpc("enregistrer_mouvement_stock_filleul", {
+      p_workspace_id: workspace.id,
+      p_filleul_id: filleul.id,
+      p_produit_id: produitAchatId,
+      p_type: "achat",
+      p_quantite: Number(quantiteAchat),
+      p_prix_unitaire: prixAchat ? Number(prixAchat) : Number(produitChoisi?.cout_achat || 0),
+      p_commande_id: null,
+      p_note: "Achat enregistré depuis la fiche filleul",
+    });
+    setEnCours(false);
+    if (error) { setErreurStock("Échec de l'enregistrement."); return; }
+    setProduitAchatId(""); setQuantiteAchat(""); setPrixAchat("");
+    await chargerStock();
+  }
 
   async function basculerStatut() {
     setEnCours(true);
@@ -239,14 +282,30 @@ function FicheFilleulModal({ filleul, stats, currency, workspace, onClose, onCha
     onClose();
   }
 
+  async function enregistrerParrainEtMode() {
+    setEnCours(true);
+    await supabase.from("filleuls").update({
+      parrain_id: parrainId || null,
+      mode_vente: modeVente,
+      updated_at: new Date().toISOString(),
+    }).eq("id", filleul.id);
+    setEnCours(false);
+    onChange();
+  }
+
+  const autresFilleuls = (filleuls || []).filter((f) => f.id !== filleul.id);
+  const parrainActuel = (filleuls || []).find((f) => f.id === filleul.parrain_id);
+
   const domaine = workspace.domaine_personnalise || `${workspace.slug || ""}.recuvente.com`;
   const lien = `https://${domaine}?ref=${filleul.code}`;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100, overflowY: "auto" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ fontWeight: 800, fontSize: 17, color: "#16231F" }}>{filleul.nom}</div>
-        <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 16 }}>{filleul.code} · {filleul.telephone || "sans téléphone"}</div>
+        <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 4 }}>{filleul.code} · {filleul.telephone || "sans téléphone"}</div>
+        {parrainActuel && <div style={{ fontSize: 11, color: "#6b3fd4", marginBottom: 16 }}>👤 Parrainé par {parrainActuel.nom}</div>}
+        {!parrainActuel && <div style={{ marginBottom: 16 }} />}
 
         <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Lien de vente</div>
         <div style={{ fontSize: 12, fontWeight: 700, wordBreak: "break-all", marginBottom: 16, background: "#F7FAF7", padding: "8px 10px", borderRadius: 8 }}>{lien}</div>
@@ -263,6 +322,52 @@ function FicheFilleulModal({ filleul, stats, currency, workspace, onClose, onCha
           <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Commission dispo.</div><div style={{ fontSize: 16, fontWeight: 800, color: "#1a7a3c" }}>{stats.disponible.toLocaleString("fr-FR")} {currency}</div></div>
           <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Déjà payé</div><div style={{ fontSize: 16, fontWeight: 800 }}>{stats.payee.toLocaleString("fr-FR")} {currency}</div></div>
         </div>
+
+        <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>Parrainage & mode de vente</div>
+          <label style={{ fontSize: 10.5, color: "#8A9089" }}>Parrain (qui l'a recruté)</label>
+          <select value={parrainId} onChange={(e) => setParrainId(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginTop: 3, marginBottom: 10 }}>
+            <option value="">Aucun (recruté directement par le propriétaire)</option>
+            {autresFilleuls.map((f) => <option key={f.id} value={f.id}>{f.nom} · {f.code}</option>)}
+          </select>
+          <label style={{ fontSize: 10.5, color: "#8A9089" }}>Mode de vente</label>
+          <select value={modeVente} onChange={(e) => setModeVente(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginTop: 3, marginBottom: 10 }}>
+            <option value="affilie">Affilié — vend via son lien, reçoit une commission</option>
+            <option value="revendeur">Revendeur — achète du stock, revend avec sa propre marge</option>
+          </select>
+          <button onClick={enregistrerParrainEtMode} disabled={enCours} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+            Enregistrer
+          </button>
+        </div>
+
+        {modeVente === "revendeur" && (
+          <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>📦 Stock personnel</div>
+            {chargeStock && <div style={{ fontSize: 11, color: "#8A9089" }}>Chargement...</div>}
+            {!chargeStock && stock.length === 0 && <div style={{ fontSize: 11, color: "#8A9089" }}>Aucun stock pour l'instant.</div>}
+            {stock.map((s) => (
+              <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, padding: "4px 0" }}>
+                <span>{s.produits?.nom || "Produit"}</span>
+                <span style={{ fontWeight: 700 }}>{s.quantite_restante} restant{s.quantite_restante > 1 ? "s" : ""}</span>
+              </div>
+            ))}
+            <div style={{ borderTop: "1px solid #ECE8DC", marginTop: 8, paddingTop: 8 }}>
+              <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 6 }}>+ Enregistrer un achat à la base</div>
+              <select value={produitAchatId} onChange={(e) => setProduitAchatId(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 11.5, marginBottom: 6 }}>
+                <option value="">Produit...</option>
+                {(produits || []).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <input type="number" placeholder="Quantité" value={quantiteAchat} onChange={(e) => setQuantiteAchat(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                <input type="number" placeholder="Prix unit. (optionnel)" value={prixAchat} onChange={(e) => setPrixAchat(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+              </div>
+              {erreurStock && <div style={{ fontSize: 10.5, color: "#D64933", marginBottom: 6 }}>{erreurStock}</div>}
+              <button onClick={enregistrerAchat} disabled={enCours} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "7px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                Enregistrer l'achat
+              </button>
+            </div>
+          </div>
+        )}
 
         <button onClick={basculerStatut} disabled={enCours} style={{ width: "100%", background: filleul.statut === "actif" ? "#FBEAEA" : "#EAF3DE", color: filleul.statut === "actif" ? "#D64933" : "#1a7a3c", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
           {filleul.statut === "actif" ? "⏸️ Suspendre ce filleul" : "✅ Réactiver ce filleul"}

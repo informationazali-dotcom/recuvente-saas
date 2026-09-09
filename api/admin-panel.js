@@ -853,14 +853,20 @@ Réponds en français, direct et actionnable, UNIQUEMENT à partir de ces donné
 // produit ait l'air professionnelle immédiatement, même sans savoir rédiger soi-même.
 // Ne génère JAMAIS de prix ni de chiffres inventés — uniquement du texte de présentation.
 async function gererGenererFicheProduitIA(req, res, user) {
-  const { nom_produit } = req.body;
+  const { nom_produit, contexte } = req.body;
   if (!nom_produit || !nom_produit.trim()) return res.status(400).json({ error: "Nom du produit manquant" });
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
 
+  const contexteComplementaire = [
+    contexte?.pourQui ? `Public cible précisé par le marchand : ${contexte.pourQui.trim()}.` : "",
+    contexte?.difference ? `Ce qui différencie ce produit selon le marchand : ${contexte.difference.trim()}.` : "",
+  ].filter(Boolean).join(" ");
+
   const prompt = `Tu es un rédacteur e-commerce expérimenté, spécialisé dans les pages produits qui donnent envie d'acheter en Afrique de l'Ouest (paiement à la livraison) — le genre de page qu'on voit chez les vraies marques, pas un simple paragraphe.
 
-Nom du produit : "${nom_produit.trim()}"
+Nom ou courte description du produit donnée par le marchand : "${nom_produit.trim()}"
+${contexteComplementaire ? `\n${contexteComplementaire} Utilise vraiment ces précisions pour orienter le ton et les arguments — c'est ce qui rend une fiche pertinente plutôt que générique.\n` : ""}
 
 Rédige une page produit complète, structurée en plusieurs sections, en français. Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
 {
@@ -1035,6 +1041,75 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
   });
 }
 
+// ===== POST "identifier_produit_depuis_photo" : quand le marchand n'a ni lien ni nom à donner
+// — juste une photo — Claude regarde l'image (compréhension d'image, pas génération) et
+// identifie lui-même de quoi il s'agit, puis rédige la même fiche en sections que les deux
+// autres méthodes. Honnête sur les limites : si la photo est floue ou ambiguë, l'IA le dit
+// plutôt que d'inventer un produit qu'elle ne reconnaît pas clairement.
+async function gererIdentifierProduitDepuisPhoto(req, res, user) {
+  const { image_base64, media_type, description_sommaire } = req.body;
+  if (!image_base64) return res.status(400).json({ error: "Aucune image reçue" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const contexteComplementaire = description_sommaire && description_sommaire.trim()
+    ? `\n\nLe marchand a aussi donné cette précision en quelques mots : "${description_sommaire.trim()}".`
+    : "";
+
+  const prompt = `Tu es un rédacteur e-commerce expérimenté, spécialisé dans les pages produits qui donnent envie d'acheter en Afrique de l'Ouest (paiement à la livraison).
+
+Regarde attentivement cette photo et identifie précisément de quel produit il s'agit.${contexteComplementaire}
+
+Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
+{
+  "produit_reconnu": true ou false — mets false si tu n'arrives pas à identifier clairement un produit vendable sur cette image,
+  "titre_ameliore": "un titre de produit clair et vendeur, basé sur ce que tu vois réellement sur la photo",
+  "description_html": "la page produit complète, en HTML, structurée en 3 à 4 sections (voir consignes ci-dessous)",
+  "categorie_suggeree": "une catégorie e-commerce simple (ex: Mode, Électronique, Beauté, Maison, Auto...)"
+}
+
+Pour "description_html", construis une vraie page produit, avec cette logique :
+1. Une section d'accroche qui parle du besoin ou du problème que le produit résout, basée sur ce que tu observes réellement sur la photo (<h3> + <p>).
+2. Une section "Pourquoi ce produit" avec 3-4 arguments de vente concrets, en <ul><li>, basés sur ce qui est visible.
+3. Une section "Comment l'utiliser" ou "Pour qui" selon ce qui est le plus pertinent (<h3> + <p>).
+4. Avant la dernière section, insère un <h4> commençant par "🎥 Astuce vidéo :" suggérant ce qu'une courte vidéo de démonstration pourrait montrer.
+
+Utilise UNIQUEMENT ces balises HTML : <h3>, <h4>, <p>, <ul>, <li>, <strong>. Jamais de <img> ni <video>.
+
+IMPORTANT : ne décris QUE ce que tu vois réellement sur la photo. N'invente jamais de marque, de prix, de certification, ou de caractéristique technique précise que tu ne peux pas voir. Si l'image est trop floue, trop sombre, ou ne montre pas clairement un produit vendable, mets "produit_reconnu": false et laisse les autres champs vides plutôt que d'inventer. Réponds uniquement le JSON, sans texte autour, sans balises \`\`\`json.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({
+      model: "claude-sonnet-5", max_tokens: 1200,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: media_type || "image/jpeg", data: image_base64 } },
+          { type: "text", text: prompt },
+        ],
+      }],
+    }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let ficheGeneree;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    ficheGeneree = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  if (ficheGeneree.produit_reconnu === false) {
+    return res.status(200).json({ fiche: null, non_reconnu: true });
+  }
+
+  return res.status(200).json({ fiche: ficheGeneree });
+}
+
 export default async function handler(req, res) {
   // Ces 3 actions servent à tous les abonnés RecuVente (pas seulement le compte propriétaire) —
   // vérifiées différemment, avant le contrôle admin qui, lui, reste réservé à l'AI Company OS.
@@ -1052,6 +1127,11 @@ export default async function handler(req, res) {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
     return gererExtraireProduitDepuisLien(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "identifier_produit_depuis_photo") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererIdentifierProduitDepuisPhoto(req, res, userMembre);
   }
 
   const user = await verifierAdmin(req, res);

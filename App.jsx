@@ -2578,6 +2578,10 @@ function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, on
 function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuvrirParametresAvances }) {
   const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
   const [regenLienEnCours, setRegenLienEnCours] = useState(false);
+  const [genererIAEnCours, setGenererIAEnCours] = useState(false);
+  const [genererIAErreur, setGenererIAErreur] = useState("");
+  const [genererIAFait, setGenererIAFait] = useState(false);
+  const [briefIA, setBriefIA] = useState("");
   const [regenLienFait, setRegenLienFait] = useState(null);
   const activityType = workspace?.activity_type || 'cod_ecommerce';
   const activityLabel = ({cod_ecommerce:'E-commerce',retail:'Commerce physique',restaurant:'Restaurant',location_immobiliere:'Location immobilière',location_vehicule:'Location de voitures',network_marketing:'Marketing de réseau'})[activityType] || 'E-commerce';
@@ -2695,6 +2699,49 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   const fallbackProducts=selectedProducts.length?selectedProducts:products.slice(0,8);
   const bestsellers=fallbackProducts.slice(0,4);
   function update(k,v){setConfig(c=>({...c,[k]:v}));}
+  async function genererBoutiqueIA(){
+    setGenererIAEnCours(true);
+    setGenererIAErreur("");
+    try{
+      const { data: sessionData } = await supabase.auth.getSession();
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({
+          action: "generer_boutique_complete_ia",
+          nom_entreprise: config.nom || workspace?.name,
+          type_activite: activityType,
+          produit_nom: products?.[0]?.name || "",
+          produit_description: briefIA.trim(),
+          workspace_id: workspace?.id,
+        }),
+      });
+      const resultat = await reponse.json();
+      if(!reponse.ok || !resultat?.config){ setGenererIAErreur(resultat?.error || "La génération a échoué, réessaie."); setGenererIAEnCours(false); return; }
+      const c = resultat.config;
+      setConfig(prev=>({
+        ...prev,
+        ...(c.couleur?{couleur:c.couleur}:{}),
+        ...(c.announcement?{announcement:c.announcement}:{}),
+        ...(c.heroTitle?{heroTitle:c.heroTitle}:{}),
+        ...(c.heroSubtitle?{heroSubtitle:c.heroSubtitle}:{}),
+        ...(c.buttonText?{buttonText:c.buttonText}:{}),
+        ...(c.imageTexteTitre?{imageTexteTitre:c.imageTexteTitre}:{}),
+        ...(c.imageTexteTexte?{imageTexteTexte:c.imageTexteTexte}:{}),
+        ...(c.richTextTitre?{richTextTitre:c.richTextTitre}:{}),
+        ...(c.richTextTexte?{richTextTexte:c.richTextTexte}:{}),
+        ...(c.brandsCtaTitre?{brandsCtaTitre:c.brandsCtaTitre}:{}),
+        ...(c.brandsCtaTexte?{brandsCtaTexte:c.brandsCtaTexte}:{}),
+        ...(c.description_boutique?{description:c.description_boutique}:{}),
+        ...(Array.isArray(c.statsItems)&&c.statsItems.length?{statsItems:c.statsItems.slice(0,4)}:{}),
+        ...(c.scrollingAlertTexte?{scrollingAlertTexte:c.scrollingAlertTexte}:{}),
+        ...(Array.isArray(c.sections)&&c.sections.length?{sections:c.sections}:{}),
+      }));
+      setGenererIAFait(true);
+      setTimeout(()=>setGenererIAFait(false),3000);
+    }catch(e){ setGenererIAErreur("Erreur réseau, réessaie."); }
+    setGenererIAEnCours(false);
+  }
   function toggleArray(key,id){setConfig(c=>{const a=new Set(c[key]||[]);a.has(id)?a.delete(id):a.add(id);return {...c,[key]:[...a]}})}
   function move(i,d){setConfig(c=>{const a=[...c.sections],j=i+d;if(j<0||j>=a.length)return c;[a[i],a[j]]=[a[j],a[i]];return {...c,sections:a}})}
   function ajouterLienHeader(){setConfig(c=>({...c,headerLinks:[...(c.headerLinks||[]),{id:'hl'+Date.now(),label:'Nouveau lien',href:'#'}]}))}
@@ -2966,7 +3013,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       <div onClick={()=>setSelected('header')} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 5px',marginBottom:6,background:selected==='header'?'#f0f7f1':'#fafbfa',border:'1px dashed #cdd8d0',borderRadius:8,cursor:'pointer'}}><span>🧭</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>En-tête</span><span style={{fontSize:9,color:'#93a097'}}>🔒 fixe</span></div>
       {config.sections.map((s,i)=><div key={`${s}-${i}`} ref={el=>{rowRefs.current[i]=el}} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:dragIndex===i?'#eaf3ec':selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer',boxShadow:dragIndex===i?'0 6px 16px rgba(17,38,26,.18)':'none',opacity:dragIndex===i?0.85:1,transition:dragIndex===i?'none':'background .12s'}}><span onPointerDown={e=>handlePointerDownDrag(e,i)} title="Glisser pour réordonner" style={{cursor:dragIndex===i?'grabbing':'grab',touchAction:'none',padding:'2px 4px',color:'#9aa79f',fontSize:12,userSelect:'none'}}>⠿</span><span>{sectionCatalog[s]?.icon||sectionCatalog[baseSectionType(s)]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||(suffixeSection(s)?`${sectionCatalog[baseSectionType(s)]?.label||baseSectionType(s)} (${suffixeSection(s).slice(1)})`:sectionCatalog[s]?.label)||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} title="Monter" style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} title="Descendre" style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} title="Supprimer" style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).filter(([k])=>k!=='header').map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
       <div className={`rv-builder-panel ${ongletBuilder==='apercu'?'active':''}`} style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div onClick={()=>setSelected('header')} style={{cursor:'pointer',outline:selected==='header'?'2px solid '+config.couleur:'none',outlineOffset:'-2px',background:config.headerBgColor}}><div style={{background:'rgba(0,0,0,.12)',color:config.headerTextColor,padding:'5px 14px',fontSize:9.5,textAlign:'center',opacity:.85}}>{config.headerBarreTop?config.headerBarreTop:'🚚 Livraison rapide  ·  💵 Paiement à la livraison  ·  🛡️ Achat sécurisé'}</div><div style={{background:config.headerBgColor,color:config.headerTextColor,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:null}{config.nom}</div>{config.headerShowSearch&&<div style={{flex:1,minWidth:90,display:'flex',background:'#fff',borderRadius:999,overflow:'hidden'}}><span style={{padding:'8px 0 8px 10px',fontSize:11,color:'#8A9089'}}>🔍</span><input placeholder="Rechercher..." disabled style={{flex:1,border:0,padding:'8px 10px 8px 4px',fontSize:10.5,outline:'none'}}/></div>}{workspace.whatsapp_number&&<span style={{background:'#EAF3DE',color:'#3B6D11',padding:'6px 10px',borderRadius:999,fontSize:9.5,fontWeight:700,whiteSpace:'nowrap'}}>💬 Nous contacter</span>}{config.headerShowPanier&&<span style={{background:'rgba(255,255,255,.2)',borderRadius:8,padding:'7px 9px',fontSize:12}}>🛒</span>}</div><div style={{background:config.headerBgColor,filter:'brightness(0.85)',padding:'8px 16px',display:'flex',gap:14,fontSize:10,color:config.headerTextColor,flexWrap:'wrap'}}>{(config.headerLinks||[]).length===0?<span style={{opacity:.6,fontStyle:'italic'}}>Aucun lien ajouté</span>:(config.headerLinks||[]).map(l=><span key={l.id} style={{opacity:.85}}>{l.label}</span>)}</div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
-      <div className={`rv-builder-panel ${ongletBuilder==='reglages'?'active':''}`} style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><button onClick={async()=>{setRegenLienEnCours(true);const{data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});if(nouveauSlug){await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);setRegenLienFait(nouveauSlug);}setRegenLienEnCours(false);}} disabled={regenLienEnCours} style={{width:'100%',border:'1px solid #9fb5a5',background:'#f7faf7',borderRadius:9,padding:'8px 10px',fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:12}}>{regenLienEnCours?'Régénération...':'🔄 Régénérer le lien de la boutique maintenant'}</button>{regenLienFait&&<div style={{fontSize:10,color:'#1a7a3c',marginTop:-8,marginBottom:12,wordBreak:'break-all'}}>✅ Nouveau lien : ?boutique={regenLienFait}</div>}<label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
+      <div className={`rv-builder-panel ${ongletBuilder==='reglages'?'active':''}`} style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><button onClick={async()=>{setRegenLienEnCours(true);const{data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});if(nouveauSlug){await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);setRegenLienFait(nouveauSlug);}setRegenLienEnCours(false);}} disabled={regenLienEnCours} style={{width:'100%',border:'1px solid #9fb5a5',background:'#f7faf7',borderRadius:9,padding:'8px 10px',fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:12}}>{regenLienEnCours?'Régénération...':'🔄 Régénérer le lien de la boutique maintenant'}</button>{regenLienFait&&<div style={{fontSize:10,color:'#1a7a3c',marginTop:-8,marginBottom:12,wordBreak:'break-all'}}>✅ Nouveau lien : ?boutique={regenLienFait}</div>}<div style={{border:'1px solid #d9c9f7',background:'#f8f4ff',borderRadius:10,padding:11,marginBottom:14}}><div style={{fontSize:11,fontWeight:950,color:'#5b3ba8',marginBottom:6}}>🪄 Générer toute ma boutique avec l'IA</div><div style={{fontSize:10,color:'#6a6180',lineHeight:1.5,marginBottom:8}}>Couleur, titre d'accueil, réassurance, chiffres clés — l'IA rédige tout à partir du nom de ta boutique (et, si tu veux, une courte description de ton produit phare). Tu gardes la main : rien n'est publié tant que tu ne cliques pas sur "Publier".</div><textarea placeholder="Optionnel : décris ton produit ou ton activité en une phrase..." value={briefIA} onChange={e=>setBriefIA(e.target.value)} rows={2} style={{...fieldStyle,resize:'vertical',marginBottom:8,fontSize:11}}/>{genererIAErreur&&<div style={{fontSize:10,color:'#c0392b',marginBottom:8}}>{genererIAErreur}</div>}<button onClick={genererBoutiqueIA} disabled={genererIAEnCours} style={{width:'100%',border:'none',background:genererIAFait?'#e4d9fb':'#6b3fd4',borderRadius:9,padding:'9px 10px',fontSize:10.5,fontWeight:900,color:genererIAFait?'#5b3ba8':'white',cursor:'pointer'}}>{genererIAEnCours?'Génération en cours...':genererIAFait?'✅ Généré — vérifie et publie':'🪄 Générer avec l\'IA'}</button></div><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
     </div>
   </div>;
 }
@@ -11352,29 +11399,59 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     }
 
     // C'est le tout premier produit de cette boutique et une fiche a bien été générée (peu
-    // importe si c'est depuis un lien, un nom ou une photo) : on en profite pour aussi générer
-    // la description et les politiques de la boutique elle-même — "toute la boutique" se met
-    // en place d'un coup, pas juste ce produit isolé.
+    // importe si c'est depuis un lien, un nom ou une photo) : on en profite pour générer TOUTE
+    // la boutique d'un coup — couleur, héros, réassurance, chiffres clés — pas juste les 3 textes
+    // de politique. Le design s'applique directement (store_config publié), le marchand peut
+    // toujours tout modifier ensuite dans le Store Builder.
     if (uneFicheAEteGeneree && produits.length === 0) {
       try {
         const { data: sessionData2 } = await supabase.auth.getSession();
-        const { data: infosWorkspace } = await supabase.from("workspaces").select("name, activity_type, description_boutique").eq("id", workspaceId).maybeSingle();
+        const { data: infosWorkspace } = await supabase.from("workspaces").select("name, activity_type, description_boutique, store_config").eq("id", workspaceId).maybeSingle();
         if (infosWorkspace && !infosWorkspace.description_boutique) {
           const reponseConfig = await fetch("/api/admin-panel", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData2.session?.access_token}` },
-            body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: infosWorkspace.name, type_activite: infosWorkspace.activity_type, workspace_id: workspaceId }),
+            body: JSON.stringify({
+              action: "generer_boutique_complete_ia",
+              nom_entreprise: infosWorkspace.name,
+              type_activite: infosWorkspace.activity_type,
+              produit_nom: nomCree,
+              produit_description: contextePourIA?.difference || contextePourIA?.pourQui || "",
+              workspace_id: workspaceId,
+            }),
           });
           const resultatConfig = await reponseConfig.json();
           if (reponseConfig.ok && resultatConfig?.config) {
+            const c = resultatConfig.config;
+            const nouveauStoreConfig = {
+              ...(infosWorkspace.store_config && typeof infosWorkspace.store_config === "object" ? infosWorkspace.store_config : {}),
+              ...(c.couleur ? { couleur: c.couleur } : {}),
+              ...(c.announcement ? { announcement: c.announcement } : {}),
+              ...(c.heroTitle ? { heroTitle: c.heroTitle } : {}),
+              ...(c.heroSubtitle ? { heroSubtitle: c.heroSubtitle } : {}),
+              ...(c.buttonText ? { buttonText: c.buttonText } : {}),
+              ...(c.imageTexteTitre ? { imageTexteTitre: c.imageTexteTitre } : {}),
+              ...(c.imageTexteTexte ? { imageTexteTexte: c.imageTexteTexte } : {}),
+              ...(c.richTextTitre ? { richTextTitre: c.richTextTitre } : {}),
+              ...(c.richTextTexte ? { richTextTexte: c.richTextTexte } : {}),
+              ...(c.brandsCtaTitre ? { brandsCtaTitre: c.brandsCtaTitre } : {}),
+              ...(c.brandsCtaTexte ? { brandsCtaTexte: c.brandsCtaTexte } : {}),
+              ...(Array.isArray(c.statsItems) && c.statsItems.length ? { statsItems: c.statsItems.slice(0, 4) } : {}),
+              ...(c.scrollingAlertTexte ? { scrollingAlertTexte: c.scrollingAlertTexte } : {}),
+              ...(Array.isArray(c.sections) && c.sections.length ? { sections: c.sections } : {}),
+            };
             await supabase.from("workspaces").update({
-              description_boutique: resultatConfig.config.description_boutique || null,
-              politique_livraison: resultatConfig.config.politique_livraison || null,
-              politique_retours: resultatConfig.config.politique_retours || null,
+              description_boutique: c.description_boutique || null,
+              politique_livraison: c.politique_livraison || null,
+              politique_retours: c.politique_retours || null,
+              couleur_marque: c.couleur || undefined,
+              store_config: nouveauStoreConfig,
+              store_config_published: nouveauStoreConfig,
+              store_is_published: true,
             }).eq("id", workspaceId);
           }
         }
-      } catch (e) { /* pas bloquant si ça échoue */ }
+      } catch (e) { /* pas bloquant si ça échoue — le marchand peut toujours utiliser le Store Builder manuellement */ }
     }
 
     setCreationEnCours(false);

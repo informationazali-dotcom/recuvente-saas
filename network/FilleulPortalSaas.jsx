@@ -14,6 +14,9 @@ export default function FilleulPortalSaas({ filleul, workspace, currency }) {
   useEffect(() => {
     async function charger() {
       setChargement(true);
+      // Fixe définitivement filleuls.user_id à la première connexion (voir le
+      // correctif RLS) — sans effet si déjà lié, donc sûr à rappeler à chaque fois.
+      await supabase.rpc("lier_mon_profil_filleul", { p_workspace_id: workspace.id }).catch(() => {});
       const [{ data: liens }, { data: comm }, { data: attrib }] = await Promise.all([
         supabase.from("filleuls_liens").select("*").eq("filleul_id", filleul.id).eq("actif", true).limit(1),
         supabase.from("filleuls_commissions").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false }),

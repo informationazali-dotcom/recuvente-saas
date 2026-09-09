@@ -11124,6 +11124,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [lienProduit, setLienProduit] = useState("");
   const [extractionEnCours, setExtractionEnCours] = useState(false);
   const [extractionErreur, setExtractionErreur] = useState("");
+  const [identificationEnCours, setIdentificationEnCours] = useState(false);
+  const [identificationErreur, setIdentificationErreur] = useState("");
+  const [ficheIAPreGeneree, setFicheIAPreGeneree] = useState(null);
   const [genererAvecIA, setGenererAvecIA] = useState(true);
   const [iaEnCours, setIaEnCours] = useState(false);
   const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
@@ -11294,9 +11297,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     // un prix complètement faux sur la boutique. Il reste seulement affiché comme référence
     // pour toi (voir plus haut), à toi de fixer ton propre prix, dans ta propre devise.
 
-    // Fiche produit rédigée par l'IA à partir du seul nom — titre, description et arguments
-    // de vente, pour que la fiche ait l'air professionnelle sans avoir à tout rédiger soi-même.
-    if (genererAvecIA) {
+    // Fiche produit rédigée par l'IA — soit déjà prête (identifiée depuis une photo juste avant),
+    // soit à générer maintenant à partir du nom/de la description tapée.
+    let uneFicheAEteGeneree = false;
+    if (ficheIAPreGeneree) {
+      try { await onUpdateDescription(resultat.id, ficheIAPreGeneree); uneFicheAEteGeneree = true; } catch (e) {}
+    } else if (genererAvecIA) {
       setIaEnCours(true);
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -11308,33 +11314,36 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         const resultatIA = await reponseIA.json();
         if (reponseIA.ok && resultatIA?.fiche) {
           const { description_html } = resultatIA.fiche;
-          if (description_html) await onUpdateDescription(resultat.id, description_html);
-        }
-
-        // C'est le tout premier produit de cette boutique : on en profite pour aussi générer
-        // la description et les politiques de la boutique elle-même — "toute la boutique"
-        // se met en place d'un coup, pas juste ce produit isolé.
-        if (produits.length === 0) {
-          const { data: sessionData2 } = await supabase.auth.getSession();
-          const { data: infosWorkspace } = await supabase.from("workspaces").select("name, activity_type, description_boutique").eq("id", workspaceId).maybeSingle();
-          if (infosWorkspace && !infosWorkspace.description_boutique) {
-            const reponseConfig = await fetch("/api/admin-panel", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData2.session?.access_token}` },
-              body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: infosWorkspace.name, type_activite: infosWorkspace.activity_type, workspace_id: workspaceId }),
-            });
-            const resultatConfig = await reponseConfig.json();
-            if (reponseConfig.ok && resultatConfig?.config) {
-              await supabase.from("workspaces").update({
-                description_boutique: resultatConfig.config.description_boutique || null,
-                politique_livraison: resultatConfig.config.politique_livraison || null,
-                politique_retours: resultatConfig.config.politique_retours || null,
-              }).eq("id", workspaceId);
-            }
-          }
+          if (description_html) { await onUpdateDescription(resultat.id, description_html); uneFicheAEteGeneree = true; }
         }
       } catch (e) { /* la génération IA est un plus, pas bloquant si elle échoue */ }
       setIaEnCours(false);
+    }
+
+    // C'est le tout premier produit de cette boutique et une fiche a bien été générée (peu
+    // importe si c'est depuis un lien, un nom ou une photo) : on en profite pour aussi générer
+    // la description et les politiques de la boutique elle-même — "toute la boutique" se met
+    // en place d'un coup, pas juste ce produit isolé.
+    if (uneFicheAEteGeneree && produits.length === 0) {
+      try {
+        const { data: sessionData2 } = await supabase.auth.getSession();
+        const { data: infosWorkspace } = await supabase.from("workspaces").select("name, activity_type, description_boutique").eq("id", workspaceId).maybeSingle();
+        if (infosWorkspace && !infosWorkspace.description_boutique) {
+          const reponseConfig = await fetch("/api/admin-panel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData2.session?.access_token}` },
+            body: JSON.stringify({ action: "generer_configuration_boutique_ia", nom_entreprise: infosWorkspace.name, type_activite: infosWorkspace.activity_type, workspace_id: workspaceId }),
+          });
+          const resultatConfig = await reponseConfig.json();
+          if (reponseConfig.ok && resultatConfig?.config) {
+            await supabase.from("workspaces").update({
+              description_boutique: resultatConfig.config.description_boutique || null,
+              politique_livraison: resultatConfig.config.politique_livraison || null,
+              politique_retours: resultatConfig.config.politique_retours || null,
+            }).eq("id", workspaceId);
+          }
+        }
+      } catch (e) { /* pas bloquant si ça échoue */ }
     }
 
     setCreationEnCours(false);
@@ -11345,6 +11354,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     setPhotoDejaHebergeeUrl(null);
     setPrixTrouveViaLien(null);
     setLienProduit("");
+    setFicheIAPreGeneree(null);
     setAjoutOuvert(false);
     // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
     if (resultat?.id) setSelectedId(resultat.id);
@@ -11461,18 +11471,61 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   <div style={{ fontSize: 10, color: "#8A8098", marginTop: 6 }}>Le nom et la photo se remplissent automatiquement s'ils sont trouvés — rien n'est deviné.</div>
                 </div>
 
-                <input placeholder="Nom du produit" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
+                <input placeholder="Nom du produit — ou décris-le en quelques mots (ex: lampe solaire rechargeable)" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
                 <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
 
                 {nouvellePhotoApercu ? (
-                  <div style={{ position: "relative", display: "inline-block", marginBottom: 10 }}>
-                    <img src={nouvellePhotoApercu} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: "1px solid #DDD8CC" }} />
-                    <button
-                      onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); setPhotoDejaHebergeeUrl(null); }}
-                      style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 12, cursor: "pointer" }}
-                    >
-                      ×
-                    </button>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                      <img src={nouvellePhotoApercu} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: "1px solid #DDD8CC" }} />
+                      <button
+                        onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); setPhotoDejaHebergeeUrl(null); setFicheIAPreGeneree(null); }}
+                        style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 12, cursor: "pointer" }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {nouvellePhotoFichier && !nouveauNom.trim() && (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          onClick={async () => {
+                            setIdentificationEnCours(true);
+                            setIdentificationErreur("");
+                            try {
+                              const base64 = await new Promise((resolve, reject) => {
+                                const lecteur = new FileReader();
+                                lecteur.onload = () => resolve(lecteur.result.split(",")[1]);
+                                lecteur.onerror = reject;
+                                lecteur.readAsDataURL(nouvellePhotoFichier);
+                              });
+                              const { data: sessionData } = await supabase.auth.getSession();
+                              const reponse = await fetch("/api/admin-panel", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+                                body: JSON.stringify({ action: "identifier_produit_depuis_photo", image_base64: base64, media_type: nouvellePhotoFichier.type || "image/jpeg", workspace_id: workspaceId }),
+                              });
+                              const resultat = await reponse.json();
+                              if (!reponse.ok) {
+                                setIdentificationErreur(resultat?.error || "Impossible d'analyser cette photo.");
+                              } else if (resultat.non_reconnu || !resultat.fiche) {
+                                setIdentificationErreur("L'IA n'a pas réussi à identifier clairement un produit sur cette photo — essaie une photo plus nette, ou tape le nom toi-même.");
+                              } else {
+                                setNouveauNom(resultat.fiche.titre_ameliore || "");
+                                setFicheIAPreGeneree(resultat.fiche.description_html || null);
+                              }
+                            } catch (e) {
+                              setIdentificationErreur("Erreur pendant l'analyse, réessaie.");
+                            }
+                            setIdentificationEnCours(false);
+                          }}
+                          disabled={identificationEnCours}
+                          style={{ background: "#5B21B6", color: "white", border: "none", borderRadius: 7, padding: "7px 12px", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}
+                        >
+                          {identificationEnCours ? "✨ Analyse de la photo..." : "✨ Identifier ce produit avec l'IA depuis la photo"}
+                        </button>
+                        {identificationErreur && <div style={{ color: "#D64933", fontSize: 11, marginTop: 6 }}>{identificationErreur}</div>}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "white", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 10 }}>

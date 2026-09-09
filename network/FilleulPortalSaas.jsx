@@ -4,12 +4,18 @@ import { supabase } from "../supabaseClient";
 // Espace personnel d'un filleul — miroir volontaire de LivreurPortalSaas /
 // CloserPortalSaas : le filleul ne voit QUE ses propres données (garanti
 // aussi côté RLS, ceci n'est qu'un affichage restreint côté écran).
-export default function FilleulPortalSaas({ filleul, workspace, currency }) {
+export default function FilleulPortalSaas({ filleul, workspace, currency, produits }) {
   const [lien, setLien] = useState(null);
   const [commissions, setCommissions] = useState([]);
   const [ventes, setVentes] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [lienCopie, setLienCopie] = useState(false);
+  const [stock, setStock] = useState([]);
+
+  async function chargerStock() {
+    const { data } = await supabase.from("filleuls_stock").select("*, produits(nom)").eq("filleul_id", filleul.id).gt("quantite_restante", 0);
+    setStock(data || []);
+  }
 
   useEffect(() => {
     async function charger() {
@@ -25,6 +31,7 @@ export default function FilleulPortalSaas({ filleul, workspace, currency }) {
       setLien((liens && liens[0]) || null);
       setCommissions(comm || []);
       setVentes(attrib || []);
+      if (filleul.mode_vente === "revendeur") await chargerStock();
       setChargement(false);
     }
     charger();
@@ -91,6 +98,10 @@ export default function FilleulPortalSaas({ filleul, workspace, currency }) {
         <div style={valeur}>{ventesAttribuees}</div>
       </div>
 
+      {filleul.mode_vente === "revendeur" && (
+        <MonStock filleul={filleul} workspace={workspace} produits={produits} currency={currency} stock={stock} onChange={chargerStock} />
+      )}
+
       {/* Historique commissions */}
       <div style={{ fontSize: 13, fontWeight: 800, color: "#16231F", marginBottom: 10 }}>Mes commissions récentes</div>
       {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
@@ -113,6 +124,88 @@ export default function FilleulPortalSaas({ filleul, workspace, currency }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Mode revendeur (§6-7 de la mission) : le filleul achète du stock à la base puis le
+// revend avec sa propre marge. Deux actions possibles, toutes deux passent par la RPC
+// sécurisée côté serveur — jamais un calcul de stock fait en confiance depuis le client.
+function MonStock({ filleul, workspace, produits, currency, stock, onChange }) {
+  const [ongletAction, setOngletAction] = useState(null); // 'achat' | 'vente' | null
+  const [produitId, setProduitId] = useState("");
+  const [quantite, setQuantite] = useState("");
+  const [prix, setPrix] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 };
+
+  async function valider() {
+    if (!produitId || !quantite || Number(quantite) <= 0) { setErreur("Choisis un produit et une quantité."); return; }
+    setErreur("");
+    setEnCours(true);
+    if (ongletAction === "achat") {
+      const produitChoisi = (produits || []).find((p) => p.id === produitId);
+      const { error } = await supabase.rpc("enregistrer_mouvement_stock_filleul", {
+        p_workspace_id: workspace.id, p_filleul_id: filleul.id, p_produit_id: produitId,
+        p_type: "achat", p_quantite: Number(quantite),
+        p_prix_unitaire: prix ? Number(prix) : Number(produitChoisi?.cout_achat || 0),
+        p_commande_id: null, p_note: "Achat enregistré par le filleul",
+      });
+      if (error) setErreur("Échec — réessaie ou contacte le propriétaire.");
+    } else {
+      const { error } = await supabase.rpc("enregistrer_vente_stock_filleul", {
+        p_workspace_id: workspace.id, p_filleul_id: filleul.id, p_produit_id: produitId,
+        p_quantite: Number(quantite), p_prix_vente_unitaire: Number(prix) || 0,
+        p_note: "Vente enregistrée par le filleul",
+      });
+      if (error) setErreur(error.message?.includes("Stock insuffisant") ? "Stock insuffisant pour cette quantité." : "Échec — réessaie.");
+    }
+    setEnCours(false);
+    if (!erreur) { setOngletAction(null); setProduitId(""); setQuantite(""); setPrix(""); await onChange(); }
+  }
+
+  return (
+    <div style={carte}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: "#16231F", marginBottom: 10 }}>📦 Mon stock</div>
+      {stock.length === 0 && <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 10 }}>Aucun stock pour l'instant.</div>}
+      {stock.map((s) => (
+        <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "5px 0" }}>
+          <span>{s.produits?.nom || "Produit"}</span>
+          <span style={{ fontWeight: 700 }}>{s.quantite_restante} restant{s.quantite_restante > 1 ? "s" : ""}</span>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button onClick={() => setOngletAction(ongletAction === "achat" ? null : "achat")} style={{ flex: 1, background: ongletAction === "achat" ? "#1a7a3c" : "#EAF3DE", color: ongletAction === "achat" ? "white" : "#1a7a3c", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+          + Acheter du stock
+        </button>
+        <button onClick={() => setOngletAction(ongletAction === "vente" ? null : "vente")} style={{ flex: 1, background: ongletAction === "vente" ? "#6b3fd4" : "#f0ecfb", color: ongletAction === "vente" ? "white" : "#5b3ba8", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+          Enregistrer une vente
+        </button>
+      </div>
+
+      {ongletAction && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #ECE8DC" }}>
+          <select value={produitId} onChange={(e) => setProduitId(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8 }}>
+            <option value="">
+              {ongletAction === "achat" ? "Produit à acheter..." : "Produit à vendre..."}
+            </option>
+            {ongletAction === "achat"
+              ? (produits || []).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)
+              : stock.map((s) => <option key={s.produit_id} value={s.produit_id}>{s.produits?.nom} ({s.quantite_restante} dispo.)</option>)}
+          </select>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input type="number" placeholder="Quantité" value={quantite} onChange={(e) => setQuantite(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }} />
+            <input type="number" placeholder={ongletAction === "achat" ? "Prix payé (optionnel)" : "Prix de vente"} value={prix} onChange={(e) => setPrix(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }} />
+          </div>
+          {erreur && <div style={{ fontSize: 11, color: "#D64933", marginBottom: 8 }}>{erreur}</div>}
+          <button onClick={valider} disabled={enCours} style={{ width: "100%", background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            {enCours ? "..." : "Confirmer"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -5797,7 +5797,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
 
       {vue === "school" && !accesBloque && (
-        <SchoolAdmin workspace={workspace} />
+        <SchoolAdmin workspace={workspace} filleuls={filleuls} />
       )}
 
       {vue === "recovery" && !accesBloque && (

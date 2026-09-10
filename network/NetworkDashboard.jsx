@@ -66,9 +66,6 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
   function statsPourFilleul(filleulId) {
     const mesCommissions = commissions.filter((c) => c.filleul_id === filleulId);
-    // Une "vente" peut venir de deux sources : attribuée en ligne (via le lien, table
-    // filleuls_attributions) ou enregistrée depuis le stock personnel (mode revendeur,
-    // filleuls_commissions.source = 'vente_stock', qui n'a pas de ligne d'attribution).
     const ventesEnLigne = attributions.filter((a) => a.filleul_id === filleulId).length;
     const ventesStock = mesCommissions.filter((c) => c.source === "vente_stock").length;
     const mesVentes = ventesEnLigne + ventesStock;
@@ -76,7 +73,12 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
     const commission = mesCommissions.reduce((s, c) => s + Number(c.montant_commission || 0), 0);
     const disponible = mesCommissions.filter((c) => c.statut === "validated" || c.statut === "available").reduce((s, c) => s + Number(c.montant_commission), 0);
     const payee = mesCommissions.filter((c) => c.statut === "paid").reduce((s, c) => s + Number(c.montant_commission), 0);
-    return { ventes: mesVentes, ca, commission, disponible, payee };
+    // Gains en tant que LEADER (parrain) : les commissions se trouvent sur les lignes de
+    // vente de SES FILLEULS (leader_id = ce filleul), pas sur ses propres ventes.
+    const commissionsCommeLeader = commissions.filter((c) => c.leader_id === filleulId);
+    const gainsLeader = commissionsCommeLeader.reduce((s, c) => s + Number(c.montant_commission_leader || 0), 0);
+    const gainsLeaderDisponibles = commissionsCommeLeader.filter((c) => c.statut === "validated" || c.statut === "available").reduce((s, c) => s + Number(c.montant_commission_leader || 0), 0);
+    return { ventes: mesVentes, ca, commission, disponible, payee, gainsLeader, gainsLeaderDisponibles };
   }
 
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18 };
@@ -398,6 +400,13 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
           <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Commission dispo.</div><div style={{ fontSize: 16, fontWeight: 800, color: "#1a7a3c" }}>{stats.disponible.toLocaleString("fr-FR")} {currency}</div></div>
           <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Déjà payé</div><div style={{ fontSize: 16, fontWeight: 800 }}>{stats.payee.toLocaleString("fr-FR")} {currency}</div></div>
         </div>
+
+        {stats.gainsLeader > 0 && (
+          <div style={{ background: "#f0ecfb", borderRadius: 10, padding: "10px 14px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 11.5, color: "#5b3ba8", fontWeight: 700 }}>👑 Gains comme parrain</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#5b3ba8" }}>{stats.gainsLeaderDisponibles.toLocaleString("fr-FR")} {currency} dispo.</div>
+          </div>
+        )}
 
         <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
           <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>Parrainage & mode de vente</div>

@@ -2,23 +2,27 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 // Écran admin "🎓 School" — gestion des niveaux, cours, et questions de quiz.
-export default function SchoolAdmin({ workspace }) {
+export default function SchoolAdmin({ workspace, filleuls }) {
   const [niveaux, setNiveaux] = useState([]);
   const [cours, setCours] = useState([]);
+  const [progressionTous, setProgressionTous] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [niveauOuvert, setNiveauOuvert] = useState(null);
   const [coursOuvert, setCoursOuvert] = useState(null);
   const [showAjoutNiveau, setShowAjoutNiveau] = useState(false);
   const [showAjoutCours, setShowAjoutCours] = useState(null); // niveau_id ou null
+  const [onglet, setOnglet] = useState("contenu"); // contenu | progression
 
   async function charger() {
     setChargement(true);
-    const [{ data: n }, { data: c }] = await Promise.all([
+    const [{ data: n }, { data: c }, { data: p }] = await Promise.all([
       supabase.from("ecole_niveaux").select("*").eq("workspace_id", workspace.id).order("ordre"),
       supabase.from("ecole_cours").select("*").eq("workspace_id", workspace.id).order("ordre"),
+      supabase.from("ecole_progression").select("filleul_id, cours_id, statut").eq("workspace_id", workspace.id),
     ]);
     setNiveaux(n || []);
     setCours(c || []);
+    setProgressionTous(p || []);
     setChargement(false);
   }
   useEffect(() => { charger(); }, [workspace.id]);
@@ -29,11 +33,31 @@ export default function SchoolAdmin({ workspace }) {
     <div style={{ padding: "0 4px 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F" }}>🎓 School</div>
-        <button onClick={() => setShowAjoutNiveau(true)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-          + Niveau
-        </button>
+        {onglet === "contenu" && (
+          <button onClick={() => setShowAjoutNiveau(true)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            + Niveau
+          </button>
+        )}
       </div>
 
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid #ECE8DC" }}>
+        {[{ key: "contenu", label: "Contenu" }, { key: "progression", label: "📊 Progression" }].map((o) => (
+          <button key={o.key} onClick={() => setOnglet(o.key)} style={{
+            background: "none", border: "none", padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+            color: onglet === o.key ? "#1a7a3c" : "#8A9089",
+            borderBottom: onglet === o.key ? "2px solid #1a7a3c" : "2px solid transparent", marginBottom: -1,
+          }}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+
+      {onglet === "progression" && (
+        <ProgressionEcole filleuls={filleuls || []} cours={cours} progressionTous={progressionTous} carte={carte} />
+      )}
+
+      {onglet === "contenu" && (
+      <>
       {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
       {!chargement && niveaux.length === 0 && <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun niveau — crée le premier pour commencer à construire la formation.</div>}
 
@@ -68,6 +92,8 @@ export default function SchoolAdmin({ workspace }) {
           );
         })}
       </div>
+      </>
+      )}
 
       {showAjoutNiveau && <AjoutNiveauModal workspace={workspace} onClose={() => setShowAjoutNiveau(false)} onCree={async () => { setShowAjoutNiveau(false); await charger(); }} />}
       {showAjoutCours && <AjoutCoursModal workspace={workspace} niveauId={showAjoutCours} coursExistants={cours} onClose={() => setShowAjoutCours(null)} onCree={async () => { setShowAjoutCours(null); await charger(); }} />}
@@ -386,6 +412,45 @@ function AjoutQuestionModal({ coursId, onClose, onCree }) {
         </button>
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12, padding: "6px 0", cursor: "pointer" }}>Annuler</button>
       </div>
+    </div>
+  );
+}
+
+// Vue "Progression" (§33 — profil 360°, visibilité formation) : jamais
+// construite jusqu'ici — l'admin n'avait aucun moyen de savoir qui a
+// terminé quoi. Comptages réels uniquement, rien d'inventé.
+function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
+  const totalCours = cours.filter((c) => c.actif).length;
+  if (totalCours === 0) {
+    return <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun cours actif — la progression apparaîtra ici une fois du contenu créé.</div>;
+  }
+  if (filleuls.length === 0) {
+    return <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun filleul pour l'instant.</div>;
+  }
+
+  const lignes = filleuls.map((f) => {
+    const mesProg = progressionTous.filter((p) => p.filleul_id === f.id);
+    const termines = mesProg.filter((p) => p.statut === "completed").length;
+    const enCours = mesProg.filter((p) => p.statut === "in_progress").length;
+    return { filleul: f, termines, enCours, pourcentage: totalCours > 0 ? Math.round((termines / totalCours) * 100) : 0 };
+  }).sort((a, b) => b.pourcentage - a.pourcentage);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {lignes.map((l) => (
+        <div key={l.filleul.id} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{l.filleul.nom}</div>
+            <div style={{ fontSize: 10.5, color: "#8A9089" }}>{l.termines}/{totalCours} terminés{l.enCours > 0 ? ` · ${l.enCours} en cours` : ""}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 80, height: 6, background: "#F3F1EA", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ width: `${l.pourcentage}%`, height: "100%", background: l.pourcentage === 100 ? "#1a7a3c" : "#6b3fd4" }} />
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: l.pourcentage === 100 ? "#1a7a3c" : "#16231F", minWidth: 32, textAlign: "right" }}>{l.pourcentage}%</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

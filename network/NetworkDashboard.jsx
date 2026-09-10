@@ -143,7 +143,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
       {onglet === "filleuls" && (
         <>
           {filleuls.length > 1 && (
-            <TopClassements filleuls={filleuls} commissions={commissions} produits={produits} currency={currency} statsPourFilleul={statsPourFilleul} />
+            <TopClassements filleuls={filleuls} commissions={commissions} produits={produits} currency={currency} statsPourFilleul={statsPourFilleul} workspace={workspace} />
           )}
           {filleuls.length > 3 && (
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -569,6 +569,31 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
         </div>
 
         {(() => {
+          // Lignée complète (§21 — architecture multi-niveaux, visibilité uniquement,
+          // aucun calcul de commission en cascade activé). Remonte la chaîne parrain_id
+          // jusqu'en haut, avec une garde anti-boucle infinie au cas où.
+          const lignee = [];
+          let courant = filleul;
+          let securite = 0;
+          while (courant?.parrain_id && securite < 20) {
+            const parent = filleuls.find((f) => f.id === courant.parrain_id);
+            if (!parent || lignee.some((l) => l.id === parent.id)) break;
+            lignee.push(parent);
+            courant = parent;
+            securite++;
+          }
+          if (lignee.length === 0) return null;
+          return (
+            <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>🔗 Lignée</div>
+              <div style={{ fontSize: 11.5, color: "#6B7168", lineHeight: 1.8 }}>
+                {[...lignee].reverse().map((l) => l.nom).join(" → ")} → <strong>{filleul.nom}</strong>
+              </div>
+            </div>
+          );
+        })()}
+
+        {(() => {
           const recrues = (filleuls || []).filter((f) => f.parrain_id === filleul.id);
           if (recrues.length === 0) return null;
           return (
@@ -967,12 +992,32 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
 // Classements (§27-29 de la mission) : top vendeurs et top produits, calculés
 // à partir des commissions déjà chargées — pas de requête supplémentaire.
 // V1 volontairement simple : toutes périodes confondues, sans filtre de date.
-function TopClassements({ filleuls, commissions, produits, currency, statsPourFilleul }) {
+function TopClassements({ filleuls, commissions, produits, currency, statsPourFilleul, workspace }) {
+  const [candidaturesParRecruteur, setCandidaturesParRecruteur] = useState(null);
+
+  useEffect(() => {
+    if (!workspace?.id) return;
+    supabase.from("filleuls_prospects").select("recruteur_filleul_id").eq("workspace_id", workspace.id).not("recruteur_filleul_id", "is", null)
+      .then(({ data }) => {
+        const compte = {};
+        (data || []).forEach((p) => { compte[p.recruteur_filleul_id] = (compte[p.recruteur_filleul_id] || 0) + 1; });
+        setCandidaturesParRecruteur(compte);
+      });
+  }, [workspace?.id]);
+
   const topFilleuls = [...filleuls]
     .map((f) => ({ filleul: f, ventes: statsPourFilleul(f.id).ventes }))
     .filter((x) => x.ventes > 0)
     .sort((a, b) => b.ventes - a.ventes)
     .slice(0, 5);
+
+  const topRecruteurs = candidaturesParRecruteur
+    ? Object.entries(candidaturesParRecruteur)
+        .map(([filleulId, n]) => ({ filleul: filleuls.find((f) => f.id === filleulId), n }))
+        .filter((x) => x.filleul)
+        .sort((a, b) => b.n - a.n)
+        .slice(0, 5)
+    : [];
 
   const parProduit = {};
   for (const c of commissions) {
@@ -987,7 +1032,7 @@ function TopClassements({ filleuls, commissions, produits, currency, statsPourFi
     .sort((a, b) => b.ventes - a.ventes)
     .slice(0, 5);
 
-  if (topFilleuls.length === 0 && topProduits.length === 0) return null;
+  if (topFilleuls.length === 0 && topProduits.length === 0 && topRecruteurs.length === 0) return null;
 
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16 };
 
@@ -1001,6 +1046,19 @@ function TopClassements({ filleuls, commissions, produits, currency, statsPourFi
               <div key={x.filleul.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                 <span>{i + 1}. {x.filleul.nom}</span>
                 <span style={{ fontWeight: 700 }}>{x.ventes} vente{x.ventes > 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {topRecruteurs.length > 0 && (
+        <div style={carte}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#16231F", marginBottom: 10 }}>👑 Top recruteurs</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {topRecruteurs.map((x, i) => (
+              <div key={x.filleul.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span>{i + 1}. {x.filleul.nom}</span>
+                <span style={{ fontWeight: 700 }}>{x.n} candidature{x.n > 1 ? "s" : ""}</span>
               </div>
             ))}
           </div>

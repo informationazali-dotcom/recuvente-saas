@@ -64,7 +64,7 @@ export default function SchoolPartenaire({ filleul, workspace }) {
                       onClick={() => debloque && setCoursOuvert(c)}
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", borderRadius: 9, background: debloque ? "#F7FAF7" : "#FAFAFA", cursor: debloque ? "pointer" : "not-allowed", opacity: debloque ? 1 : 0.6 }}
                     >
-                      <div style={{ fontSize: 12 }}>{statutIcone} {{ video: "🎥", texte: "📄", quiz: "❓" }[c.type]} {c.titre}</div>
+                      <div style={{ fontSize: 12 }}>{statutIcone} {{ video: "🎥", texte: "📄", quiz: "❓", reponse_libre: "✍️" }[c.type]} {c.titre}</div>
                       {prog?.pourcentage_video > 0 && prog.statut !== "completed" && <div style={{ fontSize: 10, color: "#8A9089" }}>{prog.pourcentage_video}%</div>}
                     </div>
                   );
@@ -79,6 +79,7 @@ export default function SchoolPartenaire({ filleul, workspace }) {
         <FicheCoursPartenaireModal
           cours={coursOuvert}
           progression={progressionDe(coursOuvert.id)}
+          workspace={workspace}
           onClose={() => setCoursOuvert(null)}
           onChange={charger}
         />
@@ -87,7 +88,7 @@ export default function SchoolPartenaire({ filleul, workspace }) {
   );
 }
 
-function FicheCoursPartenaireModal({ cours, progression, onClose, onChange }) {
+function FicheCoursPartenaireModal({ cours, progression, workspace, onClose, onChange }) {
   const [enCours, setEnCours] = useState(false);
 
   async function marquerTermine() {
@@ -141,6 +142,7 @@ function FicheCoursPartenaireModal({ cours, progression, onClose, onChange }) {
         )}
 
         {cours.type === "quiz" && <QuizPartenaire cours={cours} progression={progression} onChange={onChange} />}
+        {cours.type === "reponse_libre" && <ReponseLibrePartenaire cours={cours} progression={progression} workspace={workspace} onChange={onChange} />}
 
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Fermer</button>
       </div>
@@ -205,6 +207,65 @@ function QuizPartenaire({ cours, progression, onChange }) {
 
       <button onClick={soumettre} disabled={enCours || Object.keys(reponses).length < questions.length} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
         {enCours ? "..." : resultat && !resultat.reussi ? "Réessayer" : "Soumettre mes réponses"}
+      </button>
+    </div>
+  );
+}
+
+// Question ouverte corrigée par l'IA (§29). L'appel passe par admin-panel.js
+// (service role) — le résultat est écrit côté serveur, jamais depuis ce
+// composant : impossible pour le filleul de se déclarer "réussi" sans que
+// l'IA ait vraiment évalué sa réponse.
+function ReponseLibrePartenaire({ cours, progression, workspace, onChange }) {
+  const [reponse, setReponse] = useState("");
+  const [resultat, setResultat] = useState(null);
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  async function soumettre() {
+    if (!reponse.trim()) return;
+    setEnCours(true);
+    setErreur("");
+    const { data: sessionData } = await supabase.auth.getSession();
+    try {
+      const reponseAPI = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "evaluer_reponse_ecole", cours_id: cours.id, reponse_texte: reponse.trim(), workspace_id: workspace.id }),
+      });
+      const json = await reponseAPI.json();
+      if (!reponseAPI.ok) { setErreur(json?.error || "Échec de l'évaluation."); setEnCours(false); return; }
+      setResultat(json);
+      if (json.reussi) await onChange();
+    } catch (e) {
+      setErreur("Erreur réseau, réessaie.");
+    }
+    setEnCours(false);
+  }
+
+  if (progression?.statut === "completed" && !resultat) {
+    return <div style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 700, marginBottom: 10 }}>✅ Déjà validé</div>;
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{cours.contenu}</div>
+      <textarea
+        placeholder="Écris ta réponse ici..."
+        value={reponse}
+        onChange={(e) => setReponse(e.target.value)}
+        rows={5}
+        style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, resize: "vertical", marginBottom: 10 }}
+      />
+      {erreur && <div style={{ fontSize: 11.5, color: "#D64933", marginBottom: 10 }}>{erreur}</div>}
+      {resultat && (
+        <div style={{ padding: "10px 14px", borderRadius: 10, background: resultat.reussi ? "#EAF3DE" : "#FBEAEA", color: resultat.reussi ? "#1a7a3c" : "#D64933", fontSize: 12.5, marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>{resultat.reussi ? "✅ Réussi" : "❌ À revoir"}</div>
+          <div>{resultat.feedback}</div>
+        </div>
+      )}
+      <button onClick={soumettre} disabled={enCours || !reponse.trim()} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+        {enCours ? "Évaluation en cours..." : resultat && !resultat.reussi ? "Réessayer" : "Soumettre ma réponse"}
       </button>
     </div>
   );

@@ -157,6 +157,12 @@ function FicheCoursModal({ cours, onClose, onChange }) {
   const [questions, setQuestions] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [showAjoutQuestion, setShowAjoutQuestion] = useState(false);
+  const [edition, setEdition] = useState(false);
+  const [titre, setTitre] = useState(cours.titre);
+  const [videoUrl, setVideoUrl] = useState(cours.video_url || "");
+  const [contenu, setContenu] = useState(cours.contenu || "");
+  const [actif, setActif] = useState(cours.actif);
+  const [enCours, setEnCours] = useState(false);
 
   async function charger() {
     const { data } = await supabase.from("ecole_quiz_questions").select("*").eq("cours_id", cours.id).order("ordre");
@@ -165,19 +171,67 @@ function FicheCoursModal({ cours, onClose, onChange }) {
   }
   useEffect(() => { if (cours.type === "quiz") charger(); else setChargement(false); }, [cours.id]);
 
+  async function enregistrerModifications() {
+    setEnCours(true);
+    await supabase.from("ecole_cours").update({
+      titre: titre.trim(), actif,
+      video_url: cours.type === "video" ? videoUrl.trim() || null : cours.video_url,
+      contenu: cours.type === "texte" ? contenu.trim() || null : cours.contenu,
+      updated_at: new Date().toISOString(),
+    }).eq("id", cours.id);
+    setEnCours(false);
+    setEdition(false);
+    await onChange();
+  }
+
+  async function supprimerQuestion(id) {
+    await supabase.from("ecole_quiz_questions").delete().eq("id", id);
+    await charger();
+  }
+
+  async function supprimerCours() {
+    if (!window.confirm(`Supprimer "${cours.titre}" ? Cette action est irréversible — la progression des filleuls sur ce cours sera perdue.`)) return;
+    setEnCours(true);
+    await supabase.from("ecole_cours").delete().eq("id", cours.id);
+    setEnCours(false);
+    await onChange();
+    onClose();
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100, overflowY: "auto" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto" }}>
-        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{cours.titre}</div>
+        {!edition ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{cours.titre} {!cours.actif && <span style={{ color: "#8A9089", fontWeight: 500, fontSize: 12 }}>(inactif)</span>}</div>
+            <button onClick={() => setEdition(true)} style={{ background: "none", border: "none", color: "#5b3ba8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✏️ Modifier</button>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 12 }}>
+            <input value={titre} onChange={(e) => setTitre(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 8, fontSize: 13, fontWeight: 700 }} />
+            {cours.type === "video" && <input placeholder="URL de la vidéo" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 8, fontSize: 12.5 }} />}
+            {cours.type === "texte" && <textarea value={contenu} onChange={(e) => setContenu(e.target.value)} rows={4} style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 8, fontSize: 12.5, resize: "vertical" }} />}
+            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, marginBottom: 10 }}>
+              <input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Cours actif (visible par les filleuls)
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={enregistrerModifications} disabled={enCours} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Enregistrer</button>
+              <button onClick={() => setEdition(false)} style={{ flex: 1, background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Annuler</button>
+            </div>
+          </div>
+        )}
         <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 16 }}>{{ video: "🎥 Vidéo", texte: "📄 Texte", quiz: "❓ Quiz" }[cours.type]}{cours.type === "quiz" ? ` · seuil de réussite ${cours.quiz_seuil_reussite}%` : ""}</div>
 
         {cours.type === "quiz" && (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
               {questions.map((q, i) => (
-                <div key={q.id} style={{ background: "#F7FAF7", borderRadius: 9, padding: "9px 11px", fontSize: 12 }}>
-                  <div style={{ fontWeight: 700 }}>{i + 1}. {q.question}</div>
-                  <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 3 }}>{q.type === "qcm" ? `${(q.options || []).length} options` : "Vrai/Faux"}</div>
+                <div key={q.id} style={{ background: "#F7FAF7", borderRadius: 9, padding: "9px 11px", fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{i + 1}. {q.question}</div>
+                    <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 3 }}>{q.type === "qcm" ? `${(q.options || []).length} options` : "Vrai/Faux"}</div>
+                  </div>
+                  <button onClick={() => supprimerQuestion(q.id)} style={{ background: "none", border: "none", color: "#D64933", fontSize: 11, cursor: "pointer", flexShrink: 0 }}>Suppr.</button>
                 </div>
               ))}
               {questions.length === 0 && !chargement && <div style={{ fontSize: 11.5, color: "#8A9089" }}>Aucune question pour l'instant.</div>}
@@ -188,6 +242,9 @@ function FicheCoursModal({ cours, onClose, onChange }) {
           </>
         )}
 
+        <button onClick={supprimerCours} disabled={enCours} style={{ width: "100%", background: "#FBEAEA", color: "#D64933", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+          🗑️ Supprimer ce cours
+        </button>
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Fermer</button>
       </div>
 

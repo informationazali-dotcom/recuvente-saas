@@ -17,6 +17,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
   const [filleulSelectionne, setFilleulSelectionne] = useState(null);
   const [onglet, setOnglet] = useState("filleuls"); // filleuls | commissions
   const [filtreStatut, setFiltreStatut] = useState("toutes");
+  const [rechercheFilleul, setRechercheFilleul] = useState("");
   const [filleulAPayer, setFilleulAPayer] = useState(null);
   const [maxFilleuls, setMaxFilleuls] = useState(null);
   const [maxCommandesMois, setMaxCommandesMois] = useState(null);
@@ -144,13 +145,32 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
           {filleuls.length > 1 && (
             <TopClassements filleuls={filleuls} commissions={commissions} produits={produits} currency={currency} statsPourFilleul={statsPourFilleul} />
           )}
+          {filleuls.length > 3 && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input
+                placeholder="🔍 Rechercher un nom, un code, un téléphone..."
+                value={rechercheFilleul}
+                onChange={(e) => setRechercheFilleul(e.target.value)}
+                style={{ flex: 1, boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 12.5 }}
+              />
+              <button onClick={() => exporterFilleulsCSV(filleuls, statsPourFilleul, currency)} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 9, padding: "9px 14px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                ⬇️ CSV
+              </button>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {!chargement && filleuls.length === 0 && (
               <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>
                 Aucun filleul pour l'instant. Clique sur « + Ajouter un filleul » pour créer le premier lien.
               </div>
             )}
-            {filleuls.map((f) => {
+            {filleuls
+              .filter((f) => {
+                if (!rechercheFilleul.trim()) return true;
+                const q = rechercheFilleul.trim().toLowerCase();
+                return (f.nom || "").toLowerCase().includes(q) || (f.code || "").toLowerCase().includes(q) || (f.telephone || "").toLowerCase().includes(q);
+              })
+              .map((f) => {
               const s = statsPourFilleul(f.id);
               return (
                 <div key={f.id} onClick={() => setFilleulSelectionne(f)} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "14px 18px" }}>
@@ -306,6 +326,19 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
   const [erreurVente, setErreurVente] = useState("");
   const [enCoursVente, setEnCoursVente] = useState(false);
   const [venteFaite, setVenteFaite] = useState(false);
+  const [ecole, setEcole] = useState(null);
+
+  useEffect(() => {
+    async function chargerEcole() {
+      const [{ count: totalCours }, { data: progression }] = await Promise.all([
+        supabase.from("ecole_cours").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).eq("actif", true),
+        supabase.from("ecole_progression").select("statut").eq("filleul_id", filleul.id),
+      ]);
+      const termines = (progression || []).filter((p) => p.statut === "completed").length;
+      setEcole({ total: totalCours || 0, termines });
+    }
+    chargerEcole();
+  }, [filleul.id, workspace.id]);
 
   async function enregistrerVente() {
     if (!produitVenteId || !quantiteVente || Number(quantiteVente) <= 0 || !prixVente) {
@@ -436,6 +469,13 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
           <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Commission dispo.</div><div style={{ fontSize: 16, fontWeight: 800, color: "#1a7a3c" }}>{stats.disponible.toLocaleString("fr-FR")} {currency}</div></div>
           <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Déjà payé</div><div style={{ fontSize: 16, fontWeight: 800 }}>{stats.payee.toLocaleString("fr-FR")} {currency}</div></div>
         </div>
+
+        {ecole && ecole.total > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F7FAF7", borderRadius: 10, padding: "9px 14px", marginBottom: 18 }}>
+            <div style={{ fontSize: 11.5, color: "#16231F", fontWeight: 700 }}>🎓 Formation</div>
+            <div style={{ fontSize: 12, color: ecole.termines === ecole.total ? "#1a7a3c" : "#8A9089", fontWeight: 700 }}>{ecole.termines}/{ecole.total} cours terminés</div>
+          </div>
+        )}
 
         {stats.gainsLeader > 0 && (
           <div style={{ background: "#f0ecfb", borderRadius: 10, padding: "10px 14px", marginBottom: 18 }}>
@@ -1121,4 +1161,20 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
       </div>
     </div>
   );
+}
+
+// Export CSV des filleuls (§26) — utile pour un suivi hors-ligne ou une migration.
+function exporterFilleulsCSV(filleuls, statsPourFilleul, currency) {
+  const entetes = ["Nom", "Code", "Téléphone", "Statut", "Ventes", `CA (${currency})`, `Commission dispo. (${currency})`, `Déjà payé (${currency})`];
+  const lignes = filleuls.map((f) => {
+    const s = statsPourFilleul(f.id);
+    return [f.nom, f.code, f.telephone || "", f.statut, s.ventes, s.ca, s.disponible, s.payee];
+  });
+  const csv = [entetes, ...lignes].map((ligne) => ligne.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `filleuls-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

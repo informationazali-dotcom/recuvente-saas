@@ -340,6 +340,33 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     chargerEcole();
   }, [filleul.id, workspace.id]);
 
+  const [origineRecrutement, setOrigineRecrutement] = useState(undefined);
+  const [analyticsRecruteur, setAnalyticsRecruteur] = useState(null);
+
+  useEffect(() => {
+    async function chargerRecrutement() {
+      // Origine (§33 — profil 360°) : ce filleul est-il lui-même arrivé via le
+      // tunnel de recrutement ? Recherche via le prospect devenu ce filleul.
+      const { data: prospect } = await supabase.from("filleuls_prospects").select("id, created_at").eq("devenu_filleul_id", filleul.id).maybeSingle();
+      if (prospect) {
+        const { data: commande } = await supabase.from("recrutement_commandes_pack").select("pack_nom_snapshot, statut_activation, activation_at").eq("prospect_id", prospect.id).maybeSingle();
+        setOrigineRecrutement({ candidature_at: prospect.created_at, pack: commande?.pack_nom_snapshot, activation_at: commande?.activation_at });
+      } else {
+        setOrigineRecrutement(null);
+      }
+
+      // Ce que CE filleul a généré comme recruteur (§20 — analytics par recruteur)
+      const [{ count: visites }, { count: candidatures }] = await Promise.all([
+        supabase.from("recrutement_visites_tunnel").select("id", { count: "exact", head: true }).eq("recruteur_filleul_id", filleul.id),
+        supabase.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("recruteur_filleul_id", filleul.id),
+      ]);
+      if ((visites || 0) > 0 || (candidatures || 0) > 0) {
+        setAnalyticsRecruteur({ visites: visites || 0, candidatures: candidatures || 0 });
+      }
+    }
+    chargerRecrutement();
+  }, [filleul.id, workspace.id]);
+
   async function enregistrerVente() {
     if (!produitVenteId || !quantiteVente || Number(quantiteVente) <= 0 || !prixVente) {
       setErreurVente("Choisis un produit, une quantité et un prix de vente.");
@@ -474,6 +501,27 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F7FAF7", borderRadius: 10, padding: "9px 14px", marginBottom: 18 }}>
             <div style={{ fontSize: 11.5, color: "#16231F", fontWeight: 700 }}>🎓 Formation</div>
             <div style={{ fontSize: 12, color: ecole.termines === ecole.total ? "#1a7a3c" : "#8A9089", fontWeight: 700 }}>{ecole.termines}/{ecole.total} cours terminés</div>
+          </div>
+        )}
+
+        {origineRecrutement && (
+          <div style={{ fontSize: 11, color: "#5b3ba8", background: "#f0ecfb", borderRadius: 10, padding: "9px 14px", marginBottom: 18, lineHeight: 1.6 }}>
+            📋 Arrivé via le tunnel de recrutement le {new Date(origineRecrutement.candidature_at).toLocaleDateString("fr-FR")}
+            {origineRecrutement.pack ? ` · Pack "${origineRecrutement.pack}"` : ""}
+            {origineRecrutement.activation_at ? ` · Activé le ${new Date(origineRecrutement.activation_at).toLocaleDateString("fr-FR")}` : ""}
+          </div>
+        )}
+
+        {analyticsRecruteur && (
+          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+            <div style={{ flex: 1, background: "#F7FAF7", borderRadius: 10, padding: "9px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#16231F" }}>{analyticsRecruteur.visites}</div>
+              <div style={{ fontSize: 10, color: "#8A9089" }}>👀 visites générées</div>
+            </div>
+            <div style={{ flex: 1, background: "#F7FAF7", borderRadius: 10, padding: "9px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#16231F" }}>{analyticsRecruteur.candidatures}</div>
+              <div style={{ fontSize: 10, color: "#8A9089" }}>📝 candidatures apportées</div>
+            </div>
           </div>
         )}
 

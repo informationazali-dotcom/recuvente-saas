@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import NotificationsBell from "./NotificationsBell.jsx";
 
 // Écran admin "📋 Recrutement" — pipeline candidature → pack → paiement
 // externe → confirmation manuelle → partenaire externe → activation.
@@ -76,9 +77,12 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
     <div style={{ padding: "0 4px 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F" }}>📋 Recrutement — candidatures &amp; activation</div>
-        <button onClick={exporterCSV} disabled={commandesFiltrees.length === 0} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 11.5, fontWeight: 700, cursor: commandesFiltrees.length ? "pointer" : "not-allowed" }}>
-          ⬇️ Exporter CSV
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <NotificationsBell workspace={workspace} />
+          <button onClick={exporterCSV} disabled={commandesFiltrees.length === 0} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 11.5, fontWeight: 700, cursor: commandesFiltrees.length ? "pointer" : "not-allowed" }}>
+            ⬇️ Exporter CSV
+          </button>
+        </div>
       </div>
 
       <input

@@ -253,14 +253,14 @@ function AjoutFilleulModal({ workspace, onClose, onCree }) {
     setEnCours(true);
     setErreur("");
     const { data: code, error: erreurCode } = await supabase.rpc("generer_code_filleul", { p_workspace_id: workspace.id, p_nom: nom.trim() });
-    if (erreurCode || !code) { setErreur("Impossible de générer le code. Réessaie."); setEnCours(false); return; }
+    if (erreurCode || !code) { setErreur(erreurCode?.message || "Impossible de générer le code. Réessaie."); setEnCours(false); return; }
 
     const { data: filleulCree, error: erreurFilleul } = await supabase
       .from("filleuls")
       .insert([{ workspace_id: workspace.id, code, nom: nom.trim(), telephone: telephone.trim() || null, email: email.trim().toLowerCase() || null, statut: "actif" }])
       .select()
       .single();
-    if (erreurFilleul || !filleulCree) { setErreur("Impossible de créer le filleul. Réessaie."); setEnCours(false); return; }
+    if (erreurFilleul || !filleulCree) { setErreur(erreurFilleul?.message || "Impossible de créer le filleul. Réessaie."); setEnCours(false); return; }
 
     await supabase.from("filleuls_liens").insert([{ workspace_id: workspace.id, filleul_id: filleulCree.id, code, actif: true }]);
 
@@ -348,7 +348,7 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     setEnCours(false);
     // Même en cas d'erreur réseau, on garde la MÊME clé pour le prochain essai — c'est
     // justement ce qui rend le retry sûr (voir §48). Elle n'est renouvelée qu'après un succès.
-    if (error) { setErreurStock("Échec de l'enregistrement."); return; }
+    if (error) { setErreurStock(error.message || "Échec de l'enregistrement."); return; }
     setProduitAchatId(""); setQuantiteAchat(""); setPrixAchat(""); setCleAchat(crypto.randomUUID());
     await chargerStock();
   }
@@ -637,7 +637,7 @@ function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, curre
       cree_par: sessionData?.session?.user?.id || null,
       type_paiement: cible,
     }]);
-    if (erreurPaiement) { setErreur("Impossible d'enregistrer le paiement."); setEnCours(false); return; }
+    if (erreurPaiement) { setErreur(erreurPaiement.message || "Impossible d'enregistrer le paiement."); setEnCours(false); return; }
 
     // Marque les commissions disponibles comme payées, de la plus ancienne à la plus
     // récente, jusqu'à couverture du montant versé. Pour la part leader, on filtre sur
@@ -707,10 +707,12 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
   );
   const [enregistrement, setEnregistrement] = useState({});
   const [confirmes, setConfirmes] = useState({});
+  const [erreurs, setErreurs] = useState({});
 
   function majLigne(produitId, champ, valeur) {
     setLignes((l) => ({ ...l, [produitId]: { ...l[produitId], [champ]: valeur } }));
     setConfirmes((c) => ({ ...c, [produitId]: false }));
+    setErreurs((e) => ({ ...e, [produitId]: "" }));
   }
 
   async function enregistrer(produitId) {
@@ -718,15 +720,20 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
     const valeurNombre = Number(ligne.commission_valeur);
     if (!ligne.commission_valeur || isNaN(valeurNombre) || valeurNombre < 0) return;
     setEnregistrement((e) => ({ ...e, [produitId]: true }));
+    setErreurs((e) => ({ ...e, [produitId]: "" }));
     const majLeader = ligne.commission_leader_valeur && !isNaN(Number(ligne.commission_leader_valeur))
       ? { commission_leader_type: ligne.commission_leader_type, commission_leader_valeur: Number(ligne.commission_leader_valeur) }
       : { commission_leader_type: null, commission_leader_valeur: null };
-    await supabase
+    const { error } = await supabase
       .from("produits")
       .update({ commission_type: ligne.commission_type, commission_valeur: valeurNombre, ...majLeader })
       .eq("id", produitId)
       .eq("workspace_id", workspace.id);
     setEnregistrement((e) => ({ ...e, [produitId]: false }));
+    if (error) {
+      setErreurs((e) => ({ ...e, [produitId]: error.message || "Échec de l'enregistrement." }));
+      return;
+    }
     setConfirmes((c) => ({ ...c, [produitId]: true }));
     setTimeout(() => setConfirmes((c) => ({ ...c, [produitId]: false })), 1800);
   }
@@ -807,6 +814,7 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
                   {enregistrement[p.id] ? "..." : confirmes[p.id] ? "✅ Enregistré" : "Enregistrer"}
                 </button>
               </div>
+              {erreurs[p.id] && <div style={{ fontSize: 10.5, color: "#D64933", paddingLeft: 150 }}>⚠️ {erreurs[p.id]}</div>}
             </div>
           );
         })}
@@ -989,7 +997,7 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
     setErreur("");
     const { error } = await supabase.rpc("convertir_prospect_en_filleul", { p_prospect_id: prospect.id });
     setEnCours(false);
-    if (error) { setErreur("Échec de la conversion."); return; }
+    if (error) { setErreur(error.message || "Échec de la conversion."); return; }
     await onChange();
     onClose();
   }

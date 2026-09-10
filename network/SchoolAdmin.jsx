@@ -61,6 +61,7 @@ export default function SchoolAdmin({ workspace }) {
                   <button onClick={() => setShowAjoutCours(n.id)} style={{ marginTop: 8, background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
                     + Cours
                   </button>
+                  <NiveauActions niveau={n} coursDuNiveau={coursDuNiveau} onChange={charger} />
                 </div>
               )}
             </div>
@@ -71,6 +72,58 @@ export default function SchoolAdmin({ workspace }) {
       {showAjoutNiveau && <AjoutNiveauModal workspace={workspace} onClose={() => setShowAjoutNiveau(false)} onCree={async () => { setShowAjoutNiveau(false); await charger(); }} />}
       {showAjoutCours && <AjoutCoursModal workspace={workspace} niveauId={showAjoutCours} coursExistants={cours} onClose={() => setShowAjoutCours(null)} onCree={async () => { setShowAjoutCours(null); await charger(); }} />}
       {coursOuvert && <FicheCoursModal cours={coursOuvert} onClose={() => setCoursOuvert(null)} onChange={charger} />}
+    </div>
+  );
+}
+
+function NiveauActions({ niveau, coursDuNiveau, onChange }) {
+  const [edition, setEdition] = useState(false);
+  const [nom, setNom] = useState(niveau.nom);
+  const [enCours, setEnCours] = useState(false);
+
+  async function renommer() {
+    if (!nom.trim()) return;
+    setEnCours(true);
+    await supabase.from("ecole_niveaux").update({ nom: nom.trim(), updated_at: new Date().toISOString() }).eq("id", niveau.id);
+    setEnCours(false);
+    setEdition(false);
+    await onChange();
+  }
+
+  async function basculerActif() {
+    setEnCours(true);
+    await supabase.from("ecole_niveaux").update({ actif: !niveau.actif, updated_at: new Date().toISOString() }).eq("id", niveau.id);
+    setEnCours(false);
+    await onChange();
+  }
+
+  async function supprimer() {
+    if (coursDuNiveau.length > 0) {
+      window.alert("Ce niveau contient encore des cours — supprime-les d'abord (ou déplace-les) avant de supprimer le niveau.");
+      return;
+    }
+    if (!window.confirm(`Supprimer le niveau "${niveau.nom}" ?`)) return;
+    setEnCours(true);
+    await supabase.from("ecole_niveaux").delete().eq("id", niveau.id);
+    setEnCours(false);
+    await onChange();
+  }
+
+  if (edition) {
+    return (
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <input value={nom} onChange={(e) => setNom(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }} />
+        <button onClick={renommer} disabled={enCours} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>OK</button>
+        <button onClick={() => setEdition(false)} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+      <button onClick={() => setEdition(true)} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✏️ Renommer</button>
+      <button onClick={basculerActif} disabled={enCours} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{niveau.actif ? "⏸️ Désactiver" : "✅ Activer"}</button>
+      <button onClick={supprimer} disabled={enCours} style={{ background: "#FBEAEA", color: "#D64933", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🗑️</button>
     </div>
   );
 }

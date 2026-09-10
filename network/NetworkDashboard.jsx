@@ -403,6 +403,22 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
           </button>
         </div>
 
+        {(() => {
+          const recrues = (filleuls || []).filter((f) => f.parrain_id === filleul.id);
+          if (recrues.length === 0) return null;
+          return (
+            <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>👥 A recruté ({recrues.length})</div>
+              {recrues.map((r) => (
+                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, padding: "4px 0" }}>
+                  <span>{r.nom}</span>
+                  <span style={{ color: r.statut === "actif" ? "#1a7a3c" : "#8A9089" }}>{r.statut === "actif" ? "✅" : "⏸️"}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {modeVente === "revendeur" && (
           <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
             <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>📦 Stock personnel</div>

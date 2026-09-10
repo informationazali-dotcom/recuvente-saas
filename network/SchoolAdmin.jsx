@@ -190,6 +190,7 @@ function AjoutCoursModal({ workspace, niveauId, coursExistants, onClose, onCree 
   const [contenu, setContenu] = useState("");
   const [criteresEvaluation, setCriteresEvaluation] = useState("");
   const [prealableId, setPrealableId] = useState("");
+  const [ancienneteMin, setAncienneteMin] = useState("");
   const [enCours, setEnCours] = useState(false);
 
   async function creer() {
@@ -202,6 +203,7 @@ function AjoutCoursModal({ workspace, niveauId, coursExistants, onClose, onCree 
       contenu: (type === "texte" || type === "reponse_libre") ? contenu.trim() || null : null,
       criteres_evaluation: type === "reponse_libre" ? criteresEvaluation.trim() || null : null,
       cours_prealable_id: prealableId || null,
+      anciennete_jours_min: ancienneteMin ? Number(ancienneteMin) : null,
       ordre: count || 0,
     }]);
     setEnCours(false);
@@ -232,6 +234,8 @@ function AjoutCoursModal({ workspace, niveauId, coursExistants, onClose, onCree 
           <option value="">Aucun — toujours accessible</option>
           {coursExistants.map((c) => <option key={c.id} value={c.id}>{c.titre}</option>)}
         </select>
+        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Ancienneté minimum du filleul, en jours (optionnel)</label>
+        <input type="number" placeholder="ex: 30" value={ancienneteMin} onChange={(e) => setAncienneteMin(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginTop: 4, marginBottom: 10, fontSize: 13 }} />
         <button onClick={creer} disabled={enCours} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginBottom: 8 }}>
           {enCours ? "..." : "Créer le cours"}
         </button>

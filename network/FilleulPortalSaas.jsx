@@ -13,6 +13,7 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
   const [stock, setStock] = useState([]);
   const [prospects, setProspects] = useState([]);
   const [coachings, setCoachings] = useState([]);
+  const [monEquipe, setMonEquipe] = useState([]);
 
   async function chargerStock() {
     const { data } = await supabase.from("filleuls_stock").select("*, produits(nom)").eq("filleul_id", filleul.id).gt("quantite_restante", 0);
@@ -40,6 +41,8 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       setVentes(attrib || []);
       if (filleul.mode_vente === "revendeur") await chargerStock();
       await chargerProspects();
+      const { data: equipeData } = await supabase.from("filleuls").select("id, nom, statut").eq("parrain_id", filleul.id);
+      setMonEquipe(equipeData || []);
       const { data: coachData } = await supabase.from("filleuls_coachings").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false });
       setCoachings(coachData || []);
       setChargement(false);
@@ -110,6 +113,20 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
 
       {filleul.mode_vente === "revendeur" && (
         <MonStock filleul={filleul} workspace={workspace} produits={produits} currency={currency} stock={stock} onChange={chargerStock} />
+      )}
+
+      {monEquipe.length > 0 && (
+        <div style={{ ...carte, marginBottom: 16 }}>
+          <div style={label}>👥 Mon équipe ({monEquipe.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
+            {monEquipe.map((m) => (
+              <div key={m.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                <span>{m.nom}</span>
+                <span style={{ color: m.statut === "actif" ? "#1a7a3c" : "#8A9089" }}>{m.statut === "actif" ? "✅ Actif" : "⏸️ Suspendu"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <MesProspects filleul={filleul} workspace={workspace} prospects={prospects} onChange={chargerProspects} />

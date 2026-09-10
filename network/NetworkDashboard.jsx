@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import NotificationsBell from "./NotificationsBell.jsx";
+import CentreAFaire from "./CentreAFaire.jsx";
 
 // "Mon Réseau" côté propriétaire (§14-16 de la mission). Charge ses propres
 // données (commissions, attributions) plutôt que de dépendre de ce que
 // App-complet.jsx a déjà en mémoire — évite de charger inutilement ces
 // tables pour les boutiques qui n'utilisent pas ce module (§46 perf).
-export default function NetworkDashboard({ workspace, filleuls, produits, currency, onFilleulsChange }) {
+export default function NetworkDashboard({ workspace, filleuls, produits, currency, onFilleulsChange, onNaviguer }) {
   const [commissions, setCommissions] = useState([]);
   const [attributions, setAttributions] = useState([]);
   const [paiements, setPaiements] = useState([]);
@@ -96,6 +97,8 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
           </button>
         </div>
       </div>
+
+      <CentreAFaire workspace={workspace} onNaviguer={onNaviguer} />
 
       {maxFilleuls != null && filleuls.length >= maxFilleuls && (
         <div style={{ fontSize: 12, color: "#8A6412", background: "#FFF8E7", border: "1px solid #f5e2a9", borderRadius: 10, padding: "10px 14px", marginBottom: 12, lineHeight: 1.5 }}>

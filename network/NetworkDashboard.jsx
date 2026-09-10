@@ -320,12 +320,13 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     if (modeVente === "revendeur") chargerStock();
   }, [filleul.id, modeVente]);
 
+  const [cleAchat, setCleAchat] = useState(() => crypto.randomUUID());
+
   async function enregistrerAchat() {
     if (!produitAchatId || !quantiteAchat || Number(quantiteAchat) <= 0) { setErreurStock("Choisis un produit et une quantité."); return; }
     setErreurStock("");
     setEnCours(true);
     const produitChoisi = (produits || []).find((p) => p.id === produitAchatId);
-    const { data: sessionData } = await supabase.auth.getSession();
     const { error } = await supabase.rpc("enregistrer_mouvement_stock_filleul", {
       p_workspace_id: workspace.id,
       p_filleul_id: filleul.id,
@@ -335,10 +336,13 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
       p_prix_unitaire: prixAchat ? Number(prixAchat) : Number(produitChoisi?.cout_achat || 0),
       p_commande_id: null,
       p_note: "Achat enregistré depuis la fiche filleul",
+      p_idempotency_key: cleAchat,
     });
     setEnCours(false);
+    // Même en cas d'erreur réseau, on garde la MÊME clé pour le prochain essai — c'est
+    // justement ce qui rend le retry sûr (voir §48). Elle n'est renouvelée qu'après un succès.
     if (error) { setErreurStock("Échec de l'enregistrement."); return; }
-    setProduitAchatId(""); setQuantiteAchat(""); setPrixAchat("");
+    setProduitAchatId(""); setQuantiteAchat(""); setPrixAchat(""); setCleAchat(crypto.randomUUID());
     await chargerStock();
   }
 

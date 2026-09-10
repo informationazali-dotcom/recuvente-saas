@@ -7,6 +7,7 @@ import { supabase } from "../supabaseClient";
 // automatiquement, uniquement via une action explicite owner/admin ici,
 // qui passe par les RPC dédiées (jamais un update direct de la table).
 export default function RecrutementAdmin({ workspace, currency, onFilleulsChange }) {
+  const [onglet, setOnglet] = useState("candidatures"); // candidatures | packs
   const [commandes, setCommandes] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [filtre, setFiltre] = useState("toutes");
@@ -87,6 +88,22 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
         style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 12 }}
       />
 
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid #ECE8DC" }}>
+        {[{ key: "candidatures", label: "Candidatures" }, { key: "packs", label: "🏷️ Packs" }].map((o) => (
+          <button key={o.key} onClick={() => setOnglet(o.key)} style={{
+            background: "none", border: "none", padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+            color: onglet === o.key ? "#6b3fd4" : "#8A9089",
+            borderBottom: onglet === o.key ? "2px solid #6b3fd4" : "2px solid transparent", marginBottom: -1,
+          }}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+
+      {onglet === "packs" && <PacksAdmin workspace={workspace} currency={currency} />}
+
+      {onglet === "candidatures" && (
+      <>
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {filtres.map((f) => (
           <button key={f.key} onClick={() => setFiltre(f.key)} style={{
@@ -112,6 +129,8 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
           <LigneCommande key={c.id} commande={c} currency={currency} onOuvrir={() => setCommandeOuverte(c)} />
         ))}
       </div>
+      </>
+      )}
 
       {commandeOuverte && (
         <FicheCommandeModal
@@ -279,6 +298,134 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         )}
 
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Fermer</button>
+      </div>
+    </div>
+  );
+}
+
+// Gestion des packs (§9 de la mission) — créer, modifier, activer/désactiver,
+// réordonner. Jamais de prix codé en dur côté React : tout vient de
+// recrutement_packs. Le snapshot du prix au moment d'une commande (déjà
+// géré par soumettre_candidature_reseau_public) garantit qu'un changement
+// de prix ici n'affecte jamais une commande déjà passée.
+function PacksAdmin({ workspace, currency }) {
+  const [packs, setPacks] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [showAjout, setShowAjout] = useState(false);
+  const [packEnEdition, setPackEnEdition] = useState(null);
+
+  async function charger() {
+    setChargement(true);
+    const { data } = await supabase.from("recrutement_packs").select("*").eq("workspace_id", workspace.id).order("ordre");
+    setPacks(data || []);
+    setChargement(false);
+  }
+  useEffect(() => { charger(); }, [workspace.id]);
+
+  async function basculerActif(pack) {
+    await supabase.from("recrutement_packs").update({ actif: !pack.actif, updated_at: new Date().toISOString() }).eq("id", pack.id);
+    await charger();
+  }
+
+  async function deplacer(pack, direction) {
+    const idx = packs.findIndex((p) => p.id === pack.id);
+    const cible = packs[idx + direction];
+    if (!cible) return;
+    await Promise.all([
+      supabase.from("recrutement_packs").update({ ordre: cible.ordre }).eq("id", pack.id),
+      supabase.from("recrutement_packs").update({ ordre: pack.ordre }).eq("id", cible.id),
+    ]);
+    await charger();
+  }
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button onClick={() => setShowAjout(true)} style={{ background: "#6b3fd4", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+          + Nouveau pack
+        </button>
+      </div>
+
+      {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
+      {!chargement && packs.length === 0 && (
+        <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5, lineHeight: 1.6 }}>
+          Aucun pack pour l'instant. Créez-en un pour qu'il apparaisse dans le tunnel de recrutement de vos filleuls.
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {packs.map((p, i) => (
+          <div key={p.id} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{p.nom} {!p.actif && <span style={{ color: "#8A9089", fontWeight: 500 }}>(inactif)</span>}</div>
+              <div style={{ fontSize: 11, color: "#8A9089" }}>{Number(p.prix || 0).toLocaleString("fr-FR")} {p.devise || currency}{p.description ? ` · ${p.description}` : ""}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => deplacer(p, -1)} disabled={i === 0} style={{ background: "#F3F1EA", border: "none", borderRadius: 7, width: 28, height: 28, cursor: i === 0 ? "not-allowed" : "pointer", opacity: i === 0 ? 0.4 : 1 }}>↑</button>
+              <button onClick={() => deplacer(p, 1)} disabled={i === packs.length - 1} style={{ background: "#F3F1EA", border: "none", borderRadius: 7, width: 28, height: 28, cursor: i === packs.length - 1 ? "not-allowed" : "pointer", opacity: i === packs.length - 1 ? 0.4 : 1 }}>↓</button>
+              <button onClick={() => setPackEnEdition(p)} style={{ background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 7, padding: "0 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Modifier</button>
+              <button onClick={() => basculerActif(p)} style={{ background: p.actif ? "#FBEAEA" : "#EAF3DE", color: p.actif ? "#D64933" : "#1a7a3c", border: "none", borderRadius: 7, padding: "0 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{p.actif ? "Désactiver" : "Activer"}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showAjout && <FormulairePackModal workspace={workspace} onClose={() => setShowAjout(false)} onEnregistre={async () => { setShowAjout(false); await charger(); }} />}
+      {packEnEdition && <FormulairePackModal workspace={workspace} pack={packEnEdition} onClose={() => setPackEnEdition(null)} onEnregistre={async () => { setPackEnEdition(null); await charger(); }} />}
+    </div>
+  );
+}
+
+function FormulairePackModal({ workspace, pack, onClose, onEnregistre }) {
+  const [nom, setNom] = useState(pack?.nom || "");
+  const [prix, setPrix] = useState(pack?.prix != null ? String(pack.prix) : "");
+  const [devise, setDevise] = useState(pack?.devise || "XOF");
+  const [description, setDescription] = useState(pack?.description || "");
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  async function enregistrer() {
+    if (!nom.trim() || !prix || isNaN(Number(prix))) { setErreur("Nom et prix valides requis."); return; }
+    setEnCours(true);
+    setErreur("");
+    if (pack) {
+      const { error } = await supabase.from("recrutement_packs").update({
+        nom: nom.trim(), prix: Number(prix), devise, description: description.trim() || null, updated_at: new Date().toISOString(),
+      }).eq("id", pack.id);
+      if (error) { setErreur(error.message); setEnCours(false); return; }
+    } else {
+      const { count } = await supabase.from("recrutement_packs").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id);
+      const { error } = await supabase.from("recrutement_packs").insert([{
+        workspace_id: workspace.id, nom: nom.trim(), prix: Number(prix), devise, description: description.trim() || null, actif: true, ordre: count || 0,
+      }]);
+      if (error) { setErreur(error.message); setEnCours(false); return; }
+    }
+    setEnCours(false);
+    onEnregistre();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380 }}>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>{pack ? "Modifier le pack" : "Nouveau pack"}</div>
+        <input placeholder="Nom (ex: Pack Essentiel)" value={nom} onChange={(e) => setNom(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }} autoFocus />
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input type="number" placeholder="Prix" value={prix} onChange={(e) => setPrix(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13 }} />
+          <select value={devise} onChange={(e) => setDevise(e.target.value)} style={{ boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13 }}>
+            <option value="XOF">XOF</option>
+            <option value="XAF">XAF</option>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+        <textarea placeholder="Description (optionnel)" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13, resize: "vertical" }} />
+        {erreur && <div style={{ fontSize: 11.5, color: "#D64933", marginBottom: 10 }}>{erreur}</div>}
+        <button onClick={enregistrer} disabled={enCours} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginBottom: 8 }}>
+          {enCours ? "..." : pack ? "Enregistrer les modifications" : "Créer le pack"}
+        </button>
+        <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Annuler</button>
       </div>
     </div>
   );

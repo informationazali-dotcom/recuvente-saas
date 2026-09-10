@@ -10,6 +10,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   const [commandes, setCommandes] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [filtre, setFiltre] = useState("toutes");
+  const [recherche, setRecherche] = useState("");
   const [commandeOuverte, setCommandeOuverte] = useState(null);
 
   async function charger() {
@@ -35,20 +36,56 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   ];
 
   function correspondFiltre(c) {
-    if (filtre === "toutes") return true;
-    if (filtre === "paiement_en_attente") return c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse";
-    if (filtre === "partenaire_a_creer") return c.statut_paiement === "confirme" && c.statut_partenaire !== "cree";
-    if (filtre === "pret_a_activer") return c.statut_partenaire === "cree" && c.statut_activation !== "active";
-    if (filtre === "actives") return c.statut_activation === "active";
-    if (filtre === "refusees") return c.statut_paiement === "refuse";
+    let ok = filtre === "toutes";
+    if (filtre === "paiement_en_attente") ok = c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse";
+    else if (filtre === "partenaire_a_creer") ok = c.statut_paiement === "confirme" && c.statut_partenaire !== "cree";
+    else if (filtre === "pret_a_activer") ok = c.statut_partenaire === "cree" && c.statut_activation !== "active";
+    else if (filtre === "actives") ok = c.statut_activation === "active";
+    else if (filtre === "refusees") ok = c.statut_paiement === "refuse";
+    if (!ok) return false;
+    if (recherche.trim()) {
+      const q = recherche.trim().toLowerCase();
+      const nom = (c.recrutement_candidatures?.nom || "").toLowerCase();
+      const tel = (c.recrutement_candidatures?.telephone || "").toLowerCase();
+      if (!nom.includes(q) && !tel.includes(q)) return false;
+    }
     return true;
+  }
+  const commandesFiltrees = commandes.filter(correspondFiltre);
+
+  function exporterCSV() {
+    const entetes = ["Nom", "Téléphone", "Email", "Pack", "Prix", "Statut paiement", "Statut partenaire", "Statut activation", "Date"];
+    const lignes = commandesFiltrees.map((c) => [
+      c.recrutement_candidatures?.nom || "", c.recrutement_candidatures?.telephone || "", c.recrutement_candidatures?.email || "",
+      c.pack_nom_snapshot || "", c.pack_prix_snapshot || "", c.statut_paiement || "", c.statut_partenaire || "", c.statut_activation || "",
+      new Date(c.created_at).toLocaleDateString("fr-FR"),
+    ]);
+    const csv = [entetes, ...lignes].map((ligne) => ligne.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `candidatures-recrutement-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
 
   return (
     <div style={{ padding: "0 4px 40px" }}>
-      <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F", marginBottom: 16 }}>📋 Recrutement — candidatures &amp; activation</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F" }}>📋 Recrutement — candidatures &amp; activation</div>
+        <button onClick={exporterCSV} disabled={commandesFiltrees.length === 0} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 11.5, fontWeight: 700, cursor: commandesFiltrees.length ? "pointer" : "not-allowed" }}>
+          ⬇️ Exporter CSV
+        </button>
+      </div>
+
+      <input
+        placeholder="🔍 Rechercher un nom ou un téléphone..."
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 12 }}
+      />
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {filtres.map((f) => (
@@ -64,14 +101,14 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
       </div>
 
       {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
-      {!chargement && commandes.filter(correspondFiltre).length === 0 && (
+      {!chargement && commandesFiltrees.length === 0 && (
         <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5, lineHeight: 1.6 }}>
-          {filtre === "toutes" ? "Aucune candidature pour l'instant. Elles apparaîtront ici dès qu'un prospect enverra sa candidature via votre tunnel de recrutement." : "Rien dans ce filtre pour l'instant."}
+          {commandes.length === 0 ? "Aucune candidature pour l'instant. Elles apparaîtront ici dès qu'un prospect enverra sa candidature via votre tunnel de recrutement." : "Rien ne correspond à ce filtre ou cette recherche."}
         </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {commandes.filter(correspondFiltre).map((c) => (
+        {commandesFiltrees.map((c) => (
           <LigneCommande key={c.id} commande={c} currency={currency} onOuvrir={() => setCommandeOuverte(c)} />
         ))}
       </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import NotificationsBell from "./NotificationsBell.jsx";
 
 // "Mon Réseau" côté propriétaire (§14-16 de la mission). Charge ses propres
 // données (commissions, attributions) plutôt que de dépendre de ce que
@@ -86,9 +87,12 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
     <div style={{ padding: "0 4px 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F" }}>🟣 Mon Réseau</div>
-        <button onClick={() => setShowAjout(true)} disabled={maxFilleuls != null && filleuls.length >= maxFilleuls} style={{ background: (maxFilleuls != null && filleuls.length >= maxFilleuls) ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: (maxFilleuls != null && filleuls.length >= maxFilleuls) ? "not-allowed" : "pointer" }}>
-          + Ajouter un filleul
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <NotificationsBell workspace={workspace} />
+          <button onClick={() => setShowAjout(true)} disabled={maxFilleuls != null && filleuls.length >= maxFilleuls} style={{ background: (maxFilleuls != null && filleuls.length >= maxFilleuls) ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: (maxFilleuls != null && filleuls.length >= maxFilleuls) ? "not-allowed" : "pointer" }}>
+            + Ajouter un filleul
+          </button>
+        </div>
       </div>
 
       {maxFilleuls != null && filleuls.length >= maxFilleuls && (

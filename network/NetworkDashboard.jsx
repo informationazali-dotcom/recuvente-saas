@@ -65,7 +65,12 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
   function statsPourFilleul(filleulId) {
     const mesCommissions = commissions.filter((c) => c.filleul_id === filleulId);
-    const mesVentes = attributions.filter((a) => a.filleul_id === filleulId).length;
+    // Une "vente" peut venir de deux sources : attribuée en ligne (via le lien, table
+    // filleuls_attributions) ou enregistrée depuis le stock personnel (mode revendeur,
+    // filleuls_commissions.source = 'vente_stock', qui n'a pas de ligne d'attribution).
+    const ventesEnLigne = attributions.filter((a) => a.filleul_id === filleulId).length;
+    const ventesStock = mesCommissions.filter((c) => c.source === "vente_stock").length;
+    const mesVentes = ventesEnLigne + ventesStock;
     const ca = mesCommissions.reduce((s, c) => s + Number(c.montant_base || 0), 0);
     const commission = mesCommissions.reduce((s, c) => s + Number(c.montant_commission || 0), 0);
     const disponible = mesCommissions.filter((c) => c.statut === "validated" || c.statut === "available").reduce((s, c) => s + Number(c.montant_commission), 0);

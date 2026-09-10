@@ -1,13 +1,9 @@
+import "./premium-landing-overrides.css";
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 
 // Chargement à la demande : chaque route ne télécharge QUE le code dont elle a besoin.
-// Avant, les 4 (App entier + Suivi + Commander + Catalogue) étaient chargés d'un bloc,
-// peu importe lequel s'affichait vraiment — un client cliquant sur une pub pour voir un
-// produit téléchargeait alors tout le tableau de bord, tout le CRM et tous les agents IA
-// avant même de voir le premier produit. C'est la cause la plus probable des chargements
-// lents et de la faible conversion publicitaire observés sur la boutique.
 const App = lazy(() => import("./App.jsx"));
 const SuiviPublic = lazy(() => import("./SuiviPublic.jsx"));
 const CommanderPublic = lazy(() => import("./CommanderPublic.jsx"));
@@ -24,21 +20,12 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 const suiviId = new URLSearchParams(window.location.search).get("suivi");
 const commanderId = new URLSearchParams(window.location.search).get("commander");
 const catalogueId = new URLSearchParams(window.location.search).get("catalogue");
-
-// Domaines internes de l'application (jamais traités comme domaine personnalisé d'un client)
 const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
 const hostname = window.location.hostname;
-const estDomainePersonnalise =
-  !DOMAINES_INTERNES.includes(hostname) &&
-  !hostname.endsWith(".vercel.app");
-
+const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
 const estVueAdmin = !suiviId && !commanderId && !catalogueId && !estDomainePersonnalise;
-if (estVueAdmin) {
-  document.body.classList.add("rv-admin-app");
-}
+if (estVueAdmin) document.body.classList.add("rv-admin-app");
 
-// Écran de chargement minimal pendant que le morceau de code nécessaire arrive — reste très
-// léger volontairement, il fait déjà partie du tout petit bundle initial.
 function ChargementInitial() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -52,17 +39,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
       <Suspense fallback={<ChargementInitial />}>
-        {suiviId ? (
-          <SuiviPublic commandeId={suiviId} />
-        ) : commanderId ? (
-          <CommanderPublic workspaceId={commanderId} />
-        ) : catalogueId ? (
-          <CataloguePublic workspaceId={catalogueId} />
-        ) : estDomainePersonnalise ? (
-          <CataloguePublic domaine={hostname} />
-        ) : (
-          <App />
-        )}
+        {suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <CommanderPublic workspaceId={commanderId} /> : catalogueId ? <CataloguePublic workspaceId={catalogueId} /> : estDomainePersonnalise ? <CataloguePublic domaine={hostname} /> : <App />}
       </Suspense>
     </Sentry.ErrorBoundary>
   </React.StrictMode>
@@ -74,9 +51,7 @@ function ErreurFallback() {
       <div style={{ fontSize: 40, marginBottom: 10 }}>😕</div>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>Une erreur est survenue</div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 18 }}>L'équipe technique a été automatiquement notifiée.</div>
-      <button onClick={() => window.location.reload()} style={{ background: "#1a7a3c", color: "white", border: "none", padding: "10px 20px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>
-        Recharger la page
-      </button>
+      <button onClick={() => window.location.reload()} style={{ background: "#1a7a3c", color: "white", border: "none", padding: "10px 20px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Recharger la page</button>
     </div>
   );
 }

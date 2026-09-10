@@ -295,6 +295,35 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
   const [quantiteAchat, setQuantiteAchat] = useState("");
   const [prixAchat, setPrixAchat] = useState("");
   const [erreurStock, setErreurStock] = useState("");
+  const [produitVenteId, setProduitVenteId] = useState("");
+  const [quantiteVente, setQuantiteVente] = useState("");
+  const [prixVente, setPrixVente] = useState("");
+  const [erreurVente, setErreurVente] = useState("");
+  const [enCoursVente, setEnCoursVente] = useState(false);
+  const [venteFaite, setVenteFaite] = useState(false);
+
+  async function enregistrerVente() {
+    if (!produitVenteId || !quantiteVente || Number(quantiteVente) <= 0 || !prixVente) {
+      setErreurVente("Choisis un produit, une quantité et un prix de vente.");
+      return;
+    }
+    setErreurVente("");
+    setEnCoursVente(true);
+    const { error } = await supabase.rpc("enregistrer_vente_stock_filleul", {
+      p_workspace_id: workspace.id,
+      p_filleul_id: filleul.id,
+      p_produit_id: produitVenteId,
+      p_quantite: Number(quantiteVente),
+      p_prix_vente_unitaire: Number(prixVente),
+      p_note: "Vente enregistrée par le propriétaire",
+    });
+    setEnCoursVente(false);
+    if (error) { setErreurVente(error.message || "Échec de l'enregistrement de la vente."); return; }
+    setProduitVenteId(""); setQuantiteVente(""); setPrixVente("");
+    setVenteFaite(true);
+    setTimeout(() => setVenteFaite(false), 2500);
+    await chargerStock();
+  }
   const [coachings, setCoachings] = useState([]);
   const [noteCoaching, setNoteCoaching] = useState("");
   const [enCoursCoaching, setEnCoursCoaching] = useState(false);
@@ -487,6 +516,24 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
                 Enregistrer l'achat
               </button>
             </div>
+
+            {stock.length > 0 && (
+              <div style={{ borderTop: "1px solid #ECE8DC", marginTop: 12, paddingTop: 8 }}>
+                <div style={{ fontSize: 10.5, color: "#6b3fd4", marginBottom: 6 }}>+ Enregistrer une vente (depuis son stock)</div>
+                <select value={produitVenteId} onChange={(e) => setProduitVenteId(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 11.5, marginBottom: 6 }}>
+                  <option value="">Produit vendu...</option>
+                  {stock.map((s) => <option key={s.produit_id} value={s.produit_id}>{s.produits?.nom} ({s.quantite_restante} dispo.)</option>)}
+                </select>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <input type="number" placeholder="Quantité" value={quantiteVente} onChange={(e) => setQuantiteVente(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                  <input type="number" placeholder="Prix de vente unit." value={prixVente} onChange={(e) => setPrixVente(e.target.value)} style={{ flex: 1, boxSizing: "border-box", padding: "7px 9px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 11.5 }} />
+                </div>
+                {erreurVente && <div style={{ fontSize: 10.5, color: "#D64933", marginBottom: 6 }}>{erreurVente}</div>}
+                <button onClick={enregistrerVente} disabled={enCoursVente} style={{ width: "100%", background: venteFaite ? "#EAF3DE" : "#6b3fd4", color: venteFaite ? "#1a7a3c" : "white", border: "none", borderRadius: 7, padding: "7px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {enCoursVente ? "..." : venteFaite ? "✅ Vente enregistrée" : "Enregistrer la vente"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

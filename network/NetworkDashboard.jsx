@@ -298,6 +298,7 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
   const [coachings, setCoachings] = useState([]);
   const [noteCoaching, setNoteCoaching] = useState("");
   const [enCoursCoaching, setEnCoursCoaching] = useState(false);
+  const [showPaiementLeader, setShowPaiementLeader] = useState(false);
 
   async function chargerCoachings() {
     const { data } = await supabase.from("filleuls_coachings").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false });
@@ -402,10 +403,29 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
         </div>
 
         {stats.gainsLeader > 0 && (
-          <div style={{ background: "#f0ecfb", borderRadius: 10, padding: "10px 14px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 11.5, color: "#5b3ba8", fontWeight: 700 }}>👑 Gains comme parrain</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#5b3ba8" }}>{stats.gainsLeaderDisponibles.toLocaleString("fr-FR")} {currency} dispo.</div>
+          <div style={{ background: "#f0ecfb", borderRadius: 10, padding: "10px 14px", marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: stats.gainsLeaderDisponibles > 0 ? 8 : 0 }}>
+              <div style={{ fontSize: 11.5, color: "#5b3ba8", fontWeight: 700 }}>👑 Gains comme parrain</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#5b3ba8" }}>{stats.gainsLeaderDisponibles.toLocaleString("fr-FR")} {currency} dispo.</div>
+            </div>
+            {stats.gainsLeaderDisponibles > 0 && (
+              <button onClick={() => setShowPaiementLeader(true)} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+                Enregistrer un paiement (parrain)
+              </button>
+            )}
           </div>
+        )}
+
+        {showPaiementLeader && (
+          <EnregistrerPaiementModal
+            filleul={filleul}
+            workspace={workspace}
+            montantDisponible={stats.gainsLeaderDisponibles}
+            currency={currency}
+            cible="leader"
+            onClose={() => setShowPaiementLeader(false)}
+            onPaye={async () => { setShowPaiementLeader(false); await onChange(); }}
+          />
         )}
 
         <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
@@ -590,7 +610,8 @@ function CommissionsPanel({ workspace, filleuls, commissions, paiements, currenc
   );
 }
 
-function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, currency, onClose, onPaye }) {
+function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, currency, onClose, onPaye, cible = "filleul" }) {
+  const estLeader = cible === "leader";
   const [montant, setMontant] = useState(String(montantDisponible));
   const [methode, setMethode] = useState("mobile_money");
   const [reference, setReference] = useState("");
@@ -614,28 +635,31 @@ function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, curre
       reference: reference.trim() || null,
       note: note.trim() || null,
       cree_par: sessionData?.session?.user?.id || null,
+      type_paiement: cible,
     }]);
     if (erreurPaiement) { setErreur("Impossible d'enregistrer le paiement."); setEnCours(false); return; }
 
-    // Marque les commissions disponibles de ce filleul comme payées, de la plus
-    // ancienne à la plus récente, jusqu'à couverture du montant versé — évite de
-    // marquer "payé" plus que ce qui a réellement été remis.
-    const { data: commissionsDisponibles } = await supabase
-      .from("filleuls_commissions")
-      .select("id, montant_commission")
-      .eq("filleul_id", filleul.id)
-      .in("statut", ["validated", "available"])
-      .order("created_at", { ascending: true });
+    // Marque les commissions disponibles comme payées, de la plus ancienne à la plus
+    // récente, jusqu'à couverture du montant versé. Pour la part leader, on filtre sur
+    // leader_id + statut_leader (des lignes appartenant à d'AUTRES filleuls, ceux que
+    // ce leader a parrainés) plutôt que filleul_id + statut.
+    const requete = estLeader
+      ? supabase.from("filleuls_commissions").select("id, montant_commission_leader").eq("leader_id", filleul.id).in("statut_leader", ["validated", "available"]).order("created_at", { ascending: true })
+      : supabase.from("filleuls_commissions").select("id, montant_commission").eq("filleul_id", filleul.id).in("statut", ["validated", "available"]).order("created_at", { ascending: true });
+    const { data: commissionsDisponibles } = await requete;
 
     let reste = montantNombre;
     const idsAPayer = [];
     for (const c of commissionsDisponibles || []) {
       if (reste <= 0) break;
       idsAPayer.push(c.id);
-      reste -= Number(c.montant_commission);
+      reste -= Number(estLeader ? c.montant_commission_leader : c.montant_commission);
     }
     if (idsAPayer.length > 0) {
-      await supabase.from("filleuls_commissions").update({ statut: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in("id", idsAPayer);
+      const maj = estLeader
+        ? { statut_leader: "paid", updated_at: new Date().toISOString() }
+        : { statut: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      await supabase.from("filleuls_commissions").update(maj).in("id", idsAPayer);
     }
 
     setEnCours(false);
@@ -645,7 +669,7 @@ function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, curre
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380 }}>
-        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4, color: "#16231F" }}>Paiement — {filleul.nom}</div>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4, color: "#16231F" }}>Paiement — {filleul.nom} {estLeader ? "(gains parrain)" : ""}</div>
         <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>{montantDisponible.toLocaleString("fr-FR")} {currency} disponible</div>
 
         <input type="number" placeholder="Montant" value={montant} onChange={(e) => setMontant(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }} />

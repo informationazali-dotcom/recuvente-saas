@@ -88,8 +88,8 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       <ProchaineActionPartenaire filleul={filleul} workspace={workspace} />
 
       {/* Mon lien */}
-      <div style={{ ...carte, background: "linear-gradient(135deg,#0d2417,#1a4a2e)", color: "white", marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>🔗 Mon lien de vente</div>
+      <div style={{ ...carte, background: "linear-gradient(135deg,#0d2417,#1a4a2e)", color: "white", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>🟢 Mon lien boutique</div>
         <div style={{ fontSize: 13.5, fontWeight: 700, wordBreak: "break-all", marginBottom: 14 }}>
           {lienComplet || "Génération en cours..."}
         </div>
@@ -108,6 +108,10 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
           )}
         </div>
       </div>
+
+      {/* Lien de recrutement — volontairement distinct du lien boutique (§13, §28) :
+          l'un sert à vendre, l'autre à recruter, jamais confondus. */}
+      <LienRecrutement filleul={filleul} />
 
       {/* Mes commissions */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16 }}>
@@ -322,6 +326,58 @@ function MesProspects({ filleul, workspace, prospects, onChange }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Lien de recrutement du filleul (§13, §28) — /tunnel/CODE, distinct du lien
+// boutique (?ref=CODE). Affiche aussi ce qu'il a lui-même généré comme
+// recruteur (§20 — analytics par recruteur), pas juste un lien à copier.
+function LienRecrutement({ filleul }) {
+  const [copie, setCopie] = useState(false);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    async function charger() {
+      const [{ count: visites }, { count: candidatures }] = await Promise.all([
+        supabase.from("recrutement_visites_tunnel").select("id", { count: "exact", head: true }).eq("recruteur_filleul_id", filleul.id),
+        supabase.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("recruteur_filleul_id", filleul.id),
+      ]);
+      setStats({ visites: visites || 0, candidatures: candidatures || 0 });
+    }
+    charger();
+  }, [filleul.id]);
+
+  const lien = typeof window !== "undefined" ? `${window.location.origin}/tunnel/${filleul.code}` : "";
+
+  function copier() {
+    try { navigator.clipboard.writeText(lien); } catch (_) {}
+    setCopie(true);
+    setTimeout(() => setCopie(false), 1800);
+  }
+
+  return (
+    <div style={{ background: "linear-gradient(135deg,#2d1a4a,#4a1a6e)", color: "white", borderRadius: 14, padding: 18, marginBottom: 16 }}>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>🔵 Mon lien de recrutement</div>
+      <div style={{ fontSize: 13.5, fontWeight: 700, wordBreak: "break-all", marginBottom: 14 }}>{lien}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: stats && (stats.visites > 0 || stats.candidatures > 0) ? 14 : 0 }}>
+        <button onClick={copier} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+          {copie ? "✅ Copié !" : "📋 Copier le lien"}
+        </button>
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent("Rejoins notre équipe : " + lien)}`}
+          target="_blank" rel="noreferrer"
+          style={{ background: "#25D366", color: "white", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
+        >
+          💬 Partager sur WhatsApp
+        </a>
+      </div>
+      {stats && (stats.visites > 0 || stats.candidatures > 0) && (
+        <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: "rgba(255,255,255,0.8)" }}>
+          <div>👀 {stats.visites} visite{stats.visites > 1 ? "s" : ""}</div>
+          <div>📝 {stats.candidatures} candidature{stats.candidatures > 1 ? "s" : ""}</div>
+        </div>
+      )}
     </div>
   );
 }

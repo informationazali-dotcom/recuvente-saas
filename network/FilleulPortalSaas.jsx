@@ -80,7 +80,7 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       <div style={{ marginBottom: 22, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={{ fontSize: 12, color: "#8A9089" }}>{workspace.name}</div>
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: "#16231F" }}>Bonjour {filleul.nom} 👋</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: "#16231F" }}>Bonjour {filleul.nom} 👋 {filleul.est_pro && <span style={{ fontSize: 12, background: "#f0ecfb", color: "#5b3ba8", padding: "3px 8px", borderRadius: 20, verticalAlign: "middle" }}>⭐ PRO</span>}</div>
         </div>
         <NotificationsBell workspace={workspace} />
       </div>

@@ -5787,8 +5787,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           produits={produits}
           currency={formaterDevise(workspace.currency)}
           onFilleulsChange={loadFilleuls}
+          onNaviguer={setVue}
         />
       )}
+
 
       {vue === "recrutement" && !accesBloque && (
         <RecrutementAdmin workspace={workspace} currency={formaterDevise(workspace.currency)} onFilleulsChange={loadFilleuls} />

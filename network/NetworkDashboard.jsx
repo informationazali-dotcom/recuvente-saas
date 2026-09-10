@@ -1017,10 +1017,19 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
   const [statut, setStatut] = useState(prospect.statut);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState("");
+  const [dejaClient, setDejaClient] = useState(null);
 
   useEffect(() => {
     supabase.from("filleuls_prospects_relances").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false })
       .then(({ data }) => { setRelances(data || []); setChargement(false); });
+    // Identité unifiée (visiteur → prospect → partenaire → client) : il n'existe pas de
+    // table "clients" séparée dans ce projet — un client est simplement une commande avec
+    // ce numéro de téléphone. On le vérifie plutôt que d'inventer une liaison qui n'existe pas.
+    if (prospect.telephone) {
+      const telNettoye = prospect.telephone.replace(/\D/g, "");
+      supabase.from("commandes").select("id, montant, created_at", { count: "exact" }).eq("workspace_id", prospect.workspace_id).ilike("tel", `%${telNettoye.slice(-8)}%`).limit(1)
+        .then(({ data, count }) => setDejaClient(count > 0 ? { nb: count, derniere: data?.[0] } : { nb: 0 }));
+    }
   }, [prospect.id]);
 
   async function ajouterRelance() {
@@ -1055,6 +1064,11 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ fontWeight: 800, fontSize: 17, color: "#16231F" }}>{prospect.nom}</div>
         <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 14 }}>{prospect.telephone || "—"} {prospect.source ? `· ${prospect.source}` : ""}</div>
+        {dejaClient?.nb > 0 && (
+          <div style={{ fontSize: 11, color: "#1a7a3c", background: "#EAF3DE", borderRadius: 9, padding: "7px 11px", marginBottom: 12, fontWeight: 700 }}>
+            🛍️ Déjà client — {dejaClient.nb} commande{dejaClient.nb > 1 ? "s" : ""} avec ce numéro
+          </div>
+        )}
 
         <select value={statut} onChange={(e) => majStatut(e.target.value)} disabled={prospect.statut === "inscrit"} style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 12 }}>
           <option value="nouveau">🆕 Nouveau</option>

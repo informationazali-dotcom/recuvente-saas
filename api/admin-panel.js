@@ -1288,6 +1288,70 @@ IMPORTANT : ne décris QUE ce que tu vois réellement sur la photo. N'invente ja
 // RecuVenteMR School avec l'IA (§29 — jamais pour du QCM/vrai-faux, corrigés de
 // façon 100% déterministe côté SQL, voir ecole_soumettre_quiz). L'IA analyse,
 // identifie les lacunes, et recommande une révision si besoin.
+// ===== POST "suggerer_coaching_filleul" : rassemble les vraies données d'un
+// filleul (ventes récentes, formation, prospects) et demande à l'IA de
+// proposer 2-3 sujets de coaching concrets — jamais de chiffre inventé, l'IA
+// ne fait qu'interpréter ce qui est réellement mesuré.
+async function gererSuggererCoachingFilleul(req, res, user) {
+  const { filleul_id, workspace_id } = req.body || {};
+  if (!filleul_id || !workspace_id) return res.status(400).json({ error: "filleul_id et workspace_id requis." });
+
+  const { data: filleul } = await supabaseAdmin.from("filleuls").select("id, nom, mode_vente, statut, created_at").eq("id", filleul_id).eq("workspace_id", workspace_id).maybeSingle();
+  if (!filleul) return res.status(404).json({ error: "Filleul introuvable." });
+
+  const quinzeJours = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+  const [ventes15j, ventesTotal, coursTotal, coursTermines, prospectsApportes, prospectsAbandonnes] = await Promise.all([
+    supabaseAdmin.from("filleuls_commissions").select("id", { count: "exact", head: true }).eq("filleul_id", filleul_id).gte("created_at", quinzeJours),
+    supabaseAdmin.from("filleuls_commissions").select("id", { count: "exact", head: true }).eq("filleul_id", filleul_id),
+    supabaseAdmin.from("ecole_cours").select("id", { count: "exact", head: true }).eq("workspace_id", workspace_id).eq("actif", true),
+    supabaseAdmin.from("ecole_progression").select("id", { count: "exact", head: true }).eq("filleul_id", filleul_id).eq("statut", "completed"),
+    supabaseAdmin.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("recruteur_filleul_id", filleul_id),
+    supabaseAdmin.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("recruteur_filleul_id", filleul_id).eq("parcours_statut", "candidature_debutee"),
+  ]);
+
+  const anciennete = Math.round((Date.now() - new Date(filleul.created_at).getTime()) / (24 * 60 * 60 * 1000));
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const prompt = `Tu es un leader expérimenté en marketing de réseau. Voici les données RÉELLES et mesurées d'un partenaire de ton équipe — n'invente RIEN de plus, base-toi uniquement sur ces chiffres :
+
+Nom : ${filleul.nom}
+Ancienneté : ${anciennete} jours
+Mode : ${filleul.mode_vente === "revendeur" ? "Revendeur (stock personnel)" : "Affilié (vend via son lien)"}
+Statut : ${filleul.statut}
+Ventes des 15 derniers jours : ${ventes15j.count || 0}
+Ventes au total (historique) : ${ventesTotal.count || 0}
+Cours de formation terminés : ${coursTermines.count || 0} / ${coursTotal.count || 0}
+Prospects qu'il a lui-même apportés : ${prospectsApportes.count || 0}
+Dont candidatures commencées mais jamais terminées : ${prospectsAbandonnes.count || 0}
+
+Réponds UNIQUEMENT avec un objet JSON :
+{
+  "diagnostic": "1-2 phrases sur la situation actuelle de ce partenaire, honnête, sans exagérer ni minimiser",
+  "sujets_coaching": ["2 à 3 sujets concrets à aborder lors d'un prochain échange, courts et actionnables"]
+}
+Ne mentionne aucun chiffre que je ne t'ai pas donné. Si les données sont trop limitées pour un vrai diagnostic (ex: partenaire très récent), dis-le clairement plutôt que d'inventer.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 500, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let suggestion;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    suggestion = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  return res.status(200).json(suggestion);
+}
+
 async function gererEvaluerReponseEcole(req, res, user) {
   const { cours_id, reponse_texte, workspace_id } = req.body || {};
   if (!cours_id || !reponse_texte || !reponse_texte.trim()) {
@@ -1405,6 +1469,14 @@ export default async function handler(req, res) {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
     return gererEvaluerReponseEcole(req, res, userMembre);
+  }
+  // Suggestion de coaching (§46) : l'IA synthétise des DONNÉES RÉELLES déjà
+  // rassemblées côté serveur — elle n'invente jamais de statistique, elle se
+  // contente d'aider à les interpréter et à proposer des sujets concrets.
+  if (req.method === "POST" && req.body?.action === "suggerer_coaching_filleul") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererSuggererCoachingFilleul(req, res, userMembre);
   }
 
   const user = await verifierAdmin(req, res);

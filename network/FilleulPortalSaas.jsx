@@ -183,6 +183,8 @@ function MonStock({ filleul, workspace, produits, currency, stock, onChange }) {
   const [prix, setPrix] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState("");
+  const [cleAchat, setCleAchat] = useState(() => crypto.randomUUID());
+  const [cleVente, setCleVente] = useState(() => crypto.randomUUID());
 
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 };
 
@@ -190,6 +192,7 @@ function MonStock({ filleul, workspace, produits, currency, stock, onChange }) {
     if (!produitId || !quantite || Number(quantite) <= 0) { setErreur("Choisis un produit et une quantité."); return; }
     setErreur("");
     setEnCours(true);
+    let succes = false;
     if (ongletAction === "achat") {
       const produitChoisi = (produits || []).find((p) => p.id === produitId);
       const { error } = await supabase.rpc("enregistrer_mouvement_stock_filleul", {
@@ -197,18 +200,23 @@ function MonStock({ filleul, workspace, produits, currency, stock, onChange }) {
         p_type: "achat", p_quantite: Number(quantite),
         p_prix_unitaire: prix ? Number(prix) : Number(produitChoisi?.cout_achat || 0),
         p_commande_id: null, p_note: "Achat enregistré par le filleul",
+        p_idempotency_key: cleAchat,
       });
       if (error) setErreur("Échec — réessaie ou contacte le propriétaire.");
+      else { succes = true; setCleAchat(crypto.randomUUID()); }
     } else {
       const { error } = await supabase.rpc("enregistrer_vente_stock_filleul", {
         p_workspace_id: workspace.id, p_filleul_id: filleul.id, p_produit_id: produitId,
         p_quantite: Number(quantite), p_prix_vente_unitaire: Number(prix) || 0,
         p_note: "Vente enregistrée par le filleul",
+        p_idempotency_key: cleVente,
       });
       if (error) setErreur(error.message?.includes("Stock insuffisant") ? "Stock insuffisant pour cette quantité." : "Échec — réessaie.");
+      else { succes = true; setCleVente(crypto.randomUUID()); }
     }
     setEnCours(false);
-    if (!erreur) { setOngletAction(null); setProduitId(""); setQuantite(""); setPrix(""); await onChange(); }
+    // Même clé conservée en cas d'échec (retry sûr) ; renouvelée seulement après succès.
+    if (succes) { setOngletAction(null); setProduitId(""); setQuantite(""); setPrix(""); await onChange(); }
   }
 
   return (

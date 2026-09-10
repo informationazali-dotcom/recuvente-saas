@@ -175,7 +175,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
               return (
                 <div key={f.id} onClick={() => setFilleulSelectionne(f)} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "14px 18px" }}>
                   <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#16231F" }}>{f.nom} <span style={{ color: "#8A9089", fontWeight: 500 }}>· {f.code}</span></div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#16231F" }}>{f.est_pro && "⭐ "}{f.nom} <span style={{ color: "#8A9089", fontWeight: 500 }}>· {f.code}</span></div>
                     <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{f.telephone || "—"} · {f.statut === "actif" ? "✅ Actif" : "⏸️ Suspendu"}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -314,6 +314,7 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
   const [enCours, setEnCours] = useState(false);
   const [parrainId, setParrainId] = useState(filleul.parrain_id || "");
   const [modeVente, setModeVente] = useState(filleul.mode_vente || "affilie");
+  const [estPro, setEstPro] = useState(filleul.est_pro || false);
   const [stock, setStock] = useState([]);
   const [chargeStock, setChargeStock] = useState(true);
   const [produitAchatId, setProduitAchatId] = useState("");
@@ -483,6 +484,7 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     await supabase.from("filleuls").update({
       parrain_id: parrainId || null,
       mode_vente: modeVente,
+      est_pro: estPro,
       updated_at: new Date().toISOString(),
     }).eq("id", filleul.id);
     setEnCours(false);
@@ -585,6 +587,10 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
             <option value="affilie">Affilié — vend via son lien, reçoit une commission</option>
             <option value="revendeur">Revendeur — achète du stock, revend avec sa propre marge</option>
           </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: "#16231F", marginBottom: 10, cursor: "pointer" }}>
+            <input type="checkbox" checked={estPro} onChange={(e) => setEstPro(e.target.checked)} />
+            ⭐ Filleul PRO
+          </label>
           <button onClick={enregistrerParrainEtMode} disabled={enCours} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
             Enregistrer
           </button>

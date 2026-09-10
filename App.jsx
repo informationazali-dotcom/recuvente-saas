@@ -6,9 +6,9 @@ import CataloguePublic from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
 import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
 import NetworkDashboard from "./network/NetworkDashboard.jsx";
-import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import { MarketingReseauLanding, TunnelRecrutementPublic, BoutiqueReferralPublic } from "./network/MarketingReseauPublic.jsx";
 import RecrutementAdmin from "./network/RecrutementAdmin.jsx";
+import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -1259,7 +1259,7 @@ function LandingPage() {
   const statValue = (key) => stats && stats[key] !== undefined && stats[key] !== null ? money(stats[key]) : '—';
   // Valeur fixée manuellement pour l'affichage "Commerce confirmé" du Hero 3D, sur décision explicite du client
   // (au lieu de la vraie statistique statValue('montant_total_confirme')). À ajuster ou retirer ici si besoin.
-  const AFFICHAGE_COMMERCE_HERO = '25 MILLION+';
+  const AFFICHAGE_COMMERCE_HERO = '33 000 000';
   const activities = [
     ['🛒','E-commerce & COD','Commandes, boutique, closers, livraison, récupération et suivi.','Transformez vos ventes dispersées en une machine commerciale pilotable.'],
     ['🏪','Commerce physique','Ventes, stock, clients, paiements et performance.','Donnez à votre point de vente une vision claire de ce qui se passe vraiment.'],
@@ -1292,7 +1292,7 @@ function LandingPage() {
   const liveStats = [
     ['ENTREPRISES ACTIVES', statValue('nb_entreprises_actives'), 'espaces en activité'],
     ['COMMANDES CONFIRMÉES', statValue('nb_commandes_confirmees'), 'signal commercial'],
-    ['COMMERCE PILOTÉ', '25 MILLION+', 'FCFA · ambition de croissance'],
+    ['COMMERCE PILOTÉ', '3 300 000', 'FCFA · ambition de croissance'],
     ['LIVREURS ACTIFS', statValue('nb_livreurs_actifs'), 'opérations terrain'],
     ['COMMISSIONS ESTIMÉES', statValue('commissions_livreurs_estimees'), 'FCFA']
   ];
@@ -1527,28 +1527,6 @@ function LandingPage() {
   color:rgba(255,255,255,.82)!important;
 }
 
-
-/* V6 — PREMIUM AFRICA: emerald holographic + energy orange + premium gold */
-.rva.rva-premium-africa .rva-holoTitle span{
-  background:linear-gradient(110deg,#ffffff 0%,#7dffd0 35%,#ffb000 72%,#ff6a00 100%);
-  -webkit-background-clip:text;background-clip:text;color:transparent!important;
-  text-shadow:none;
-}
-.rva.rva-premium-africa .rva-holoCTA{
-  background:linear-gradient(135deg,#ff6a00 0%,#ff9f00 52%,#ffd166 100%)!important;
-  color:#fff!important;
-  box-shadow:0 18px 55px rgba(255,106,0,.34),0 0 35px rgba(255,176,0,.14)!important;
-}
-.rva.rva-premium-africa .rva-holoCTA:hover{transform:translateY(-4px) scale(1.015);box-shadow:0 24px 65px rgba(255,106,0,.44)!important}
-.rva.rva-premium-africa .rva-kicker{border-color:rgba(255,176,0,.34);background:linear-gradient(90deg,rgba(0,208,132,.10),rgba(255,106,0,.09));color:#fff!important}
-.rva.rva-premium-africa .rva-kicker b{background:#ffb000;box-shadow:0 0 18px #ff6a00}
-.rva.rva-premium-africa .rva-holoBeam{background:linear-gradient(180deg,rgba(86,255,192,0),rgba(255,106,0,.11) 45%,rgba(86,255,192,0))}
-.rva.rva-premium-africa .rva-holoBottom i{background:#ffb000;box-shadow:0 0 14px #ff6a00}
-.rva.rva-premium-africa .rva-3dbadge{border-color:rgba(255,176,0,.28);background:linear-gradient(90deg,rgba(0,245,160,.08),rgba(255,176,0,.08));color:#fff!important}
-.rva.rva-premium-africa .rva-ambitionBadge{border-color:rgba(255,176,0,.42)!important;background:linear-gradient(135deg,rgba(0,208,132,.10),rgba(255,106,0,.13))!important;box-shadow:0 0 55px rgba(255,106,0,.12)}
-.rva.rva-premium-africa .rva-ambitionNum{background:linear-gradient(100deg,#fff,#7dffd0,#ffb000,#ff6a00);-webkit-background-clip:text;background-clip:text;color:transparent!important}
-.rva.rva-premium-africa :focus-visible{outline:2px solid #ffb000;outline-offset:3px}
-@media(prefers-reduced-motion:reduce){.rva.rva-premium-africa *,.rva.rva-premium-africa *::before,.rva.rva-premium-africa *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
 /* V5.5 FINAL — explicit typography by actual component, not generic selectors */
 .rva.rva-premium-africa .rva-hero,

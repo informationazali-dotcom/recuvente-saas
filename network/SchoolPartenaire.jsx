@@ -28,9 +28,15 @@ export default function SchoolPartenaire({ filleul, workspace }) {
     return progression.find((p) => p.cours_id === coursId);
   }
   function estDebloque(c) {
-    if (!c.cours_prealable_id) return true;
-    const prog = progressionDe(c.cours_prealable_id);
-    return prog?.statut === "completed";
+    if (c.cours_prealable_id) {
+      const prog = progressionDe(c.cours_prealable_id);
+      if (prog?.statut !== "completed") return false;
+    }
+    if (c.anciennete_jours_min != null) {
+      const anciennete = (Date.now() - new Date(filleul.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      if (anciennete < c.anciennete_jours_min) return false;
+    }
+    return true;
   }
 
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import NotificationsBell from "./NotificationsBell.jsx";
 import CentreAFaire from "./CentreAFaire.jsx";
+import OnboardingReseau from "./OnboardingReseau.jsx";
 
 // "Mon Réseau" côté propriétaire (§14-16 de la mission). Charge ses propres
 // données (commissions, attributions) plutôt que de dépendre de ce que
@@ -98,6 +99,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
         </div>
       </div>
 
+      <OnboardingReseau workspace={workspace} produits={produits} filleuls={filleuls} onNaviguer={onNaviguer} />
       <CentreAFaire workspace={workspace} onNaviguer={onNaviguer} />
 
       {maxFilleuls != null && filleuls.length >= maxFilleuls && (

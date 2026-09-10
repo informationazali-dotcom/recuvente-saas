@@ -1284,6 +1284,92 @@ IMPORTANT : ne décris QUE ce que tu vois réellement sur la photo. N'invente ja
   return res.status(200).json({ fiche: ficheGeneree });
 }
 
+// ===== POST "evaluer_reponse_ecole" : corrige une question à réponse libre de
+// RecuVenteMR School avec l'IA (§29 — jamais pour du QCM/vrai-faux, corrigés de
+// façon 100% déterministe côté SQL, voir ecole_soumettre_quiz). L'IA analyse,
+// identifie les lacunes, et recommande une révision si besoin.
+async function gererEvaluerReponseEcole(req, res, user) {
+  const { cours_id, reponse_texte, workspace_id } = req.body || {};
+  if (!cours_id || !reponse_texte || !reponse_texte.trim()) {
+    return res.status(400).json({ error: "Réponse manquante." });
+  }
+
+  const { data: cours, error: erreurCours } = await supabaseAdmin
+    .from("ecole_cours")
+    .select("id, workspace_id, titre, contenu, criteres_evaluation, type, cours_prealable_id")
+    .eq("id", cours_id).eq("workspace_id", workspace_id).maybeSingle();
+  if (erreurCours || !cours) return res.status(404).json({ error: "Cours introuvable." });
+  if (cours.type !== "reponse_libre") return res.status(400).json({ error: "Ce cours n'est pas de type réponse libre." });
+
+  const { data: filleul } = await supabaseAdmin
+    .from("filleuls")
+    .select("id, email")
+    .eq("workspace_id", workspace_id)
+    .or(`user_id.eq.${user.id},email.eq.${(user.email || "").toLowerCase()}`)
+    .maybeSingle();
+  if (!filleul) return res.status(403).json({ error: "Profil filleul introuvable dans cet espace." });
+
+  // Vérifie le déblocage (cours préalable) exactement comme le fait la RPC SQL,
+  // pour ne pas laisser évaluer une réponse à un cours encore verrouillé.
+  if (cours.cours_prealable_id) {
+    const { data: prog } = await supabaseAdmin
+      .from("ecole_progression").select("statut")
+      .eq("filleul_id", filleul.id).eq("cours_id", cours.cours_prealable_id).maybeSingle();
+    if (prog?.statut !== "completed") return res.status(403).json({ error: "Ce cours est verrouillé." });
+  }
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const prompt = `Tu es un formateur pour un réseau de vente/marketing de réseau. Tu corriges la réponse ouverte d'un partenaire à une question de formation, avec bienveillance mais honnêteté.
+
+Question posée : "${(cours.contenu || cours.titre || "").trim()}"
+Critères attendus dans une bonne réponse (définis par le responsable du réseau) : "${(cours.criteres_evaluation || "Réponse cohérente et pertinente par rapport à la question.").trim()}"
+Réponse du partenaire : "${reponse_texte.trim().slice(0, 3000)}"
+
+Réponds UNIQUEMENT avec un objet JSON, sans texte autour :
+{
+  "reussi": true ou false,
+  "feedback": "2-4 phrases, en français, qui expliquent pourquoi c'est réussi ou non, ce qui est bien, ce qui manque. Si échoué, indique clairement quoi revoir avant de retenter — jamais vague.",
+  "points_forts": "1 phrase ou vide si aucun",
+  "points_a_ameliorer": "1 phrase ou vide si aucun"
+}`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 700, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let evaluation;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    evaluation = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+
+  const reussi = evaluation.reussi === true;
+  const feedback = String(evaluation.feedback || "").slice(0, 2000);
+
+  // Écriture du résultat — UNIQUEMENT ici, côté serveur, jamais confiée au client.
+  await supabaseAdmin.from("ecole_quiz_tentatives").insert([{
+    workspace_id, filleul_id: filleul.id, cours_id, score: reussi ? 100 : 0, reussi,
+    nb_questions: 1, nb_correctes: reussi ? 1 : 0, feedback_ia: feedback,
+  }]);
+
+  if (reussi) {
+    await supabaseAdmin.from("ecole_progression").upsert(
+      { workspace_id, filleul_id: filleul.id, cours_id, statut: "completed", termine_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { onConflict: "filleul_id,cours_id" }
+    );
+  }
+
+  return res.status(200).json({ reussi, feedback });
+}
+
 export default async function handler(req, res) {
   // Ces 3 actions servent à tous les abonnés RecuVente (pas seulement le compte propriétaire) —
   // vérifiées différemment, avant le contrôle admin qui, lui, reste réservé à l'AI Company OS.
@@ -1311,6 +1397,14 @@ export default async function handler(req, res) {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
     return gererIdentifierProduitDepuisPhoto(req, res, userMembre);
+  }
+  // École (§29) : réponse libre corrigée par l'IA. L'évaluation ET l'écriture du
+  // résultat se font ICI, côté serveur avec la service role key — jamais via une
+  // RPC que le filleul pourrait appeler directement avec un verdict inventé.
+  if (req.method === "POST" && req.body?.action === "evaluer_reponse_ecole") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererEvaluerReponseEcole(req, res, userMembre);
   }
 
   const user = await verifierAdmin(req, res);

@@ -156,12 +156,13 @@ function QuizPartenaire({ cours, progression, onChange }) {
   const [resultat, setResultat] = useState(null);
   const [enCours, setEnCours] = useState(false);
   const [chargement, setChargement] = useState(true);
+  const [historique, setHistorique] = useState([]);
 
   useEffect(() => {
-    // Ne renvoie jamais la bonne réponse au client — la sélection SQL exclut
-    // volontairement la colonne bonne_reponse ici.
     supabase.from("ecole_quiz_questions").select("id, question, type, options, ordre").eq("cours_id", cours.id).order("ordre")
       .then(({ data }) => { setQuestions(data || []); setChargement(false); });
+    supabase.from("ecole_quiz_tentatives").select("*").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(5)
+      .then(({ data }) => setHistorique(data || []));
   }, [cours.id]);
 
   async function soumettre() {
@@ -170,12 +171,19 @@ function QuizPartenaire({ cours, progression, onChange }) {
     setEnCours(false);
     setResultat(data);
     if (data?.reussi) await onChange();
+    const { data: nvHistorique } = await supabase.from("ecole_quiz_tentatives").select("*").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(5);
+    setHistorique(nvHistorique || []);
   }
 
   if (chargement) return <div style={{ fontSize: 12, color: "#8A9089" }}>Chargement du quiz...</div>;
 
   if (progression?.statut === "completed" && !resultat) {
-    return <div style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 700, marginBottom: 10 }}>✅ Quiz déjà réussi</div>;
+    return (
+      <div>
+        <div style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 700, marginBottom: 10 }}>✅ Quiz déjà réussi</div>
+        <HistoriqueTentatives historique={historique} />
+      </div>
+    );
   }
 
   return (
@@ -208,6 +216,25 @@ function QuizPartenaire({ cours, progression, onChange }) {
       <button onClick={soumettre} disabled={enCours || Object.keys(reponses).length < questions.length} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
         {enCours ? "..." : resultat && !resultat.reussi ? "Réessayer" : "Soumettre mes réponses"}
       </button>
+      <HistoriqueTentatives historique={historique} />
+    </div>
+  );
+}
+
+// Historique des tentatives (§28 — conservé, jamais affiché jusqu'ici).
+function HistoriqueTentatives({ historique }) {
+  if (!historique || historique.length === 0) return null;
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 10.5, color: "#8A9089", fontWeight: 700, marginBottom: 6 }}>Tentatives précédentes</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {historique.map((t) => (
+          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#8A9089" }}>
+            <span>{new Date(t.created_at).toLocaleDateString("fr-FR")}</span>
+            <span style={{ color: t.reussi ? "#1a7a3c" : "#D64933", fontWeight: 700 }}>{t.reussi ? "✅" : "❌"} {t.score}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -221,6 +248,12 @@ function ReponseLibrePartenaire({ cours, progression, workspace, onChange }) {
   const [resultat, setResultat] = useState(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState("");
+  const [historique, setHistorique] = useState([]);
+
+  useEffect(() => {
+    supabase.from("ecole_quiz_tentatives").select("*").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(5)
+      .then(({ data }) => setHistorique(data || []));
+  }, [cours.id]);
 
   async function soumettre() {
     if (!reponse.trim()) return;
@@ -237,6 +270,8 @@ function ReponseLibrePartenaire({ cours, progression, workspace, onChange }) {
       if (!reponseAPI.ok) { setErreur(json?.error || "Échec de l'évaluation."); setEnCours(false); return; }
       setResultat(json);
       if (json.reussi) await onChange();
+      const { data: nvHistorique } = await supabase.from("ecole_quiz_tentatives").select("*").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(5);
+      setHistorique(nvHistorique || []);
     } catch (e) {
       setErreur("Erreur réseau, réessaie.");
     }
@@ -244,7 +279,14 @@ function ReponseLibrePartenaire({ cours, progression, workspace, onChange }) {
   }
 
   if (progression?.statut === "completed" && !resultat) {
-    return <div style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 700, marginBottom: 10 }}>✅ Déjà validé</div>;
+    return (
+      <div>
+        <div style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 700, marginBottom: 10 }}>✅ Déjà validé</div>
+        {historique[0]?.feedback_ia && (
+          <div style={{ fontSize: 11.5, color: "#6B7168", background: "#F7FAF7", borderRadius: 9, padding: "9px 11px", marginBottom: 10, lineHeight: 1.5 }}>{historique[0].feedback_ia}</div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -267,6 +309,21 @@ function ReponseLibrePartenaire({ cours, progression, workspace, onChange }) {
       <button onClick={soumettre} disabled={enCours || !reponse.trim()} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
         {enCours ? "Évaluation en cours..." : resultat && !resultat.reussi ? "Réessayer" : "Soumettre ma réponse"}
       </button>
+      {historique.length > 1 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 10.5, color: "#8A9089", fontWeight: 700, marginBottom: 6 }}>Tentatives précédentes</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {historique.slice(resultat ? 1 : 0).map((t) => (
+              <div key={t.id} style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>{new Date(t.created_at).toLocaleDateString("fr-FR")}</span>
+                  <span style={{ color: t.reussi ? "#1a7a3c" : "#D64933", fontWeight: 700 }}>{t.reussi ? "✅" : "❌"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -54,7 +54,7 @@ export default function SchoolAdmin({ workspace }) {
                 <div style={{ marginTop: 12, borderTop: "1px solid #ECE8DC", paddingTop: 12 }}>
                   {coursDuNiveau.map((c) => (
                     <div key={c.id} onClick={() => setCoursOuvert(c)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", cursor: "pointer", borderBottom: "1px solid #F3F1EA" }}>
-                      <div style={{ fontSize: 12.5 }}>{{ video: "🎥", texte: "📄", quiz: "❓" }[c.type]} {c.titre}</div>
+                      <div style={{ fontSize: 12.5 }}>{{ video: "🎥", texte: "📄", quiz: "❓", reponse_libre: "✍️" }[c.type]} {c.titre}</div>
                       <div style={{ fontSize: 11, color: "#8A9089" }}>{c.actif ? "" : "inactif"}</div>
                     </div>
                   ))}
@@ -162,6 +162,7 @@ function AjoutCoursModal({ workspace, niveauId, coursExistants, onClose, onCree 
   const [type, setType] = useState("video");
   const [videoUrl, setVideoUrl] = useState("");
   const [contenu, setContenu] = useState("");
+  const [criteresEvaluation, setCriteresEvaluation] = useState("");
   const [prealableId, setPrealableId] = useState("");
   const [enCours, setEnCours] = useState(false);
 
@@ -172,7 +173,8 @@ function AjoutCoursModal({ workspace, niveauId, coursExistants, onClose, onCree 
     await supabase.from("ecole_cours").insert([{
       workspace_id: workspace.id, niveau_id: niveauId, titre: titre.trim(), type,
       video_url: type === "video" ? videoUrl.trim() || null : null,
-      contenu: type === "texte" ? contenu.trim() || null : null,
+      contenu: (type === "texte" || type === "reponse_libre") ? contenu.trim() || null : null,
+      criteres_evaluation: type === "reponse_libre" ? criteresEvaluation.trim() || null : null,
       cours_prealable_id: prealableId || null,
       ordre: count || 0,
     }]);
@@ -188,10 +190,17 @@ function AjoutCoursModal({ workspace, niveauId, coursExistants, onClose, onCree 
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }}>
           <option value="video">🎥 Vidéo</option>
           <option value="texte">📄 Texte</option>
-          <option value="quiz">❓ Quiz (questions à ajouter ensuite)</option>
+          <option value="quiz">❓ Quiz QCM/vrai-faux (questions à ajouter ensuite)</option>
+          <option value="reponse_libre">✍️ Question ouverte (corrigée par l'IA)</option>
         </select>
         {type === "video" && <input placeholder="URL de la vidéo (mp4, ou lien direct)" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13 }} />}
         {type === "texte" && <textarea placeholder="Contenu du cours" value={contenu} onChange={(e) => setContenu(e.target.value)} rows={4} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13, resize: "vertical" }} />}
+        {type === "reponse_libre" && (
+          <>
+            <textarea placeholder="Question posée au filleul" value={contenu} onChange={(e) => setContenu(e.target.value)} rows={2} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13, resize: "vertical" }} />
+            <textarea placeholder="Ce qu'une bonne réponse doit contenir (guide l'IA pour la correction)" value={criteresEvaluation} onChange={(e) => setCriteresEvaluation(e.target.value)} rows={3} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginBottom: 10, fontSize: 13, resize: "vertical" }} />
+          </>
+        )}
         <label style={{ fontSize: 10.5, color: "#8A9089" }}>Cours préalable requis (optionnel)</label>
         <select value={prealableId} onChange={(e) => setPrealableId(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 9, border: "1px solid #DDD8CC", marginTop: 4, marginBottom: 10, fontSize: 13 }}>
           <option value="">Aucun — toujours accessible</option>
@@ -273,7 +282,13 @@ function FicheCoursModal({ cours, onClose, onChange }) {
             </div>
           </div>
         )}
-        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 16 }}>{{ video: "🎥 Vidéo", texte: "📄 Texte", quiz: "❓ Quiz" }[cours.type]}{cours.type === "quiz" ? ` · seuil de réussite ${cours.quiz_seuil_reussite}%` : ""}</div>
+        <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 16 }}>{{ video: "🎥 Vidéo", texte: "📄 Texte", quiz: "❓ Quiz", reponse_libre: "✍️ Question ouverte (IA)" }[cours.type]}{cours.type === "quiz" ? ` · seuil de réussite ${cours.quiz_seuil_reussite}%` : ""}</div>
+        {cours.type === "reponse_libre" && (
+          <div style={{ fontSize: 11.5, color: "#6B7168", background: "#F7FAF7", borderRadius: 9, padding: "9px 11px", marginBottom: 14, lineHeight: 1.5 }}>
+            <strong>Question :</strong> {cours.contenu || "(non définie)"}<br /><br />
+            <strong>Critères :</strong> {cours.criteres_evaluation || "(non définis)"}
+          </div>
+        )}
 
         {cours.type === "quiz" && (
           <>

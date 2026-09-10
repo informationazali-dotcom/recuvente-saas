@@ -1,0 +1,35 @@
+/* RecuVente Premium Africa — visual hardening layer.
+   Scope: public landing only (.rva). Business logic is untouched. */
+.rva.rva-premium-africa .rva-holoTitle span{
+  background:linear-gradient(110deg,#fff 0%,#7dffd0 32%,#ffb000 70%,#ff6a00 100%) !important;
+  -webkit-background-clip:text !important;
+  background-clip:text !important;
+  color:transparent !important;
+  text-shadow:none !important;
+}
+.rva.rva-premium-africa .rva-holoCTA{
+  background:linear-gradient(135deg,#ff6a00 0%,#ff9f00 52%,#ffd166 100%) !important;
+  color:#fff !important;
+  border-color:transparent !important;
+  box-shadow:0 18px 55px rgba(255,106,0,.34),0 0 35px rgba(255,176,0,.14) !important;
+}
+.rva.rva-premium-africa .rva-holoCTA:hover{transform:translateY(-4px) scale(1.015)}
+.rva.rva-premium-africa .rva-kicker{
+  border-color:rgba(255,176,0,.34) !important;
+  background:linear-gradient(90deg,rgba(0,208,132,.10),rgba(255,106,0,.09)) !important;
+  color:#fff !important;
+}
+.rva.rva-premium-africa .rva-kicker b{background:#ffb000 !important;box-shadow:0 0 18px #ff6a00 !important}
+.rva.rva-premium-africa .rva-holoBeam{background:linear-gradient(180deg,rgba(86,255,192,0),rgba(255,106,0,.11) 45%,rgba(86,255,192,0)) !important}
+.rva.rva-premium-africa .rva-holoBottom i{background:#ffb000 !important;box-shadow:0 0 14px #ff6a00 !important}
+.rva.rva-premium-africa .rva-3dbadge{border-color:rgba(255,176,0,.28) !important;background:linear-gradient(90deg,rgba(0,245,160,.08),rgba(255,176,0,.08)) !important;color:#fff !important}
+.rva.rva-premium-africa .rva-ambitionBadge{border-color:rgba(255,176,0,.42) !important;background:linear-gradient(135deg,rgba(0,208,132,.10),rgba(255,106,0,.13)) !important;box-shadow:0 0 55px rgba(255,106,0,.12)}
+.rva.rva-premium-africa .rva-ambitionNum{background:linear-gradient(100deg,#fff,#7dffd0,#ffb000,#ff6a00) !important;-webkit-background-clip:text !important;background-clip:text !important;color:transparent !important}
+/* Public ambition figure: replaces the old decorative 33M hero label without touching DB values. */
+.rva.rva-premium-africa .rva-holoDashboard .rva-kpi:first-child strong,
+.rva.rva-premium-africa .rva-holoStage .rva-float.one strong{font-size:0 !important;color:#fff !important}
+.rva.rva-premium-africa .rva-holoDashboard .rva-kpi:first-child strong::after,
+.rva.rva-premium-africa .rva-holoStage .rva-float.one strong::after{content:'25 MILLION+';font-size:24px;letter-spacing:-.05em;color:#fff}
+.rva.rva-premium-africa .rva-holoStage .rva-float.one strong::after{font-size:21px}
+.rva.rva-premium-africa :focus-visible{outline:2px solid #ffb000 !important;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.rva.rva-premium-africa *,.rva.rva-premium-africa *::before,.rva.rva-premium-africa *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;scroll-behavior:auto !important;transition-duration:.01ms !important}}

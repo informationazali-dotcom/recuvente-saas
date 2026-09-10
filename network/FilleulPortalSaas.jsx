@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import NotificationsBell from "./NotificationsBell.jsx";
 
 // Espace personnel d'un filleul — miroir volontaire de LivreurPortalSaas /
 // CloserPortalSaas : le filleul ne voit QUE ses propres données (garanti
@@ -74,9 +75,12 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: "20px 16px 60px", maxWidth: 640, margin: "0 auto" }}>
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 12, color: "#8A9089" }}>{workspace.name}</div>
-        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: "#16231F" }}>Bonjour {filleul.nom} 👋</div>
+      <div style={{ marginBottom: 22, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: "#8A9089" }}>{workspace.name}</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: "#16231F" }}>Bonjour {filleul.nom} 👋</div>
+        </div>
+        <NotificationsBell workspace={workspace} />
       </div>
 
       {/* Mon lien */}

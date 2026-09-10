@@ -64,7 +64,9 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
   const totalPending = commissions.filter((c) => c.statut === "pending").reduce((s, c) => s + Number(c.montant_commission), 0);
   const totalValidated = commissions.filter((c) => c.statut === "validated" || c.statut === "available").reduce((s, c) => s + Number(c.montant_commission), 0);
   const totalPaid = commissions.filter((c) => c.statut === "paid").reduce((s, c) => s + Number(c.montant_commission), 0);
-  const ventesAttribuees = ventes.filter((v) => v.filleul_id).length;
+  // Une vente peut venir du lien (filleuls_attributions) ou du stock personnel en mode
+  // revendeur (filleuls_commissions.source = 'vente_stock', sans ligne d'attribution).
+  const ventesAttribuees = ventes.filter((v) => v.filleul_id).length + commissions.filter((c) => c.source === "vente_stock").length;
 
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18 };
   const label = { fontSize: 11, color: "#8A9089", marginBottom: 4 };

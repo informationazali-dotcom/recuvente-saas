@@ -21,12 +21,52 @@ export function TunnelRecrutementPublic({ code }) {
   const [form,setForm]=useState({nom:"",telephone:"",email:"",motivation:"",consent:false});
   const [copie,setCopie]=useState("");
   function copier(texte,cle){try{navigator.clipboard.writeText(texte);}catch(_){}setCopie(cle);setTimeout(()=>setCopie(""),1800);}
-  useEffect(()=>{let live=true;const c=cleanCode(code);if(!c){setError("Code de recrutement manquant.");return;}supabase.rpc("get_recrutement_public_config",{p_recruteur_code:c}).then(({data,error:e})=>{if(!live)return;if(e||!data){setError(e?.message||"Lien de recrutement invalide.");return;}setConfig(data);if(data.packs?.length)setPackId(data.packs[0].id);});return()=>{live=false;};},[code]);
+  // Attribution du parrain : "premier lien valide gagne" (règle §1 documentée). Si un
+  // code recruteur a déjà été enregistré lors d'une visite précédente, il n'est JAMAIS
+  // écrasé par une nouvelle visite avec un code différent — contrairement au referral
+  // commercial (rv_referral_code) qui, lui, prend le dernier valide. Volontairement
+  // deux règles différentes pour deux usages différents (voir note dans le rendu).
+  const [codeOrigine,setCodeOrigine]=useState(null);
+  useEffect(()=>{
+    let live=true;
+    const c=cleanCode(code);
+    if(!c){setError("Code de recrutement manquant.");return;}
+    supabase.rpc("get_recrutement_public_config",{p_recruteur_code:c}).then(({data,error:e})=>{
+      if(!live)return;
+      if(e||!data){setError(e?.message||"Lien de recrutement invalide.");return;}
+      setConfig(data);
+      if(data.packs?.length)setPackId(data.packs[0].id);
+      try{
+        const dejaEnregistre=localStorage.getItem("rv_recrutement_ref");
+        if(!dejaEnregistre){
+          localStorage.setItem("rv_recrutement_ref",c);
+          localStorage.setItem("rv_recrutement_ref_premiere_visite",new Date().toISOString());
+          setCodeOrigine(c);
+        } else {
+          setCodeOrigine(dejaEnregistre);
+        }
+      }catch(_){setCodeOrigine(c);}
+    });
+    return()=>{live=false;};
+  },[code]);
+  const [configOrigine,setConfigOrigine]=useState(null);
+  useEffect(()=>{
+    if(!codeOrigine)return;
+    if(codeOrigine===cleanCode(code)){setConfigOrigine(null);return;}
+    supabase.rpc("get_recrutement_public_config",{p_recruteur_code:codeOrigine}).then(({data})=>{if(data)setConfigOrigine(data);});
+  },[codeOrigine,code]);
+
   const set=(k,v)=>setForm(x=>({...x,[k]:v}));
-  async function submit(evt){evt.preventDefault();setError("");if(!form.nom.trim()||!form.telephone.trim())return setError("Le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:cleanCode(code),p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
+  async function submit(evt){evt.preventDefault();setError("");if(!form.nom.trim()||!form.telephone.trim())return setError("Le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:codeOrigine||cleanCode(code),p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
   if(config===undefined)return <div className="rvnploader"><style>{CSS}</style><div>{error?<><h2>Lien indisponible</h2><p>{error}</p><a className="rvnpbtn primary" href="/marketing-reseau">Retour</a></>:<><span className="rvnpspinner"/><p>Préparation de votre parcours…</p></>}</div></div>;
   const packs=Array.isArray(config.packs)?config.packs:[];const pack=packs.find(p=>p.id===packId);
-  return <div className="rvnp rvnptunnel"><style>{CSS}</style><div className="rvnpw rvnptunnelhead"><a className="rvnpbrand" href="/marketing-reseau"><i>R</i>RecuVente Réseau</a></div><main className="rvnpw rvnptunnelshell"><section className="rvnppanel"><div className="rvnpkick"><b/> INVITATION PERSONNELLE</div><h1>Rejoignez le réseau<br/><span style={{color:'#9fffc9'}}>{config.workspace_name||'RecuVente'}</span></h1><p>Vous êtes invité(e) par <strong style={{color:'#fff'}}>{config.recruteur_nom||'un partenaire'}</strong>. Découvrez le programme, choisissez votre parcours et envoyez votre candidature.</p><div className="rvnprecruiter"><div className="rvnpavatar">{String(config.recruteur_nom||'R').slice(0,1).toUpperCase()}</div><div><b>{config.recruteur_nom}</b><div style={{fontSize:8,color:'#8fa69b',marginTop:3}}>Code recruteur · {config.recruteur_code}</div></div></div><div className="rvnpmini">
+  return <div className="rvnp rvnptunnel"><style>{CSS}</style><div className="rvnpw rvnptunnelhead"><a className="rvnpbrand" href="/marketing-reseau"><i>R</i>RecuVente Réseau</a></div><main className="rvnpw rvnptunnelshell"><section className="rvnppanel"><div className="rvnpkick"><b/> INVITATION PERSONNELLE</div><h1>Rejoignez le réseau<br/><span style={{color:'#9fffc9'}}>{config.workspace_name||'RecuVente'}</span></h1><p>Vous êtes invité(e) par <strong style={{color:'#fff'}}>{config.recruteur_nom||'un partenaire'}</strong>. Découvrez le programme, choisissez votre parcours et envoyez votre candidature.</p><div className="rvnprecruiter"><div className="rvnpavatar">{String(config.recruteur_nom||'R').slice(0,1).toUpperCase()}</div><div><b>{config.recruteur_nom}</b><div style={{fontSize:8,color:'#8fa69b',marginTop:3}}>Code recruteur · {config.recruteur_code}</div></div></div>
+{configOrigine&&configOrigine.recruteur_code!==config.recruteur_code&&(
+  <div style={{fontSize:9,color:'#ffd06b',background:'rgba(255,194,71,.08)',border:'1px solid rgba(255,194,71,.2)',borderRadius:10,padding:'8px 10px',marginBottom:14,lineHeight:1.5}}>
+    ℹ️ Votre premier contact avec ce réseau a été via <strong>{configOrigine.recruteur_nom}</strong> — votre candidature lui sera rattachée, conformément à notre règle du premier lien valide.
+  </div>
+)}
+<div className="rvnpmini">
   <a href={`/boutique?ref=${encodeURIComponent(config.recruteur_code||'')}`} style={{display:'block',color:'inherit'}}>🏪 Boutique centrale · catalogue commun →</a>
   <div onClick={()=>copier(`${window.location.origin}/boutique?ref=${config.recruteur_code||''}`,'commercial')} style={{cursor:'pointer'}}>🔗 Lien commercial · {copie==='commercial'?'✅ Copié !':'cliquer pour copier'}</div>
   <div onClick={()=>copier(window.location.href,'recrutement')} style={{cursor:'pointer'}}>👥 Lien recrutement · {copie==='recrutement'?'✅ Copié !':'cliquer pour copier'}</div>

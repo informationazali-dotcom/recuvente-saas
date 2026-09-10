@@ -206,7 +206,7 @@ function MonStock({ filleul, workspace, produits, currency, stock, onChange }) {
         p_commande_id: null, p_note: "Achat enregistré par le filleul",
         p_idempotency_key: cleAchat,
       });
-      if (error) setErreur("Échec — réessaie ou contacte le propriétaire.");
+      if (error) setErreur(error.message || "Échec — réessaie ou contacte le propriétaire.");
       else { succes = true; setCleAchat(crypto.randomUUID()); }
     } else {
       const { error } = await supabase.rpc("enregistrer_vente_stock_filleul", {

@@ -391,6 +391,9 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     await onChange();
   }
   const [coachings, setCoachings] = useState([]);
+  const [suggestionIA, setSuggestionIA] = useState(null);
+  const [chargementSuggestion, setChargementSuggestion] = useState(false);
+  const [erreurSuggestion, setErreurSuggestion] = useState("");
   const [noteCoaching, setNoteCoaching] = useState("");
   const [enCoursCoaching, setEnCoursCoaching] = useState(false);
   const [showPaiementLeader, setShowPaiementLeader] = useState(false);
@@ -409,6 +412,25 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     setNoteCoaching("");
     await chargerCoachings();
     setEnCoursCoaching(false);
+  }
+
+  async function demanderSuggestionIA() {
+    setChargementSuggestion(true);
+    setErreurSuggestion("");
+    const { data: sessionData } = await supabase.auth.getSession();
+    try {
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "suggerer_coaching_filleul", filleul_id: filleul.id, workspace_id: workspace.id }),
+      });
+      const json = await reponse.json();
+      if (!reponse.ok) { setErreurSuggestion(json?.error || "Échec de la suggestion."); setChargementSuggestion(false); return; }
+      setSuggestionIA(json);
+    } catch (e) {
+      setErreurSuggestion("Erreur réseau, réessaie.");
+    }
+    setChargementSuggestion(false);
   }
 
   async function chargerStock() {
@@ -658,6 +680,21 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
 
         <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 16 }}>
           <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>🎓 Coaching</div>
+
+          <button onClick={demanderSuggestionIA} disabled={chargementSuggestion} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "1px dashed #d9c9f7", borderRadius: 8, padding: "8px 0", fontSize: 11, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+            {chargementSuggestion ? "Analyse en cours..." : "🤖 Suggérer un sujet de coaching (IA, sur données réelles)"}
+          </button>
+          {erreurSuggestion && <div style={{ fontSize: 10.5, color: "#D64933", marginBottom: 8 }}>{erreurSuggestion}</div>}
+          {suggestionIA && (
+            <div style={{ background: "#faf7ff", border: "1px solid #e8ddfb", borderRadius: 8, padding: "9px 11px", marginBottom: 8, fontSize: 11 }}>
+              <div style={{ color: "#5b3ba8", marginBottom: 6 }}>{suggestionIA.diagnostic}</div>
+              {(suggestionIA.sujets_coaching || []).map((s, i) => (
+                <div key={i} onClick={() => setNoteCoaching(s)} style={{ cursor: "pointer", color: "#16231F", padding: "3px 0" }}>• {s}</div>
+              ))}
+              <div style={{ fontSize: 9.5, color: "#8A9089", marginTop: 4 }}>Clique un sujet pour le reprendre dans ta note ci-dessous.</div>
+            </div>
+          )}
+
           <textarea placeholder="Note de coaching (visible par le filleul)..." value={noteCoaching} onChange={(e) => setNoteCoaching(e.target.value)} rows={2} style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8, resize: "vertical" }} />
           <button onClick={ajouterCoaching} disabled={enCoursCoaching} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
             Ajouter la note

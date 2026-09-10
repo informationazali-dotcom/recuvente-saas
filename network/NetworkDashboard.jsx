@@ -323,6 +323,7 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
     setVenteFaite(true);
     setTimeout(() => setVenteFaite(false), 2500);
     await chargerStock();
+    await onChange();
   }
   const [coachings, setCoachings] = useState([]);
   const [noteCoaching, setNoteCoaching] = useState("");

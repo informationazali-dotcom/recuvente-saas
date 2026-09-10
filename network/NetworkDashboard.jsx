@@ -1018,10 +1018,15 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState("");
   const [dejaClient, setDejaClient] = useState(null);
+  const [nbVisites, setNbVisites] = useState(null);
 
   useEffect(() => {
     supabase.from("filleuls_prospects_relances").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false })
       .then(({ data }) => { setRelances(data || []); setChargement(false); });
+    if (prospect.visiteur_id) {
+      supabase.from("recrutement_visites_tunnel").select("id", { count: "exact", head: true }).eq("visiteur_id", prospect.visiteur_id)
+        .then(({ count }) => setNbVisites(count || 0));
+    }
     // Identité unifiée (visiteur → prospect → partenaire → client) : il n'existe pas de
     // table "clients" séparée dans ce projet — un client est simplement une commande avec
     // ce numéro de téléphone. On le vérifie plutôt que d'inventer une liaison qui n'existe pas.
@@ -1067,6 +1072,11 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
         {dejaClient?.nb > 0 && (
           <div style={{ fontSize: 11, color: "#1a7a3c", background: "#EAF3DE", borderRadius: 9, padding: "7px 11px", marginBottom: 12, fontWeight: 700 }}>
             🛍️ Déjà client — {dejaClient.nb} commande{dejaClient.nb > 1 ? "s" : ""} avec ce numéro
+          </div>
+        )}
+        {nbVisites != null && (
+          <div style={{ fontSize: 11, color: "#5b3ba8", marginBottom: 12 }}>
+            👀 {nbVisites} visite{nbVisites > 1 ? "s" : ""} du tunnel {nbVisites > 1 ? "— revenu plusieurs fois" : ""}
           </div>
         )}
 

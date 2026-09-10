@@ -701,6 +701,8 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
     Object.fromEntries((produits || []).map((p) => [p.id, {
       commission_type: p.commission_type || "pourcentage",
       commission_valeur: p.commission_valeur != null ? String(p.commission_valeur) : "",
+      commission_leader_type: p.commission_leader_type || "pourcentage",
+      commission_leader_valeur: p.commission_leader_valeur != null ? String(p.commission_leader_valeur) : "",
     }]))
   );
   const [enregistrement, setEnregistrement] = useState({});
@@ -716,9 +718,12 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
     const valeurNombre = Number(ligne.commission_valeur);
     if (!ligne.commission_valeur || isNaN(valeurNombre) || valeurNombre < 0) return;
     setEnregistrement((e) => ({ ...e, [produitId]: true }));
+    const majLeader = ligne.commission_leader_valeur && !isNaN(Number(ligne.commission_leader_valeur))
+      ? { commission_leader_type: ligne.commission_leader_type, commission_leader_valeur: Number(ligne.commission_leader_valeur) }
+      : { commission_leader_type: null, commission_leader_valeur: null };
     await supabase
       .from("produits")
-      .update({ commission_type: ligne.commission_type, commission_valeur: valeurNombre })
+      .update({ commission_type: ligne.commission_type, commission_valeur: valeurNombre, ...majLeader })
       .eq("id", produitId)
       .eq("workspace_id", workspace.id);
     setEnregistrement((e) => ({ ...e, [produitId]: false }));
@@ -750,37 +755,58 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
               : `${Number(ligne.commission_valeur).toLocaleString("fr-FR")} ${currency} / unité`
             : null;
           return (
-            <div key={p.id} style={{ ...carte, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <div style={{ minWidth: 140, flex: "1 1 160px" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{p.nom}</div>
-                <div style={{ fontSize: 11, color: "#8A9089" }}>{Number(p.prix_vente || p.prix || 0).toLocaleString("fr-FR")} {currency}</div>
+            <div key={p.id} style={{ ...carte, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ minWidth: 140, flex: "1 1 160px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{p.nom}</div>
+                  <div style={{ fontSize: 11, color: "#8A9089" }}>{Number(p.prix_vente || p.prix || 0).toLocaleString("fr-FR")} {currency}</div>
+                </div>
+                <span style={{ fontSize: 10.5, color: "#8A9089", width: 60 }}>Filleul</span>
+                <select
+                  value={ligne.commission_type}
+                  onChange={(e) => majLigne(p.id, "commission_type", e.target.value)}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
+                >
+                  <option value="pourcentage">%</option>
+                  <option value="montant_fixe">Montant fixe</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder={ligne.commission_type === "pourcentage" ? "10" : "2000"}
+                  value={ligne.commission_valeur}
+                  onChange={(e) => majLigne(p.id, "commission_valeur", e.target.value)}
+                  style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
+                />
+                {exemple && <div style={{ fontSize: 10.5, color: "#8A9089" }}>{exemple}</div>}
               </div>
-              <select
-                value={ligne.commission_type}
-                onChange={(e) => majLigne(p.id, "commission_type", e.target.value)}
-                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
-              >
-                <option value="pourcentage">%</option>
-                <option value="montant_fixe">Montant fixe</option>
-              </select>
-              <input
-                type="number"
-                placeholder={ligne.commission_type === "pourcentage" ? "10" : "2000"}
-                value={ligne.commission_valeur}
-                onChange={(e) => majLigne(p.id, "commission_valeur", e.target.value)}
-                style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
-              />
-              {exemple && <div style={{ fontSize: 10.5, color: "#8A9089", minWidth: 130 }}>{exemple}</div>}
-              <button
-                onClick={() => enregistrer(p.id)}
-                disabled={enregistrement[p.id]}
-                style={{
-                  background: confirmes[p.id] ? "#EAF3DE" : "#1a7a3c", color: confirmes[p.id] ? "#1a7a3c" : "white",
-                  border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
-                }}
-              >
-                {enregistrement[p.id] ? "..." : confirmes[p.id] ? "✅ Enregistré" : "Enregistrer"}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", paddingLeft: 150 }}>
+                <span style={{ fontSize: 10.5, color: "#6b3fd4", width: 60 }}>👑 Leader</span>
+                <select
+                  value={ligne.commission_leader_type}
+                  onChange={(e) => majLigne(p.id, "commission_leader_type", e.target.value)}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
+                >
+                  <option value="pourcentage">%</option>
+                  <option value="montant_fixe">Montant fixe</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="optionnel"
+                  value={ligne.commission_leader_valeur}
+                  onChange={(e) => majLigne(p.id, "commission_leader_valeur", e.target.value)}
+                  style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12 }}
+                />
+                <button
+                  onClick={() => enregistrer(p.id)}
+                  disabled={enregistrement[p.id]}
+                  style={{
+                    background: confirmes[p.id] ? "#EAF3DE" : "#1a7a3c", color: confirmes[p.id] ? "#1a7a3c" : "white",
+                    border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                  }}
+                >
+                  {enregistrement[p.id] ? "..." : confirmes[p.id] ? "✅ Enregistré" : "Enregistrer"}
+                </button>
+              </div>
             </div>
           );
         })}

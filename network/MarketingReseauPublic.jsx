@@ -10,6 +10,17 @@ const CSS = `
 
 const cleanCode = (value) => String(value || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
 
+// Identifiant anonyme persistant (§6) — généré une seule fois par navigateur, permet de
+// relier plusieurs visites du tunnel à un même prospect une fois qu'il s'identifie.
+// Aucune donnée personnelle dedans, juste un UUID aléatoire.
+function idVisiteur() {
+  try {
+    let id = localStorage.getItem("rv_visiteur_id");
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem("rv_visiteur_id", id); }
+    return id;
+  } catch (_) { return null; }
+}
+
 export function MarketingReseauLanding() {
   const [code,setCode]=useState("");
   const openTunnel=(e)=>{e.preventDefault();const c=cleanCode(code);if(c)window.location.href=`/tunnel/${encodeURIComponent(c)}`;};
@@ -36,7 +47,7 @@ export function TunnelRecrutementPublic({ code }) {
       if(e||!data){setError(e?.message||"Lien de recrutement invalide.");return;}
       setConfig(data);
       if(data.packs?.length)setPackId(data.packs[0].id);
-      supabase.rpc("enregistrer_visite_tunnel",{p_recruteur_code:c}).catch(()=>{});
+      supabase.rpc("enregistrer_visite_tunnel",{p_recruteur_code:c,p_visiteur_id:idVisiteur()}).catch(()=>{});
       try{
         const dejaEnregistre=localStorage.getItem("rv_recrutement_ref");
         if(!dejaEnregistre){
@@ -61,7 +72,7 @@ export function TunnelRecrutementPublic({ code }) {
   function marquerCandidatureCommencee(){
     const c=codeOrigine||cleanCode(code);
     if(form.nom.trim()&&form.telephone.trim().length>=6&&c){
-      supabase.rpc("demarrer_candidature_reseau_public",{p_recruteur_code:c,p_nom:form.nom.trim(),p_telephone:form.telephone.trim()}).catch(()=>{});
+      supabase.rpc("demarrer_candidature_reseau_public",{p_recruteur_code:c,p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_visiteur_id:idVisiteur()}).catch(()=>{});
     }
   }
   const [suiviOuvert,setSuiviOuvert]=useState(false);
@@ -76,7 +87,7 @@ export function TunnelRecrutementPublic({ code }) {
     setSuiviChargement(false);
   }
   const libelleStatutSuivi={nouveau:"Candidature reçue",candidature_debutee:"Candidature en cours",candidature:"Candidature envoyée — en attente d'étude",paiement_confirme:"Paiement confirmé — préparation de votre activation",compte_externe_cree:"Compte en cours de création",actif:"🎉 Vous êtes activé(e) !"};
-  async function submit(evt){evt.preventDefault();setError("");if(!form.nom.trim()||!form.telephone.trim())return setError("Le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:codeOrigine||cleanCode(code),p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
+  async function submit(evt){evt.preventDefault();setError("");if(!form.nom.trim()||!form.telephone.trim())return setError("Le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:codeOrigine||cleanCode(code),p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null,p_visiteur_id:idVisiteur()});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
   if(config===undefined)return <div className="rvnploader"><style>{CSS}</style><div>{error?<><h2>Lien indisponible</h2><p>{error}</p><a className="rvnpbtn primary" href="/marketing-reseau">Retour</a></>:<><span className="rvnpspinner"/><p>Préparation de votre parcours…</p></>}</div></div>;
   const packs=Array.isArray(config.packs)?config.packs:[];const pack=packs.find(p=>p.id===packId);
   return <div className="rvnp rvnptunnel"><style>{CSS}</style><div className="rvnpw rvnptunnelhead"><a className="rvnpbrand" href="/marketing-reseau"><i>R</i>RecuVente Réseau</a></div><main className="rvnpw rvnptunnelshell"><section className="rvnppanel"><div className="rvnpkick"><b/> INVITATION PERSONNELLE</div><h1>Rejoignez le réseau<br/><span style={{color:'#9fffc9'}}>{config.workspace_name||'RecuVente'}</span></h1><p>Vous êtes invité(e) par <strong style={{color:'#fff'}}>{config.recruteur_nom||'un partenaire'}</strong>. Découvrez le programme, choisissez votre parcours et envoyez votre candidature.</p><div className="rvnprecruiter"><div className="rvnpavatar">{String(config.recruteur_nom||'R').slice(0,1).toUpperCase()}</div><div><b>{config.recruteur_nom}</b><div style={{fontSize:8,color:'#8fa69b',marginTop:3}}>Code recruteur · {config.recruteur_code}</div></div></div>

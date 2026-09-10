@@ -11,6 +11,26 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   const [chargement, setChargement] = useState(true);
   const [filtre, setFiltre] = useState("toutes");
   const [commandeOuverte, setCommandeOuverte] = useState(null);
+  const [pipeline, setPipeline] = useState(null);
+
+  async function chargerPipeline() {
+    // Uniquement des comptages (count: exact, head: true) — jamais de select * massif
+    // pour un widget de pilotage (§33 performance).
+    const [visites, candidatureDebutee, candidatureTerminee, paiementConfirme, actifs] = await Promise.all([
+      supabase.from("recrutement_visites_tunnel").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id),
+      supabase.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).not("parcours_statut", "is", null),
+      supabase.from("filleuls_prospects").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).not("candidature_le_at", "is", null),
+      supabase.from("recrutement_commandes_pack").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).eq("statut_paiement", "confirme"),
+      supabase.from("recrutement_commandes_pack").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).eq("statut_activation", "active"),
+    ]);
+    setPipeline({
+      visites: visites.count || 0,
+      candidatureDebutee: candidatureDebutee.count || 0,
+      candidatureTerminee: candidatureTerminee.count || 0,
+      paiementConfirme: paiementConfirme.count || 0,
+      actifs: actifs.count || 0,
+    });
+  }
 
   async function charger() {
     setChargement(true);
@@ -21,6 +41,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
       .order("created_at", { ascending: false });
     setCommandes(data || []);
     setChargement(false);
+    chargerPipeline();
   }
 
   useEffect(() => { charger(); }, [workspace.id]);
@@ -49,6 +70,27 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   return (
     <div style={{ padding: "0 4px 40px" }}>
       <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F", marginBottom: 16 }}>📋 Recrutement — candidatures &amp; activation</div>
+
+      {pipeline && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 20, overflowX: "auto" }}>
+          {[
+            { icone: "👀", label: "Visiteurs", valeur: pipeline.visites },
+            { icone: "📝", label: "Candidatures commencées", valeur: pipeline.candidatureDebutee },
+            { icone: "✅", label: "Candidatures envoyées", valeur: pipeline.candidatureTerminee },
+            { icone: "💳", label: "Paiements confirmés", valeur: pipeline.paiementConfirme },
+            { icone: "🟢", label: "Partenaires activés", valeur: pipeline.actifs },
+          ].map((etape, i, arr) => (
+            <React.Fragment key={etape.label}>
+              <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: "10px 14px", minWidth: 110, textAlign: "center" }}>
+                <div style={{ fontSize: 18 }}>{etape.icone}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#16231F" }}>{etape.valeur}</div>
+                <div style={{ fontSize: 9, color: "#8A9089" }}>{etape.label}</div>
+              </div>
+              {i < arr.length - 1 && <div style={{ color: "#DDD8CC", fontSize: 16 }}>→</div>}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {filtres.map((f) => (

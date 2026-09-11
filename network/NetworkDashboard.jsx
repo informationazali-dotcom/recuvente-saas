@@ -20,6 +20,17 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
   const [onglet, setOnglet] = useState("filleuls"); // filleuls | commissions
   const [filtreStatut, setFiltreStatut] = useState("toutes");
   const [rechercheFilleul, setRechercheFilleul] = useState("");
+  const [filtreInactifs, setFiltreInactifs] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("rv_filtre_filleuls_initial") === "inactifs") {
+        setFiltreInactifs(true);
+        setOnglet("filleuls");
+        sessionStorage.removeItem("rv_filtre_filleuls_initial");
+      }
+    } catch (_) {}
+  }, []);
   const [filleulAPayer, setFilleulAPayer] = useState(null);
   const [maxFilleuls, setMaxFilleuls] = useState(null);
   const [maxCommandesMois, setMaxCommandesMois] = useState(null);
@@ -146,6 +157,12 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {onglet === "filleuls" && (
         <>
+          {filtreInactifs && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FFF8E7", border: "1px solid #F0DFAE", borderRadius: 10, padding: "8px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412" }}>
+              <span>😴 Filtré : filleuls actifs sans vente depuis 14 jours</span>
+              <button onClick={() => setFiltreInactifs(false)} style={{ background: "none", border: "none", color: "#8A6412", fontWeight: 700, cursor: "pointer" }}>✕</button>
+            </div>
+          )}
           {filleuls.length > 1 && (
             <TopClassements filleuls={filleuls} commissions={commissions} produits={produits} currency={currency} statsPourFilleul={statsPourFilleul} workspace={workspace} />
           )}
@@ -173,6 +190,12 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
                 if (!rechercheFilleul.trim()) return true;
                 const q = rechercheFilleul.trim().toLowerCase();
                 return (f.nom || "").toLowerCase().includes(q) || (f.code || "").toLowerCase().includes(q) || (f.telephone || "").toLowerCase().includes(q);
+              })
+              .filter((f) => {
+                if (!filtreInactifs) return true;
+                const quatorzeJours = Date.now() - 14 * 24 * 60 * 60 * 1000;
+                const aVenduRecemment = commissions.some((c) => c.filleul_id === f.id && new Date(c.created_at).getTime() >= quatorzeJours);
+                return f.statut === "actif" && !aVenduRecemment;
               })
               .map((f) => {
               const s = statsPourFilleul(f.id);

@@ -12,6 +12,7 @@ export default function SchoolAdmin({ workspace, filleuls }) {
   const [showAjoutNiveau, setShowAjoutNiveau] = useState(false);
   const [showAjoutCours, setShowAjoutCours] = useState(null); // niveau_id ou null
   const [onglet, setOnglet] = useState("contenu"); // contenu | progression
+  const [rechercheCours, setRechercheCours] = useState("");
 
   async function charger() {
     setChargement(true);
@@ -61,9 +62,20 @@ export default function SchoolAdmin({ workspace, filleuls }) {
       {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
       {!chargement && niveaux.length === 0 && <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun niveau — crée le premier pour commencer à construire la formation.</div>}
 
+      {niveaux.length > 0 && cours.length > 3 && (
+        <input
+          placeholder="🔍 Rechercher un cours..."
+          value={rechercheCours}
+          onChange={(e) => setRechercheCours(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 12 }}
+        />
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {niveaux.map((n) => {
-          const coursDuNiveau = cours.filter((c) => c.niveau_id === n.id);
+          const q = rechercheCours.trim().toLowerCase();
+          const coursDuNiveau = cours.filter((c) => c.niveau_id === n.id && (!q || c.titre.toLowerCase().includes(q)));
+          if (q && coursDuNiveau.length === 0) return null;
           return (
             <div key={n.id} style={carte}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setNiveauOuvert(niveauOuvert === n.id ? null : n.id)}>
@@ -71,10 +83,10 @@ export default function SchoolAdmin({ workspace, filleuls }) {
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: "#16231F" }}>{n.nom} {!n.actif && <span style={{ color: "#8A9089", fontWeight: 500 }}>(inactif)</span>}</div>
                   <div style={{ fontSize: 11, color: "#8A9089" }}>{coursDuNiveau.length} cours</div>
                 </div>
-                <div style={{ fontSize: 16 }}>{niveauOuvert === n.id ? "▾" : "▸"}</div>
+                <div style={{ fontSize: 16 }}>{(niveauOuvert === n.id || q) ? "▾" : "▸"}</div>
               </div>
 
-              {niveauOuvert === n.id && (
+              {(niveauOuvert === n.id || q) && (
                 <div style={{ marginTop: 12, borderTop: "1px solid #ECE8DC", paddingTop: 12 }}>
                   {coursDuNiveau.map((c) => (
                     <div key={c.id} onClick={() => setCoursOuvert(c)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", cursor: "pointer", borderBottom: "1px solid #F3F1EA" }}>

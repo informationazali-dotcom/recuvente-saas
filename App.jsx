@@ -11237,6 +11237,17 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [genererAvecIA, setGenererAvecIA] = useState(true);
   const [iaEnCours, setIaEnCours] = useState(false);
   const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
+  const refFormulaireAjout = React.useRef(null);
+  useEffect(() => {
+    // Correctif : sur mobile, la colonne de liste est limitée en hauteur
+    // (260px, défilement interne). Sans ça, le formulaire s'ouvre bien mais
+    // reste hors champ de vision, donnant l'impression que le bouton ne
+    // fait rien. On fait défiler explicitement vers le formulaire dès qu'il
+    // s'ouvre.
+    if (ajoutOuvert && refFormulaireAjout.current) {
+      setTimeout(() => refFormulaireAjout.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  }, [ajoutOuvert]);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
@@ -11552,7 +11563,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
             </div>
 
             {ajoutOuvert && (
-              <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
+              <div ref={refFormulaireAjout} style={{ padding: 14, borderBottom: "1px solid #ECE8DC", background: "#fff" }}>
                 {produits.length === 0 && (
                   <div style={{ background: "linear-gradient(135deg, #F5F3FF, #EAF3DE)", border: "1px solid #DDD6FE", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 12, color: "#3B2F63", lineHeight: 1.5 }}>
                     <strong>🚀 Deux façons de démarrer ta boutique :</strong><br />

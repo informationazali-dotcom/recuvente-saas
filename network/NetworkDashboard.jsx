@@ -511,8 +511,18 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
   }
 
   async function basculerStatut() {
+    const passeEnSuspendu = filleul.statut === "actif";
+    let raison = null;
+    if (passeEnSuspendu) {
+      raison = window.prompt("Raison de la suspension (optionnel, aide-toi ou ton équipe à s'en souvenir) :", "");
+      if (raison === null) return; // annulé
+    }
     setEnCours(true);
-    await supabase.from("filleuls").update({ statut: filleul.statut === "actif" ? "suspendu" : "actif", updated_at: new Date().toISOString() }).eq("id", filleul.id);
+    await supabase.from("filleuls").update({
+      statut: passeEnSuspendu ? "suspendu" : "actif",
+      raison_suspension: passeEnSuspendu ? (raison.trim() || null) : null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", filleul.id);
     setEnCours(false);
     onChange();
     onClose();
@@ -752,6 +762,11 @@ function FicheFilleulModal({ filleul, filleuls, produits, stats, currency, works
           ))}
         </div>
 
+        {filleul.statut === "suspendu" && filleul.raison_suspension && (
+          <div style={{ fontSize: 11, color: "#8A6412", background: "#FFF8E7", borderRadius: 8, padding: "8px 11px", marginBottom: 8, lineHeight: 1.5 }}>
+            ⏸️ Suspendu — {filleul.raison_suspension}
+          </div>
+        )}
         <button onClick={basculerStatut} disabled={enCours} style={{ width: "100%", background: filleul.statut === "actif" ? "#FBEAEA" : "#EAF3DE", color: filleul.statut === "actif" ? "#D64933" : "#1a7a3c", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
           {filleul.statut === "actif" ? "⏸️ Suspendre ce filleul" : "✅ Réactiver ce filleul"}
         </button>

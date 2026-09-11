@@ -16,6 +16,12 @@ export default function ObjectifDuMois({ workspace, peutGerer }) {
   const moisISO = premierDuMois.toISOString().slice(0, 10);
   const debutMoisTimestamp = premierDuMois.toISOString();
 
+  async function supprimer(cle, id) {
+    if (!window.confirm("Supprimer cet objectif ?")) return;
+    await supabase.from("objectifs_reseau").delete().eq("id", id);
+    await charger();
+  }
+
   async function charger() {
     const { data } = await supabase.from("objectifs_reseau").select("*").eq("workspace_id", workspace.id).eq("mois", moisISO);
     const map = {};
@@ -55,7 +61,12 @@ export default function ObjectifDuMois({ workspace, peutGerer }) {
                   <div style={{ width: `${Math.min(100, Math.round((valeur / objectif.cible) * 100))}%`, height: "100%", background: valeur >= objectif.cible ? "#1a7a3c" : "#6b3fd4" }} />
                 </div>
                 {valeur >= objectif.cible && <div style={{ fontSize: 10.5, color: "#1a7a3c", fontWeight: 700, marginTop: 6 }}>🎉 Objectif atteint !</div>}
-                {peutGerer && <button onClick={() => setEdition(item.cle)} style={{ marginTop: 8, background: "none", border: "none", color: "#8A9089", fontSize: 10, cursor: "pointer" }}>Modifier l'objectif</button>}
+                {peutGerer && (
+                  <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                    <button onClick={() => setEdition(item.cle)} style={{ background: "none", border: "none", color: "#8A9089", fontSize: 10, cursor: "pointer" }}>Modifier</button>
+                    <button onClick={() => supprimer(item.cle, objectif.id)} style={{ background: "none", border: "none", color: "#D64933", fontSize: 10, cursor: "pointer" }}>Supprimer</button>
+                  </div>
+                )}
               </>
             ) : peutGerer ? (
               <button onClick={() => setEdition(item.cle)} style={{ width: "100%", background: "#F7FAF7", border: "1px dashed #DDD8CC", borderRadius: 9, padding: "9px 0", fontSize: 11.5, color: "#6B7168", cursor: "pointer" }}>

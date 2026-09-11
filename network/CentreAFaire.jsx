@@ -62,7 +62,10 @@ export default function CentreAFaire({ workspace, onNaviguer }) {
         {actionsAvecItems.map((a) => (
           <div
             key={a.cle}
-            onClick={() => onNaviguer?.(a.vue)}
+            onClick={() => {
+              if (a.cle === "reseau2") { try { sessionStorage.setItem("rv_filtre_filleuls_initial", "inactifs"); } catch (_) {} }
+              onNaviguer?.(a.vue);
+            }}
             style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 9, background: "#FFF8E7", cursor: onNaviguer ? "pointer" : "default", fontSize: 12 }}
           >
             <span>{a.icone} {a.n} {a.texte}</span>

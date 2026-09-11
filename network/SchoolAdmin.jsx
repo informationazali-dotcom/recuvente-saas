@@ -14,6 +14,17 @@ export default function SchoolAdmin({ workspace, filleuls }) {
   const [onglet, setOnglet] = useState("contenu"); // contenu | progression
   const [rechercheCours, setRechercheCours] = useState("");
 
+  async function deplacerCours(coursDuNiveau, index, direction) {
+    const cible = coursDuNiveau[index + direction];
+    const courant = coursDuNiveau[index];
+    if (!cible) return;
+    await Promise.all([
+      supabase.from("ecole_cours").update({ ordre: cible.ordre }).eq("id", courant.id),
+      supabase.from("ecole_cours").update({ ordre: courant.ordre }).eq("id", cible.id),
+    ]);
+    await charger();
+  }
+
   async function charger() {
     setChargement(true);
     const [{ data: n }, { data: c }, { data: p }] = await Promise.all([
@@ -88,10 +99,18 @@ export default function SchoolAdmin({ workspace, filleuls }) {
 
               {(niveauOuvert === n.id || q) && (
                 <div style={{ marginTop: 12, borderTop: "1px solid #ECE8DC", paddingTop: 12 }}>
-                  {coursDuNiveau.map((c) => (
-                    <div key={c.id} onClick={() => setCoursOuvert(c)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", cursor: "pointer", borderBottom: "1px solid #F3F1EA" }}>
-                      <div style={{ fontSize: 12.5 }}>{{ video: "🎥", texte: "📄", quiz: "❓", reponse_libre: "✍️" }[c.type]} {c.titre}</div>
-                      <div style={{ fontSize: 11, color: "#8A9089" }}>{c.actif ? "" : "inactif"}</div>
+                  {coursDuNiveau.map((c, i) => (
+                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 0", borderBottom: "1px solid #F3F1EA" }}>
+                      {!q && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                          <button onClick={(e) => { e.stopPropagation(); deplacerCours(coursDuNiveau, i, -1); }} disabled={i === 0} style={{ background: "none", border: "none", fontSize: 10, cursor: i === 0 ? "not-allowed" : "pointer", opacity: i === 0 ? 0.3 : 1, lineHeight: 1, padding: 0 }}>▲</button>
+                          <button onClick={(e) => { e.stopPropagation(); deplacerCours(coursDuNiveau, i, 1); }} disabled={i === coursDuNiveau.length - 1} style={{ background: "none", border: "none", fontSize: 10, cursor: i === coursDuNiveau.length - 1 ? "not-allowed" : "pointer", opacity: i === coursDuNiveau.length - 1 ? 0.3 : 1, lineHeight: 1, padding: 0 }}>▼</button>
+                        </div>
+                      )}
+                      <div onClick={() => setCoursOuvert(c)} style={{ flex: 1, display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
+                        <div style={{ fontSize: 12.5 }}>{{ video: "🎥", texte: "📄", quiz: "❓", reponse_libre: "✍️" }[c.type]} {c.titre}</div>
+                        <div style={{ fontSize: 11, color: "#8A9089" }}>{c.actif ? "" : "inactif"}</div>
+                      </div>
                     </div>
                   ))}
                   <button onClick={() => setShowAjoutCours(n.id)} style={{ marginTop: 8, background: "#f0ecfb", color: "#5b3ba8", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>

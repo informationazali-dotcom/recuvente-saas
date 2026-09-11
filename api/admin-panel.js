@@ -1292,6 +1292,56 @@ IMPORTANT : ne décris QUE ce que tu vois réellement sur la photo. N'invente ja
 // filleul (ventes récentes, formation, prospects) et demande à l'IA de
 // proposer 2-3 sujets de coaching concrets — jamais de chiffre inventé, l'IA
 // ne fait qu'interpréter ce qui est réellement mesuré.
+// ===== POST "obtenir_url_preuve_identite" : génère une URL signée courte
+// durée (5 minutes) pour consulter une preuve d'identité de candidature.
+// Jamais de lien permanent, jamais exposé publiquement (§41).
+async function gererObtenirUrlPreuveIdentite(req, res, user) {
+  const { candidature_id, workspace_id } = req.body || {};
+  if (!candidature_id || !workspace_id) return res.status(400).json({ error: "candidature_id et workspace_id requis." });
+
+  const { data: role } = await supabaseAdmin.from("workspace_members").select("role").eq("workspace_id", workspace_id).eq("user_id", user.id).maybeSingle();
+  if (!role || (role.role !== "owner" && role.role !== "admin")) {
+    return res.status(403).json({ error: "Seul le propriétaire ou un admin peut consulter une pièce d'identité." });
+  }
+
+  const { data: candidature } = await supabaseAdmin.from("recrutement_candidatures").select("preuve_identite_path, workspace_id").eq("id", candidature_id).eq("workspace_id", workspace_id).maybeSingle();
+  if (!candidature?.preuve_identite_path) return res.status(404).json({ error: "Aucun document pour cette candidature." });
+
+  const { data: signed, error } = await supabaseAdmin.storage.from("candidatures-documents").createSignedUrl(candidature.preuve_identite_path, 300);
+  if (error) return res.status(400).json({ error: error.message });
+
+  return res.status(200).json({ url: signed.signedUrl });
+}
+
+// ===== POST "obtenir_url_document_candidature" : URL signée temporaire
+// (10 minutes) pour consulter une pièce d'identité de candidature.
+// Réservé owner/admin — un filleul, même membre du workspace, n'y a
+// jamais accès (§42 : documents sensibles jamais consultables par un
+// autre filleul).
+async function gererObtenirUrlDocumentCandidature(req, res, user) {
+  const { candidature_id, workspace_id } = req.body || {};
+  if (!candidature_id || !workspace_id) return res.status(400).json({ error: "candidature_id et workspace_id requis." });
+
+  const { data: membership } = await supabaseAdmin
+    .from("workspace_members").select("role")
+    .eq("workspace_id", workspace_id).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return res.status(403).json({ error: "Réservé au propriétaire ou à un admin." });
+  }
+
+  const { data: candidature } = await supabaseAdmin
+    .from("recrutement_candidatures").select("preuve_identite_path")
+    .eq("id", candidature_id).eq("workspace_id", workspace_id).maybeSingle();
+  if (!candidature?.preuve_identite_path) return res.status(404).json({ error: "Aucun document pour cette candidature." });
+
+  const { data: signed, error } = await supabaseAdmin.storage
+    .from("candidatures-documents")
+    .createSignedUrl(candidature.preuve_identite_path, 600); // 10 minutes
+  if (error) return res.status(400).json({ error: error.message });
+
+  return res.status(200).json({ url: signed.signedUrl });
+}
+
 async function gererSuggererCoachingFilleul(req, res, user) {
   const { filleul_id, workspace_id } = req.body || {};
   if (!filleul_id || !workspace_id) return res.status(400).json({ error: "filleul_id et workspace_id requis." });
@@ -1477,6 +1527,21 @@ export default async function handler(req, res) {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
     return gererSuggererCoachingFilleul(req, res, userMembre);
+  }
+  // Pièce d'identité de candidature (§41) : URL signée temporaire, jamais
+  // d'accès public. Réservé owner/admin — vérifié explicitement dans la
+  // fonction, pas seulement via le rôle générique "membre".
+  if (req.method === "POST" && req.body?.action === "obtenir_url_document_candidature") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererObtenirUrlDocumentCandidature(req, res, userMembre);
+  }
+  // Preuve d'identité de candidature (§41) : URL signée à durée limitée,
+  // jamais un lien permanent, jamais généré côté client.
+  if (req.method === "POST" && req.body?.action === "obtenir_url_preuve_identite") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererObtenirUrlPreuveIdentite(req, res, userMembre);
   }
 
   const user = await verifierAdmin(req, res);

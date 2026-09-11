@@ -1235,7 +1235,7 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
     if (!note.trim()) return;
     setEnCours(true);
     const { data: sessionData } = await supabase.auth.getSession();
-    await supabase.from("filleuls_prospects_relances").insert([{ workspace_id: prospect.workspace_id, prospect_id: prospect.id, note: note.trim(), cree_par: sessionData?.session?.user?.id || null }]);
+    await supabase.from("filleuls_prospects_relances").insert([{ workspace_id: prospect.workspace_id, prospect_id: prospect.id, note: note.trim(), cree_par: sessionData?.session?.user?.id || null, auteur_type: "owner" }]);
     setNote("");
     const { data } = await supabase.from("filleuls_prospects_relances").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false });
     setRelances(data || []);
@@ -1301,7 +1301,7 @@ function FicheProspectModal({ prospect, onClose, onChange }) {
           {relances.map((r) => (
             <div key={r.id} style={{ fontSize: 11.5, background: "#F7FAF7", borderRadius: 8, padding: "8px 10px" }}>
               <div>{r.note}</div>
-              <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3 }}>{new Date(r.created_at).toLocaleString("fr-FR")}</div>
+              <div style={{ fontSize: 10, color: "#8A9089", marginTop: 3 }}>{new Date(r.created_at).toLocaleString("fr-FR")} · {r.auteur_type === "filleul" ? `👤 ${r.auteur_nom || "Filleul"}` : "Toi"}</div>
             </div>
           ))}
         </div>

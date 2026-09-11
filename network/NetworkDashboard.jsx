@@ -21,6 +21,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
   const [filtreStatut, setFiltreStatut] = useState("toutes");
   const [rechercheFilleul, setRechercheFilleul] = useState("");
   const [filtreInactifs, setFiltreInactifs] = useState(false);
+  const [filtrePro, setFiltrePro] = useState(false);
 
   useEffect(() => {
     try {
@@ -179,6 +180,16 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
               </button>
             </div>
           )}
+          {filleuls.some((f) => f.est_pro) && (
+            <div style={{ marginBottom: 10 }}>
+              <button onClick={() => setFiltrePro((v) => !v)} style={{
+                border: `1px solid ${filtrePro ? "#5b3ba8" : "#ECE8DC"}`, background: filtrePro ? "#f0ecfb" : "white",
+                color: filtrePro ? "#5b3ba8" : "#6B7168", borderRadius: 20, padding: "6px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+              }}>
+                ⭐ PRO uniquement
+              </button>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {!chargement && filleuls.length === 0 && (
               <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>
@@ -191,6 +202,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
                 const q = rechercheFilleul.trim().toLowerCase();
                 return (f.nom || "").toLowerCase().includes(q) || (f.code || "").toLowerCase().includes(q) || (f.telephone || "").toLowerCase().includes(q);
               })
+              .filter((f) => !filtrePro || f.est_pro)
               .filter((f) => {
                 if (!filtreInactifs) return true;
                 const quatorzeJours = Date.now() - 14 * 24 * 60 * 60 * 1000;
@@ -1154,12 +1166,20 @@ function TopClassements({ filleuls, commissions, produits, currency, statsPourFi
 // Onglet Prospects (§12-13 de la mission) : la partie amont du parcours filleul,
 // avant même l'inscription — prospection, relances, conversion.
 function ProspectsPanel({ workspace, filleuls, prospects, filtreStatut, setFiltreStatut, onAjouter, onSelectionner }) {
+  const [recherche, setRecherche] = useState("");
   const statuts = [
     { key: "toutes", label: "Tous" }, { key: "nouveau", label: "Nouveau" }, { key: "contacte", label: "Contacté" },
     { key: "presente", label: "Présenté" }, { key: "suivi", label: "En suivi" }, { key: "inscrit", label: "Inscrit" }, { key: "perdu", label: "Perdu" },
   ];
   const statutLabel = { nouveau: "🆕 Nouveau", contacte: "📞 Contacté", presente: "🗣️ Présenté", suivi: "🔄 En suivi", inscrit: "✅ Inscrit", perdu: "❌ Perdu" };
-  const prospectsFiltres = filtreStatut === "toutes" ? prospects : prospects.filter((p) => p.statut === filtreStatut);
+  const ordrePriorite = { nouveau: 0, suivi: 0, contacte: 1, presente: 1, inscrit: 2, perdu: 3 };
+  const prospectsFiltres = (filtreStatut === "toutes" ? prospects : prospects.filter((p) => p.statut === filtreStatut))
+    .filter((p) => {
+      if (!recherche.trim()) return true;
+      const q = recherche.trim().toLowerCase();
+      return (p.nom || "").toLowerCase().includes(q) || (p.telephone || "").includes(recherche.trim());
+    })
+    .sort((a, b) => (ordrePriorite[a.statut] ?? 1) - (ordrePriorite[b.statut] ?? 1));
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
 
   return (
@@ -1181,6 +1201,15 @@ function ProspectsPanel({ workspace, filleuls, prospects, filtreStatut, setFiltr
           + Prospect
         </button>
       </div>
+
+      {prospects.length > 5 && (
+        <input
+          placeholder="🔍 Rechercher un nom ou un téléphone..."
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 12 }}
+        />
+      )}
 
       {prospectsFiltres.length === 0 && <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun prospect dans ce filtre.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

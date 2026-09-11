@@ -361,7 +361,7 @@ function FicheProspectFilleulModal({ prospect, filleul, onClose, onChange }) {
       await supabase.from("filleuls_prospects").update({ statut, updated_at: new Date().toISOString() }).eq("id", prospect.id);
     }
     if (note.trim()) {
-      await supabase.from("filleuls_prospects_relances").insert([{ prospect_id: prospect.id, note: note.trim() }]);
+      await supabase.from("filleuls_prospects_relances").insert([{ prospect_id: prospect.id, note: note.trim(), auteur_type: "filleul", auteur_nom: filleul.nom }]);
     }
     setEnCours(false);
     await onChange();
@@ -399,7 +399,7 @@ function FicheProspectFilleulModal({ prospect, filleul, onClose, onChange }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {relances.map((r) => (
                 <div key={r.id} style={{ background: "#F7FAF7", borderRadius: 8, padding: "7px 9px", fontSize: 11 }}>
-                  <div style={{ color: "#8A9089", fontSize: 9.5, marginBottom: 2 }}>{new Date(r.created_at).toLocaleDateString("fr-FR")}</div>
+                  <div style={{ color: "#8A9089", fontSize: 9.5, marginBottom: 2 }}>{new Date(r.created_at).toLocaleDateString("fr-FR")} · {r.auteur_type === "owner" ? "👤 Responsable" : r.auteur_nom || "Toi"}</div>
                   {r.note}
                 </div>
               ))}

@@ -286,6 +286,7 @@ function MesProspects({ filleul, workspace, prospects, onChange }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [enCours, setEnCours] = useState(false);
+  const [prospectOuvert, setProspectOuvert] = useState(null);
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 };
   const statutLabel = { nouveau: "🆕", contacte: "📞", presente: "🗣️", suivi: "🔄", inscrit: "✅", perdu: "❌" };
 
@@ -320,11 +321,93 @@ function MesProspects({ filleul, workspace, prospects, onChange }) {
       {prospects.length === 0 && <div style={{ fontSize: 12, color: "#8A9089" }}>Aucun prospect pour l'instant — commence à en ajouter pour développer ton équipe.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {prospects.map((p) => (
-          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0" }}>
+          <div key={p.id} onClick={() => setProspectOuvert(p)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "7px 4px", cursor: "pointer", borderRadius: 6 }}>
             <span>{p.nom}</span>
             <span>{statutLabel[p.statut] || ""} {p.statut}</span>
           </div>
         ))}
+      </div>
+
+      {prospectOuvert && (
+        <FicheProspectFilleulModal
+          prospect={prospectOuvert}
+          filleul={filleul}
+          onClose={() => setProspectOuvert(null)}
+          onChange={async () => { await onChange(); setProspectOuvert(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Fiche prospect côté filleul — changer le statut et ajouter une note de
+// relance. Version simplifiée de celle du propriétaire : un filleul ne suit
+// que ses propres prospects, pas besoin du même niveau de détail.
+function FicheProspectFilleulModal({ prospect, filleul, onClose, onChange }) {
+  const [statut, setStatut] = useState(prospect.statut);
+  const [note, setNote] = useState("");
+  const [relances, setRelances] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [enCours, setEnCours] = useState(false);
+
+  useEffect(() => {
+    supabase.from("filleuls_prospects_relances").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: false })
+      .then(({ data }) => { setRelances(data || []); setChargement(false); });
+  }, [prospect.id]);
+
+  async function enregistrer() {
+    setEnCours(true);
+    if (statut !== prospect.statut) {
+      await supabase.from("filleuls_prospects").update({ statut, updated_at: new Date().toISOString() }).eq("id", prospect.id);
+    }
+    if (note.trim()) {
+      await supabase.from("filleuls_prospects_relances").insert([{ prospect_id: prospect.id, note: note.trim() }]);
+    }
+    setEnCours(false);
+    await onChange();
+  }
+
+  const carteStyle = { position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 };
+  const champ = { width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8 };
+
+  return (
+    <div style={carteStyle} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 380, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>{prospect.nom}</div>
+        <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>{prospect.telephone || "—"}</div>
+
+        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Statut</label>
+        <select value={statut} onChange={(e) => setStatut(e.target.value)} style={{ ...champ, marginTop: 4 }}>
+          <option value="nouveau">🆕 Nouveau</option>
+          <option value="contacte">📞 Contacté</option>
+          <option value="presente">🗣️ Présentation faite</option>
+          <option value="suivi">🔄 En suivi</option>
+          <option value="inscrit">✅ Inscrit</option>
+          <option value="perdu">❌ Perdu</option>
+        </select>
+
+        <label style={{ fontSize: 10.5, color: "#8A9089" }}>Note de relance (optionnel)</label>
+        <textarea placeholder="Ce que tu as fait / prévois de faire..." value={note} onChange={(e) => setNote(e.target.value)} rows={2} style={{ ...champ, marginTop: 4, resize: "vertical" }} />
+
+        <button onClick={enregistrer} disabled={enCours} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 9, padding: "10px 0", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 10 }}>
+          {enCours ? "..." : "Enregistrer"}
+        </button>
+
+        {!chargement && relances.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 10.5, color: "#8A9089", fontWeight: 700, marginBottom: 6 }}>Historique</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {relances.map((r) => (
+                <div key={r.id} style={{ background: "#F7FAF7", borderRadius: 8, padding: "7px 9px", fontSize: 11 }}>
+                  <div style={{ color: "#8A9089", fontSize: 9.5, marginBottom: 2 }}>{new Date(r.created_at).toLocaleDateString("fr-FR")}</div>
+                  {r.note}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12, padding: "8px 0", cursor: "pointer" }}>Fermer</button>
       </div>
     </div>
   );

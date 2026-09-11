@@ -18,6 +18,23 @@ export default function CommanderPublic({ workspaceId }) {
   const [messageErreur, setMessageErreur] = useState("");
   const [form, setForm] = useState({ client: "", tel: "", produit: "", montant: "" });
 
+  // Capture du referral (§7 de la mission recrutement) — ce formulaire n'en tenait
+  // jamais compte auparavant, ce qui empêchait toute commission pour le filleul qui
+  // avait amené ce client. Même règle que le reste du site : le code présent dans
+  // l'URL de CETTE page a priorité, sinon on réutilise le dernier valide mémorisé.
+  const [codeReferral] = useState(() => {
+    try {
+      const depuisUrl = new URLSearchParams(window.location.search).get("ref");
+      if (depuisUrl) {
+        localStorage.setItem("rv_referral_code", depuisUrl);
+        return depuisUrl;
+      }
+      return localStorage.getItem("rv_referral_code") || null;
+    } catch (_) {
+      return null;
+    }
+  });
+
   useEffect(() => {
     supabase.rpc("info_entreprise_publique", { p_workspace_id: workspaceId }).then(({ data, error }) => {
       if (error || !data || data.length === 0) setErreur("Ce lien de commande est invalide.");
@@ -38,6 +55,7 @@ export default function CommanderPublic({ workspaceId }) {
       p_tel: form.tel,
       p_produit: form.produit,
       p_montant: Number(form.montant),
+      p_referral_code: codeReferral,
     });
     if (error || !data?.[0]?.succes) {
       setMessageErreur(data?.[0]?.message || "Une erreur est survenue, réessaie.");

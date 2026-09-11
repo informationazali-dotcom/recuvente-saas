@@ -19,7 +19,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
     setChargement(true);
     const { data } = await supabase
       .from("recrutement_commandes_pack")
-      .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path), filleuls_prospects(recruteur_filleul_id)")
+      .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin), filleuls_prospects(recruteur_filleul_id)")
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false });
     setCommandes(data || []);
@@ -38,12 +38,13 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   ];
 
   function correspondFiltre(c) {
-    let ok = filtre === "toutes" && c.statut_paiement !== "refuse";
-    if (filtre === "paiement_en_attente") ok = c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse";
+    const estRefusee = c.statut_paiement === "refuse" || c.recrutement_candidatures?.statut_admin === "refusee";
+    let ok = filtre === "toutes" && !estRefusee;
+    if (filtre === "paiement_en_attente") ok = c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse" && !estRefusee;
     else if (filtre === "partenaire_a_creer") ok = c.statut_paiement === "confirme" && c.statut_partenaire !== "cree";
     else if (filtre === "pret_a_activer") ok = c.statut_partenaire === "cree" && c.statut_activation !== "active";
     else if (filtre === "actives") ok = c.statut_activation === "active";
-    else if (filtre === "refusees") ok = c.statut_paiement === "refuse";
+    else if (filtre === "refusees") ok = estRefusee;
     if (!ok) return false;
     if (recherche.trim()) {
       const q = recherche.trim().toLowerCase();
@@ -152,6 +153,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
 }
 
 function libelleEtape(c) {
+  if (c.recrutement_candidatures?.statut_admin === "refusee") return { texte: "🚫 Candidature refusée", couleur: "#8A9089" };
   if (c.statut_activation === "active") return { texte: "🎉 Activé", couleur: "#1a7a3c" };
   if (c.statut_paiement === "refuse") return { texte: "❌ Paiement refusé", couleur: "#D64933" };
   if (c.statut_partenaire === "cree") return { texte: "✅ Prêt à activer", couleur: "#5b3ba8" };
@@ -190,6 +192,24 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   const candidat = commande.recrutement_candidatures;
   const etape = libelleEtape(commande);
 
+  async function refuserCandidature() {
+    const note = window.prompt("Raison du refus (optionnel) :", "");
+    if (note === null) return;
+    setEnCours(true);
+    const { error } = await supabase.rpc("refuser_candidature_recrutement", { p_candidature_id: candidat.id, p_note: note.trim() || null });
+    setEnCours(false);
+    if (error) { setErreur(error.message || "Échec du refus."); return; }
+    await rafraichirCommande(); await onChange();
+  }
+
+  async function mettreEnEtude() {
+    setEnCours(true);
+    const { error } = await supabase.rpc("mettre_en_etude_candidature", { p_candidature_id: candidat.id });
+    setEnCours(false);
+    if (error) { setErreur(error.message || "Échec."); return; }
+    await rafraichirCommande();
+  }
+
   async function consulterDocument() {
     setChargementDoc(true);
     setErreurDoc("");
@@ -210,7 +230,7 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   }
 
   async function rafraichirCommande() {
-    const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path)").eq("id", commande.id).maybeSingle();
+    const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin)").eq("id", commande.id).maybeSingle();
     if (data) setCommande((c) => ({ ...data, recrutement_candidatures: data.recrutement_candidatures || c.recrutement_candidatures }));
   }
 
@@ -260,6 +280,19 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         <div style={{ fontSize: 12, color: "#8A9089", marginBottom: 4 }}>{candidat?.telephone} {candidat?.email ? `· ${candidat.email}` : ""}</div>
         <div style={{ fontSize: 11, fontWeight: 700, color: etape.couleur, marginBottom: 14 }}>{etape.texte}</div>
 
+        {candidat?.statut_admin !== "refusee" && commande.statut_activation !== "active" && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            {candidat?.statut_admin !== "en_etude" && (
+              <button onClick={mettreEnEtude} disabled={enCours} style={{ flex: 1, background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                🔎 Mettre en étude
+              </button>
+            )}
+            <button onClick={refuserCandidature} disabled={enCours} style={{ flex: 1, background: "#FBEAEA", color: "#D64933", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              🚫 Refuser la candidature
+            </button>
+          </div>
+        )}
+
         {candidat?.motivation && (
           <div style={{ fontSize: 11.5, color: "#6B7168", background: "#F7FAF7", borderRadius: 9, padding: "9px 11px", marginBottom: 14, lineHeight: 1.5 }}>
             "{candidat.motivation}"
@@ -281,7 +314,7 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         {erreur && <div style={{ fontSize: 11.5, color: "#D64933", marginBottom: 10 }}>⚠️ {erreur}</div>}
 
         {/* Étape 1 : paiement */}
-        {commande.statut_paiement !== "confirme" && commande.statut_paiement !== "refuse" && (
+        {candidat?.statut_admin !== "refusee" && commande.statut_paiement !== "confirme" && commande.statut_paiement !== "refuse" && (
           <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 14 }}>
             <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>💳 Paiement (déclaré hors plateforme)</div>
             <input placeholder="Référence de paiement" value={reference} onChange={(e) => setReference(e.target.value)} style={champ} />

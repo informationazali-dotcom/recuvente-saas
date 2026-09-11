@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient";
 import NotificationsBell from "./NotificationsBell.jsx";
 import SchoolPartenaire from "./SchoolPartenaire.jsx";
 import ProchaineActionPartenaire from "./ProchaineActionPartenaire.jsx";
+import ObjectifDuMois from "./ObjectifDuMois.jsx";
 
 // Espace personnel d'un filleul — miroir volontaire de LivreurPortalSaas /
 // CloserPortalSaas : le filleul ne voit QUE ses propres données (garanti
@@ -86,6 +87,8 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       </div>
 
       <ProchaineActionPartenaire filleul={filleul} workspace={workspace} />
+
+      <ObjectifDuMois workspace={workspace} peutGerer={false} />
 
       {/* Mon lien */}
       <div style={{ ...carte, background: "linear-gradient(135deg,#0d2417,#1a4a2e)", color: "white", marginBottom: 12 }}>

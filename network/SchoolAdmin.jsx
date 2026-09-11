@@ -286,13 +286,25 @@ function FicheCoursModal({ cours, onClose, onChange }) {
   const [contenu, setContenu] = useState(cours.contenu || "");
   const [actif, setActif] = useState(cours.actif);
   const [enCours, setEnCours] = useState(false);
+  const [tentativesReponseLibre, setTentativesReponseLibre] = useState([]);
+  const [filleulsParId, setFilleulsParId] = useState({});
 
   async function charger() {
-    const { data } = await supabase.from("ecole_quiz_questions").select("*").eq("cours_id", cours.id).order("ordre");
-    setQuestions(data || []);
+    if (cours.type === "quiz") {
+      const { data } = await supabase.from("ecole_quiz_questions").select("*").eq("cours_id", cours.id).order("ordre");
+      setQuestions(data || []);
+    }
+    if (cours.type === "reponse_libre") {
+      const [{ data: tentatives }, { data: f }] = await Promise.all([
+        supabase.from("ecole_quiz_tentatives").select("id, filleul_id, reussi, feedback_ia, created_at").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("filleuls").select("id, nom").eq("workspace_id", cours.workspace_id),
+      ]);
+      setTentativesReponseLibre(tentatives || []);
+      setFilleulsParId(Object.fromEntries((f || []).map((x) => [x.id, x.nom])));
+    }
     setChargement(false);
   }
-  useEffect(() => { if (cours.type === "quiz") charger(); else setChargement(false); }, [cours.id]);
+  useEffect(() => { charger(); }, [cours.id]);
 
   async function enregistrerModifications() {
     setEnCours(true);
@@ -369,6 +381,25 @@ function FicheCoursModal({ cours, onClose, onChange }) {
               + Ajouter une question
             </button>
           </>
+        )}
+
+        {cours.type === "reponse_libre" && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>Réponses soumises (supervision qualité)</div>
+            {tentativesReponseLibre.length === 0 && !chargement && <div style={{ fontSize: 11.5, color: "#8A9089" }}>Aucune réponse soumise pour l'instant.</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {tentativesReponseLibre.map((t) => (
+                <div key={t.id} style={{ background: t.reussi ? "#F7FAF7" : "#FBEAEA", borderRadius: 9, padding: "9px 11px", fontSize: 11.5 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <strong>{filleulsParId[t.filleul_id] || "Filleul"}</strong>
+                    <span style={{ color: t.reussi ? "#1a7a3c" : "#D64933" }}>{t.reussi ? "✅ Réussi" : "❌ Non réussi"}</span>
+                  </div>
+                  <div style={{ color: "#6B7168" }}>{t.feedback_ia}</div>
+                  <div style={{ fontSize: 9.5, color: "#8A9089", marginTop: 4 }}>{new Date(t.created_at).toLocaleDateString("fr-FR")}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         <button onClick={supprimerCours} disabled={enCours} style={{ width: "100%", background: "#FBEAEA", color: "#D64933", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>

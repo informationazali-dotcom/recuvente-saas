@@ -38,7 +38,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   ];
 
   function correspondFiltre(c) {
-    let ok = filtre === "toutes";
+    let ok = filtre === "toutes" && c.statut_paiement !== "refuse";
     if (filtre === "paiement_en_attente") ok = c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse";
     else if (filtre === "partenaire_a_creer") ok = c.statut_paiement === "confirme" && c.statut_partenaire !== "cree";
     else if (filtre === "pret_a_activer") ok = c.statut_partenaire === "cree" && c.statut_activation !== "active";
@@ -93,7 +93,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
       />
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid #ECE8DC" }}>
-        {[{ key: "candidatures", label: "Candidatures" }, { key: "packs", label: "🏷️ Packs" }].map((o) => (
+        {[{ key: "candidatures", label: "Candidatures" }, { key: "abandonnees", label: "🎯 Abandonnées" }, { key: "packs", label: "🏷️ Packs" }].map((o) => (
           <button key={o.key} onClick={() => setOnglet(o.key)} style={{
             background: "none", border: "none", padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
             color: onglet === o.key ? "#6b3fd4" : "#8A9089",
@@ -105,6 +105,8 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
       </div>
 
       {onglet === "packs" && <PacksAdmin workspace={workspace} currency={currency} />}
+
+      {onglet === "abandonnees" && <CandidaturesAbandonnees workspace={workspace} />}
 
       {onglet === "candidatures" && (
       <>
@@ -461,6 +463,61 @@ function FormulairePackModal({ workspace, pack, onClose, onEnregistre }) {
           {enCours ? "..." : pack ? "Enregistrer les modifications" : "Créer le pack"}
         </button>
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>Annuler</button>
+      </div>
+    </div>
+  );
+}
+
+// Candidatures jamais terminées (§4 — abandon avant l'envoi final du
+// formulaire). Existait déjà en base (filleuls_prospects, parcours_statut
+// = candidature_debutee), mais jamais visible depuis l'écran Recrutement
+// — seulement noyée dans les Prospects du module réseau, séparément.
+function CandidaturesAbandonnees({ workspace }) {
+  const [prospects, setProspects] = useState([]);
+  const [filleulsParId, setFilleulsParId] = useState({});
+  const [chargement, setChargement] = useState(true);
+
+  async function charger() {
+    setChargement(true);
+    const [{ data: p }, { data: f }] = await Promise.all([
+      supabase.from("filleuls_prospects").select("id, nom, telephone, created_at, recruteur_filleul_id")
+        .eq("workspace_id", workspace.id).eq("parcours_statut", "candidature_debutee").order("created_at", { ascending: false }),
+      supabase.from("filleuls").select("id, nom").eq("workspace_id", workspace.id),
+    ]);
+    setProspects(p || []);
+    setFilleulsParId(Object.fromEntries((f || []).map((x) => [x.id, x.nom])));
+    setChargement(false);
+  }
+  useEffect(() => { charger(); }, [workspace.id]);
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
+
+  function joursDepuis(date) {
+    return Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 12, lineHeight: 1.5 }}>
+        Candidats qui ont commencé le formulaire (nom + téléphone renseignés) mais ne l'ont jamais envoyé. À relancer directement par téléphone/WhatsApp.
+      </div>
+      {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
+      {!chargement && prospects.length === 0 && (
+        <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucune candidature abandonnée pour l'instant — tout le monde va jusqu'au bout du formulaire. 🎉</div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {prospects.map((p) => {
+          const j = joursDepuis(p.created_at);
+          return (
+            <div key={p.id} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{p.nom}</div>
+                <div style={{ fontSize: 11, color: "#8A9089" }}>{p.telephone || "—"} {filleulsParId[p.recruteur_filleul_id] ? `· recruté par ${filleulsParId[p.recruteur_filleul_id]}` : ""}</div>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: j > 2 ? "#D64933" : "#8A6412" }}>Depuis {j} jour{j > 1 ? "s" : ""}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

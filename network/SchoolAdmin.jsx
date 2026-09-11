@@ -65,7 +65,7 @@ export default function SchoolAdmin({ workspace, filleuls }) {
       </div>
 
       {onglet === "progression" && (
-        <ProgressionEcole filleuls={filleuls || []} cours={cours} progressionTous={progressionTous} carte={carte} />
+        <ProgressionEcole filleuls={filleuls || []} cours={cours} progressionTous={progressionTous} carte={carte} workspace={workspace} />
       )}
 
       {onglet === "contenu" && (
@@ -454,7 +454,7 @@ function AjoutQuestionModal({ coursId, onClose, onCree }) {
 // Vue "Progression" (§33 — profil 360°, visibilité formation) : jamais
 // construite jusqu'ici — l'admin n'avait aucun moyen de savoir qui a
 // terminé quoi. Comptages réels uniquement, rien d'inventé.
-function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
+function ProgressionEcole({ filleuls, cours, progressionTous, carte, workspace }) {
   const [filleulOuvert, setFilleulOuvert] = useState(null);
   const totalCours = cours.filter((c) => c.actif).length;
   if (totalCours === 0) {
@@ -493,6 +493,7 @@ function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
           filleul={filleulOuvert}
           cours={cours}
           progressionTous={progressionTous}
+          workspace={workspace}
           onClose={() => setFilleulOuvert(null)}
         />
       )}
@@ -500,7 +501,30 @@ function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
   );
 }
 
-function DetailProgressionModal({ filleul, cours, progressionTous, onClose }) {
+function DetailProgressionModal({ filleul, cours, progressionTous, workspace, onClose }) {
+  const [suggestionIA, setSuggestionIA] = useState(null);
+  const [chargementSuggestion, setChargementSuggestion] = useState(false);
+  const [erreurSuggestion, setErreurSuggestion] = useState("");
+
+  async function demanderSuggestionIA() {
+    setChargementSuggestion(true);
+    setErreurSuggestion("");
+    const { data: sessionData } = await supabase.auth.getSession();
+    try {
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "suggerer_coaching_filleul", filleul_id: filleul.id, workspace_id: workspace.id }),
+      });
+      const json = await reponse.json();
+      if (!reponse.ok) { setErreurSuggestion(json?.error || "Échec de la suggestion."); setChargementSuggestion(false); return; }
+      setSuggestionIA(json);
+    } catch (e) {
+      setErreurSuggestion("Erreur réseau, réessaie.");
+    }
+    setChargementSuggestion(false);
+  }
+
   const coursActifs = cours.filter((c) => c.actif).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
   const progressionFilleul = progressionTous.filter((p) => p.filleul_id === filleul.id);
   const statutDe = (coursId) => progressionFilleul.find((p) => p.cours_id === coursId)?.statut || "not_started";
@@ -522,6 +546,20 @@ function DetailProgressionModal({ filleul, cours, progressionTous, onClose }) {
             );
           })}
         </div>
+
+        <button onClick={demanderSuggestionIA} disabled={chargementSuggestion} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "1px dashed #d9c9f7", borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer", marginTop: 14 }}>
+          {chargementSuggestion ? "Analyse en cours..." : "🤖 Suggérer un sujet de coaching (IA)"}
+        </button>
+        {erreurSuggestion && <div style={{ fontSize: 10.5, color: "#D64933", marginTop: 8 }}>{erreurSuggestion}</div>}
+        {suggestionIA && (
+          <div style={{ background: "#faf7ff", border: "1px solid #e8ddfb", borderRadius: 8, padding: "9px 11px", marginTop: 8, fontSize: 11 }}>
+            <div style={{ color: "#5b3ba8", marginBottom: 6 }}>{suggestionIA.diagnostic}</div>
+            {(suggestionIA.sujets_coaching || []).map((s, i) => (
+              <div key={i} style={{ color: "#16231F", padding: "3px 0" }}>• {s}</div>
+            ))}
+          </div>
+        )}
+
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12, padding: "10px 0 0", cursor: "pointer" }}>Fermer</button>
       </div>
     </div>

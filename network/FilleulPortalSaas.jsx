@@ -295,8 +295,16 @@ function MesProspects({ filleul, workspace, prospects, onChange }) {
   const [telephone, setTelephone] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [prospectOuvert, setProspectOuvert] = useState(null);
+  const [recherche, setRecherche] = useState("");
   const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, marginBottom: 16 };
   const statutLabel = { nouveau: "🆕", contacte: "📞", presente: "🗣️", suivi: "🔄", inscrit: "✅", perdu: "❌" };
+
+  // Priorité de relance : les statuts "chauds" (nouveau/en suivi) remontent en
+  // premier, les issues finales (inscrit/perdu) descendent en bas.
+  const ordrePriorite = { nouveau: 0, contacte: 1, presente: 1, suivi: 0, inscrit: 2, perdu: 3 };
+  const prospectsTries = [...prospects]
+    .filter((p) => !recherche.trim() || p.nom.toLowerCase().includes(recherche.trim().toLowerCase()) || (p.telephone || "").includes(recherche.trim()))
+    .sort((a, b) => (ordrePriorite[a.statut] ?? 1) - (ordrePriorite[b.statut] ?? 1));
 
   async function creer() {
     if (!nom.trim()) return;
@@ -326,9 +334,19 @@ function MesProspects({ filleul, workspace, prospects, onChange }) {
         </div>
       )}
 
+      {prospects.length > 4 && (
+        <input
+          placeholder="🔍 Rechercher..."
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8 }}
+        />
+      )}
+
       {prospects.length === 0 && <div style={{ fontSize: 12, color: "#8A9089" }}>Aucun prospect pour l'instant — commence à en ajouter pour développer ton équipe.</div>}
+      {prospects.length > 0 && prospectsTries.length === 0 && <div style={{ fontSize: 12, color: "#8A9089" }}>Aucun résultat pour cette recherche.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {prospects.map((p) => (
+        {prospectsTries.map((p) => (
           <div key={p.id} onClick={() => setProspectOuvert(p)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "7px 4px", cursor: "pointer", borderRadius: 6 }}>
             <span>{p.nom}</span>
             <span>{statutLabel[p.statut] || ""} {p.statut}</span>

@@ -17,12 +17,32 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
 
   async function charger() {
     setChargement(true);
-    const { data } = await supabase
-      .from("recrutement_commandes_pack")
-      .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin), filleuls_prospects(recruteur_filleul_id)")
-      .eq("workspace_id", workspace.id)
-      .order("created_at", { ascending: false });
-    setCommandes(data || []);
+    const [{ data: avecPack }, { data: toutesCandidatures }] = await Promise.all([
+      supabase.from("recrutement_commandes_pack")
+        .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin), filleuls_prospects(recruteur_filleul_id)")
+        .eq("workspace_id", workspace.id)
+        .order("created_at", { ascending: false }),
+      supabase.from("recrutement_candidatures")
+        .select("id, nom, telephone, email, motivation, preuve_identite_path, statut_admin, created_at, prospect_id")
+        .eq("workspace_id", workspace.id),
+    ]);
+
+    // Corrige un vrai trou : une candidature sans pack choisi (ou si aucun pack
+    // n'existe dans la boutique) n'a jamais de ligne dans recrutement_commandes_pack
+    // — elle était donc invisible dans cet écran. On construit une entrée "vide"
+    // pour ces candidatures-là, avec les mêmes champs que les autres (juste sans
+    // statut de paiement/partenaire/activation, puisque rien n'a encore commencé).
+    const idsCandidaturesAvecPack = new Set((avecPack || []).map((c) => c.recrutement_candidatures?.id).filter(Boolean));
+    const candidaturesSansPack = (toutesCandidatures || [])
+      .filter((cand) => !idsCandidaturesAvecPack.has(cand.id))
+      .map((cand) => ({
+        id: null, candidature_id: cand.id, created_at: cand.created_at,
+        pack_nom_snapshot: null, pack_prix_snapshot: null, pack_devise_snapshot: null,
+        statut_commande: null, statut_paiement: null, statut_partenaire: null, statut_activation: null,
+        recrutement_candidatures: cand, filleuls_prospects: null,
+      }));
+
+    setCommandes([...(avecPack || []), ...candidaturesSansPack].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
     setChargement(false);
   }
 
@@ -40,7 +60,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   function correspondFiltre(c) {
     const estRefusee = c.statut_paiement === "refuse" || c.recrutement_candidatures?.statut_admin === "refusee";
     let ok = filtre === "toutes" && !estRefusee;
-    if (filtre === "paiement_en_attente") ok = c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse" && !estRefusee;
+    if (filtre === "paiement_en_attente") ok = c.id !== null && c.statut_paiement !== "confirme" && c.statut_paiement !== "refuse" && !estRefusee;
     else if (filtre === "partenaire_a_creer") ok = c.statut_paiement === "confirme" && c.statut_partenaire !== "cree";
     else if (filtre === "pret_a_activer") ok = c.statut_partenaire === "cree" && c.statut_activation !== "active";
     else if (filtre === "actives") ok = c.statut_activation === "active";
@@ -133,7 +153,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {commandesFiltrees.map((c) => (
-          <LigneCommande key={c.id} commande={c} currency={currency} onOuvrir={() => setCommandeOuverte(c)} />
+          <LigneCommande key={c.id || `cand-${c.candidature_id}`} commande={c} currency={currency} onOuvrir={() => setCommandeOuverte(c)} />
         ))}
       </div>
       </>
@@ -154,6 +174,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
 
 function libelleEtape(c) {
   if (c.recrutement_candidatures?.statut_admin === "refusee") return { texte: "🚫 Candidature refusée", couleur: "#8A9089" };
+  if (c.id === null) return { texte: "📋 Candidature reçue — pas encore de pack", couleur: "#2452E8" };
   if (c.statut_activation === "active") return { texte: "🎉 Activé", couleur: "#1a7a3c" };
   if (c.statut_paiement === "refuse") return { texte: "❌ Paiement refusé", couleur: "#D64933" };
   if (c.statut_partenaire === "cree") return { texte: "✅ Prêt à activer", couleur: "#5b3ba8" };
@@ -168,7 +189,7 @@ function LigneCommande({ commande, currency, onOuvrir }) {
     <div onClick={onOuvrir} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 18px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: "#16231F" }}>{candidat?.nom || "—"}</div>
-        <div style={{ fontSize: 11, color: "#8A9089" }}>{candidat?.telephone || "—"} · {commande.pack_nom_snapshot} · {Number(commande.pack_prix_snapshot || 0).toLocaleString("fr-FR")} {commande.pack_devise_snapshot || currency}</div>
+        <div style={{ fontSize: 11, color: "#8A9089" }}>{candidat?.telephone || "—"} {commande.pack_nom_snapshot ? `· ${commande.pack_nom_snapshot} · ${Number(commande.pack_prix_snapshot || 0).toLocaleString("fr-FR")} ${commande.pack_devise_snapshot || currency}` : "· aucun pack choisi"}</div>
       </div>
       <div style={{ fontSize: 11, fontWeight: 700, color: etape.couleur }}>{etape.texte}</div>
     </div>
@@ -230,6 +251,12 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   }
 
   async function rafraichirCommande() {
+    if (commande.id === null) {
+      // Pas de vraie commande (pack jamais choisi) — seule la candidature a pu changer.
+      const { data } = await supabase.from("recrutement_candidatures").select("id, nom, telephone, email, motivation, preuve_identite_path, statut_admin").eq("id", commande.candidature_id).maybeSingle();
+      if (data) setCommande((c) => ({ ...c, recrutement_candidatures: data }));
+      return;
+    }
     const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin)").eq("id", commande.id).maybeSingle();
     if (data) setCommande((c) => ({ ...data, recrutement_candidatures: data.recrutement_candidatures || c.recrutement_candidatures }));
   }
@@ -309,12 +336,16 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         )}
 
         <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Pack choisi</div>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{commande.pack_nom_snapshot} — {Number(commande.pack_prix_snapshot || 0).toLocaleString("fr-FR")} {commande.pack_devise_snapshot}</div>
+        {commande.id !== null ? (
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{commande.pack_nom_snapshot} — {Number(commande.pack_prix_snapshot || 0).toLocaleString("fr-FR")} {commande.pack_devise_snapshot}</div>
+        ) : (
+          <div style={{ fontSize: 12, color: "#8A9089", fontStyle: "italic", marginBottom: 16 }}>Ce candidat n'a pas encore choisi de pack — rien à confirmer pour l'instant, seule la candidature peut être mise en étude ou refusée.</div>
+        )}
 
         {erreur && <div style={{ fontSize: 11.5, color: "#D64933", marginBottom: 10 }}>⚠️ {erreur}</div>}
 
         {/* Étape 1 : paiement */}
-        {candidat?.statut_admin !== "refusee" && commande.statut_paiement !== "confirme" && commande.statut_paiement !== "refuse" && (
+        {commande.id !== null && candidat?.statut_admin !== "refusee" && commande.statut_paiement !== "confirme" && commande.statut_paiement !== "refuse" && (
           <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 14 }}>
             <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>💳 Paiement (déclaré hors plateforme)</div>
             <input placeholder="Référence de paiement" value={reference} onChange={(e) => setReference(e.target.value)} style={champ} />

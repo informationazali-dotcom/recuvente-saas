@@ -114,6 +114,11 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       <LienRecrutement filleul={filleul} />
 
       {/* Mes commissions */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+        <button onClick={() => exporterMesCommissionsCSV(commissions, currency)} disabled={commissions.length === 0} style={{ background: "none", border: "none", color: commissions.length ? "#5b3ba8" : "#C7C2B5", fontSize: 11, fontWeight: 700, cursor: commissions.length ? "pointer" : "not-allowed" }}>
+          ⬇️ Exporter mes commissions (CSV)
+        </button>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16 }}>
         <div style={carte}><div style={label}>En attente</div><div style={valeur}>{totalPending.toLocaleString("fr-FR")}</div><div style={{ fontSize: 10.5, color: "#8A9089" }}>{currency}</div></div>
         <div style={carte}><div style={label}>Disponible</div><div style={{ ...valeur, color: "#1a7a3c" }}>{totalValidated.toLocaleString("fr-FR")}</div><div style={{ fontSize: 10.5, color: "#8A9089" }}>{currency}</div></div>
@@ -463,4 +468,19 @@ function LienRecrutement({ filleul }) {
       )}
     </div>
   );
+}
+
+// Export CSV des commissions du filleul (§26 — parité avec l'export déjà
+// disponible côté propriétaire).
+function exporterMesCommissionsCSV(commissions, currency) {
+  const libelleStatut = { pending: "En attente", validated: "Disponible", available: "Disponible", paid: "Payée", cancelled: "Annulée", reversed: "Annulée" };
+  const entetes = ["Date", `Montant (${currency})`, "Statut"];
+  const lignes = commissions.map((c) => [new Date(c.created_at).toLocaleDateString("fr-FR"), c.montant_commission, libelleStatut[c.statut] || c.statut]);
+  const csv = [entetes, ...lignes].map((ligne) => ligne.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `mes-commissions-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

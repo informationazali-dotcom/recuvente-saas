@@ -455,6 +455,7 @@ function AjoutQuestionModal({ coursId, onClose, onCree }) {
 // construite jusqu'ici — l'admin n'avait aucun moyen de savoir qui a
 // terminé quoi. Comptages réels uniquement, rien d'inventé.
 function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
+  const [filleulOuvert, setFilleulOuvert] = useState(null);
   const totalCours = cours.filter((c) => c.actif).length;
   if (totalCours === 0) {
     return <div style={{ ...carte, textAlign: "center", color: "#8A9089", fontSize: 12.5 }}>Aucun cours actif — la progression apparaîtra ici une fois du contenu créé.</div>;
@@ -473,7 +474,7 @@ function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {lignes.map((l) => (
-        <div key={l.filleul.id} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div key={l.filleul.id} onClick={() => setFilleulOuvert(l.filleul)} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>{l.filleul.nom}</div>
             <div style={{ fontSize: 10.5, color: "#8A9089" }}>{l.termines}/{totalCours} terminés{l.enCours > 0 ? ` · ${l.enCours} en cours` : ""}</div>
@@ -486,6 +487,43 @@ function ProgressionEcole({ filleuls, cours, progressionTous, carte }) {
           </div>
         </div>
       ))}
+
+      {filleulOuvert && (
+        <DetailProgressionModal
+          filleul={filleulOuvert}
+          cours={cours}
+          progressionTous={progressionTous}
+          onClose={() => setFilleulOuvert(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DetailProgressionModal({ filleul, cours, progressionTous, onClose }) {
+  const coursActifs = cours.filter((c) => c.actif).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  const progressionFilleul = progressionTous.filter((p) => p.filleul_id === filleul.id);
+  const statutDe = (coursId) => progressionFilleul.find((p) => p.cours_id === coursId)?.statut || "not_started";
+  const icone = { completed: "✅", in_progress: "🔄", not_started: "⚪" };
+  const libelle = { completed: "Terminé", in_progress: "En cours", not_started: "Pas commencé" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 14 }}>{filleul.nom} — détail formation</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {coursActifs.map((c) => {
+            const s = statutDe(c.id);
+            return (
+              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", borderRadius: 8, background: s === "not_started" ? "#FAFAFA" : "#F7FAF7" }}>
+                <div style={{ fontSize: 12 }}>{icone[s]} {c.titre}</div>
+                <div style={{ fontSize: 10.5, color: "#8A9089" }}>{libelle[s]}</div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12, padding: "10px 0 0", cursor: "pointer" }}>Fermer</button>
+      </div>
     </div>
   );
 }

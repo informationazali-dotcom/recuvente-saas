@@ -19,7 +19,7 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
     setChargement(true);
     const { data } = await supabase
       .from("recrutement_commandes_pack")
-      .select("*, recrutement_candidatures(nom, telephone, email, motivation), filleuls_prospects(recruteur_filleul_id)")
+      .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path), filleuls_prospects(recruteur_filleul_id)")
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false });
     setCommandes(data || []);
@@ -181,12 +181,34 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   const [systemeNom, setSystemeNom] = useState("");
   const [externeId, setExterneId] = useState("");
   const [externeCode, setExterneCode] = useState("");
+  const [docUrl, setDocUrl] = useState(null);
+  const [chargementDoc, setChargementDoc] = useState(false);
+  const [erreurDoc, setErreurDoc] = useState("");
 
   const candidat = commande.recrutement_candidatures;
   const etape = libelleEtape(commande);
 
+  async function consulterDocument() {
+    setChargementDoc(true);
+    setErreurDoc("");
+    const { data: sessionData } = await supabase.auth.getSession();
+    try {
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "obtenir_url_document_candidature", candidature_id: candidat.id, workspace_id: workspace.id }),
+      });
+      const json = await reponse.json();
+      if (!reponse.ok) { setErreurDoc(json?.error || "Échec de la récupération."); setChargementDoc(false); return; }
+      window.open(json.url, "_blank");
+    } catch (e) {
+      setErreurDoc("Erreur réseau, réessaie.");
+    }
+    setChargementDoc(false);
+  }
+
   async function rafraichirCommande() {
-    const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(nom, telephone, email, motivation)").eq("id", commande.id).maybeSingle();
+    const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path)").eq("id", commande.id).maybeSingle();
     if (data) setCommande((c) => ({ ...data, recrutement_candidatures: data.recrutement_candidatures || c.recrutement_candidatures }));
   }
 
@@ -239,6 +261,15 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         {candidat?.motivation && (
           <div style={{ fontSize: 11.5, color: "#6B7168", background: "#F7FAF7", borderRadius: 9, padding: "9px 11px", marginBottom: 14, lineHeight: 1.5 }}>
             "{candidat.motivation}"
+          </div>
+        )}
+
+        {candidat?.preuve_identite_path && (
+          <div style={{ marginBottom: 14 }}>
+            <button onClick={consulterDocument} disabled={chargementDoc} style={{ width: "100%", background: "#F3F1EA", color: "#16231F", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+              {chargementDoc ? "..." : "📎 Consulter la pièce d'identité (lien privé, 10 min)"}
+            </button>
+            {erreurDoc && <div style={{ fontSize: 10.5, color: "#D64933", marginTop: 6 }}>{erreurDoc}</div>}
           </div>
         )}
 

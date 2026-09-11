@@ -192,11 +192,20 @@ function QuizPartenaire({ cours, progression, onChange }) {
     );
   }
 
+  function detailPourQuestion(id) {
+    return resultat?.detail?.find((d) => d.question_id === id);
+  }
+
   return (
     <div>
-      {questions.map((q, i) => (
+      {questions.map((q, i) => {
+        const d = detailPourQuestion(q.id);
+        return (
         <div key={q.id} style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>{i + 1}. {q.question}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            {i + 1}. {q.question}
+            {d && <span style={{ fontSize: 13 }}>{d.correcte ? "✅" : "❌"}</span>}
+          </div>
           {q.type === "qcm" ? (
             (q.options || []).map((opt) => (
               <label key={opt.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, padding: "6px 0", cursor: "pointer" }}>
@@ -211,7 +220,7 @@ function QuizPartenaire({ cours, progression, onChange }) {
             </div>
           )}
         </div>
-      ))}
+      );})}
 
       {resultat && (
         <div style={{ padding: "10px 14px", borderRadius: 10, background: resultat.reussi ? "#EAF3DE" : "#FBEAEA", color: resultat.reussi ? "#1a7a3c" : "#D64933", fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>

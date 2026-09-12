@@ -116,6 +116,36 @@ export function TunnelRecrutementPublic({ code }) {
     ℹ️ Votre premier contact avec ce réseau a été via <strong>{configOrigine.recruteur_nom}</strong> — votre candidature lui sera rattachée, conformément à notre règle du premier lien valide.
   </div>
 )}
+{(config.etapes||[]).length > 0 && (
+  <div style={{margin:'18px 0'}}>
+    {config.etapes.map((e,i)=>(
+      <div key={e.id||i} style={{marginBottom:16}}>
+        {e.titre && <div style={{fontSize:12,fontWeight:800,color:'#eafff2',marginBottom:8}}>{e.titre}</div>}
+        {e.type==='video' && e.media_url && (
+          <video src={e.media_url} controls style={{width:'100%',borderRadius:12,background:'#000'}} />
+        )}
+        {e.type==='image' && e.media_url && (
+          <img src={e.media_url} alt={e.titre||''} style={{width:'100%',borderRadius:12,display:'block'}} />
+        )}
+        {e.type==='texte' && (
+          <div style={{fontSize:11,color:'#cfe6db',lineHeight:1.7,whiteSpace:'pre-wrap'}}>{e.contenu}</div>
+        )}
+        {e.type==='temoignage' && (
+          <div style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px'}}>
+            <div style={{fontSize:11,color:'#eafff2',fontStyle:'italic',lineHeight:1.6}}>"{e.contenu}"</div>
+            {e.auteur_nom && <div style={{fontSize:9.5,color:'#8fa69b',marginTop:8}}>— {e.auteur_nom}</div>}
+          </div>
+        )}
+        {e.type==='faq' && (
+          <div style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px'}}>
+            <div style={{fontSize:11.5,fontWeight:700,color:'#eafff2',marginBottom:6}}>❓ {e.contenu}</div>
+            <div style={{fontSize:10.5,color:'#cfe6db',lineHeight:1.6}}>{e.reponse}</div>
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+)}
 <div className="rvnpmini">
   <a href={`/boutique?ref=${encodeURIComponent(config.recruteur_code||'')}`} style={{display:'block',color:'inherit'}}>🏪 Boutique centrale · catalogue commun →</a>
   <div onClick={()=>copier(`${window.location.origin}/boutique?ref=${config.recruteur_code||''}`,'commercial')} style={{cursor:'pointer'}}>🔗 Lien commercial · {copie==='commercial'?'✅ Copié !':'cliquer pour copier'}</div>

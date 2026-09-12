@@ -1319,8 +1319,9 @@ async function gererObtenirUrlPreuveIdentite(req, res, user) {
 // jamais accès (§42 : documents sensibles jamais consultables par un
 // autre filleul).
 async function gererObtenirUrlDocumentCandidature(req, res, user) {
-  const { candidature_id, workspace_id } = req.body || {};
+  const { candidature_id, workspace_id, type } = req.body || {};
   if (!candidature_id || !workspace_id) return res.status(400).json({ error: "candidature_id et workspace_id requis." });
+  const colonne = type === "photo" ? "photo_profil_path" : "preuve_identite_path"; // rétrocompatible : sans type = identité, comme avant
 
   const { data: membership } = await supabaseAdmin
     .from("workspace_members").select("role")
@@ -1330,13 +1331,13 @@ async function gererObtenirUrlDocumentCandidature(req, res, user) {
   }
 
   const { data: candidature } = await supabaseAdmin
-    .from("recrutement_candidatures").select("preuve_identite_path")
+    .from("recrutement_candidatures").select(colonne)
     .eq("id", candidature_id).eq("workspace_id", workspace_id).maybeSingle();
-  if (!candidature?.preuve_identite_path) return res.status(404).json({ error: "Aucun document pour cette candidature." });
+  if (!candidature?.[colonne]) return res.status(404).json({ error: type === "photo" ? "Aucune photo pour cette candidature." : "Aucun document pour cette candidature." });
 
   const { data: signed, error } = await supabaseAdmin.storage
     .from("candidatures-documents")
-    .createSignedUrl(candidature.preuve_identite_path, 600); // 10 minutes
+    .createSignedUrl(candidature[colonne], 600); // 10 minutes
   if (error) return res.status(400).json({ error: error.message });
 
   return res.status(200).json({ url: signed.signedUrl });

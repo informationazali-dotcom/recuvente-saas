@@ -8,6 +8,7 @@ import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
 import NetworkDashboard from "./network/NetworkDashboard.jsx";
 import { MarketingReseauLanding, TunnelRecrutementPublic, BoutiqueReferralPublic } from "./network/MarketingReseauPublic.jsx";
 import RecrutementAdmin from "./network/RecrutementAdmin.jsx";
+import CreerCompteFilleulPublic from "./CreerCompteFilleulPublic.jsx";
 import SchoolAdmin from "./network/SchoolAdmin.jsx";
 import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
@@ -499,6 +500,10 @@ export default function App() {
     if (publicPath.startsWith("/tunnel/")) {
       const code = decodeURIComponent(publicPath.slice("/tunnel/".length).split("/")[0] || "");
       return <TunnelRecrutementPublic code={code} />;
+    }
+    if (publicPath.startsWith("/activer-compte/")) {
+      const token = decodeURIComponent(publicPath.slice("/activer-compte/".length).split("/")[0] || "");
+      return <CreerCompteFilleulPublic token={token} />;
     }
     if (publicPath === "/boutique") {
       const ref = new URLSearchParams(window.location.search).get("ref");

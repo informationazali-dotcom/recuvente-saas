@@ -139,7 +139,7 @@ function FormulaireEtapeModal({ workspace, etape, onClose, onEnregistre }) {
       workspace_id: workspace.id, type, titre: titre.trim() || null,
       contenu: contenu.trim() || null, reponse: type === "faq" ? reponse.trim() || null : null,
       auteur_nom: type === "temoignage" ? auteurNom.trim() || null : null,
-      media_url: (type === "video" || type === "image") ? urlFinale || null : null,
+      media_url: (type === "video" || type === "image" || type === "temoignage") ? urlFinale || null : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -187,6 +187,8 @@ function FormulaireEtapeModal({ workspace, etape, onClose, onEnregistre }) {
           <>
             <textarea placeholder="Le témoignage" value={contenu} onChange={(e) => setContenu(e.target.value)} rows={3} style={{ ...champ, resize: "vertical" }} />
             <input placeholder="Nom de la personne (ex: Awa K., partenaire depuis 2025)" value={auteurNom} onChange={(e) => setAuteurNom(e.target.value)} style={champ} />
+            <label style={{ fontSize: 10.5, color: "#8A9089" }}>Photo (optionnel, max 8 Mo)</label>
+            <input type="file" accept="image/*" onChange={(e) => setFichier(e.target.files?.[0] || null)} style={{ ...champ, padding: "8px 0" }} />
           </>
         )}
 
@@ -225,9 +227,12 @@ function ApercuTunnelModal({ etapes, onClose }) {
             {e.type === "image" && e.media_url && <img src={e.media_url} alt={e.titre || ""} style={{ width: "100%", borderRadius: 12, display: "block" }} />}
             {e.type === "texte" && <div style={{ fontSize: 11, color: "#cfe6db", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{e.contenu}</div>}
             {e.type === "temoignage" && (
-              <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "12px 14px" }}>
-                <div style={{ fontSize: 11, color: "#eafff2", fontStyle: "italic", lineHeight: 1.6 }}>"{e.contenu}"</div>
-                {e.auteur_nom && <div style={{ fontSize: 9.5, color: "#8fa69b", marginTop: 8 }}>— {e.auteur_nom}</div>}
+              <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                {e.media_url && <img src={e.media_url} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />}
+                <div>
+                  <div style={{ fontSize: 11, color: "#eafff2", fontStyle: "italic", lineHeight: 1.6 }}>"{e.contenu}"</div>
+                  {e.auteur_nom && <div style={{ fontSize: 9.5, color: "#8fa69b", marginTop: 8 }}>— {e.auteur_nom}</div>}
+                </div>
               </div>
             )}
             {e.type === "faq" && (

@@ -102,7 +102,8 @@ function nettoyerHTML(html) {
 
 // Convertit la description riche (HTML) en texte brut lisible à voix haute — insère un point
 // après chaque bloc (titre, paragraphe, liste) pour que la synthèse vocale marque une vraie
-// pause entre les sections, au lieu d'enchaîner titre et texte sans respiration.
+// pause entre les sections, retire les émojis/symboles que la voix prononcerait littéralement
+// (ex: "appareil photo" pour 📸), et nettoie la ponctuation répétée pour une lecture fluide.
 function extraireTextePourAudio(html) {
   if (!html) return "";
   const div = document.createElement("div");
@@ -110,7 +111,11 @@ function extraireTextePourAudio(html) {
   div.querySelectorAll("h1, h2, h3, h4, p, li, br").forEach((el) => {
     el.insertAdjacentText("afterend", ". ");
   });
-  return (div.textContent || "").replace(/\s+/g, " ").replace(/(\.\s*){2,}/g, ". ").trim();
+  let texte = div.textContent || "";
+  texte = texte.replace(/\p{Extended_Pictographic}/gu, " ");
+  texte = texte.replace(/[•●▪️‣►◆★☆♦]/g, " ");
+  texte = texte.replace(/\s+/g, " ").replace(/(\s*\.\s*){2,}/g, ". ").replace(/\s+\./g, ".").trim();
+  return texte;
 }
 
 // Bouton "Écouter la description" — lit automatiquement à voix haute le texte déjà écrit
@@ -134,12 +139,30 @@ function BoutonEcouterDescription({ descriptionHTML, couleur, langue, t }) {
     const texte = extraireTextePourAudio(descriptionHTML);
     if (!texte) return;
     window.speechSynthesis.cancel();
+    const langueCible = langue === "en" ? "en-US" : "fr-FR";
     const utterance = new SpeechSynthesisUtterance(texte);
-    utterance.lang = langue === "en" ? "en-US" : "fr-FR";
-    utterance.rate = 0.98;
+    utterance.lang = langueCible;
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+
+    // Certains navigateurs proposent plusieurs voix pour une même langue — les voix
+    // "réseau" (Google, Microsoft en ligne) sonnent nettement plus naturelles que la
+    // voix locale par défaut de l'appareil. On choisit la meilleure disponible sans
+    // bloquer si la liste des voix n'est pas encore chargée par le navigateur.
+    const choisirMeilleureVoix = () => {
+      const voix = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith(langueCible.slice(0, 2)));
+      const meilleure = voix.find((v) => !v.localService) || voix[0];
+      if (meilleure) utterance.voice = meilleure;
+      window.speechSynthesis.speak(utterance);
+    };
+    if (window.speechSynthesis.getVoices().length > 0) {
+      choisirMeilleureVoix();
+    } else {
+      window.speechSynthesis.onvoiceschanged = choisirMeilleureVoix;
+    }
+
     utterance.onend = () => setEtat("idle");
     utterance.onerror = () => setEtat("idle");
-    window.speechSynthesis.speak(utterance);
     setEtat("lecture");
   }
 
@@ -286,7 +309,7 @@ const TRADUCTIONS = {
     enStock: "en stock",
     offresDispo: "🔥 Offres quantité disponibles — choisis ton pack dans le formulaire de commande",
     aucuneDescription: "Aucune description disponible.",
-    ecouterDescription: "🔊 Écouter la description",
+    ecouterDescription: "🔊 On t'explique le produit",
     lectureAudioEnCours: "Lecture en cours...",
     lectureAudioEnPause: "En pause",
     avisClients: "Avis clients",
@@ -380,7 +403,7 @@ const TRADUCTIONS = {
     enStock: "left in stock",
     offresDispo: "🔥 Quantity deals available — pick your pack in the order form",
     aucuneDescription: "No description available.",
-    ecouterDescription: "🔊 Listen to description",
+    ecouterDescription: "🔊 Let us explain it",
     lectureAudioEnCours: "Playing...",
     lectureAudioEnPause: "Paused",
     avisClients: "Customer reviews",

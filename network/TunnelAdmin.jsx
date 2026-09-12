@@ -9,6 +9,7 @@ export default function TunnelAdmin({ workspace }) {
   const [chargement, setChargement] = useState(true);
   const [showAjout, setShowAjout] = useState(false);
   const [etapeEnEdition, setEtapeEnEdition] = useState(null);
+  const [apercuOuvert, setApercuOuvert] = useState(false);
 
   async function charger() {
     setChargement(true);
@@ -48,9 +49,16 @@ export default function TunnelAdmin({ workspace }) {
     <div style={{ padding: "0 4px 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "#16231F" }}>🎬 Tunnel de recrutement</div>
-        <button onClick={() => setShowAjout(true)} style={{ background: "#6b3fd4", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-          + Ajouter une étape
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {etapes.filter((e) => e.actif).length > 0 && (
+            <button onClick={() => setApercuOuvert(true)} style={{ background: "#F3F1EA", color: "#16231F", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+              👁️ Aperçu
+            </button>
+          )}
+          <button onClick={() => setShowAjout(true)} style={{ background: "#6b3fd4", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            + Ajouter une étape
+          </button>
+        </div>
       </div>
 
       <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14, lineHeight: 1.5 }}>
@@ -84,6 +92,7 @@ export default function TunnelAdmin({ workspace }) {
       </div>
 
       {showAjout && <FormulaireEtapeModal workspace={workspace} onClose={() => setShowAjout(false)} onEnregistre={async () => { setShowAjout(false); await charger(); }} />}
+      {apercuOuvert && <ApercuTunnelModal etapes={etapes.filter((e) => e.actif)} onClose={() => setApercuOuvert(false)} />}
       {etapeEnEdition && <FormulaireEtapeModal workspace={workspace} etape={etapeEnEdition} onClose={() => setEtapeEnEdition(null)} onEnregistre={async () => { setEtapeEnEdition(null); await charger(); }} />}
     </div>
   );
@@ -189,6 +198,42 @@ function FormulaireEtapeModal({ workspace, etape, onClose, onEnregistre }) {
           {uploadEnCours ? "Envoi du fichier..." : enCours ? "Enregistrement..." : etape ? "Enregistrer les modifications" : "Ajouter au tunnel"}
         </button>
         <button onClick={onClose} style={{ width: "100%", background: "none", border: "none", color: "#8A9089", fontSize: 12, padding: "6px 0", cursor: "pointer" }}>Annuler</button>
+      </div>
+    </div>
+  );
+}
+
+// Aperçu — reproduit le rendu réel du tunnel public, sans avoir besoin de
+// connaître un code de filleul pour tester (l'owner n'en a pas forcément).
+function ApercuTunnelModal({ etapes, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(9,20,15,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 200 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#0d2417", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ color: "#9fffc9", fontWeight: 800, fontSize: 13 }}>👁️ Aperçu du tunnel</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "white", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        {etapes.map((e, i) => (
+          <div key={e.id || i} style={{ marginBottom: 16 }}>
+            {e.titre && <div style={{ fontSize: 12, fontWeight: 800, color: "#eafff2", marginBottom: 8 }}>{e.titre}</div>}
+            {e.type === "video" && e.media_url && <video src={e.media_url} controls style={{ width: "100%", borderRadius: 12, background: "#000" }} />}
+            {e.type === "image" && e.media_url && <img src={e.media_url} alt={e.titre || ""} style={{ width: "100%", borderRadius: 12, display: "block" }} />}
+            {e.type === "texte" && <div style={{ fontSize: 11, color: "#cfe6db", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{e.contenu}</div>}
+            {e.type === "temoignage" && (
+              <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, color: "#eafff2", fontStyle: "italic", lineHeight: 1.6 }}>"{e.contenu}"</div>
+                {e.auteur_nom && <div style={{ fontSize: 9.5, color: "#8fa69b", marginTop: 8 }}>— {e.auteur_nom}</div>}
+              </div>
+            )}
+            {e.type === "faq" && (
+              <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: "#eafff2", marginBottom: 6 }}>❓ {e.contenu}</div>
+                <div style={{ fontSize: 10.5, color: "#cfe6db", lineHeight: 1.6 }}>{e.reponse}</div>
+              </div>
+            )}
+          </div>
+        ))}
+        <div style={{ fontSize: 10, color: "#8fa69b", marginTop: 8 }}>Rendu approximatif — l'en-tête d'invitation personnelle et le formulaire de candidature s'affichent en plus sur la vraie page.</div>
       </div>
     </div>
   );

@@ -39,6 +39,7 @@ export function TunnelRecrutementPublic({ code }) {
   const [config,setConfig]=useState(undefined),[error,setError]=useState(""),[packId,setPackId]=useState(""),[loading,setLoading]=useState(false),[success,setSuccess]=useState(null);
   const [form,setForm]=useState({nom:"",telephone:"",email:"",motivation:"",consent:false});
   const [copie,setCopie]=useState("");
+  const [faqOuvertes,setFaqOuvertes]=useState({});
   function copier(texte,cle){try{navigator.clipboard.writeText(texte);}catch(_){}setCopie(cle);setTimeout(()=>setCopie(""),1800);}
   // Attribution du parrain : "premier lien valide gagne" (règle §1 documentée). Si un
   // code recruteur a déjà été enregistré lors d'une visite précédente, il n'est JAMAIS
@@ -137,9 +138,12 @@ export function TunnelRecrutementPublic({ code }) {
           </div>
         )}
         {e.type==='faq' && (
-          <div style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px'}}>
-            <div style={{fontSize:11.5,fontWeight:700,color:'#eafff2',marginBottom:6}}>❓ {e.contenu}</div>
-            <div style={{fontSize:10.5,color:'#cfe6db',lineHeight:1.6}}>{e.reponse}</div>
+          <div onClick={()=>setFaqOuvertes(f=>({...f,[e.id||i]:!f[e.id||i]}))} style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px',cursor:'pointer'}}>
+            <div style={{fontSize:11.5,fontWeight:700,color:'#eafff2',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>❓ {e.contenu}</span>
+              <span style={{fontSize:10,color:'#8fa69b'}}>{faqOuvertes[e.id||i]?'▾':'▸'}</span>
+            </div>
+            {faqOuvertes[e.id||i] && <div style={{fontSize:10.5,color:'#cfe6db',lineHeight:1.6,marginTop:8}}>{e.reponse}</div>}
           </div>
         )}
       </div>

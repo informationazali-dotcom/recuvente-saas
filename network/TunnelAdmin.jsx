@@ -115,6 +115,11 @@ function FormulaireEtapeModal({ workspace, etape, onClose, onEnregistre }) {
     let urlFinale = mediaUrl;
 
     if (fichier) {
+      const limiteMo = type === "video" ? 80 : 8;
+      if (fichier.size > limiteMo * 1024 * 1024) {
+        setErreur(`Fichier trop volumineux (${(fichier.size / (1024 * 1024)).toFixed(1)} Mo) — limite : ${limiteMo} Mo pour ${type === "video" ? "une vidéo" : "une image"}. Compresse-le ou utilise plutôt un lien YouTube/Vimeo.`);
+        return;
+      }
       setUploadEnCours(true);
       const chemin = `${workspace.id}/${crypto.randomUUID()}-${fichier.name}`;
       const { error: erreurUpload } = await supabase.storage.from("tunnel-media").upload(chemin, fichier);
@@ -169,7 +174,7 @@ function FormulaireEtapeModal({ workspace, etape, onClose, onEnregistre }) {
 
         {(type === "video" || type === "image") && (
           <>
-            <label style={{ fontSize: 10.5, color: "#8A9089" }}>Uploader un fichier {type === "video" ? "vidéo" : "image"}</label>
+            <label style={{ fontSize: 10.5, color: "#8A9089" }}>Uploader un fichier {type === "video" ? "vidéo (max 80 Mo)" : "image (max 8 Mo)"}</label>
             <input type="file" accept={type === "video" ? "video/*" : "image/*"} onChange={(e) => setFichier(e.target.files?.[0] || null)} style={{ ...champ, padding: "8px 0" }} />
             <div style={{ fontSize: 10, color: "#8A9089", margin: "-4px 0 8px" }}>— ou —</div>
             <input placeholder="URL directe (YouTube, Vimeo, lien image...)" value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} style={champ} />

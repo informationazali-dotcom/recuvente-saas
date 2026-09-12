@@ -38,9 +38,7 @@ export function MarketingReseauLanding() {
 export function TunnelRecrutementPublic({ code }) {
   const [config,setConfig]=useState(undefined),[error,setError]=useState(""),[packId,setPackId]=useState(""),[loading,setLoading]=useState(false),[success,setSuccess]=useState(null);
   const [form,setForm]=useState({nom:"",telephone:"",email:"",motivation:"",consent:false});
-  const [copie,setCopie]=useState("");
-  const [faqOuvertes,setFaqOuvertes]=useState({});
-  function copier(texte,cle){try{navigator.clipboard.writeText(texte);}catch(_){}setCopie(cle);setTimeout(()=>setCopie(""),1800);}
+  
   // Attribution du parrain : "premier lien valide gagne" (règle §1 documentée). Si un
   // code recruteur a déjà été enregistré lors d'une visite précédente, il n'est JAMAIS
   // écrasé par une nouvelle visite avec un code différent — contrairement au referral
@@ -109,66 +107,176 @@ export function TunnelRecrutementPublic({ code }) {
       preuveIdentitePath=chemin;
     }
     const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:codeOrigine||cleanCode(code),p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null,p_visiteur_id:idVisiteur(),p_preuve_identite_path:preuveIdentitePath});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
+
+  // ===== Parcours étape par étape (au lieu d'une seule page à faire défiler) =====
+  // Étapes : [0]=accueil → [1..N]=contenu configuré (vidéo obligatoire avant de
+  // pouvoir avancer) → [N+1]="Rejoindre l'équipe" → [N+2]=pack → [N+3]=candidature.
+  const [etapeIndex,setEtapeIndex]=useState(0);
+  const [videosVues,setVideosVues]=useState({});
+  const etapesContenu=Array.isArray(config?.etapes)?config.etapes:[];
+  const etapesTotal=1+etapesContenu.length+3; // accueil + contenu + rejoindre + pack + candidature
+  const indexRejoindre=1+etapesContenu.length;
+  const indexPack=indexRejoindre+1;
+  const indexCandidature=indexPack+1;
+
+  function suivant(){ if(etapeIndex<etapesTotal-1) setEtapeIndex(i=>i+1); }
+  function precedent(){ if(etapeIndex>0) setEtapeIndex(i=>i-1); }
+
+  function videoTerminee(id){ return videosVues[id]>=95; }
+  function surProgressionVideo(id,evt){
+    const v=evt.target; if(!v.duration) return;
+    const pct=Math.round((v.currentTime/v.duration)*100);
+    if(pct>(videosVues[id]||0)) setVideosVues(x=>({...x,[id]:pct}));
+  }
+
   if(config===undefined)return <div className="rvnploader"><style>{CSS}</style><div>{error?<><h2>Lien indisponible</h2><p>{error}</p><a className="rvnpbtn primary" href="/marketing-reseau">Retour</a></>:<><span className="rvnpspinner"/><p>Préparation de votre parcours…</p></>}</div></div>;
+
   const packs=Array.isArray(config.packs)?config.packs:[];const pack=packs.find(p=>p.id===packId);
-  return <div className="rvnp rvnptunnel"><style>{CSS}</style><div className="rvnpw rvnptunnelhead"><a className="rvnpbrand" href="/marketing-reseau"><i>R</i>RecuVente Réseau</a></div><main className="rvnpw rvnptunnelshell"><section className="rvnppanel"><div className="rvnpkick"><b/> INVITATION PERSONNELLE</div><h1>Rejoignez le réseau<br/><span style={{color:'#9fffc9'}}>{config.workspace_name||'RecuVente'}</span></h1><p>Vous êtes invité(e) par <strong style={{color:'#fff'}}>{config.recruteur_nom||'un partenaire'}</strong>. Découvrez le programme, choisissez votre parcours et envoyez votre candidature.</p><div className="rvnprecruiter"><div className="rvnpavatar">{String(config.recruteur_nom||'R').slice(0,1).toUpperCase()}</div><div><b>{config.recruteur_nom}</b><div style={{fontSize:8,color:'#8fa69b',marginTop:3}}>Code recruteur · {config.recruteur_code}</div></div></div>
-{configOrigine&&configOrigine.recruteur_code!==config.recruteur_code&&(
-  <div style={{fontSize:9,color:'#ffd06b',background:'rgba(255,194,71,.08)',border:'1px solid rgba(255,194,71,.2)',borderRadius:10,padding:'8px 10px',marginBottom:14,lineHeight:1.5}}>
-    ℹ️ Votre premier contact avec ce réseau a été via <strong>{configOrigine.recruteur_nom}</strong> — votre candidature lui sera rattachée, conformément à notre règle du premier lien valide.
-  </div>
-)}
-{(config.etapes||[]).length > 0 && (
-  <div style={{margin:'18px 0'}}>
-    {config.etapes.map((e,i)=>(
-      <div key={e.id||i} style={{marginBottom:16}}>
-        {e.titre && <div style={{fontSize:12,fontWeight:800,color:'#eafff2',marginBottom:8}}>{e.titre}</div>}
+
+  // Rendu du contenu de l'étape courante uniquement (jamais tout d'un coup)
+  function renduEtape(){
+    if(success){
+      return <div className="rvnpsuccess"><div style={{fontSize:38}}>✅</div><h2>Candidature enregistrée</h2><p>Votre demande a bien été transmise. Conservez votre référence <strong style={{color:'#ffd06b'}}>{success.candidature_id}</strong>. {success.commande_id?'Votre choix de pack est également enregistré pour le workflow de paiement manuel.':'Le responsable du réseau pourra maintenant étudier votre candidature et vous indiquer la suite.'}</p><a className="rvnpbtn primary" href="/marketing-reseau">Comprendre le programme</a></div>;
+    }
+
+    // Étape 0 — Accueil
+    if(etapeIndex===0){
+      return <>
+        <div className="rvnpkick"><b/> INVITATION PERSONNELLE</div>
+        <h1>Rejoignez le réseau<br/><span style={{color:'#9fffc9'}}>{config.workspace_name||'RecuVente'}</span></h1>
+        <p>Vous êtes invité(e) par <strong style={{color:'#fff'}}>{config.recruteur_nom||'un partenaire'}</strong>. Découvrez le programme, étape par étape, avant de décider si vous voulez rejoindre l'équipe.</p>
+        <div className="rvnprecruiter"><div className="rvnpavatar">{String(config.recruteur_nom||'R').slice(0,1).toUpperCase()}</div><div><b>{config.recruteur_nom}</b><div style={{fontSize:8,color:'#8fa69b',marginTop:3}}>Code recruteur · {config.recruteur_code}</div></div></div>
+        {configOrigine&&configOrigine.recruteur_code!==config.recruteur_code&&(
+          <div style={{fontSize:9,color:'#ffd06b',background:'rgba(255,194,71,.08)',border:'1px solid rgba(255,194,71,.2)',borderRadius:10,padding:'8px 10px',marginTop:14,lineHeight:1.5}}>
+            ℹ️ Votre premier contact avec ce réseau a été via <strong>{configOrigine.recruteur_nom}</strong> — votre candidature lui sera rattachée, conformément à notre règle du premier lien valide.
+          </div>
+        )}
+        <button type="button" className="rvnpbtn primary" style={{marginTop:20,width:'100%'}} onClick={suivant}>Commencer →</button>
+      </>;
+    }
+
+    // Étapes contenu configuré (vidéo/image/texte/témoignage/faq)
+    if(etapeIndex>=1 && etapeIndex<=etapesContenu.length){
+      const e=etapesContenu[etapeIndex-1];
+      const idEtape=e.id||etapeIndex;
+      const estVideo=e.type==='video'&&e.media_url;
+      const bloque=estVideo&&!videoTerminee(idEtape);
+      return <>
+        <div className="rvnplabel" style={{color:'#83ffc2'}}>ÉTAPE {etapeIndex+1} SUR {etapesTotal}</div>
+        {e.titre && <h2 style={{fontSize:22,margin:'10px 0 14px'}}>{e.titre}</h2>}
         {e.type==='video' && e.media_url && (
-          <video src={e.media_url} controls style={{width:'100%',borderRadius:12,background:'#000'}} />
+          <video src={e.media_url} controls style={{width:'100%',borderRadius:12,background:'#000'}} onTimeUpdate={(evt)=>surProgressionVideo(idEtape,evt)} onEnded={()=>setVideosVues(x=>({...x,[idEtape]:100}))} />
         )}
         {e.type==='image' && e.media_url && (
           <img src={e.media_url} alt={e.titre||''} style={{width:'100%',borderRadius:12,display:'block'}} />
         )}
         {e.type==='texte' && (
-          <div style={{fontSize:11,color:'#cfe6db',lineHeight:1.7,whiteSpace:'pre-wrap'}}>{e.contenu}</div>
+          <div style={{fontSize:12,color:'#cfe6db',lineHeight:1.8,whiteSpace:'pre-wrap'}}>{e.contenu}</div>
         )}
         {e.type==='temoignage' && (
-          <div style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px',display:'flex',gap:10,alignItems:'flex-start'}}>
-            {e.media_url && <img src={e.media_url} alt="" style={{width:40,height:40,borderRadius:'50%',objectFit:'cover',flexShrink:0}} />}
+          <div style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
+            {e.media_url && <img src={e.media_url} alt="" style={{width:48,height:48,borderRadius:'50%',objectFit:'cover',flexShrink:0}} />}
             <div>
-              <div style={{fontSize:11,color:'#eafff2',fontStyle:'italic',lineHeight:1.6}}>"{e.contenu}"</div>
-              {e.auteur_nom && <div style={{fontSize:9.5,color:'#8fa69b',marginTop:8}}>— {e.auteur_nom}</div>}
+              <div style={{fontSize:12.5,color:'#eafff2',fontStyle:'italic',lineHeight:1.7}}>"{e.contenu}"</div>
+              {e.auteur_nom && <div style={{fontSize:10,color:'#8fa69b',marginTop:8}}>— {e.auteur_nom}</div>}
             </div>
           </div>
         )}
         {e.type==='faq' && (
-          <div onClick={()=>setFaqOuvertes(f=>({...f,[e.id||i]:!f[e.id||i]}))} style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px',cursor:'pointer'}}>
-            <div style={{fontSize:11.5,fontWeight:700,color:'#eafff2',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span>❓ {e.contenu}</span>
-              <span style={{fontSize:10,color:'#8fa69b'}}>{faqOuvertes[e.id||i]?'▾':'▸'}</span>
-            </div>
-            {faqOuvertes[e.id||i] && <div style={{fontSize:10.5,color:'#cfe6db',lineHeight:1.6,marginTop:8}}>{e.reponse}</div>}
+          <div style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'14px 16px'}}>
+            <div style={{fontSize:13,fontWeight:700,color:'#eafff2',marginBottom:8}}>❓ {e.contenu}</div>
+            <div style={{fontSize:11.5,color:'#cfe6db',lineHeight:1.7}}>{e.reponse}</div>
           </div>
         )}
-      </div>
-    ))}
-  </div>
-)}
-<div className="rvnpmini">
-  <a href={`/boutique?ref=${encodeURIComponent(config.recruteur_code||'')}`} style={{display:'block',color:'inherit'}}>🏪 Boutique centrale · catalogue commun →</a>
-  <div onClick={()=>copier(`${window.location.origin}/boutique?ref=${config.recruteur_code||''}`,'commercial')} style={{cursor:'pointer'}}>🔗 Lien commercial · {copie==='commercial'?'✅ Copié !':'cliquer pour copier'}</div>
-  <div onClick={()=>copier(window.location.href,'recrutement')} style={{cursor:'pointer'}}>👥 Lien recrutement · {copie==='recrutement'?'✅ Copié !':'cliquer pour copier'}</div>
-  <div>💰 Commissions · selon les règles du réseau</div>
-</div></section><section className="rvnppanel">{success?<div className="rvnpsuccess"><div style={{fontSize:38}}>✅</div><h2>Candidature enregistrée</h2><p>Votre demande a bien été transmise. Conservez votre référence <strong style={{color:'#ffd06b'}}>{success.candidature_id}</strong>. {success.commande_id?'Votre choix de pack est également enregistré pour le workflow de paiement manuel.':'Le responsable du réseau pourra maintenant étudier votre candidature et vous indiquer la suite.'}</p><a className="rvnpbtn primary" href="/marketing-reseau">Comprendre le programme</a></div>:<><div className="rvnplabel" style={{color:'#83ffc2'}}>ÉTAPE 1 → CANDIDATURE</div><h2 style={{fontSize:28,margin:'12px 0 5px'}}>Commencez votre parcours</h2><p>Choisissez un pack si le réseau en propose, puis laissez vos coordonnées.</p>{packs.length>0&&<div className="rvnppacks">{packs.map(p=><button type="button" key={p.id} className={`rvnppack ${packId===p.id?'active':''}`} onClick={()=>setPackId(p.id)}><strong>{Number(p.prix||0).toLocaleString('fr-FR')} {p.devise||'XOF'}</strong><b>{p.nom}</b><span>{p.description||'Parcours partenaire'}</span></button>)}</div>}{pack&&<div style={{fontSize:9,color:'#8ea79b',margin:'10px 0'}}>Pack sélectionné : <strong style={{color:'#fff'}}>{pack.nom}</strong>.</div>}<form className="rvnpform" onSubmit={submit}><input className="rvnpinput" value={form.nom} onChange={e=>set('nom',e.target.value)} placeholder="Nom complet *" autoComplete="name"/><input className="rvnpinput" value={form.telephone} onChange={e=>set('telephone',e.target.value)} onBlur={marquerCandidatureCommencee} placeholder="Téléphone / WhatsApp *" autoComplete="tel"/><input className="rvnpinput" value={form.email} onChange={e=>set('email',e.target.value)} placeholder="Email (optionnel)" autoComplete="email"/><textarea className="rvnpinput" value={form.motivation} onChange={e=>set('motivation',e.target.value)} placeholder="Pourquoi souhaitez-vous rejoindre le réseau ? (optionnel)"/><label style={{display:'block',fontSize:9,color:'#8ea79b',marginBottom:6}}>Pièce d'identité (optionnel, restera privée — visible uniquement par le responsable du réseau)<input type="file" accept="image/*,.pdf" onChange={e=>setFichierIdentite(e.target.files?.[0]||null)} style={{display:'block',marginTop:6,fontSize:11,color:'#cfe6db'}}/></label><label className="rvnpcheck"><input type="checkbox" checked={form.consent} onChange={e=>set('consent',e.target.checked)}/><span>J'accepte que mes coordonnées soient utilisées pour traiter cette candidature et être recontacté(e) au sujet du programme.</span></label>{error&&<div className="rvnperror">{error}</div>}<button className="rvnpbtn primary" type="submit" disabled={loading}>{loading?'Enregistrement…':'Envoyer ma candidature →'}</button></form>
-<div style={{marginTop:16,textAlign:'center'}}><button type="button" onClick={()=>setSuiviOuvert(v=>!v)} style={{background:'none',border:'none',color:'#9eb5aa',fontSize:10,fontWeight:800,cursor:'pointer',textDecoration:'underline'}}>Vous avez déjà candidaté ? Suivre ma candidature</button></div>
-{suiviOuvert&&<div style={{marginTop:12,padding:14,borderRadius:14,background:'rgba(255,255,255,.045)',border:'1px solid rgba(255,255,255,.08)'}}>
-  <input className="rvnpinput" value={suiviTel} onChange={e=>setSuiviTel(e.target.value)} placeholder="Votre téléphone" style={{marginBottom:8}}/>
-  <button type="button" onClick={verifierSuivi} disabled={suiviChargement} className="rvnpbtn secondary" style={{width:'100%',minHeight:40}}>{suiviChargement?'...':'Vérifier'}</button>
-  {suiviResultat&&(suiviResultat.trouve?
-    <div style={{marginTop:10,fontSize:11,color:'#caffdf'}}>Statut : <strong>{libelleStatutSuivi[suiviResultat.statut_parcours]||suiviResultat.statut_parcours}</strong></div>
-    :<div style={{marginTop:10,fontSize:11,color:'#ffc0b9'}}>Aucune candidature trouvée avec ce numéro.</div>
-  )}
-</div>}
-</>}</section></main><footer className="rvnpfooter">Parcours sécurisé · Recruteur : {config.recruteur_nom} · Code : {config.recruteur_code}</footer></div>;
+        {bloque && <div style={{fontSize:9.5,color:'#ffd06b',marginTop:12}}>▶️ Regardez la vidéo jusqu'au bout pour continuer.</div>}
+        <div style={{display:'flex',gap:8,marginTop:20}}>
+          <button type="button" className="rvnpbtn secondary" onClick={precedent}>← Retour</button>
+          <button type="button" className="rvnpbtn primary" style={{flex:1}} disabled={bloque} onClick={suivant}>Suivant →</button>
+        </div>
+      </>;
+    }
+
+    // Étape "Rejoindre l'équipe"
+    if(etapeIndex===indexRejoindre){
+      return <>
+        <div className="rvnpkick"><b/> VOUS Y ÊTES PRESQUE</div>
+        <h2 style={{fontSize:24,margin:'10px 0 14px'}}>Rejoignez l'équipe {config.workspace_name||'RecuVente'}</h2>
+        <p style={{marginBottom:16}}>En rejoignant, voici ce que vous obtenez immédiatement :</p>
+        <div className="rvnpmini">
+          <div>🏪 Accès à la boutique centrale · catalogue commun</div>
+          <div>🔗 Votre propre lien commercial · ventes attribuées</div>
+          <div>👥 Votre propre lien de recrutement · développez votre équipe</div>
+          <div>💰 Commissions calculées automatiquement</div>
+          <div>🎓 RecuVenteMR School · formation complète en vidéo, à votre rythme</div>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:20}}>
+          <button type="button" className="rvnpbtn secondary" onClick={precedent}>← Retour</button>
+          <button type="button" className="rvnpbtn primary" style={{flex:1}} onClick={suivant}>Intégrer l'équipe →</button>
+        </div>
+      </>;
+    }
+
+    // Étape choix du pack
+    if(etapeIndex===indexPack){
+      return <>
+        <div className="rvnplabel" style={{color:'#83ffc2'}}>ÉTAPE {etapeIndex+1} SUR {etapesTotal}</div>
+        <h2 style={{fontSize:24,margin:'10px 0 5px'}}>Choisissez votre pack</h2>
+        <p>Sélectionnez le parcours qui vous correspond.</p>
+        {packs.length>0 ? <div className="rvnppacks">{packs.map(p=><button type="button" key={p.id} className={`rvnppack ${packId===p.id?'active':''}`} onClick={()=>setPackId(p.id)}><strong>{Number(p.prix||0).toLocaleString('fr-FR')} {p.devise||'XOF'}</strong><b>{p.nom}</b><span>{p.description||'Parcours partenaire'}</span></button>)}</div> : <div style={{fontSize:11,color:'#8ea79b',margin:'14px 0'}}>Aucun pack proposé pour l'instant — vous pourrez continuer votre candidature sans en choisir.</div>}
+        {pack&&<div style={{fontSize:9,color:'#8ea79b',margin:'10px 0'}}>Pack sélectionné : <strong style={{color:'#fff'}}>{pack.nom}</strong>.</div>}
+        <div style={{display:'flex',gap:8,marginTop:20}}>
+          <button type="button" className="rvnpbtn secondary" onClick={precedent}>← Retour</button>
+          <button type="button" className="rvnpbtn primary" style={{flex:1}} onClick={suivant}>Suivant →</button>
+        </div>
+      </>;
+    }
+
+    // Étape finale — candidature
+    return <>
+      <div className="rvnplabel" style={{color:'#83ffc2'}}>ÉTAPE {etapeIndex+1} SUR {etapesTotal}</div>
+      <h2 style={{fontSize:26,margin:'10px 0 5px'}}>Votre candidature</h2>
+      <p>Dernière étape — laissez vos coordonnées pour finaliser.</p>
+      <form className="rvnpform" onSubmit={submit}>
+        <input className="rvnpinput" value={form.nom} onChange={e=>set('nom',e.target.value)} placeholder="Nom complet *" autoComplete="name"/>
+        <input className="rvnpinput" value={form.telephone} onChange={e=>set('telephone',e.target.value)} onBlur={marquerCandidatureCommencee} placeholder="Téléphone / WhatsApp *" autoComplete="tel"/>
+        <input className="rvnpinput" value={form.email} onChange={e=>set('email',e.target.value)} placeholder="Email (optionnel)" autoComplete="email"/>
+        <textarea className="rvnpinput" value={form.motivation} onChange={e=>set('motivation',e.target.value)} placeholder="Pourquoi souhaitez-vous rejoindre le réseau ? (optionnel)"/>
+        <label style={{display:'block',fontSize:9,color:'#8ea79b',marginBottom:6}}>Pièce d'identité (optionnel, restera privée — visible uniquement par le responsable du réseau)<input type="file" accept="image/*,.pdf" onChange={e=>setFichierIdentite(e.target.files?.[0]||null)} style={{display:'block',marginTop:6,fontSize:11,color:'#cfe6db'}}/></label>
+        <label className="rvnpcheck"><input type="checkbox" checked={form.consent} onChange={e=>set('consent',e.target.checked)}/><span>J'accepte que mes coordonnées soient utilisées pour traiter cette candidature et être recontacté(e) au sujet du programme.</span></label>
+        {error&&<div className="rvnperror">{error}</div>}
+        <div style={{display:'flex',gap:8}}>
+          <button type="button" className="rvnpbtn secondary" onClick={precedent}>← Retour</button>
+          <button className="rvnpbtn primary" type="submit" disabled={loading} style={{flex:1}}>{loading?'Enregistrement…':'Envoyer ma candidature →'}</button>
+        </div>
+      </form>
+      <div style={{marginTop:16,textAlign:'center'}}><button type="button" onClick={()=>setSuiviOuvert(v=>!v)} style={{background:'none',border:'none',color:'#9eb5aa',fontSize:10,fontWeight:800,cursor:'pointer',textDecoration:'underline'}}>Vous avez déjà candidaté ? Suivre ma candidature</button></div>
+      {suiviOuvert&&<div style={{marginTop:12,padding:14,borderRadius:14,background:'rgba(255,255,255,.045)',border:'1px solid rgba(255,255,255,.08)'}}>
+        <input className="rvnpinput" value={suiviTel} onChange={e=>setSuiviTel(e.target.value)} placeholder="Votre téléphone" style={{marginBottom:8}}/>
+        <button type="button" onClick={verifierSuivi} disabled={suiviChargement} className="rvnpbtn secondary" style={{width:'100%',minHeight:40}}>{suiviChargement?'...':'Vérifier'}</button>
+        {suiviResultat&&(suiviResultat.trouve?
+          <div style={{marginTop:10,fontSize:11,color:'#caffdf'}}>Statut : <strong>{libelleStatutSuivi[suiviResultat.statut_parcours]||suiviResultat.statut_parcours}</strong></div>
+          :<div style={{marginTop:10,fontSize:11,color:'#ffc0b9'}}>Aucune candidature trouvée avec ce numéro.</div>
+        )}
+      </div>}
+    </>;
+  }
+
+  return <div className="rvnp rvnptunnel"><style>{CSS}</style>
+    <div className="rvnpw rvnptunnelhead"><a className="rvnpbrand" href="/marketing-reseau"><i>R</i>RecuVente Réseau</a></div>
+    <main className="rvnpw rvnptunnelshell">
+      <section className="rvnppanel">
+        {!success && (
+          <div style={{display:'flex',gap:4,marginBottom:16}}>
+            {Array.from({length:etapesTotal}).map((_,i)=>(
+              <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<=etapeIndex?'#83ffc2':'rgba(255,255,255,.12)'}} />
+            ))}
+          </div>
+        )}
+        {renduEtape()}
+      </section>
+    </main>
+    <footer className="rvnpfooter">Parcours sécurisé · Recruteur : {config.recruteur_nom} · Code : {config.recruteur_code}</footer>
+  </div>;
 }
 
 export function BoutiqueReferralPublic({ code }) {

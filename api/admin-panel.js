@@ -1484,7 +1484,66 @@ Réponds UNIQUEMENT avec un objet JSON, sans texte autour :
   return res.status(200).json({ reussi, feedback });
 }
 
+// ===== POST "creer_compte_filleul" (PUBLIQUE, aucun token requis) : crée le
+// vrai compte de connexion d'un partenaire nouvellement activé. Toute la
+// sécurité repose sur le token à usage unique généré par l'admin
+// (generer_lien_creation_compte) — jamais devinable, vérifié ici avant toute
+// création. Fait avec la service role key : contourne les histoires de
+// confirmation d'email et crée un compte immédiatement utilisable.
+async function gererCreerCompteFilleul(req, res) {
+  const { token, email, password } = req.body || {};
+  if (!token || !email || !password) return res.status(400).json({ error: "Champs manquants." });
+  if (password.length < 6) return res.status(400).json({ error: "Le mot de passe doit faire au moins 6 caractères." });
+
+  const { data: filleul, error: erreurFilleul } = await supabaseAdmin
+    .from("filleuls").select("id, workspace_id, nom, compte_cree")
+    .eq("token_activation_compte", token).maybeSingle();
+  if (erreurFilleul || !filleul) return res.status(404).json({ error: "Lien invalide." });
+  if (filleul.compte_cree) return res.status(400).json({ error: "Ce compte a déjà été créé — connectez-vous normalement." });
+
+  // Si un compte avec cet email existe déjà (ex: la personne est déjà cliente
+  // ou membre d'équipe ailleurs), on le RÉUTILISE plutôt que d'échouer — on
+  // rattache simplement ce filleul au compte existant.
+  let userId;
+  const { data: newUser, error: erreurCreation } = await supabaseAdmin.auth.admin.createUser({
+    email, password, email_confirm: true,
+  });
+
+  if (erreurCreation) {
+    const dejaExistant = (erreurCreation.message || "").toLowerCase().includes("already") || erreurCreation.status === 422;
+    if (!dejaExistant) return res.status(400).json({ error: erreurCreation.message });
+    const { data: usersList, error: erreurListe } = await supabaseAdmin.auth.admin.listUsers();
+    if (erreurListe) return res.status(400).json({ error: erreurListe.message });
+    const existant = usersList.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (!existant) return res.status(400).json({ error: "Impossible de retrouver ce compte existant." });
+    userId = existant.id;
+  } else {
+    userId = newUser.user.id;
+  }
+
+  const { data: dejaMembre } = await supabaseAdmin
+    .from("workspace_members").select("id").eq("workspace_id", filleul.workspace_id).eq("user_id", userId).maybeSingle();
+  if (!dejaMembre) {
+    const { error: erreurMembre } = await supabaseAdmin.from("workspace_members").insert([
+      { workspace_id: filleul.workspace_id, user_id: userId, role: "filleul" },
+    ]);
+    if (erreurMembre) return res.status(400).json({ error: erreurMembre.message });
+  }
+
+  await supabaseAdmin.from("filleuls").update({
+    user_id: userId, email, compte_cree: true, token_activation_compte: null, updated_at: new Date().toISOString(),
+  }).eq("id", filleul.id);
+
+  return res.status(200).json({ success: true });
+}
+
 export default async function handler(req, res) {
+  // Action publique — la personne n'a justement pas encore de compte, donc pas de
+  // token à vérifier ici. Toute la sécurité repose sur le token à usage unique
+  // (token_activation_compte), vérifié dans la fonction elle-même.
+  if (req.method === "POST" && req.body?.action === "creer_compte_filleul") {
+    return gererCreerCompteFilleul(req, res);
+  }
   // Ces 3 actions servent à tous les abonnés RecuVente (pas seulement le compte propriétaire) —
   // vérifiées différemment, avant le contrôle admin qui, lui, reste réservé à l'AI Company OS.
   if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") {

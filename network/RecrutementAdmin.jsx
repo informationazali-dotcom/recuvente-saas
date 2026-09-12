@@ -19,11 +19,11 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
     setChargement(true);
     const [{ data: avecPack }, { data: toutesCandidatures }] = await Promise.all([
       supabase.from("recrutement_commandes_pack")
-        .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin), filleuls_prospects(recruteur_filleul_id)")
+        .select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, photo_profil_path, statut_admin), filleuls_prospects(recruteur_filleul_id)")
         .eq("workspace_id", workspace.id)
         .order("created_at", { ascending: false }),
       supabase.from("recrutement_candidatures")
-        .select("id, nom, telephone, email, motivation, preuve_identite_path, statut_admin, created_at, prospect_id")
+        .select("id, nom, telephone, email, motivation, preuve_identite_path, photo_profil_path, statut_admin, created_at, prospect_id")
         .eq("workspace_id", workspace.id),
     ]);
 
@@ -231,7 +231,7 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
     await rafraichirCommande();
   }
 
-  async function consulterDocument() {
+  async function consulterDocument(type) {
     setChargementDoc(true);
     setErreurDoc("");
     const { data: sessionData } = await supabase.auth.getSession();
@@ -239,7 +239,7 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
       const reponse = await fetch("/api/admin-panel", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ action: "obtenir_url_document_candidature", candidature_id: candidat.id, workspace_id: workspace.id }),
+        body: JSON.stringify({ action: "obtenir_url_document_candidature", candidature_id: candidat.id, workspace_id: workspace.id, type }),
       });
       const json = await reponse.json();
       if (!reponse.ok) { setErreurDoc(json?.error || "Échec de la récupération."); setChargementDoc(false); return; }
@@ -253,11 +253,11 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   async function rafraichirCommande() {
     if (commande.id === null) {
       // Pas de vraie commande (pack jamais choisi) — seule la candidature a pu changer.
-      const { data } = await supabase.from("recrutement_candidatures").select("id, nom, telephone, email, motivation, preuve_identite_path, statut_admin").eq("id", commande.candidature_id).maybeSingle();
+      const { data } = await supabase.from("recrutement_candidatures").select("id, nom, telephone, email, motivation, preuve_identite_path, photo_profil_path, statut_admin").eq("id", commande.candidature_id).maybeSingle();
       if (data) setCommande((c) => ({ ...c, recrutement_candidatures: data }));
       return;
     }
-    const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, statut_admin)").eq("id", commande.id).maybeSingle();
+    const { data } = await supabase.from("recrutement_commandes_pack").select("*, recrutement_candidatures(id, nom, telephone, email, motivation, preuve_identite_path, photo_profil_path, statut_admin)").eq("id", commande.id).maybeSingle();
     if (data) setCommande((c) => ({ ...data, recrutement_candidatures: data.recrutement_candidatures || c.recrutement_candidatures }));
   }
 
@@ -353,14 +353,21 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
           </div>
         )}
 
-        {candidat?.preuve_identite_path && (
-          <div style={{ marginBottom: 14 }}>
-            <button onClick={consulterDocument} disabled={chargementDoc} style={{ width: "100%", background: "#F3F1EA", color: "#16231F", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
-              {chargementDoc ? "..." : "📎 Consulter la pièce d'identité (lien privé, 10 min)"}
-            </button>
-            {erreurDoc && <div style={{ fontSize: 10.5, color: "#D64933", marginTop: 6 }}>{erreurDoc}</div>}
+        {(candidat?.preuve_identite_path || candidat?.photo_profil_path) && (
+          <div style={{ marginBottom: 14, display: "flex", gap: 8 }}>
+            {candidat?.photo_profil_path && (
+              <button onClick={() => consulterDocument("photo")} disabled={chargementDoc} style={{ flex: 1, background: "#F3F1EA", color: "#16231F", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+                🖼️ Photo
+              </button>
+            )}
+            {candidat?.preuve_identite_path && (
+              <button onClick={() => consulterDocument("identite")} disabled={chargementDoc} style={{ flex: 1, background: "#F3F1EA", color: "#16231F", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+                📎 Pièce d'identité
+              </button>
+            )}
           </div>
         )}
+        {erreurDoc && <div style={{ fontSize: 10.5, color: "#D64933", marginBottom: 10 }}>{erreurDoc}</div>}
 
         <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Pack choisi</div>
         {commande.id !== null ? (

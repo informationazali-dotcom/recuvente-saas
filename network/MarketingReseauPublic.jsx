@@ -136,7 +136,7 @@ export function TunnelRecrutementPublic({ code }) {
   // Rendu du contenu de l'étape courante uniquement (jamais tout d'un coup)
   function renduEtape(){
     if(success){
-      return <div className="rvnpsuccess"><div style={{fontSize:38}}>✅</div><h2>Candidature enregistrée</h2><p>Votre demande a bien été transmise. Conservez votre référence <strong style={{color:'#ffd06b'}}>{success.candidature_id}</strong>. {success.commande_id?'Votre choix de pack est également enregistré pour le workflow de paiement manuel.':'Le responsable du réseau pourra maintenant étudier votre candidature et vous indiquer la suite.'}</p><a className="rvnpbtn primary" href="/marketing-reseau">Comprendre le programme</a></div>;
+      return <div className="rvnpsuccess"><div style={{fontSize:38}}>✅</div><h2>Candidature enregistrée</h2><p>Votre demande a bien été transmise. Conservez votre référence <strong style={{color:'#ffd06b'}}>{success.candidature_id}</strong>. {success.commande_id?'Votre choix de pack est également enregistré. Le responsable du réseau va maintenant vérifier votre paiement puis activer votre compte.':'Le responsable du réseau pourra maintenant étudier votre candidature et vous indiquer la suite.'}</p><p style={{fontSize:10.5,color:'#8ea79b',marginTop:14}}>Vous pouvez fermer cette page — {config.recruteur_nom} vous recontactera, ou revenez ici avec le lien "Suivre ma candidature" plus haut pour connaître l'avancement.</p></div>;
     }
 
     // Étape 0 — Accueil
@@ -262,7 +262,7 @@ export function TunnelRecrutementPublic({ code }) {
   }
 
   return <div className="rvnp rvnptunnel"><style>{CSS}</style>
-    <div className="rvnpw rvnptunnelhead"><a className="rvnpbrand" href="/marketing-reseau"><i>R</i>RecuVente Réseau</a></div>
+    <div className="rvnpw rvnptunnelhead"><span className="rvnpbrand"><i>R</i>RecuVente Réseau</span></div>
     <main className="rvnpw rvnptunnelshell">
       <section className="rvnppanel">
         {!success && (

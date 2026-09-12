@@ -113,7 +113,11 @@ function extraireTextePourAudio(html) {
   });
   let texte = div.textContent || "";
   texte = texte.replace(/\p{Extended_Pictographic}/gu, " ");
-  texte = texte.replace(/[•●▪️‣►◆★☆♦]/g, " ");
+  texte = texte.replace(/[•●▪️‣►◆★☆♦™®©]/g, " ");
+  // Un mot tout en majuscules de 5 lettres ou plus est presque toujours un nom de marque ou
+  // de produit, pas un sigle — sans cette conversion, la voix l'épelle lettre par lettre
+  // (ex: "DONGYITANG" lu "D-O-N-G-Y-I-T-A-N-G") au lieu de le prononcer comme un mot normal.
+  texte = texte.replace(/\b[A-ZÀ-Ý]{5,}\b/g, (mot) => mot.charAt(0) + mot.slice(1).toLowerCase());
   texte = texte.replace(/\s+/g, " ").replace(/(\s*\.\s*){2,}/g, ". ").replace(/\s+\./g, ".").trim();
   return texte;
 }
@@ -309,7 +313,7 @@ const TRADUCTIONS = {
     enStock: "en stock",
     offresDispo: "🔥 Offres quantité disponibles — choisis ton pack dans le formulaire de commande",
     aucuneDescription: "Aucune description disponible.",
-    ecouterDescription: "🔊 On t'explique le produit",
+    ecouterDescription: "🔊 Lire ou écouter, à toi de choisir",
     lectureAudioEnCours: "Lecture en cours...",
     lectureAudioEnPause: "En pause",
     avisClients: "Avis clients",
@@ -403,7 +407,7 @@ const TRADUCTIONS = {
     enStock: "left in stock",
     offresDispo: "🔥 Quantity deals available — pick your pack in the order form",
     aucuneDescription: "No description available.",
-    ecouterDescription: "🔊 Let us explain it",
+    ecouterDescription: "🔊 Read or listen, your choice",
     lectureAudioEnCours: "Playing...",
     lectureAudioEnPause: "Paused",
     avisClients: "Customer reviews",

@@ -5803,7 +5803,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
 
       {vue === "tunnel" && !accesBloque && (
-        <TunnelAdmin workspace={workspace} />
+        <TunnelAdmin workspace={workspace} filleuls={filleuls} />
       )}
 
       {vue === "recovery" && !accesBloque && (

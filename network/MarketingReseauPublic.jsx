@@ -37,7 +37,7 @@ export function MarketingReseauLanding() {
 
 export function TunnelRecrutementPublic({ code }) {
   const [config,setConfig]=useState(undefined),[error,setError]=useState(""),[packId,setPackId]=useState(""),[loading,setLoading]=useState(false),[success,setSuccess]=useState(null);
-  const [form,setForm]=useState({nom:"",telephone:"",email:"",motivation:"",consent:false});
+  const [form,setForm]=useState({prenom:"",nom:"",telephone:"",email:"",motivation:"",consent:false});
   
   // Attribution du parrain : "premier lien valide gagne" (règle §1 documentée). Si un
   // code recruteur a déjà été enregistré lors d'une visite précédente, il n'est JAMAIS
@@ -76,10 +76,11 @@ export function TunnelRecrutementPublic({ code }) {
   },[codeOrigine,code]);
 
   const set=(k,v)=>setForm(x=>({...x,[k]:v}));
+  const nomComplet=()=>`${form.prenom.trim()} ${form.nom.trim()}`.trim();
   function marquerCandidatureCommencee(){
     const c=codeOrigine||cleanCode(code);
-    if(form.nom.trim()&&form.telephone.trim().length>=6&&c){
-      supabase.rpc("demarrer_candidature_reseau_public",{p_recruteur_code:c,p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_visiteur_id:idVisiteur()}).catch(()=>{});
+    if(nomComplet()&&form.telephone.trim().length>=6&&c){
+      supabase.rpc("demarrer_candidature_reseau_public",{p_recruteur_code:c,p_nom:nomComplet(),p_telephone:form.telephone.trim(),p_visiteur_id:idVisiteur()}).catch(()=>{});
     }
   }
   const [suiviOuvert,setSuiviOuvert]=useState(false);
@@ -95,18 +96,27 @@ export function TunnelRecrutementPublic({ code }) {
   }
   const libelleStatutSuivi={nouveau:"Candidature reçue",candidature_debutee:"Candidature en cours",candidature:"Candidature envoyée — en attente d'étude",paiement_confirme:"Paiement confirmé — préparation de votre activation",compte_externe_cree:"Compte en cours de création",actif:"🎉 Vous êtes activé(e) !"};
   const [fichierIdentite,setFichierIdentite]=useState(null);
+  const [photoProfil,setPhotoProfil]=useState(null);
   const [uploadEnCours,setUploadEnCours]=useState(false);
-  async function submit(evt){evt.preventDefault();setError("");if(!form.nom.trim()||!form.telephone.trim())return setError("Le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);
-    let preuveIdentitePath=null;
-    if(fichierIdentite){
+  async function submit(evt){evt.preventDefault();setError("");if(!form.prenom.trim()||!form.nom.trim()||!form.telephone.trim())return setError("Le prénom, le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);
+    let preuveIdentitePath=null,photoProfilPath=null;
+    if(fichierIdentite||photoProfil){
       setUploadEnCours(true);
-      const chemin=`${config.workspace_id}/${crypto.randomUUID()}-${fichierIdentite.name}`;
-      const {error:erreurUpload}=await supabase.storage.from("candidatures-documents").upload(chemin,fichierIdentite);
+      if(fichierIdentite){
+        const chemin=`${config.workspace_id}/identite-${crypto.randomUUID()}-${fichierIdentite.name}`;
+        const {error:erreurUpload}=await supabase.storage.from("candidatures-documents").upload(chemin,fichierIdentite);
+        if(erreurUpload){setUploadEnCours(false);setError("Échec de l'envoi de la pièce d'identité — réessaie ou continue sans.");setLoading(false);return;}
+        preuveIdentitePath=chemin;
+      }
+      if(photoProfil){
+        const chemin=`${config.workspace_id}/photo-${crypto.randomUUID()}-${photoProfil.name}`;
+        const {error:erreurUpload}=await supabase.storage.from("candidatures-documents").upload(chemin,photoProfil);
+        if(erreurUpload){setUploadEnCours(false);setError("Échec de l'envoi de la photo — réessaie ou continue sans.");setLoading(false);return;}
+        photoProfilPath=chemin;
+      }
       setUploadEnCours(false);
-      if(erreurUpload){setError("Échec de l'envoi du document — réessaie ou continue sans.");setLoading(false);return;}
-      preuveIdentitePath=chemin;
     }
-    const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:codeOrigine||cleanCode(code),p_nom:form.nom.trim(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null,p_visiteur_id:idVisiteur(),p_preuve_identite_path:preuveIdentitePath});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
+    const {data,error:err}=await supabase.rpc("soumettre_candidature_reseau_public",{p_recruteur_code:codeOrigine||cleanCode(code),p_nom:nomComplet(),p_telephone:form.telephone.trim(),p_email:form.email.trim()||null,p_motivation:form.motivation.trim()||null,p_pack_id:packId||null,p_visiteur_id:idVisiteur(),p_preuve_identite_path:preuveIdentitePath,p_photo_profil_path:photoProfilPath});if(err){setError(err.message||"Impossible d'enregistrer la candidature.");setLoading(false);return;}setSuccess(data);setLoading(false);}
 
   // ===== Parcours étape par étape (au lieu d'une seule page à faire défiler) =====
   // Étapes : [0]=accueil → [1..N]=contenu configuré (vidéo obligatoire avant de
@@ -237,10 +247,12 @@ export function TunnelRecrutementPublic({ code }) {
       <h2 style={{fontSize:26,margin:'10px 0 5px'}}>Votre candidature</h2>
       <p>Dernière étape — laissez vos coordonnées pour finaliser.</p>
       <form className="rvnpform" onSubmit={submit}>
-        <input className="rvnpinput" value={form.nom} onChange={e=>set('nom',e.target.value)} placeholder="Nom complet *" autoComplete="name"/>
+        <input className="rvnpinput" value={form.prenom} onChange={e=>set('prenom',e.target.value)} placeholder="Prénom *" autoComplete="given-name"/>
+        <input className="rvnpinput" value={form.nom} onChange={e=>set('nom',e.target.value)} placeholder="Nom *" autoComplete="family-name"/>
         <input className="rvnpinput" value={form.telephone} onChange={e=>set('telephone',e.target.value)} onBlur={marquerCandidatureCommencee} placeholder="Téléphone / WhatsApp *" autoComplete="tel"/>
         <input className="rvnpinput" value={form.email} onChange={e=>set('email',e.target.value)} placeholder="Email (optionnel)" autoComplete="email"/>
         <textarea className="rvnpinput" value={form.motivation} onChange={e=>set('motivation',e.target.value)} placeholder="Pourquoi souhaitez-vous rejoindre le réseau ? (optionnel)"/>
+        <label style={{display:'block',fontSize:9,color:'#8ea79b',marginBottom:6}}>Votre photo de profil (optionnel)<input type="file" accept="image/*" onChange={e=>setPhotoProfil(e.target.files?.[0]||null)} style={{display:'block',marginTop:6,fontSize:11,color:'#cfe6db'}}/></label>
         <label style={{display:'block',fontSize:9,color:'#8ea79b',marginBottom:6}}>Pièce d'identité (optionnel, restera privée — visible uniquement par le responsable du réseau)<input type="file" accept="image/*,.pdf" onChange={e=>setFichierIdentite(e.target.files?.[0]||null)} style={{display:'block',marginTop:6,fontSize:11,color:'#cfe6db'}}/></label>
         <label className="rvnpcheck"><input type="checkbox" checked={form.consent} onChange={e=>set('consent',e.target.checked)}/><span>J'accepte que mes coordonnées soient utilisées pour traiter cette candidature et être recontacté(e) au sujet du programme.</span></label>
         {error&&<div className="rvnperror">{error}</div>}

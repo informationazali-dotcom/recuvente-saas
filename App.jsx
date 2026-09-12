@@ -9,6 +9,7 @@ import NetworkDashboard from "./network/NetworkDashboard.jsx";
 import { MarketingReseauLanding, TunnelRecrutementPublic, BoutiqueReferralPublic } from "./network/MarketingReseauPublic.jsx";
 import RecrutementAdmin from "./network/RecrutementAdmin.jsx";
 import SchoolAdmin from "./network/SchoolAdmin.jsx";
+import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
@@ -4913,6 +4914,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "reseau", label: "🟣 Réseau" }] : []),
           ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recrutement", label: "📋 Recrutement" }] : []),
           ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "school", label: "🎓 School" }] : []),
+          ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "tunnel", label: "🎬 Tunnel" }] : []),
         ].map((t) => (
           <button
             key={t.key}
@@ -5798,6 +5800,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
       {vue === "school" && !accesBloque && (
         <SchoolAdmin workspace={workspace} filleuls={filleuls} />
+      )}
+
+      {vue === "tunnel" && !accesBloque && (
+        <TunnelAdmin workspace={workspace} />
       )}
 
       {vue === "recovery" && !accesBloque && (

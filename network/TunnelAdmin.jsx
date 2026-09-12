@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 // Éditeur de tunnel (§14-16 de la mission) — vidéo de présentation, images,
 // témoignages, FAQ, textes libres. Affiché dans l'ordre choisi sur
 // /tunnel/CODE, avant même la candidature.
-export default function TunnelAdmin({ workspace }) {
+export default function TunnelAdmin({ workspace, filleuls }) {
   const [etapes, setEtapes] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [showAjout, setShowAjout] = useState(false);
@@ -64,6 +64,8 @@ export default function TunnelAdmin({ workspace }) {
       <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14, lineHeight: 1.5 }}>
         Ces étapes s'affichent, dans cet ordre, sur la page /tunnel de tes filleuls — avant même que le visiteur ne remplisse sa candidature. Une vidéo de présentation, tes témoignages, tes réponses aux questions fréquentes.
       </div>
+
+      <LiensDuTunnel filleuls={filleuls || []} />
 
       {chargement && <div style={{ fontSize: 12.5, color: "#8A9089" }}>Chargement...</div>}
       {!chargement && etapes.length === 0 && (
@@ -245,6 +247,76 @@ function ApercuTunnelModal({ etapes, onClose }) {
         ))}
         <div style={{ fontSize: 10, color: "#8fa69b", marginTop: 8 }}>Rendu approximatif — l'en-tête d'invitation personnelle et le formulaire de candidature s'affichent en plus sur la vraie page.</div>
       </div>
+    </div>
+  );
+}
+
+// Répond à une vraie confusion : le tunnel n'a pas "un" lien unique — chaque
+// filleul a le SIEN (/tunnel/CODE), pour que sa candidature lui soit
+// attribuée. Ce panneau permet de récupérer rapidement n'importe quel lien
+// à partager (le tien si tu as toi-même une fiche filleul, ou celui de l'un
+// de tes filleuls pour l'aider à faire sa pub).
+function LiensDuTunnel({ filleuls }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [recherche, setRecherche] = useState("");
+  const [copieCode, setCopieCode] = useState("");
+
+  const filleulsActifs = filleuls.filter((f) => f.statut !== "suspendu");
+  const filtres = filleulsActifs.filter((f) => !recherche.trim() || f.nom.toLowerCase().includes(recherche.trim().toLowerCase()) || f.code.toLowerCase().includes(recherche.trim().toLowerCase()));
+
+  function lienDe(code) {
+    return `${window.location.origin}/tunnel/${code}`;
+  }
+
+  function copier(code) {
+    try { navigator.clipboard.writeText(lienDe(code)); } catch (_) {}
+    setCopieCode(code);
+    setTimeout(() => setCopieCode(""), 1800);
+  }
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "14px 16px" };
+
+  return (
+    <div style={{ ...carte, marginBottom: 16 }}>
+      <div onClick={() => setOuvert((v) => !v)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#16231F" }}>🔗 Récupérer un lien de tunnel à partager</div>
+        <div style={{ fontSize: 14 }}>{ouvert ? "▾" : "▸"}</div>
+      </div>
+
+      {ouvert && (
+        <div style={{ marginTop: 12 }}>
+          {filleulsActifs.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#8A9089" }}>Aucun filleul actif pour l'instant — crée-en un depuis "🟣 Réseau" pour obtenir un premier lien.</div>
+          ) : (
+            <>
+              {filleulsActifs.length > 5 && (
+                <input
+                  placeholder="🔍 Rechercher un nom ou un code..."
+                  value={recherche}
+                  onChange={(e) => setRecherche(e.target.value)}
+                  style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 10 }}
+                />
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                {filtres.map((f) => (
+                  <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F7FAF7", borderRadius: 9, padding: "8px 11px" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F" }}>{f.nom}</div>
+                      <div style={{ fontSize: 10, color: "#8A9089" }}>{lienDe(f.code)}</div>
+                    </div>
+                    <button onClick={() => copier(f.code)} style={{ background: copieCode === f.code ? "#1a7a3c" : "#6b3fd4", color: "white", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      {copieCode === f.code ? "✅ Copié !" : "📋 Copier"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          <div style={{ fontSize: 10, color: "#8A9089", marginTop: 10, lineHeight: 1.5 }}>
+            Pas de filleul qui te représente toi-même ? Crée-en un pour toi dans "🟣 Réseau" pour avoir ton propre lien de recrutement à partager en publicité.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

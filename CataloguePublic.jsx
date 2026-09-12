@@ -100,6 +100,98 @@ function nettoyerHTML(html) {
   return div.innerHTML;
 }
 
+// Convertit la description riche (HTML) en texte brut lisible à voix haute — insère un point
+// après chaque bloc (titre, paragraphe, liste) pour que la synthèse vocale marque une vraie
+// pause entre les sections, au lieu d'enchaîner titre et texte sans respiration.
+function extraireTextePourAudio(html) {
+  if (!html) return "";
+  const div = document.createElement("div");
+  div.innerHTML = nettoyerHTML(html);
+  div.querySelectorAll("h1, h2, h3, h4, p, li, br").forEach((el) => {
+    el.insertAdjacentText("afterend", ". ");
+  });
+  return (div.textContent || "").replace(/\s+/g, " ").replace(/(\.\s*){2,}/g, ". ").trim();
+}
+
+// Bouton "Écouter la description" — lit automatiquement à voix haute le texte déjà écrit
+// (aucun enregistrement audio à faire), via la synthèse vocale du navigateur. Se masque
+// silencieusement si l'appareil ne supporte pas la synthèse vocale.
+function BoutonEcouterDescription({ descriptionHTML, couleur, langue, t }) {
+  const [etat, setEtat] = useState("idle"); // idle | lecture | pause
+  const supporte = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  useEffect(() => {
+    // Coupe la lecture si la personne change de produit ou ferme la fiche produit —
+    // sinon la voix continue de lire la description d'un produit qu'on ne regarde plus.
+    return () => {
+      if (supporte) window.speechSynthesis.cancel();
+    };
+  }, [descriptionHTML]);
+
+  if (!supporte) return null;
+
+  function demarrer() {
+    const texte = extraireTextePourAudio(descriptionHTML);
+    if (!texte) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(texte);
+    utterance.lang = langue === "en" ? "en-US" : "fr-FR";
+    utterance.rate = 0.98;
+    utterance.onend = () => setEtat("idle");
+    utterance.onerror = () => setEtat("idle");
+    window.speechSynthesis.speak(utterance);
+    setEtat("lecture");
+  }
+
+  function basculerPause() {
+    if (etat === "lecture") {
+      window.speechSynthesis.pause();
+      setEtat("pause");
+    } else if (etat === "pause") {
+      window.speechSynthesis.resume();
+      setEtat("lecture");
+    }
+  }
+
+  function arreter() {
+    window.speechSynthesis.cancel();
+    setEtat("idle");
+  }
+
+  if (etat === "idle") {
+    return (
+      <button
+        onClick={demarrer}
+        style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "none", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 999, padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginBottom: 14 }}
+      >
+        {t("ecouterDescription")}
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${couleur}14`, border: `1.5px solid ${couleur}`, borderRadius: 999, padding: "6px 8px 6px 16px", marginBottom: 14 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: couleur }}>
+        {etat === "lecture" ? `🔊 ${t("lectureAudioEnCours")}` : `⏸️ ${t("lectureAudioEnPause")}`}
+      </span>
+      <button
+        onClick={basculerPause}
+        title={etat === "lecture" ? "Pause" : "Reprendre"}
+        style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: couleur, color: "white", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+      >
+        {etat === "lecture" ? "⏸" : "▶"}
+      </button>
+      <button
+        onClick={arreter}
+        title="Arrêter"
+        style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${couleur}`, background: "white", color: couleur, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function lireCookieMeta(nom) {
   const match = document.cookie.match(new RegExp("(^|;\\s*)" + nom + "=([^;]+)"));
   return match ? decodeURIComponent(match[2]) : null;
@@ -194,6 +286,9 @@ const TRADUCTIONS = {
     enStock: "en stock",
     offresDispo: "🔥 Offres quantité disponibles — choisis ton pack dans le formulaire de commande",
     aucuneDescription: "Aucune description disponible.",
+    ecouterDescription: "🔊 Écouter la description",
+    lectureAudioEnCours: "Lecture en cours...",
+    lectureAudioEnPause: "En pause",
     avisClients: "Avis clients",
     laisserAvis: "Laisser un avis",
     aucunAvis: "Aucun avis pour le moment. Sois le premier !",
@@ -285,6 +380,9 @@ const TRADUCTIONS = {
     enStock: "left in stock",
     offresDispo: "🔥 Quantity deals available — pick your pack in the order form",
     aucuneDescription: "No description available.",
+    ecouterDescription: "🔊 Listen to description",
+    lectureAudioEnCours: "Playing...",
+    lectureAudioEnPause: "Paused",
     avisClients: "Customer reviews",
     laisserAvis: "Leave a review",
     aucunAvis: "No reviews yet. Be the first!",
@@ -1624,6 +1722,12 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
             {produitOuvert.produit_description ? (
               <>
+                <BoutonEcouterDescription
+                  descriptionHTML={produitOuvert.produit_description}
+                  couleur={couleur}
+                  langue={entreprise.langue}
+                  t={t}
+                />
                 <style>{`
                   .rv-description-riche img {
                     max-width: 100% !important;

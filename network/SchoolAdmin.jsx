@@ -559,6 +559,12 @@ function DetailProgressionModal({ filleul, cours, progressionTous, workspace, on
   const coursActifs = cours.filter((c) => c.actif).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
   const progressionFilleul = progressionTous.filter((p) => p.filleul_id === filleul.id);
   const statutDe = (coursId) => progressionFilleul.find((p) => p.cours_id === coursId)?.statut || "not_started";
+  const estVerrouille = (c) => {
+    const prealableOk = !c.cours_prealable_id || statutDe(c.cours_prealable_id) === "completed";
+    const anciennete = (Date.now() - new Date(filleul.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    const ancienneteOk = c.anciennete_jours_min == null || anciennete >= c.anciennete_jours_min;
+    return !(prealableOk && ancienneteOk);
+  };
   const icone = { completed: "✅", in_progress: "🔄", not_started: "⚪" };
   const libelle = { completed: "Terminé", in_progress: "En cours", not_started: "Pas commencé" };
 
@@ -569,10 +575,11 @@ function DetailProgressionModal({ filleul, cours, progressionTous, workspace, on
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {coursActifs.map((c) => {
             const s = statutDe(c.id);
+            const verrouille = s !== "completed" && estVerrouille(c);
             return (
-              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", borderRadius: 8, background: s === "not_started" ? "#FAFAFA" : "#F7FAF7" }}>
-                <div style={{ fontSize: 12 }}>{icone[s]} {c.titre}</div>
-                <div style={{ fontSize: 10.5, color: "#8A9089" }}>{libelle[s]}</div>
+              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", borderRadius: 8, background: verrouille ? "#FAFAFA" : s === "not_started" ? "#FAFAFA" : "#F7FAF7", opacity: verrouille ? 0.65 : 1 }}>
+                <div style={{ fontSize: 12 }}>{verrouille ? "🔒" : icone[s]} {c.titre}</div>
+                <div style={{ fontSize: 10.5, color: "#8A9089" }}>{verrouille ? "Verrouillé" : libelle[s]}</div>
               </div>
             );
           })}

@@ -42,7 +42,16 @@ export default function CreerCompteFilleulPublic({ token }) {
       });
       const json = await reponse.json();
       if (!reponse.ok) { setErreur(json?.error || "Échec de la création du compte."); setEnCours(false); return; }
-      setSucces(true);
+      // Connexion automatique — évite une étape supplémentaire, le compte vient
+      // d'être créé côté serveur avec ce mot de passe, on peut s'y connecter direct.
+      const { error: erreurConnexion } = await supabase.auth.signInWithPassword({ email: email.trim(), password: motDePasse });
+      if (erreurConnexion) {
+        // Compte bien créé, juste la connexion auto qui échoue — la personne peut
+        // se connecter manuellement, ce n'est pas bloquant.
+        setSucces("manuel");
+      } else {
+        setSucces("auto");
+      }
     } catch (e) {
       setErreur("Erreur réseau, réessaie.");
     }
@@ -75,8 +84,17 @@ export default function CreerCompteFilleulPublic({ token }) {
         <div style={{ ...carte, textAlign: "center" }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
           <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Compte créé !</div>
-          <p style={{ color: "#6B7168", fontSize: 13.5, marginBottom: 20 }}>Bienvenue {verification.nom}. Vous pouvez maintenant vous connecter à RecuVenteMR avec votre email et votre mot de passe.</p>
-          <a href="/" style={{ display: "block", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>Me connecter →</a>
+          {succes === "auto" ? (
+            <>
+              <p style={{ color: "#6B7168", fontSize: 13.5, marginBottom: 20 }}>Bienvenue {verification.nom}, vous êtes connecté(e). Direction votre formation.</p>
+              <a href="/" style={{ display: "block", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>Continuer →</a>
+            </>
+          ) : (
+            <>
+              <p style={{ color: "#6B7168", fontSize: 13.5, marginBottom: 20 }}>Bienvenue {verification.nom}. Connectez-vous à RecuVenteMR avec votre email et votre mot de passe.</p>
+              <a href="/" style={{ display: "block", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>Me connecter →</a>
+            </>
+          )}
         </div>
       </div>
     );

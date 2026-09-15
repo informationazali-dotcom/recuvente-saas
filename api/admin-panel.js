@@ -1535,6 +1535,25 @@ async function gererCreerCompteFilleul(req, res) {
     user_id: userId, email, compte_cree: true, token_activation_compte: null, updated_at: new Date().toISOString(),
   }).eq("id", filleul.id);
 
+  // Dernier maillon du pipeline enfin notifié — jusqu'ici, rien ne signalait
+  // qu'un partenaire avait réellement fini de créer son compte. Écriture directe
+  // plutôt que via notifier_owners_admins() : je ne connais pas avec certitude
+  // la signature exacte de cette fonction pré-existante (jamais vue), alors que
+  // la structure de la table notifications, elle, est bien établie.
+  const { data: destinataires } = await supabaseAdmin
+    .from("workspace_members").select("user_id").eq("workspace_id", filleul.workspace_id).in("role", ["owner", "admin"]);
+  if (destinataires?.length) {
+    try {
+      await supabaseAdmin.from("notifications").insert(
+        destinataires.map((d) => ({
+          workspace_id: filleul.workspace_id, user_id: d.user_id, type: "filleul",
+          titre: "🔓 Compte créé", message: `${filleul.nom} vient de créer son compte et peut maintenant se connecter à RecuVenteMR.`,
+          lien: "?vue=reseau", lu: false,
+        }))
+      );
+    } catch (_) { /* non bloquant : le compte est créé même si la notification échoue */ }
+  }
+
   return res.status(200).json({ success: true });
 }
 

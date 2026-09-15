@@ -12,14 +12,17 @@ export default function ProchaineActionPartenaire({ filleul, workspace }) {
       // 1. Un cours débloqué mais pas terminé ?
       const [{ data: niveaux }, { data: cours }, { data: progression }] = await Promise.all([
         supabase.from("ecole_niveaux").select("id").eq("workspace_id", workspace.id).eq("actif", true).order("ordre"),
-        supabase.from("ecole_cours").select("id, titre, cours_prealable_id, niveau_id").eq("workspace_id", workspace.id).eq("actif", true).order("ordre"),
+        supabase.from("ecole_cours").select("id, titre, cours_prealable_id, niveau_id, anciennete_jours_min").eq("workspace_id", workspace.id).eq("actif", true).order("ordre"),
         supabase.from("ecole_progression").select("cours_id, statut").eq("filleul_id", filleul.id),
       ]);
       const progMap = Object.fromEntries((progression || []).map((p) => [p.cours_id, p.statut]));
       const ordreNiveaux = Object.fromEntries((niveaux || []).map((n, i) => [n.id, i]));
       const coursTries = [...(cours || [])].sort((a, b) => (ordreNiveaux[a.niveau_id] ?? 99) - (ordreNiveaux[b.niveau_id] ?? 99));
       const prochainCours = coursTries.find((c) => {
-        const debloque = !c.cours_prealable_id || progMap[c.cours_prealable_id] === "completed";
+        const debloquePrealable = !c.cours_prealable_id || progMap[c.cours_prealable_id] === "completed";
+        const anciennete = (Date.now() - new Date(filleul.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        const debloqueAnciennete = c.anciennete_jours_min == null || anciennete >= c.anciennete_jours_min;
+        const debloque = debloquePrealable && debloqueAnciennete;
         return debloque && progMap[c.id] !== "completed";
       });
 

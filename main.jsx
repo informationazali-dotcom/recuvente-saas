@@ -3,18 +3,14 @@ import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 
-// Chargement à la demande : chaque route ne télécharge QUE le code dont elle a besoin.
 const App = lazy(() => import("./App.jsx"));
 const SuiviPublic = lazy(() => import("./SuiviPublic.jsx"));
 const CommanderPublic = lazy(() => import("./CommanderPublic.jsx"));
 const CataloguePublic = lazy(() => import("./CataloguePublic.jsx"));
+const MarketingPublicTracker = lazy(() => import("./MarketingPublicTracker.jsx"));
 
 if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: "production",
-    tracesSampleRate: 0.2,
-  });
+  Sentry.init({ dsn: import.meta.env.VITE_SENTRY_DSN, environment: "production", tracesSampleRate: 0.2 });
 }
 
 const suiviId = new URLSearchParams(window.location.search).get("suivi");
@@ -35,11 +31,25 @@ function ChargementInitial() {
   );
 }
 
+function PublicTracker({ workspaceId, domaine }) {
+  return <MarketingPublicTracker workspaceId={workspaceId} domaine={domaine} />;
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
       <Suspense fallback={<ChargementInitial />}>
-        {suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <CommanderPublic workspaceId={commanderId} /> : catalogueId ? <CataloguePublic workspaceId={catalogueId} /> : estDomainePersonnalise ? <CataloguePublic domaine={hostname} /> : <App />}
+        {suiviId ? (
+          <SuiviPublic commandeId={suiviId} />
+        ) : commanderId ? (
+          <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></>
+        ) : catalogueId ? (
+          <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></>
+        ) : estDomainePersonnalise ? (
+          <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></>
+        ) : (
+          <App />
+        )}
       </Suspense>
     </Sentry.ErrorBoundary>
   </React.StrictMode>

@@ -291,6 +291,7 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   }
 
   const [filleulActiveId, setFilleulActiveId] = useState(null);
+  const [compteCree, setCompteCree] = useState(null);
 
   useEffect(() => {
     if (commande.statut_activation === "active" && !filleulActiveId && commande.prospect_id) {
@@ -298,6 +299,14 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         .then(({ data }) => { if (data?.devenu_filleul_id) setFilleulActiveId(data.devenu_filleul_id); });
     }
   }, [commande.statut_activation, commande.prospect_id]);
+
+  useEffect(() => {
+    if (filleulActiveId) {
+      supabase.from("filleuls").select("compte_cree").eq("id", filleulActiveId).maybeSingle()
+        .then(({ data }) => setCompteCree(!!data?.compte_cree));
+    }
+  }, [filleulActiveId]);
+
   const [lienCompte, setLienCompte] = useState(null);
   const [copieLienCompte, setCopieLienCompte] = useState(false);
 
@@ -431,12 +440,17 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
             <div style={{ fontSize: 12, color: "#1a7a3c", fontWeight: 700, textAlign: "center", marginBottom: 10 }}>
               ✅ Partenaire actif — sa fiche filleul a été créée dans "🟣 Réseau".
             </div>
-            {!lienCompte ? (
+            {compteCree === true ? (
+              <div style={{ fontSize: 11.5, color: "#1a7a3c", background: "#EAF3DE", borderRadius: 8, padding: "9px 11px", textAlign: "center", fontWeight: 700 }}>
+                🔓 Compte créé — {candidat?.nom} peut déjà se connecter.
+              </div>
+            ) : !lienCompte ? (
               <button onClick={genererLienCompte} disabled={enCours} style={{ width: "100%", background: "#f0ecfb", color: "#5b3ba8", border: "1px dashed #d9c9f7", borderRadius: 8, padding: "9px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
                 🔑 Générer son lien de création de compte
               </button>
             ) : (
               <div style={{ background: "#faf7ff", border: "1px solid #e8ddfb", borderRadius: 8, padding: "9px 11px" }}>
+                <div style={{ fontSize: 9.5, color: "#8A6412", marginBottom: 6 }}>⏳ Lien généré, compte pas encore créé — renvoie-le si besoin.</div>
                 <div style={{ fontSize: 10, color: "#5b3ba8", wordBreak: "break-all", marginBottom: 8 }}>{lienCompte}</div>
                 <button onClick={copierLienCompte} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 7, padding: "7px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                   {copieLienCompte ? "✅ Copié !" : "📋 Copier ce lien"}

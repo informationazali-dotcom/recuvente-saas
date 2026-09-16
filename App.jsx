@@ -5117,6 +5117,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 🛍️ Ma Boutique
               </button>
             )}
+            {estEcommerce && (
+              <a
+                href={`${window.location.origin}/?theme-studio=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer", textDecoration: "none" }}
+              >
+                🎨 Theme Studio (Beta)
+              </a>
+            )}
             <button
               onClick={() => setShowAbonnement(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -5192,6 +5202,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                   👁️ Voir ma boutique
                 </a>
               )}
+              <a
+                href={`${window.location.origin}/?theme-studio=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(139,92,246,0.18)", border: "1px solid rgba(139,92,246,0.35)", color: "#c4b5fd", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}
+              >
+                🎨 Theme Studio (Beta)
+              </a>
             </div>
           )}
 

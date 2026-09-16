@@ -9,6 +9,7 @@ const CommanderPublic = lazy(() => import("./CommanderPublic.jsx"));
 const CataloguePublic = lazy(() => import("./CataloguePublic.jsx"));
 const MarketingPublicTracker = lazy(() => import("./MarketingPublicTracker.jsx"));
 const MarketingCODDashboard = lazy(() => import("./MarketingCODDashboard.jsx"));
+const ThemeStudio = lazy(() => import("./ThemeStudio.jsx"));
 
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({ dsn: import.meta.env.VITE_SENTRY_DSN, environment: "production", tracesSampleRate: 0.2 });
@@ -19,10 +20,11 @@ const suiviId = params.get("suivi");
 const commanderId = params.get("commander");
 const catalogueId = params.get("catalogue");
 const marketingId = params.get("marketing");
+const themeStudio = params.get("theme-studio");
 const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
 const hostname = window.location.hostname;
 const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
-const estVueAdmin = !suiviId && !commanderId && !catalogueId && !marketingId && !estDomainePersonnalise;
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !marketingId && !themeStudio && !estDomainePersonnalise;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
 
 function ChargementInitial() {
@@ -35,7 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
       <Suspense fallback={<ChargementInitial />}>
-        {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
+        {themeStudio ? <ThemeStudio /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
       </Suspense>
     </Sentry.ErrorBoundary>
   </React.StrictMode>

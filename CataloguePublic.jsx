@@ -759,6 +759,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [verificationCodePromoEnCours, setVerificationCodePromoEnCours] = useState(false);
   const [lienCopie, setLienCopie] = useState(false);
   const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
+  const [pagePersoOuverte, setPagePersoOuverte] = useState(null);
   const [recherche, setRecherche] = useState("");
   const [collectionOuverte, setCollectionOuverte] = useState(null);
   const [bundleChoisiId, setBundleChoisiId] = useState(null);
@@ -951,6 +952,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         labelLivraisonExpedition: data[0].label_livraison_expedition || "Autre ville",
         temoignagesManuels: Array.isArray(data[0].temoignages_manuels) ? data[0].temoignages_manuels : [],
         langue: data[0].langue || "fr",
+        // Pages libres importées/créées côté admin (À propos, Contact, CGV, FAQ...), avec leur
+        // emplacement ("header" | "footer" | "aucun") déterminé automatiquement à l'import.
+        // ⚠️ Nécessite que la fonction Supabase `catalogue_public` renvoie aussi la colonne
+        // `pages_personnalisees` de `workspaces` — sinon ce tableau reste vide en silence.
+        pagesPersonnalisees: Array.isArray(data[0].pages_personnalisees) ? data[0].pages_personnalisees : [],
       });
       chargerPixelFacebook(data[0].facebook_pixel_id);
       chargerPixelTiktok(data[0].tiktok_pixel_id);
@@ -1615,7 +1621,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
     return (
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
 
         <style>{`
           .rv-shop-produit-wrap { max-width: 480px; margin: 0 auto; }
@@ -2335,6 +2341,17 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             onViderPanier={viderPanier}
           />
         )}
+        {pagePersoOuverte && (
+          <div onClick={() => setPagePersoOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 17 }}>{pagePersoOuverte.titre}</div>
+                <button onClick={() => setPagePersoOuverte(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+              </div>
+              <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pagePersoOuverte.contenu || "" }} />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2368,7 +2385,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           @media (min-width: 1280px) { .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; } .rv-shop-grid { grid-template-columns: repeat(5, 1fr); } }
         `}</style>
 
-        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); naviguerVersCollection(null); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
+        <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={() => naviguerVersCollection(null)} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={collectionOuverte} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); naviguerVersCollection(null); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
 
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
@@ -2388,7 +2405,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         </div>
 
-        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
         <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} messageDefaut={`Bonjour, j'ai une question sur "${titreCollection}".`} />
         {panierOuvert && (
           <PanierDrawer
@@ -2438,6 +2455,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           setCollectionOuverte={setCollectionOuverte}
           setPolitiqueOuverte={setPolitiqueOuverte}
           politiqueOuverte={politiqueOuverte}
+          setPagePersoOuverte={setPagePersoOuverte}
+          pagePersoOuverte={pagePersoOuverte}
           NOMBRE_MAX_ACCUEIL={NOMBRE_MAX_ACCUEIL}
           avisBoutique={avisBoutique}
           totalArticlesPanier={totalArticlesPanier}
@@ -2495,7 +2514,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         }
       `}</style>
 
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
 
       {entreprise.slug === "luxury-car" ? (
         <HeroLuxuryCar entreprise={entreprise} biensLocation={biensLocation} onOuvrirVehicule={(b) => setBienOuvert(b)} />
@@ -2651,7 +2670,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         )}
       </div>
 
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} biensLocation={biensLocation} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} biensLocation={biensLocation} />
 
       {politiqueOuverte && (
         <div
@@ -2671,6 +2690,23 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
               {politiqueOuverte === "livraison" ? entreprise.politiqueLivraison : politiqueOuverte === "retours" ? entreprise.politiqueRetours : entreprise.politiqueConfidentialite}
             </div>
+          </div>
+        </div>
+      )}
+      {pagePersoOuverte && (
+        <div
+          onClick={() => setPagePersoOuverte(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>{pagePersoOuverte.titre}</div>
+              <button onClick={() => setPagePersoOuverte(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+            </div>
+            <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pagePersoOuverte.contenu || "" }} />
           </div>
         </div>
       )}
@@ -3360,16 +3396,21 @@ function PiedPageLuxuryCar({ entreprise, biensLocation = [] }) {
   );
 }
 
-function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier }) {
+function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier, onOuvrirPagePerso }) {
   const t = creerTraducteur(entreprise.langue);
   const [topbarVisible, setTopbarVisible] = useState(true);
   const [estFixe, setEstFixe] = useState(false);
+  const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const messagesAnnonce = (entreprise.azaliConfig?.messagesAnnonce && entreprise.azaliConfig.messagesAnnonce.length > 0) ? entreprise.azaliConfig.messagesAnnonce : [
     { icone: "🚚", texte: "Livraison gratuite à Abidjan dès 50 000 FCFA" },
     { icone: "💸", texte: "Wave · Orange Money · MTN MoMo acceptés" },
     { icone: "🔄", texte: "Retour facile sous 7 jours" },
     { icone: "📦", texte: "Livraison partout en Côte d'Ivoire" },
   ];
+  // Pages libres importées/créées côté admin, positionnées dans le menu principal.
+  const pagesHeader = Array.isArray(entreprise.pagesPersonnalisees)
+    ? entreprise.pagesPersonnalisees.filter((p) => p.emplacement === "header")
+    : [];
 
   useEffect(() => {
     function onScroll() {
@@ -3388,6 +3429,14 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
   return (
     <div style={{ fontFamily: "sans-serif" }}>
+      <style>{`
+        .rv-azali-nav-scroll { display: flex; }
+        .rv-azali-nav-toggle { display: none; }
+        @media (max-width: 760px) {
+          .rv-azali-nav-scroll { display: none; }
+          .rv-azali-nav-toggle { display: flex; }
+        }
+      `}</style>
       {estFixe && <div style={{ height: 52 }} />}
       <div style={styleFixe}>
         {topbarVisible && (
@@ -3403,6 +3452,14 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
 
         <div style={{ background: couleur, padding: estFixe ? "6px 16px" : "10px 16px", transition: "padding 0.2s ease" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <button
+              className="rv-azali-nav-toggle"
+              onClick={() => setMenuMobileOuvert((v) => !v)}
+              aria-label="Menu"
+              style={{ alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.18)", border: "none", color: "white", width: 36, height: 36, borderRadius: 8, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
+            >
+              {menuMobileOuvert ? "✕" : "☰"}
+            </button>
             <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}>
               {entreprise.logo ? (
                 <img src={entreprise.logo} alt={entreprise.nom} style={{ height: estFixe ? 28 : 40, objectFit: "contain", transition: "height 0.2s ease" }} />
@@ -3454,7 +3511,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
         </div>
 
         {!estFixe && (
-        <div style={{ background: "#145c2e", padding: "0 16px", overflowX: "auto" }}>
+        <div className="rv-azali-nav-scroll" style={{ background: "#145c2e", padding: "0 16px", overflowX: "auto" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}>
             <span
               onClick={() => onNaviguerVersCollection(null)}
@@ -3465,6 +3522,11 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
             {collectionsManuelles.map((c) => (
               <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "rgba(255,255,255,0.88)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
                 {c.nom}
+              </span>
+            ))}
+            {pagesHeader.map((p) => (
+              <span key={p.slug} onClick={() => onOuvrirPagePerso?.(p)} style={{ color: "rgba(255,255,255,0.88)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
+                {p.titre}
               </span>
             ))}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
@@ -3485,6 +3547,26 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           </div>
         </div>
         )}
+
+        {menuMobileOuvert && (
+          <div style={{ background: "#0f3d20", maxHeight: "70vh", overflowY: "auto" }}>
+            {[
+              { key: "accueil", label: `☰ ${t("toutesCollections") || "Toutes catégories"}`, onClick: () => { onNaviguerVersCollection(null); setMenuMobileOuvert(false); } },
+              ...collectionsManuelles.map((c) => ({ key: c.id, label: c.nom, onClick: () => { onNaviguerVersCollection(c.id); setMenuMobileOuvert(false); } })),
+              ...pagesHeader.map((p) => ({ key: p.slug, label: p.titre, onClick: () => { onOuvrirPagePerso?.(p); setMenuMobileOuvert(false); } })),
+              ...(aDesBestSellers ? [{ key: "bestseller", label: "🔥 Promotions Flash", onClick: () => { onNaviguerVersCollection("bestseller"); setMenuMobileOuvert(false); } }] : []),
+              ...(aDesNouveautes ? [{ key: "nouveautes", label: "✨ Nouveautés", onClick: () => { onNaviguerVersCollection("nouveautes"); setMenuMobileOuvert(false); } }] : []),
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={item.onClick}
+                style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "white", fontSize: 14, fontWeight: 600, padding: "13px 18px", cursor: "pointer" }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {entreprise.whatsapp && (
@@ -3504,7 +3586,11 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
   );
 }
 
-function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig, nbArticlesPanier = 0, onOuvrirPanier, biensLocation = [], onOuvrirCategorieBien }) {
+function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, collectionActive, headerConfig, nbArticlesPanier = 0, onOuvrirPanier, biensLocation = [], onOuvrirCategorieBien, onOuvrirPagePerso }) {
+  // Déclaré tout en haut, avant les "return" conditionnels ci-dessous, pour respecter les
+  // règles des Hooks React (un Hook ne doit jamais dépendre d'un chemin de retour anticipé).
+  const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+
   if (entreprise.slug === "luxury-car") {
     return (
       <EnteteLuxuryCar
@@ -3531,12 +3617,16 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         onNaviguerVersCollection={onNaviguerVersCollection}
         nbArticlesPanier={nbArticlesPanier}
         onOuvrirPanier={onOuvrirPanier}
+        onOuvrirPagePerso={onOuvrirPagePerso}
       />
     );
   }
 
   const aDesLiensPersonnalises = Array.isArray(headerConfig?.liens) && headerConfig.liens.length > 0;
-  const aDesLiensNav = aDesLiensPersonnalises || aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0;
+  const pagesHeader = Array.isArray(entreprise.pagesPersonnalisees)
+    ? entreprise.pagesPersonnalisees.filter((p) => p.emplacement === "header")
+    : [];
+  const aDesLiensNav = aDesLiensPersonnalises || aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0 || pagesHeader.length > 0;
   const t = creerTraducteur(entreprise.langue);
   const bgHeader = headerConfig?.bgColor || couleur;
   const texteHeader = headerConfig?.textColor || "white";
@@ -3545,6 +3635,14 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
 
   return (
     <div style={{ background: bgHeader, borderBottom: "1px solid rgba(0,0,0,0.08)", position: "sticky", top: 0, zIndex: 30 }}>
+      <style>{`
+        .rv-shop-nav-desktop { display: flex; }
+        .rv-shop-nav-toggle { display: none; }
+        @media (max-width: 680px) {
+          .rv-shop-nav-desktop { display: none; }
+          .rv-shop-nav-toggle { display: flex; }
+        }
+      `}</style>
       <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden" }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {headerConfig?.barreTop ? (
@@ -3559,6 +3657,16 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
 
       <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {aDesLiensNav && (
+            <button
+              className="rv-shop-nav-toggle"
+              onClick={() => setMenuMobileOuvert((v) => !v)}
+              aria-label="Menu"
+              style={{ alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.2)", border: "none", color: texteHeader, width: 36, height: 36, borderRadius: 9, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
+            >
+              {menuMobileOuvert ? "✕" : "☰"}
+            </button>
+          )}
           <button
             onClick={onLogoClick}
             style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0, minWidth: 0, overflow: "hidden", flexShrink: 1 }}
@@ -3610,7 +3718,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
       </div>
 
       {aDesLiensNav && (
-        <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", overflowX: "auto" }}>
+        <div className="rv-shop-nav-desktop" style={{ borderTop: "1px solid rgba(0,0,0,0.08)", overflowX: "auto" }}>
           <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
             {aDesLiensPersonnalises ? (
               headerConfig.liens.map((lien) => (
@@ -3643,7 +3751,53 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                 );
               })
             )}
+            {pagesHeader.map((p) => (
+              <button
+                key={p.slug}
+                onClick={() => onOuvrirPagePerso?.(p)}
+                style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: texteHeader, opacity: 0.85, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                {p.titre}
+              </button>
+            ))}
           </div>
+        </div>
+      )}
+
+      {/* Panneau mobile déroulant : les mêmes liens que la barre desktop ci-dessus, mais en
+          liste verticale — plus besoin de faire défiler horizontalement pour tout voir. */}
+      {aDesLiensNav && menuMobileOuvert && (
+        <div className="rv-shop-nav-toggle" style={{ flexDirection: "column", borderTop: "1px solid rgba(0,0,0,0.08)", maxHeight: "70vh", overflowY: "auto" }}>
+          {(aDesLiensPersonnalises
+            ? headerConfig.liens.map((lien) => ({ key: lien.id, label: lien.label, href: lien.href, onClick: undefined }))
+            : [
+                { key: "accueil", label: t("accueil"), onClick: () => onNaviguerVersCollection?.(null) },
+                ...(aDesBestSellers ? [{ key: "bestseller", label: t("meilleuresVentes"), onClick: () => onNaviguerVersCollection?.("bestseller") }] : []),
+                ...(aDesNouveautes ? [{ key: "nouveautes", label: t("nouveautes"), onClick: () => onNaviguerVersCollection?.("nouveautes") }] : []),
+                ...collectionsManuelles.map((col) => ({ key: `manuelle-${col.id}`, label: col.nom, onClick: () => onNaviguerVersCollection?.(`manuelle-${col.id}`) })),
+              ]
+          ).concat(pagesHeader.map((p) => ({ key: p.slug, label: p.titre, onClick: () => onOuvrirPagePerso?.(p) }))).map((item) => (
+            item.href ? (
+              <a
+                key={item.key}
+                href={item.href}
+                target={item.href.startsWith("http") ? "_blank" : undefined}
+                rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                onClick={() => setMenuMobileOuvert(false)}
+                style={{ display: "block", padding: "13px 16px", fontSize: 14, fontWeight: 600, color: texteHeader, textDecoration: "none", borderBottom: "1px solid rgba(0,0,0,0.06)" }}
+              >
+                {item.label}
+              </a>
+            ) : (
+              <button
+                key={item.key}
+                onClick={() => { item.onClick?.(); setMenuMobileOuvert(false); }}
+                style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "13px 16px", fontSize: 14, fontWeight: 600, color: texteHeader, cursor: "pointer", borderBottom: "1px solid rgba(0,0,0,0.06)" }}
+              >
+                {item.label}
+              </button>
+            )
+          ))}
         </div>
       )}
     </div>
@@ -3782,7 +3936,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
   );
 }
 
-function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuelles = [], onNaviguerVersCollection }) {
+function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collectionsManuelles = [], onNaviguerVersCollection }) {
   const anneeEnCours = new Date().getFullYear();
   const t = creerTraducteur(entreprise.langue);
   const reseaux = [
@@ -3790,6 +3944,12 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
     { url: entreprise.instagramUrl, icone: "📷" },
     { url: entreprise.tiktokUrl, icone: "🎵" },
   ].filter((r) => r.url);
+  // Pages libres importées/créées côté admin, positionnées en pied de page. Tant qu'aucune
+  // n'a été importée, on garde l'ancienne liste statique (texte indicatif, non cliquable)
+  // pour ne rien casser visuellement.
+  const pagesFooter = Array.isArray(entreprise.pagesPersonnalisees)
+    ? entreprise.pagesPersonnalisees.filter((p) => (p.emplacement || "footer") === "footer")
+    : [];
 
   return (
     <div style={{ fontFamily: "sans-serif" }}>
@@ -3927,8 +4087,11 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
       </div>
 
       <div style={{ background: "#0f1519", padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap" }}>
-        {["Politique de confidentialité", "Conditions d'utilisation", "Politique de remboursement", "Politique de livraison", "Mentions légales", "FAQ", "Contact"].map((lien, i, arr) => (
-          <span key={lien} style={{ fontSize: 11, color: "#9aa0a6", padding: "3px 8px", borderRight: i < arr.length - 1 ? "1px solid #3a3a3a" : "none", whiteSpace: "nowrap", cursor: "pointer" }}>{lien}</span>
+        {(pagesFooter.length > 0
+          ? pagesFooter.map((p) => ({ label: p.titre, onClick: () => onOuvrirPagePerso?.(p) }))
+          : ["Politique de confidentialité", "Conditions d'utilisation", "Politique de remboursement", "Politique de livraison", "Mentions légales", "FAQ", "Contact"].map((lien) => ({ label: lien, onClick: undefined }))
+        ).map((lien, i, arr) => (
+          <span key={lien.label} onClick={lien.onClick} style={{ fontSize: 11, color: "#9aa0a6", padding: "3px 8px", borderRight: i < arr.length - 1 ? "1px solid #3a3a3a" : "none", whiteSpace: "nowrap", cursor: lien.onClick ? "pointer" : "default" }}>{lien.label}</span>
         ))}
       </div>
 
@@ -3947,7 +4110,7 @@ function PiedPageAzaliExpress({ entreprise, onOuvrirPolitique, collectionsManuel
   );
 }
 
-function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, footerConfig, biensLocation = [] }) {
+function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, footerConfig, biensLocation = [] }) {
   if (entreprise.slug === "luxury-car") {
     return <PiedPageLuxuryCar entreprise={entreprise} biensLocation={biensLocation} />;
   }
@@ -3956,6 +4119,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
       <PiedPageAzaliExpress
         entreprise={entreprise}
         onOuvrirPolitique={onOuvrirPolitique}
+        onOuvrirPagePerso={onOuvrirPagePerso}
         collectionsManuelles={collectionsManuelles}
         onNaviguerVersCollection={onNaviguerVersCollection}
       />
@@ -3972,6 +4136,11 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
   const bgFooter = footerConfig?.bgColor || "#16231F";
   const texteFooter = footerConfig?.textColor || "rgba(255,255,255,0.75)";
   const colonnesPerso = Array.isArray(footerConfig?.colonnes) ? footerConfig.colonnes.filter((c) => c.titre) : [];
+  // Pages libres importées/créées côté admin (À propos, Mentions légales, CGV, FAQ...),
+  // positionnées automatiquement en pied de page (sauf celles marquées "aucun").
+  const pagesFooter = Array.isArray(entreprise.pagesPersonnalisees)
+    ? entreprise.pagesPersonnalisees.filter((p) => (p.emplacement || "footer") === "footer")
+    : [];
 
   return (
     <div style={{ background: bgFooter, color: texteFooter, marginTop: 30 }}>
@@ -4034,7 +4203,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
           </div>
         )}
 
-        {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite) && (
+        {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite || pagesFooter.length > 0) && (
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("informations")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -4047,6 +4216,9 @@ function PiedDePage({ entreprise, onOuvrirPolitique, collectionsManuelles = [], 
               {entreprise.politiqueConfidentialite && (
                 <button onClick={() => onOuvrirPolitique("confidentialite")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("confidentialite")}</button>
               )}
+              {pagesFooter.map((p) => (
+                <button key={p.slug} onClick={() => onOuvrirPagePerso?.(p)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{p.titre}</button>
+              ))}
             </div>
           </div>
         )}
@@ -4506,7 +4678,7 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
   );
 }
 
-function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier, biensLocation = [], onOuvrirBien }) {
+function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, setPagePersoOuverte, pagePersoOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier, biensLocation = [], onOuvrirBien }) {
   const devise = formaterDevise(entreprise.devise);
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
     typeof s === "string" ? { id: `s${i}`, type: s, visible: true } : { id: s.id || `s${i}`, type: s.type, visible: s.visible !== false }
@@ -5153,7 +5325,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           .rv-builder-grid-produits { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
-      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} />
+      <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} onOuvrirPagePerso={setPagePersoOuverte} />
       {sectionsNormalisees.filter((s) => s.visible !== false).map((s, i) => {
         const idsCorrespondants = { products: "produits", promo: "promo", contact: "contact", faq: "faq", testimonials: "avis", whatsapp: "whatsapp", delivery: "livraison", bundles: "bundles" };
         return (
@@ -5204,7 +5376,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         </div>
       )}
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>
@@ -5217,6 +5389,17 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
               {politiqueOuverte === "livraison" ? entreprise.politiqueLivraison : politiqueOuverte === "retours" ? entreprise.politiqueRetours : entreprise.politiqueConfidentialite}
             </div>
+          </div>
+        </div>
+      )}
+      {pagePersoOuverte && (
+        <div onClick={() => setPagePersoOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>{pagePersoOuverte.titre}</div>
+              <button onClick={() => setPagePersoOuverte(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+            </div>
+            <div style={{ fontSize: 13.5, color: "#16231F", lineHeight: 1.65, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pagePersoOuverte.contenu || "" }} />
           </div>
         </div>
       )}

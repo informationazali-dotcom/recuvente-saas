@@ -979,6 +979,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         }
       }
 
+      // Liens de navigation (menu header/footer du Store Builder) pointant vers une
+      // collection ou une page libre : ?collection=<id> ouvre l'écran de la collection,
+      // ?page=<slug> ouvre la fiche de la page — exactement comme ?produit= ci-dessus.
+      const idCollectionDansUrl = new URLSearchParams(window.location.search).get("collection");
+      if (idCollectionDansUrl) setCollectionOuverte(`manuelle-${idCollectionDansUrl}`);
+      const slugPageDansUrl = new URLSearchParams(window.location.search).get("page");
+      if (slugPageDansUrl) {
+        const pagesDispo = Array.isArray(data[0].pages_personnalisees) ? data[0].pages_personnalisees : [];
+        const pageTrouvee = pagesDispo.find((p) => p.slug === slugPageDansUrl);
+        if (pageTrouvee) setPagePersoOuverte(pageTrouvee);
+      }
+
       // Petit chargement séparé, sans toucher à la fonction catalogue_public existante,
       // pour récupérer les textes personnalisables du design dédié Azali Express.
       if ((data[0].slug || "") === "azaliexpress") {
@@ -4678,6 +4690,17 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
   );
 }
 
+// Certaines collections importées héritent du "handle" Shopify brut ("toges-avocat") au lieu
+// du vrai titre. On le rend lisible à l'affichage : tirets → espaces, une majuscule par mot —
+// sans jamais toucher à la donnée réelle stockée (juste l'affichage).
+function joliNomCollection(nom) {
+  if (!nom) return nom;
+  if (/^[a-z0-9]+(-[a-z0-9]+)*$/.test(nom)) {
+    return nom.split("-").map((mot) => mot.charAt(0).toUpperCase() + mot.slice(1)).join(" ");
+  }
+  return nom;
+}
+
 function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, setPagePersoOuverte, pagePersoOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier, biensLocation = [], onOuvrirBien }) {
   const devise = formaterDevise(entreprise.devise);
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
@@ -4797,9 +4820,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     }
 
     if (type === "featured_product") {
-      const p = produits.find((x) => x.produit_id === config.featuredProductId) || produits[0];
+      const suf = (/_\d+$/.exec(type) || [""])[0];
+      const kId = `featuredProductId${suf}`, kLabel = `featuredProductLabel${suf}`, kPos = `featuredProductPosition${suf}`;
+      const p = produits.find((x) => x.produit_id === config[kId]) || produits[0];
       if (!p) return null;
-      const inverse = config.featuredProductPosition === "droite";
+      const inverse = config[kPos] === "droite";
       const descriptionExtrait = (p.produit_description || "").replace(/<[^>]*>/g, "").slice(0, 160);
       return (
         <div style={{ display: "flex", flexDirection: inverse ? "row-reverse" : "row", flexWrap: "wrap" }}>
@@ -4807,7 +4832,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             {!p.photo_url && "🛍️"}
           </div>
           <div style={{ flex: "1 1 280px", padding: "30px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            {config.featuredProductLabel && <div style={{ fontSize: 10.5, fontWeight: 900, color: couleurTexteLisible(couleurSection), letterSpacing: "0.06em", marginBottom: 8 }}>{config.featuredProductLabel.toUpperCase()}</div>}
+            {config[kLabel] && <div style={{ fontSize: 10.5, fontWeight: 900, color: couleurTexteLisible(couleurSection), letterSpacing: "0.06em", marginBottom: 8 }}>{config[kLabel].toUpperCase()}</div>}
             <div style={{ fontSize: 23, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{p.produit_nom}</div>
             <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7, marginBottom: 14 }}>{descriptionExtrait}{descriptionExtrait.length >= 160 ? "…" : ""}</div>
             <div style={{ fontSize: 19, fontWeight: 900, color: couleurTexteLisible(couleurSection), marginBottom: 14 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
@@ -4944,21 +4969,18 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       const produitsCol = col.produitIds ? produitsDeCollection(col) : [];
       return (
         <div>
-          <div style={{ position: "relative", minHeight: 260, background: `linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.6)),linear-gradient(135deg,${couleurSection},#0b2416)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", color: "white", padding: 28 }}>
+          <div style={{ position: "relative", minHeight: 220, background: `linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.6)),linear-gradient(135deg,${couleurSection},#0b2416)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", color: "white", padding: 28 }}>
             <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.08em", opacity: 0.85, marginBottom: 8 }}>COLLECTION</div>
-            <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{config[kTitre] || col.nom}</div>
+            <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{config[kTitre] || joliNomCollection(col.nom)}</div>
             <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 18, maxWidth: 440 }}>{config[kTexte]}</div>
             <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
               Voir la collection
             </button>
           </div>
           {produitsCol.length > 0 && (
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 16px", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 12 }}>
+            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 16px", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 16 }}>
               {produitsCol.slice(0, 8).map((p) => (
-                <div key={p.id} onClick={() => ouvrirProduit(p)} style={{ cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ width: "100%", aspectRatio: "1/1", borderRadius: 10, background: p.photo_url ? `url(${p.photo_url}) center/cover` : "#eef3ee", marginBottom: 6 }} />
-                  <div style={{ fontSize: 11.5, color: "#16231F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}</div>
-                </div>
+                <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
               ))}
             </div>
           )}

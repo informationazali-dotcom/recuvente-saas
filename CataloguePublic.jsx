@@ -5086,7 +5086,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       }
       return (
       <div style={{ textAlign: "center" }}>
-        <style>{`.rv-hero-couverture{width:100%;height:clamp(320px,42vw,700px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(220px,65vw,420px)}}`}</style>
+        <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(260px,75vw,480px)}}`}</style>
         {entreprise.banniere ? (
           <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
@@ -5328,8 +5328,19 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} onOuvrirPagePerso={setPagePersoOuverte} />
       {sectionsNormalisees.filter((s) => s.visible !== false).map((s, i) => {
         const idsCorrespondants = { products: "produits", promo: "promo", contact: "contact", faq: "faq", testimonials: "avis", whatsapp: "whatsapp", delivery: "livraison", bundles: "bundles" };
+        const st = config.sectionStyles?.[s.type] || {};
+        const wrapStyle = {};
+        if (st.fond) wrapStyle.background = st.fond;
+        if (st.bordure) {
+          wrapStyle.border = `${st.bordureEpaisseur ?? 2}px solid ${st.bordureCouleur || "#dddddd"}`;
+          wrapStyle.borderRadius = st.arrondi ?? 12;
+          wrapStyle.padding = st.espacement ?? 16;
+          wrapStyle.margin = "10px auto";
+          wrapStyle.maxWidth = 1100;
+          wrapStyle.overflow = "hidden";
+        }
         return (
-          <div key={s.id} id={idsCorrespondants[s.type] || undefined}>
+          <div key={s.id} id={idsCorrespondants[s.type] || undefined} style={wrapStyle}>
             {i === 0 ? <Section s={s} /> : <RevealOnScroll><Section s={s} /></RevealOnScroll>}
           </div>
         );

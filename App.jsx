@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass, Menu, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
-import * as XLSX from "xlsx";
 import CataloguePublic from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
 import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
@@ -3506,18 +3505,36 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function importerProduitsCSV(lignes) {
-    const nomsExistants = new Set(produits.map((p) => p.nom.toLowerCase().trim()));
+    const nomVersProduitExistant = {};
+    produits.forEach((p) => { nomVersProduitExistant[p.nom.toLowerCase().trim()] = p; });
     const nomsDejaVusDansCeCSV = new Set();
-    const produitsAImporter = [];
+    const produitsAImporter = []; // nouveaux produits à créer
+    const produitsExistantsAReliers = []; // déjà dans le catalogue, mais à rattacher/compléter côté collections
     let ignores = 0;
 
     for (const l of lignes) {
       const nomNormalise = (l.nom || "").toLowerCase().trim();
-      if (!nomNormalise || nomsExistants.has(nomNormalise) || nomsDejaVusDansCeCSV.has(nomNormalise)) {
+      if (!nomNormalise || nomsDejaVusDansCeCSV.has(nomNormalise)) {
         ignores += 1;
         continue;
       }
       nomsDejaVusDansCeCSV.add(nomNormalise);
+
+      const collectionsLigne = (Array.isArray(l.collections) ? l.collections : []).filter(Boolean);
+      const typeLigne = (l.type || "").trim() || null;
+
+      const existant = nomVersProduitExistant[nomNormalise];
+      if (existant) {
+        // Le produit existe déjà dans le catalogue : on ne le recrée pas, mais s'il porte une
+        // info de collection dans ce CSV, on le rattache quand même — utile pour réparer un
+        // import précédent qui aurait laissé les produits dispersés hors de leurs collections.
+        ignores += 1;
+        if (collectionsLigne.length || typeLigne) {
+          produitsExistantsAReliers.push({ id: existant.id, _type: typeLigne, _collections: collectionsLigne });
+        }
+        continue;
+      }
+
       produitsAImporter.push({
         workspace_id: workspace.id,
         nom: l.nom,
@@ -3526,54 +3543,68 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         photo_url: l.photo_url || null,
         photos_galerie: l.photos_galerie && l.photos_galerie.length ? l.photos_galerie : null,
         cout_achat: 0,
-        _type: (l.type || "").trim() || null, // gardé temporairement pour recréer les collections, retiré avant l'insertion
+        _type: typeLigne, // gardé temporairement pour recréer les collections, retiré avant l'insertion
+        _collections: collectionsLigne,
       });
     }
 
-    if (produitsAImporter.length === 0) {
+    if (produitsAImporter.length === 0 && produitsExistantsAReliers.length === 0) {
       return { succes: false, importes: 0, ignores, message: "Aucun nouveau produit à importer — tous existent déjà dans ton catalogue." };
     }
 
-    const aInserer = produitsAImporter.map(({ _type, ...p }) => p);
-    const { data: inseres, error } = await supabase
-      .from("produits")
-      .upsert(aInserer, { onConflict: "workspace_id,nom", ignoreDuplicates: true })
-      .select("id, nom");
-    if (error) {
-      return { succes: false, importes: 0, ignores: 0, message: "Erreur : " + error.message };
+    let inseres = [];
+    if (produitsAImporter.length > 0) {
+      const aInserer = produitsAImporter.map(({ _type, _collections, ...p }) => p);
+      const { data, error } = await supabase
+        .from("produits")
+        .upsert(aInserer, { onConflict: "workspace_id,nom", ignoreDuplicates: true })
+        .select("id, nom");
+      if (error) {
+        return { succes: false, importes: 0, ignores: 0, message: "Erreur : " + error.message };
+      }
+      inseres = data || [];
     }
 
-    // Recrée automatiquement les collections à partir de la colonne "Type" de Shopify,
-    // et y range chaque produit importé — pour retrouver la même disposition par catégorie.
+    // Rattache chaque produit concerné (nouveau OU déjà présent dans le catalogue) à TOUTES ses
+    // collections d'origine : en priorité la colonne "Collection" façon Matrixify (une ou plusieurs
+    // collections à la fois, exactement comme sur Shopify), sinon en repli le "Type" Shopify. Les
+    // collections manquantes sont créées automatiquement, que le CSV "Collections" ait été importé
+    // avant ou après — l'ordre d'import n'a plus d'importance.
+    const nomVersId = {};
+    inseres.forEach((p) => { nomVersId[p.nom.toLowerCase().trim()] = p.id; });
+
+    const aRelier = [
+      ...produitsAImporter.map((p) => ({ id: nomVersId[p.nom.toLowerCase().trim()], _type: p._type, _collections: p._collections })),
+      ...produitsExistantsAReliers,
+    ].filter((p) => p.id && (p._collections?.length || p._type));
+
     let collectionsCreees = 0;
-    const typesPresents = [...new Set(produitsAImporter.map((p) => p._type).filter(Boolean))];
-    if (typesPresents.length > 0 && inseres && inseres.length > 0) {
+    if (aRelier.length > 0) {
       const { data: collectionsExistantes } = await supabase.from("collections").select("id, nom").eq("workspace_id", workspace.id);
-      const collectionParNom = {};
-      (collectionsExistantes || []).forEach((c) => { collectionParNom[c.nom.toLowerCase().trim()] = c.id; });
+      const collectionParCle = {};
+      (collectionsExistantes || []).forEach((c) => { collectionParCle[normaliserNomCollection(c.nom)] = c.id; });
 
       let ordreSuivant = (collectionsExistantes || []).length;
-      for (const type of typesPresents) {
-        const cle = type.toLowerCase().trim();
-        if (!collectionParNom[cle]) {
-          const { data: nouvelle } = await supabase.from("collections").insert([{ workspace_id: workspace.id, nom: type, ordre: ordreSuivant }]).select("id").single();
+      const tousNoms = [...new Set(aRelier.flatMap((p) => (p._collections?.length ? p._collections : [p._type])).filter(Boolean))];
+      for (const nomCollection of tousNoms) {
+        const cle = normaliserNomCollection(nomCollection);
+        if (!collectionParCle[cle]) {
+          const { data: nouvelle } = await supabase.from("collections").insert([{ workspace_id: workspace.id, nom: nomCollection, ordre: ordreSuivant }]).select("id").single();
           if (nouvelle) {
-            collectionParNom[cle] = nouvelle.id;
+            collectionParCle[cle] = nouvelle.id;
             ordreSuivant += 1;
             collectionsCreees += 1;
           }
         }
       }
 
-      const nomVersId = {};
-      inseres.forEach((p) => { nomVersId[p.nom.toLowerCase().trim()] = p.id; });
-
       const liaisons = [];
-      produitsAImporter.forEach((p) => {
-        if (!p._type) return;
-        const produitId = nomVersId[p.nom.toLowerCase().trim()];
-        const collectionId = collectionParNom[p._type.toLowerCase().trim()];
-        if (produitId && collectionId) liaisons.push({ collection_id: collectionId, produit_id: produitId });
+      aRelier.forEach((p) => {
+        const noms = p._collections?.length ? p._collections : [p._type];
+        noms.forEach((nom) => {
+          const collectionId = collectionParCle[normaliserNomCollection(nom)];
+          if (collectionId) liaisons.push({ collection_id: collectionId, produit_id: p.id });
+        });
       });
       if (liaisons.length > 0) {
         await supabase.from("collection_produits").upsert(liaisons, { onConflict: "collection_id,produit_id", ignoreDuplicates: true });
@@ -9770,21 +9801,6 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
 
 const boutonEditeurStyle = { background: "white", border: "1px solid #DDD8CC", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#16231F" };
 
-// Lit un fichier CSV ou Excel (.xlsx/.xls — ex: export Matrixify) et renvoie le
-// même format dans les deux cas : un tableau d'objets {EnTête: valeur}, comme
-// si c'était toujours un CSV. Tout le reste du code d'import (produits,
-// collections, pages) n'a donc rien à savoir du format d'origine du fichier.
-async function lireFichierTableur(fichier) {
-  const nom = (fichier.name || "").toLowerCase();
-  if (nom.endsWith(".xlsx") || nom.endsWith(".xls")) {
-    const tampon = await fichier.arrayBuffer();
-    const classeur = XLSX.read(tampon, { type: "array" });
-    const premiereFeuille = classeur.Sheets[classeur.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(premiereFeuille, { defval: "", raw: false });
-  }
-  return parserCSV(await fichier.text());
-}
-
 function parserCSV(texte) {
   const lignes = [];
   let ligne = [];
@@ -9815,10 +9831,18 @@ function parserCSV(texte) {
   });
 }
 
+// Fait correspondre un nom de collection quel que soit son format d'origine : titre Shopify
+// ("Chaussures Homme"), handle Matrixify ("chaussures-homme") ou variations d'espaces/casse —
+// pour que "Custom Collections: chaussures-homme" se rattache bien à la collection "Chaussures Homme".
+function normaliserNomCollection(s) {
+  return String(s || "").toLowerCase().trim().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+}
+
 function mapperColonnesShopify(lignesBrutes) {
   // Shopify exporte une ligne par variante ET une ligne par image supplémentaire,
   // toutes partageant le même "Handle". On regroupe donc d'abord par handle pour
-  // récupérer TOUTES les photos d'un même produit avant de dédupliquer.
+  // récupérer TOUTES les photos (et TOUTES les collections) d'un même produit avant
+  // de dédupliquer.
   const ordreHandles = [];
   const parHandle = {};
   for (const l of lignesBrutes) {
@@ -9826,6 +9850,15 @@ function mapperColonnesShopify(lignesBrutes) {
     const handle = l["Handle"] || nom;
     if (!handle) continue;
     const image = (l["Image Src"] || l["photo_url"] || l["Photo"] || l["image"] || "").trim();
+    // Colonne(s) "Collection" — présente dans les exports Matrixify ("Collection" à l'import,
+    // "Custom Collections" / "Smart Collections" à l'export) : liste, séparée par des virgules,
+    // de TOUTES les collections auxquelles appartient ce produit. C'est CETTE info — et non
+    // le "Type" Shopify, qui ne permet qu'une seule catégorie — qui reproduit exactement le
+    // rattachement fait sur la boutique d'origine, y compris à plusieurs collections à la fois.
+    const collectionsBrutes = (
+      l["Collection"] || l["Collections"] || l["Custom Collections"] || l["Custom Collection"] ||
+      l["Smart Collections"] || l["Smart Collection"] || l["Product Collections"] || l["collections"] || ""
+    ).trim();
     if (!parHandle[handle]) {
       if (!nom) continue; // une ligne "image supplémentaire" Shopify peut ne pas répéter le titre
       ordreHandles.push(handle);
@@ -9835,9 +9868,13 @@ function mapperColonnesShopify(lignesBrutes) {
         prix_vente: l["Variant Price"] || l["prix_vente"] || l["Prix"] || l["price"] || "",
         type: (l["Type"] || l["Product Type"] || l["type"] || "").trim(),
         images: [],
+        collections: new Set(),
       };
     }
     if (image && !parHandle[handle].images.includes(image)) parHandle[handle].images.push(image);
+    if (collectionsBrutes) {
+      collectionsBrutes.split(",").map((c) => c.trim()).filter(Boolean).forEach((c) => parHandle[handle].collections.add(c));
+    }
   }
   return ordreHandles.map((handle) => {
     const p = parHandle[handle];
@@ -9848,6 +9885,7 @@ function mapperColonnesShopify(lignesBrutes) {
       type: p.type,
       photo_url: p.images[0] || "",
       photos_galerie: p.images.slice(1),
+      collections: Array.from(p.collections),
     };
   });
 }
@@ -9886,15 +9924,16 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     setImportCollectionsEnCours(true);
     setResultatImportCollections(null);
     try {
-      const brut = await lireFichierTableur(fichier);
+      const texte = await fichier.text();
+      const brut = parserCSV(texte);
       const mappees = mapperColonnesCollectionsShopify(brut);
       if (mappees.length === 0) {
         setResultatImportCollections({ succes: false, message: "Aucune collection reconnue dans ce fichier." });
         setImportCollectionsEnCours(false);
         return;
       }
-      const existantesNoms = new Set((collections || []).map((c) => c.nom.toLowerCase().trim()));
-      const aCreer = mappees.filter((c) => !existantesNoms.has(c.nom.toLowerCase().trim()));
+      const existantesNoms = new Set((collections || []).map((c) => normaliserNomCollection(c.nom)));
+      const aCreer = mappees.filter((c) => !existantesNoms.has(normaliserNomCollection(c.nom)));
       let ordreSuivant = (collections || []).length;
       let creees = 0;
       let avecDetailsPerdus = false;
@@ -10078,9 +10117,9 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importCollectionsEnCours ? "default" : "pointer", marginBottom: 10 }}>
-              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel de collections Shopify"}
+              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV de collections Shopify"}
               <input
-                type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }}
+                type="file" accept=".csv" style={{ display: "none" }}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) importerCollectionsCSV(f); e.target.value = ""; }}
               />
             </label>
@@ -11425,7 +11464,8 @@ function PagesModal({ workspace, onClose }) {
     setImportEnCours(true);
     setResultatImport(null);
     try {
-      const brut = await lireFichierTableur(fichier);
+      const texte = await fichier.text();
+      const brut = parserCSV(texte);
       const mappees = mapperColonnesPagesShopify(brut);
       if (mappees.length === 0) {
         setResultatImport({ succes: false, message: "Aucune page reconnue dans ce fichier." });
@@ -11464,8 +11504,8 @@ function PagesModal({ workspace, onClose }) {
             </div>
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importEnCours ? "default" : "pointer", marginBottom: 10 }}>
-              {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel de pages Shopify"}
-              <input type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV de pages Shopify"}
+              <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
             </label>
             {resultatImport && (
               <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAEA", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#EFC2C2"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#B3261E", lineHeight: 1.5 }}>
@@ -12007,16 +12047,17 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
             )}
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, margin: 14, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer" }}>
-              {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel"}
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV"}
               <input
-                type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }}
+                type="file" accept=".csv" style={{ display: "none" }}
                 onChange={async (e) => {
                   const fichier = e.target.files?.[0];
                   if (!fichier) return;
                   setImportEnCours(true);
                   setResultatImport(null);
                   try {
-                    const brut = await lireFichierTableur(fichier);
+                    const texte = await fichier.text();
+                    const brut = parserCSV(texte);
                     const mappe = mapperColonnesShopify(brut);
                     if (mappe.length === 0) {
                       setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });

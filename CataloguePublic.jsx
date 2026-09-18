@@ -4922,15 +4922,21 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
           </div>
         )}
-        <div style={{ padding: "26px 20px 34px" }}>
-          <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
-          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
-          {config.buttonText && config.buttonText.trim() && (
-            <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleurSection, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
-              {config.buttonText}
-            </button>
-          )}
-        </div>
+        {(config.heroTitle?.trim() || config.heroSubtitle?.trim() || config.buttonText?.trim()) && (
+          <div style={{ padding: "26px 20px 34px" }}>
+            {config.heroTitle?.trim() && (
+              <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>
+            )}
+            {config.heroSubtitle?.trim() && (
+              <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>
+            )}
+            {config.buttonText?.trim() && (
+              <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleurSection, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+                {config.buttonText}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       );
     }

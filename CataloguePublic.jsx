@@ -2500,28 +2500,28 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
         .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
         @media (max-width: 420px) { .rv-shop-header-whatsapp-txt { display: none; } .rv-shop-header-nom { display: none; } }
-        .rv-shop-banner { height: 150px; }
-        .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .rv-shop-banner { height: 190px; }
+        .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
         .rv-shop-collection-scroll::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
         .rv-shop-collection-card { flex: 0 0 140px; min-width: 0; max-width: 140px; }
         @media (min-width: 640px) {
           .rv-shop-content { max-width: 720px; padding: 0 24px; }
-          .rv-shop-banner { height: 240px; }
-          .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .rv-shop-banner { height: 300px; }
+          .rv-shop-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; }
           .rv-shop-collection-scroll { display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; gap: 16px; }
           .rv-shop-collection-card { flex: none; width: auto; min-width: 0; max-width: none; }
         }
         @media (min-width: 960px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
-          .rv-shop-banner { height: 340px; }
-          .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+          .rv-shop-banner { height: 400px; }
+          .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
           .rv-shop-collection-scroll { grid-template-columns: repeat(4, 1fr); gap: 20px; }
         }
         @media (min-width: 1280px) {
           .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; }
-          .rv-shop-grid { grid-template-columns: repeat(5, 1fr); }
+          .rv-shop-grid { grid-template-columns: repeat(4, 1fr); }
           .rv-shop-collection-scroll { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
@@ -4709,7 +4709,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   const selectedProductIds = config.selectedProductIds || [];
   const selectedCollectionIds = config.selectedCollectionIds || [];
   const selectionnes = selectedProductIds.length ? produits.filter((p) => selectedProductIds.includes(p.produit_id)) : [];
-  const fallbackProduits = selectionnes.length ? selectionnes : produits.slice(0, 8);
+  const fallbackProduits = selectionnes.length ? selectionnes : produits.slice(0, 6);
   const bestsellersAffiches = meilleuresVentes.length ? meilleuresVentes : fallbackProduits.slice(0, 4);
 
   const derivedCollections = collectionsManuelles.length
@@ -5097,6 +5097,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     }
 
     if (type === "hero") {
+      const heroCollectionCover = (() => {
+        const candidates = derivedCollections.flatMap((c) => produitsDeCollection(c)).filter((p) => p?.photo_url);
+        if (candidates[0]?.photo_url) return candidates[0].photo_url;
+        return produits.find((p) => p?.photo_url)?.photo_url || "";
+      })();
       if (entreprise.slug === "azaliexpress") {
         const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);
         if (collectionsAvecProduits.length === 0) return null;
@@ -5124,8 +5129,26 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
       <div style={{ textAlign: "center" }}>
         <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(260px,75vw,480px)}}`}</style>
-        {entreprise.banniere ? (
-          <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
+        {(entreprise.banniere || heroCollectionCover) ? (
+          <div style={{ position: "relative", overflow: "hidden", background: couleurSection }}>
+            <img
+              src={entreprise.banniere || heroCollectionCover}
+              alt=""
+              className="rv-hero-couverture"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(7,20,13,.72) 0%, rgba(7,20,13,.28) 55%, rgba(7,20,13,.08) 100%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "clamp(24px,5vw,64px)", textAlign: "left", color: "#fff" }}>
+              <div style={{ maxWidth: 680 }}>
+                <div style={{ fontSize: "clamp(10px,1.4vw,13px)", fontWeight: 900, letterSpacing: ".12em", textTransform: "uppercase", opacity: .9, marginBottom: 9 }}>
+                  {entreprise.banniere ? "À découvrir" : "Notre sélection"}
+                </div>
+                <div style={{ fontSize: "clamp(28px,5vw,58px)", fontWeight: 950, lineHeight: 1.02, textShadow: "0 3px 18px rgba(0,0,0,.22)" }}>
+                  {config.heroTitle}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleurSection},#0b2416)`, color: "#fff" }}>
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
@@ -5186,7 +5209,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "bestsellers" || type === "products") {
       const liste = type === "bestsellers" ? bestsellersAffiches : produitsFiltres;
-      const max = type === "products" ? NOMBRE_MAX_ACCUEIL : 8;
+      const max = type === "products" ? Math.min(Number(NOMBRE_MAX_ACCUEIL) || 20, 8) : 4;
       const troncature = liste.length > max;
       return (
         <div id={type === "products" ? "rv-shop-produits" : undefined} style={commonPad}>
@@ -5351,17 +5374,17 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         .rv-builder-grid-bundles { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .rv-builder-grid-galerie { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
         @media (min-width: 640px) {
-          .rv-builder-grid-produits { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .rv-builder-grid-produits { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
           .rv-builder-grid-bundles { grid-template-columns: repeat(2, 1fr); }
           .rv-builder-grid-galerie { grid-template-columns: repeat(3, 1fr); }
         }
         @media (min-width: 960px) {
-          .rv-builder-grid-produits { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+          .rv-builder-grid-produits { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
           .rv-builder-grid-bundles { grid-template-columns: repeat(3, 1fr); }
           .rv-builder-grid-galerie { grid-template-columns: repeat(4, 1fr); }
         }
         @media (min-width: 1280px) {
-          .rv-builder-grid-produits { grid-template-columns: repeat(5, 1fr); }
+          .rv-builder-grid-produits { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
         }
       `}</style>
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} onOuvrirPagePerso={setPagePersoOuverte} />

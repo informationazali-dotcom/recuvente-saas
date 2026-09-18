@@ -5086,7 +5086,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       }
       return (
       <div style={{ textAlign: "center" }}>
-        <style>{`.rv-hero-couverture{width:100%;height:clamp(260px,26vw,420px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(180px,52vw,260px)}}`}</style>
+        <style>{`.rv-hero-couverture{width:100%;height:clamp(320px,42vw,700px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(220px,65vw,420px)}}`}</style>
         {entreprise.banniere ? (
           <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
         ) : (

@@ -3681,6 +3681,19 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadProduits();
   }
 
+  async function deleteProduitsMultiples(ids) {
+    if (!ids || ids.length === 0) return { succes: false, message: "Aucun produit sélectionné." };
+    const nomsConcernes = produits.filter((p) => ids.includes(p.id)).map((p) => p.nom);
+    const { error } = await supabase.from("produits").delete().in("id", ids);
+    if (error) return { succes: false, message: "Erreur : " + error.message };
+    await enregistrerAudit(
+      "Suppression groupée de produits",
+      `${nomsConcernes.length} produit(s) : ${nomsConcernes.slice(0, 10).join(", ")}${nomsConcernes.length > 10 ? "…" : ""}`
+    );
+    await loadProduits();
+    return { succes: true, supprimes: nomsConcernes.length };
+  }
+
   async function addLivreur(form) {
     const { error } = await supabase.from("livreurs").insert([{ ...form, workspace_id: workspace.id }]);
     if (error) alert("Erreur: " + error.message);
@@ -6171,7 +6184,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
@@ -11562,7 +11575,7 @@ function PagesModal({ workspace, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
   const [nouveauNom, setNouveauNom] = useState("");
@@ -11597,6 +11610,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [confirmSuppr, setConfirmSuppr] = useState(null);
+  const [modeSelection, setModeSelection] = useState(false);
+  const [produitsSelectionnes, setProduitsSelectionnes] = useState(new Set());
+  const [confirmSupprMultiple, setConfirmSupprMultiple] = useState(false);
+  const [suppressionMultipleEnCours, setSuppressionMultipleEnCours] = useState(false);
   const [creationEnCours, setCreationEnCours] = useState(false);
   const [creationErreur, setCreationErreur] = useState("");
   const [derniereCreation, setDerniereCreation] = useState("");
@@ -11648,6 +11665,44 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   function flash(nom) {
     setSavedFlash(nom);
     setTimeout(() => setSavedFlash((f) => (f === nom ? null : f)), 1600);
+  }
+
+  function basculerSelectionProduit(id) {
+    setProduitsSelectionnes((prev) => {
+      const suivant = new Set(prev);
+      if (suivant.has(id)) suivant.delete(id);
+      else suivant.add(id);
+      return suivant;
+    });
+  }
+
+  function toutSelectionner() {
+    if (produitsSelectionnes.size === produitsFiltres.length) {
+      setProduitsSelectionnes(new Set());
+    } else {
+      setProduitsSelectionnes(new Set(produitsFiltres.map((p) => p.id)));
+    }
+  }
+
+  function quitterModeSelection() {
+    setModeSelection(false);
+    setProduitsSelectionnes(new Set());
+    setConfirmSupprMultiple(false);
+  }
+
+  async function confirmerSuppressionMultiple() {
+    if (!onBulkDelete || produitsSelectionnes.size === 0) return;
+    setSuppressionMultipleEnCours(true);
+    const idsASupprimer = Array.from(produitsSelectionnes);
+    const resultat = await onBulkDelete(idsASupprimer);
+    setSuppressionMultipleEnCours(false);
+    setConfirmSupprMultiple(false);
+    if (resultat?.succes) {
+      if (idsASupprimer.includes(selectedId)) setSelectedId(null);
+      quitterModeSelection();
+    } else {
+      alert(resultat?.message || "Erreur lors de la suppression groupée.");
+    }
   }
 
   function regenererVariantes() {
@@ -11903,7 +11958,57 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               />
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => setAjoutOuvert((v) => !v)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>＋ Nouveau produit</button>
+                {produits.length > 0 && onBulkDelete && (
+                  <button
+                    onClick={() => (modeSelection ? quitterModeSelection() : setModeSelection(true))}
+                    style={{ background: modeSelection ? "#16231F" : "#fff", color: modeSelection ? "white" : "#16231F", border: "1px solid #DDD8CC", borderRadius: 8, padding: "9px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {modeSelection ? "✕ Annuler" : "☑️ Sélectionner"}
+                  </button>
+                )}
               </div>
+
+              {modeSelection && (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#16231F", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={produitsFiltres.length > 0 && produitsSelectionnes.size === produitsFiltres.length}
+                      onChange={toutSelectionner}
+                    />
+                    Tout sélectionner {recherche.trim() ? `(${produitsFiltres.length} résultat${produitsFiltres.length > 1 ? "s" : ""})` : `(${produitsFiltres.length})`}
+                  </label>
+
+                  {produitsSelectionnes.size > 0 && (
+                    confirmSupprMultiple ? (
+                      <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 8, padding: 10, fontSize: 12, color: "#B3261E" }}>
+                        <div style={{ marginBottom: 8, fontWeight: 600 }}>
+                          Supprimer définitivement {produitsSelectionnes.size} produit{produitsSelectionnes.size > 1 ? "s" : ""} ? Cette action est irréversible.
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            onClick={confirmerSuppressionMultiple}
+                            disabled={suppressionMultipleEnCours}
+                            style={{ background: "#D64933", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: suppressionMultipleEnCours ? "default" : "pointer" }}
+                          >
+                            {suppressionMultipleEnCours ? "Suppression..." : "Confirmer"}
+                          </button>
+                          <button onClick={() => setConfirmSupprMultiple(false)} disabled={suppressionMultipleEnCours} style={{ background: "#fff", border: "1px solid #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmSupprMultiple(true)}
+                        style={{ background: "none", border: "1px solid #F0B8AC", color: "#D64933", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                      >
+                        🗑️ Supprimer la sélection ({produitsSelectionnes.size})
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
             </div>
 
             {ajoutOuvert && (
@@ -12118,16 +12223,27 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                 const st = Number(p.stock_initial || 0);
                 const rest = st - qp.commandees;
                 const actif = p.id === selectedId;
+                const coche = produitsSelectionnes.has(p.id);
                 return (
                   <button
                     key={p.id}
-                    onClick={() => setSelectedId(p.id)}
+                    onClick={() => (modeSelection ? basculerSelectionProduit(p.id) : setSelectedId(p.id))}
                     style={{
                       display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
-                      background: actif ? "#EAF3DE" : "transparent", border: actif ? "1px solid #C7DDA3" : "1px solid transparent",
+                      background: modeSelection ? (coche ? "#EAF3DE" : "transparent") : (actif ? "#EAF3DE" : "transparent"),
+                      border: modeSelection ? (coche ? "1px solid #C7DDA3" : "1px solid transparent") : (actif ? "1px solid #C7DDA3" : "1px solid transparent"),
                       borderRadius: 9, padding: 9, cursor: "pointer", marginBottom: 4,
                     }}
                   >
+                    {modeSelection && (
+                      <input
+                        type="checkbox"
+                        checked={coche}
+                        onChange={() => basculerSelectionProduit(p.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ flexShrink: 0, width: 16, height: 16 }}
+                      />
+                    )}
                     {p.photo_url ? (
                       <img src={p.photo_url} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: "cover", flexShrink: 0 }} />
                     ) : (

@@ -5417,4 +5417,4 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} />
     </div>
   );
-}
+} 

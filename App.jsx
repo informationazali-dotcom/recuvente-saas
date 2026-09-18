@@ -2734,6 +2734,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   })();return()=>{alive=false}},[workspace?.id,collections,produits]);
   const products=useMemo(()=>produits.map((p,i)=>({id:p.id||`p-${i}`,name:p.nom||p.name||p.titre||p.title||`Produit ${i+1}`,price:Number(p.prix_vente??p.prix??p.price??p.montant??0),image:p.image_url||p.image||p.photo||p.photo_url||'',category:p.collection||p.categorie||p.category||'Collection',description:p.description||p.desc||'Découvrez ce produit.'})),[produits]);
   const derivedCollections=useMemo(()=>collections.length?collections:[...new Map(products.map(p=>[p.category,{id:`derived-${p.category}`,nom:p.category,count:products.filter(x=>x.category===p.category).length}])).values()],[collections,products]);
+  const pagesDisponibles=Array.isArray(workspace?.pages_personnalisees)?workspace.pages_personnalisees:[];
   const selectedProducts=useMemo(()=>products.filter(p=>config.selectedProductIds?.includes(p.id)),[products,config.selectedProductIds]);
   const fallbackProducts=selectedProducts.length?selectedProducts:products.slice(0,8);
   const bestsellers=fallbackProducts.slice(0,4);
@@ -2791,7 +2792,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   function ajouterColonneFooter(){setConfig(c=>({...c,footerColonnes:[...(c.footerColonnes||[]),{id:'fc'+Date.now(),titre:'Nouvelle colonne',liens:[]}]}))}
   function supprimerColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).filter(col=>col.id!==id)}))}
   function renommerColonneFooter(id,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,titre:val}:col)}))}
-  function ajouterLienColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:[...(col.liens||[]),{label:'Nouveau lien',href:'#'}]}:col)}))}
+  function ajouterLienColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:[...(col.liens||[]),{label:'Nouveau lien',href:'https://'}]}:col)}))}
   function modifierLienColonneFooter(id,idx,champ,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.map((l,j)=>j===idx?{...l,[champ]:val}:l)}:col)}))}
   function supprimerLienColonneFooter(id,idx){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.filter((_,j)=>j!==idx)}:col)}))}
   function ajouterPaiementFooter(){setConfig(c=>({...c,footerPaiements:[...(c.footerPaiements||[]),'Nouveau moyen']}))}
@@ -2977,13 +2978,24 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Liens du menu de navigation</div>
       <div style={{display:'grid',gap:6,marginBottom:8}}>{(config.headerLinks||[]).map((l,i)=>{
         const optionsCibles=[{v:'#',l:'Accueil (haut de page)'},{v:'#produits',l:'Produits'},{v:'#promo',l:'Promotions'},{v:'#bundles',l:'Bundles / Packs'},{v:'#avis',l:'Avis clients'},{v:'#faq',l:'Questions fréquentes'},{v:'#livraison',l:'Livraison'},{v:'#whatsapp',l:'WhatsApp'},{v:'#contact',l:'Contact'}];
-        const estExterne=l.href&&!l.href.startsWith('#');
+        const href=l.href||'#';
+        const estPage=href.startsWith('?page=');
+        const estCollection=href.startsWith('?collection=');
+        const estProduit=href.startsWith('?produit=');
+        const estExterne=href&&!href.startsWith('#')&&!estPage&&!estCollection&&!estProduit;
+        const modeActuel=estPage?'page':estCollection?'collection':estProduit?'produit':estExterne?'externe':href;
         return <div key={l.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:8,display:'grid',gap:6}}>
           <div style={{display:'flex',gap:6}}><input placeholder="Libellé (ex: Nos produits)" value={l.label} onChange={e=>modifierLienHeader(l.id,'label',e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>deplacerLienHeader(i,-1)} disabled={i===0} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={()=>deplacerLienHeader(i,1)} disabled={i===(config.headerLinks||[]).length-1} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={()=>supprimerLienHeader(l.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>
-          <select value={estExterne?'externe':(l.href||'#')} onChange={e=>modifierLienHeader(l.id,'href',e.target.value==='externe'?'https://':e.target.value)} style={{...fieldStyle,background:'#fff'}}>
+          <select value={modeActuel} onChange={e=>{const v=e.target.value;if(v==='externe')modifierLienHeader(l.id,'href','https://');else if(v==='page'){const p=pagesDisponibles[0];modifierLienHeader(l.id,'href',p?`?page=${p.slug}`:'?page=');if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.titre);}else if(v==='collection'){const c=derivedCollections[0];modifierLienHeader(l.id,'href',c?`?collection=${c.id}`:'?collection=');if(c&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',c.nom||c.name);}else if(v==='produit'){const p=products[0];modifierLienHeader(l.id,'href',p?`?produit=${p.id}`:'?produit=');if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.name);}else modifierLienHeader(l.id,'href',v);}} style={{...fieldStyle,background:'#fff'}}>
             {optionsCibles.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+            <option value="page">📄 Une page</option>
+            <option value="collection">📁 Une collection</option>
+            <option value="produit">🛍️ Un produit précis</option>
             <option value="externe">🔗 Lien externe (autre site)</option>
           </select>
+          {estPage&&(pagesDisponibles.length?<select value={href.replace('?page=','')} onChange={e=>{const p=pagesDisponibles.find(x=>x.slug===e.target.value);modifierLienHeader(l.id,'href',`?page=${e.target.value}`);if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.titre);}} style={fieldStyle}>{pagesDisponibles.map(p=><option key={p.slug} value={p.slug}>{p.titre}</option>)}</select>:<div style={{fontSize:10.5,color:'#bd4b38'}}>Aucune page créée — vas dans "Pages" pour en ajouter.</div>)}
+          {estCollection&&(derivedCollections.length?<select value={href.replace('?collection=','')} onChange={e=>{const c=derivedCollections.find(x=>x.id===e.target.value);modifierLienHeader(l.id,'href',`?collection=${e.target.value}`);if(c&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',c.nom||c.name);}} style={fieldStyle}>{derivedCollections.map(c=><option key={c.id} value={c.id}>{c.nom||c.name}</option>)}</select>:<div style={{fontSize:10.5,color:'#bd4b38'}}>Aucune collection créée.</div>)}
+          {estProduit&&(products.length?<select value={href.replace('?produit=','')} onChange={e=>{const p=products.find(x=>x.id===e.target.value);modifierLienHeader(l.id,'href',`?produit=${e.target.value}`);if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.name);}} style={fieldStyle}>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>:<div style={{fontSize:10.5,color:'#bd4b38'}}>Aucun produit disponible.</div>)}
           {estExterne&&<input placeholder="https://..." value={l.href} onChange={e=>modifierLienHeader(l.id,'href',e.target.value)} style={fieldStyle}/>}
         </div>;
       })}</div>
@@ -3000,7 +3012,27 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Colonnes de liens</div>
       <div style={{display:'grid',gap:8,marginBottom:8}}>{(config.footerColonnes||[]).map(col=><div key={col.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:9}}>
         <div style={{display:'flex',gap:6,marginBottom:7}}><input value={col.titre} onChange={e=>renommerColonneFooter(col.id,e.target.value)} style={{...fieldStyle,flex:1,fontWeight:800}}/><button onClick={()=>supprimerColonneFooter(col.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>× colonne</button></div>
-        <div style={{display:'grid',gap:5}}>{(col.liens||[]).map((l,idx)=><div key={idx} style={{display:'flex',gap:5}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienColonneFooter(col.id,idx,'label',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><input placeholder="Lien" value={l.href} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><button onClick={()=>supprimerLienColonneFooter(col.id,idx)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}</div>
+        <div style={{display:'grid',gap:5}}>{(col.liens||[]).map((l,idx)=>{
+          const href=l.href||'#';
+          const estPage=href.startsWith('?page=');
+          const estCollection=href.startsWith('?collection=');
+          const estProduit=href.startsWith('?produit=');
+          const estExterne=href&&!estPage&&!estCollection&&!estProduit;
+          const modeActuel=estPage?'page':estCollection?'collection':estProduit?'produit':'externe';
+          return <div key={idx} style={{border:'1px solid #eef1ee',borderRadius:7,padding:6,display:'grid',gap:5}}>
+            <div style={{display:'flex',gap:5}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienColonneFooter(col.id,idx,'label',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><button onClick={()=>supprimerLienColonneFooter(col.id,idx)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>
+            <select value={modeActuel} onChange={e=>{const v=e.target.value;if(v==='page')modifierLienColonneFooter(col.id,idx,'href',pagesDisponibles[0]?`?page=${pagesDisponibles[0].slug}`:'?page=');else if(v==='collection')modifierLienColonneFooter(col.id,idx,'href',derivedCollections[0]?`?collection=${derivedCollections[0].id}`:'?collection=');else if(v==='produit')modifierLienColonneFooter(col.id,idx,'href',products[0]?`?produit=${products[0].id}`:'?produit=');else modifierLienColonneFooter(col.id,idx,'href','https://');}} style={{...fieldStyle,fontSize:11,background:'#fff'}}>
+              <option value="page">📄 Une page</option>
+              <option value="collection">📁 Une collection</option>
+              <option value="produit">🛍️ Un produit précis</option>
+              <option value="externe">🔗 Lien externe</option>
+            </select>
+            {estPage&&(pagesDisponibles.length?<select value={href.replace('?page=','')} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',`?page=${e.target.value}`)} style={{...fieldStyle,fontSize:11}}>{pagesDisponibles.map(p=><option key={p.slug} value={p.slug}>{p.titre}</option>)}</select>:<div style={{fontSize:10,color:'#bd4b38'}}>Aucune page créée.</div>)}
+            {estCollection&&(derivedCollections.length?<select value={href.replace('?collection=','')} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',`?collection=${e.target.value}`)} style={{...fieldStyle,fontSize:11}}>{derivedCollections.map(c=><option key={c.id} value={c.id}>{c.nom||c.name}</option>)}</select>:<div style={{fontSize:10,color:'#bd4b38'}}>Aucune collection créée.</div>)}
+            {estProduit&&(products.length?<select value={href.replace('?produit=','')} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',`?produit=${e.target.value}`)} style={{...fieldStyle,fontSize:11}}>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>:<div style={{fontSize:10,color:'#bd4b38'}}>Aucun produit disponible.</div>)}
+            {estExterne&&<input placeholder="https://..." value={l.href} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',e.target.value)} style={{...fieldStyle,fontSize:11}}/>}
+          </div>;
+        })}</div>
         <button onClick={()=>ajouterLienColonneFooter(col.id)} style={{marginTop:6,width:'100%',border:'1px dashed #cdd8d0',background:'#fafcfa',borderRadius:7,padding:6,fontSize:10,fontWeight:800,color:'#1a7a3c',cursor:'pointer'}}>＋ Lien</button>
       </div>)}</div>
       <button onClick={ajouterColonneFooter} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:14}}>＋ Ajouter une colonne</button>

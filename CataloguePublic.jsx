@@ -1945,7 +1945,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       >
                         <div style={{ width: "100%", paddingTop: "100%", position: "relative", background: "#EEF0EA" }}>
                           {p.photo_url ? (
-                            <img src={p.photo_url} alt={p.produit_nom} loading="lazy" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+                            <img src={p.photo_url} alt={p.produit_nom} loading="lazy" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain" }} onError={(e) => { e.target.style.display = "none"; }} />
                           ) : (
                             <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📦</div>
                           )}
@@ -2521,7 +2521,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       ) : (
       <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
         {entreprise.banniere ? (
-          <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
+          <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
           <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
         )}
@@ -3879,7 +3879,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
             src={p.photo_url}
             alt={p.produit_nom}
             loading="lazy"
-            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
             onError={(e) => { e.target.style.display = "none"; }}
           />
         ) : (
@@ -5086,9 +5086,11 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       }
       return (
       <div style={{ textAlign: "center" }}>
-        <style>{`.rv-hero-couverture{width:100%;height:220px;object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:155px}}`}</style>
+        <style>{`.rv-hero-couverture-fond{width:100%;height:260px;background:linear-gradient(135deg,${couleurSection},#0b2416);display:flex;align-items:center;justify-content:center;overflow:hidden} .rv-hero-couverture{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block} @media(max-width:640px){.rv-hero-couverture-fond{height:190px}}`}</style>
         {entreprise.banniere ? (
-          <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
+          <div className="rv-hero-couverture-fond">
+            <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.parentElement.style.display = "none"; }} />
+          </div>
         ) : (
           <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleurSection},#0b2416)`, color: "#fff" }}>
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>

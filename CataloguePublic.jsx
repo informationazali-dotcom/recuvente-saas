@@ -5086,11 +5086,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       }
       return (
       <div style={{ textAlign: "center" }}>
-        <style>{`.rv-hero-couverture-fond{width:100%;height:260px;background:linear-gradient(135deg,${couleurSection},#0b2416);display:flex;align-items:center;justify-content:center;overflow:hidden} .rv-hero-couverture{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block} @media(max-width:640px){.rv-hero-couverture-fond{height:190px}}`}</style>
+        <style>{`.rv-hero-couverture{width:100%;height:220px;object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:155px}}`}</style>
         {entreprise.banniere ? (
-          <div className="rv-hero-couverture-fond">
-            <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.parentElement.style.display = "none"; }} />
-          </div>
+          <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
           <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleurSection},#0b2416)`, color: "#fff" }}>
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>

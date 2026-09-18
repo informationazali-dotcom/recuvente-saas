@@ -4185,7 +4185,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
           )}
         </div>
 
-        {(aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0) && onNaviguerVersCollection && (
+        {footerConfig?.boutiqueVisible !== false && (aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0) && onNaviguerVersCollection && (
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("boutique")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -5376,7 +5376,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         </div>
       )}
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop }} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop, boutiqueVisible: config.footerBoutiqueVisible }} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>

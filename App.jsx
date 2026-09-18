@@ -12,6 +12,7 @@ import CreerCompteFilleulPublic from "./CreerCompteFilleulPublic.jsx";
 import SchoolAdmin from "./network/SchoolAdmin.jsx";
 import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
+import * as XLSX from "xlsx";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -9838,6 +9839,32 @@ function normaliserNomCollection(s) {
   return String(s || "").toLowerCase().trim().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
 }
 
+// Matrixify exporte par défaut en .xlsx (Excel), pas en .csv — cette fonction lit les deux
+// indifféremment (selon l'extension du fichier choisi) et renvoie toujours le même format :
+// un tableau de lignes, chaque ligne étant un objet { "Nom de colonne": "valeur" }, comme le
+// produirait un CSV. Tout le reste du code (mapperColonnesShopify, etc.) n'a pas à savoir
+// d'où vient le fichier.
+async function lireFichierTabulaire(fichier) {
+  const nom = (fichier.name || "").toLowerCase();
+  if (nom.endsWith(".xlsx") || nom.endsWith(".xls")) {
+    const donnees = await fichier.arrayBuffer();
+    const classeur = XLSX.read(donnees, { type: "array" });
+    const premiereFeuille = classeur.Sheets[classeur.SheetNames[0]];
+    // defval: "" évite les "undefined" sur les cellules vides ; raw: false renvoie du texte
+    // formaté (ex: "12500" plutôt qu'un Number JS) pour rester cohérent avec le parsing CSV.
+    const lignes = XLSX.utils.sheet_to_json(premiereFeuille, { defval: "", raw: false });
+    // sheet_to_json garde les en-têtes/valeurs tels quels (espaces compris) — on les nettoie
+    // pour que "Title " (avec un espace) matche bien la clé "Title" attendue par le mapping.
+    return lignes.map((ligne) => {
+      const propre = {};
+      Object.entries(ligne).forEach(([cle, valeur]) => { propre[cle.trim()] = typeof valeur === "string" ? valeur.trim() : valeur; });
+      return propre;
+    });
+  }
+  const texte = await fichier.text();
+  return parserCSV(texte);
+}
+
 function mapperColonnesShopify(lignesBrutes) {
   // Shopify exporte une ligne par variante ET une ligne par image supplémentaire,
   // toutes partageant le même "Handle". On regroupe donc d'abord par handle pour
@@ -9924,8 +9951,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     setImportCollectionsEnCours(true);
     setResultatImportCollections(null);
     try {
-      const texte = await fichier.text();
-      const brut = parserCSV(texte);
+      const brut = await lireFichierTabulaire(fichier);
       const mappees = mapperColonnesCollectionsShopify(brut);
       if (mappees.length === 0) {
         setResultatImportCollections({ succes: false, message: "Aucune collection reconnue dans ce fichier." });
@@ -10117,9 +10143,9 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importCollectionsEnCours ? "default" : "pointer", marginBottom: 10 }}>
-              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV de collections Shopify"}
+              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel de collections"}
               <input
-                type="file" accept=".csv" style={{ display: "none" }}
+                type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) importerCollectionsCSV(f); e.target.value = ""; }}
               />
             </label>
@@ -11464,8 +11490,7 @@ function PagesModal({ workspace, onClose }) {
     setImportEnCours(true);
     setResultatImport(null);
     try {
-      const texte = await fichier.text();
-      const brut = parserCSV(texte);
+      const brut = await lireFichierTabulaire(fichier);
       const mappees = mapperColonnesPagesShopify(brut);
       if (mappees.length === 0) {
         setResultatImport({ succes: false, message: "Aucune page reconnue dans ce fichier." });
@@ -11504,8 +11529,8 @@ function PagesModal({ workspace, onClose }) {
             </div>
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importEnCours ? "default" : "pointer", marginBottom: 10 }}>
-              {importEnCours ? "Import en cours..." : "📥 Importer un CSV de pages Shopify"}
-              <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel de pages"}
+              <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
             </label>
             {resultatImport && (
               <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAEA", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#EFC2C2"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#B3261E", lineHeight: 1.5 }}>
@@ -12047,17 +12072,16 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
             )}
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, margin: 14, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer" }}>
-              {importEnCours ? "Import en cours..." : "📥 Importer un CSV"}
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel"}
               <input
-                type="file" accept=".csv" style={{ display: "none" }}
+                type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }}
                 onChange={async (e) => {
                   const fichier = e.target.files?.[0];
                   if (!fichier) return;
                   setImportEnCours(true);
                   setResultatImport(null);
                   try {
-                    const texte = await fichier.text();
-                    const brut = parserCSV(texte);
+                    const brut = await lireFichierTabulaire(fichier);
                     const mappe = mapperColonnesShopify(brut);
                     if (mappe.length === 0) {
                       setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });

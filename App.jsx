@@ -12,6 +12,7 @@ import CreerCompteFilleulPublic from "./CreerCompteFilleulPublic.jsx";
 import SchoolAdmin from "./network/SchoolAdmin.jsx";
 import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
+import * as XLSX from "xlsx";
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -2715,8 +2716,25 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   const [publishedSnapshot,setPublishedSnapshot]=useState(()=>workspace?.store_config_published||null);
   const [collections,setCollections]=useState([]);
   useEffect(()=>{let alive=true;(async()=>{if(!workspace?.id)return;const {data}=await supabase.from('collections').select('*').eq('workspace_id',workspace.id).order('ordre',{ascending:true});if(alive)setCollections(data||[]);})();return()=>{alive=false}},[workspace?.id]);
+  const [collectionProduitsMap,setCollectionProduitsMap]=useState({});
+  useEffect(()=>{let alive=true;(async()=>{
+    if(!workspace?.id||collections.length===0){setCollectionProduitsMap({});return;}
+    const idsCollections=collections.map(c=>c.id);
+    const {data}=await supabase.from('collection_produits').select('collection_id, produit_id').in('collection_id',idsCollections);
+    if(!alive||!data)return;
+    const produitParId={};produits.forEach(p=>{if(p.id)produitParId[p.id]=p;});
+    const carte={};
+    data.forEach(l=>{
+      const p=produitParId[l.produit_id];
+      if(!p)return;
+      if(!carte[l.collection_id])carte[l.collection_id]=[];
+      carte[l.collection_id].push({id:p.id,nom:p.nom||p.name,photo_url:p.photo_url||p.image_url||p.image,prix_vente:p.prix_vente});
+    });
+    setCollectionProduitsMap(carte);
+  })();return()=>{alive=false}},[workspace?.id,collections,produits]);
   const products=useMemo(()=>produits.map((p,i)=>({id:p.id||`p-${i}`,name:p.nom||p.name||p.titre||p.title||`Produit ${i+1}`,price:Number(p.prix_vente??p.prix??p.price??p.montant??0),image:p.image_url||p.image||p.photo||p.photo_url||'',category:p.collection||p.categorie||p.category||'Collection',description:p.description||p.desc||'Découvrez ce produit.'})),[produits]);
   const derivedCollections=useMemo(()=>collections.length?collections:[...new Map(products.map(p=>[p.category,{id:`derived-${p.category}`,nom:p.category,count:products.filter(x=>x.category===p.category).length}])).values()],[collections,products]);
+  const pagesDisponibles=Array.isArray(workspace?.pages_personnalisees)?workspace.pages_personnalisees:[];
   const selectedProducts=useMemo(()=>products.filter(p=>config.selectedProductIds?.includes(p.id)),[products,config.selectedProductIds]);
   const fallbackProducts=selectedProducts.length?selectedProducts:products.slice(0,8);
   const bestsellers=fallbackProducts.slice(0,4);
@@ -2774,7 +2792,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   function ajouterColonneFooter(){setConfig(c=>({...c,footerColonnes:[...(c.footerColonnes||[]),{id:'fc'+Date.now(),titre:'Nouvelle colonne',liens:[]}]}))}
   function supprimerColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).filter(col=>col.id!==id)}))}
   function renommerColonneFooter(id,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,titre:val}:col)}))}
-  function ajouterLienColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:[...(col.liens||[]),{label:'Nouveau lien',href:'#'}]}:col)}))}
+  function ajouterLienColonneFooter(id){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:[...(col.liens||[]),{label:'Nouveau lien',href:'https://'}]}:col)}))}
   function modifierLienColonneFooter(id,idx,champ,val){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.map((l,j)=>j===idx?{...l,[champ]:val}:l)}:col)}))}
   function supprimerLienColonneFooter(id,idx){setConfig(c=>({...c,footerColonnes:(c.footerColonnes||[]).map(col=>col.id===id?{...col,liens:col.liens.filter((_,j)=>j!==idx)}:col)}))}
   function ajouterPaiementFooter(){setConfig(c=>({...c,footerPaiements:[...(c.footerPaiements||[]),'Nouveau moyen']}))}
@@ -2818,19 +2836,37 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     let typeFinal=type;
     setConfig(c=>{
       let nouveauType=type;
-      if(type==='image_texte'){
-        // Chaque "Image + Texte" ajoutée doit avoir ses propres champs, pas partager
-        // ceux de la première — on lui donne un identifiant distinct (_2, _3, ...).
-        const existants=c.sections.filter(s=>baseSectionType(s)==='image_texte').length;
-        if(existants>0) nouveauType=`image_texte_${existants+1}`;
+      // Toute section dont les réglages sont propres à chaque instance (titre, produit ou
+      // collection choisis...) doit recevoir un identifiant distinct (_2, _3...) dès qu'on
+      // en ajoute une deuxième — sinon les deux partagent littéralement les mêmes réglages.
+      const typesDuplicablesAvecSuffixe=['image_texte','featured_collection','featured_product'];
+      if(typesDuplicablesAvecSuffixe.includes(type)){
+        const existants=c.sections.filter(s=>baseSectionType(s)===type).length;
+        if(existants>0) nouveauType=`${type}_${existants+1}`;
       }
       typeFinal=nouveauType;
-      const patch=nouveauType!==type?{
-        [`imageTexteTitre${suffixeSection(nouveauType)}`]:'Pourquoi nous choisir',
-        [`imageTexteTexte${suffixeSection(nouveauType)}`]:'Raconte ici ce qui rend ta boutique unique — ton histoire, ton savoir-faire, ou ce qui compte pour tes clients.',
-        [`imageTexteImage${suffixeSection(nouveauType)}`]:'',
-        [`imageTextePosition${suffixeSection(nouveauType)}`]:'gauche',
-      }:{};
+      const suf=suffixeSection(nouveauType);
+      let patch={};
+      if(nouveauType!==type&&type==='image_texte'){
+        patch={
+          [`imageTexteTitre${suf}`]:'Pourquoi nous choisir',
+          [`imageTexteTexte${suf}`]:'Raconte ici ce qui rend ta boutique unique — ton histoire, ton savoir-faire, ou ce qui compte pour tes clients.',
+          [`imageTexteImage${suf}`]:'',
+          [`imageTextePosition${suf}`]:'gauche',
+        };
+      }else if(nouveauType!==type&&type==='featured_collection'){
+        patch={
+          [`featuredCollectionId${suf}`]:'',
+          [`featuredCollectionTitre${suf}`]:'',
+          [`featuredCollectionTexte${suf}`]:'Découvre notre sélection complète dans cette collection.',
+        };
+      }else if(nouveauType!==type&&type==='featured_product'){
+        patch={
+          [`featuredProductId${suf}`]:'',
+          [`featuredProductLabel${suf}`]:'Notre coup de cœur',
+          [`featuredProductPosition${suf}`]:'gauche',
+        };
+      }
       return {...c,...patch,sections:[...c.sections,nouveauType]};
     });
     setTimeout(()=>setSelected(typeFinal),0);
@@ -2881,14 +2917,14 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     const coul=config.sectionColors?.[type]||config.couleur;
     const common={padding:'28px 22px',borderBottom:'1px solid #edf1ee'};
     if(type==='announcement')return <div style={{...common,padding:'9px 14px',background:coul,color:'#fff',fontSize:10.5,fontWeight:800,textAlign:'center'}}>{config.announcement}</div>;
-    if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${coul},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div><div style={{padding:'22px 20px 28px'}}><div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div>{config.buttonText&&config.buttonText.trim()&&<button style={{border:0,borderRadius:10,padding:'12px 19px',background:coul,color:'#fff',fontWeight:900}}>{config.buttonText}</button>}</div></div>;
+    if(type==='hero')return <div style={{...common,padding:0,textAlign:'center'}}><div style={{position:'relative'}}>{config.banniere?<img src={config.banniere} alt="Couverture" style={{width:'100%',height:device==='mobile'?155:220,objectFit:'cover',display:'block'}}/>:<div style={{height:device==='mobile'?155:220,background:`linear-gradient(135deg,${coul},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',padding:20}}><div style={{fontSize:device==='mobile'?25:36,fontWeight:950,maxWidth:620,lineHeight:1.04}}>{config.heroTitle}</div></div>}</div>{(config.heroTitle?.trim()||config.heroSubtitle?.trim()||(config.buttonText&&config.buttonText.trim()))&&<div style={{padding:'22px 20px 28px'}}>{config.heroTitle?.trim()&&<div style={{fontSize:device==='mobile'?24:32,fontWeight:950,color:'#132019',lineHeight:1.08}}>{config.heroTitle}</div>}{config.heroSubtitle?.trim()&&<div style={{fontSize:12.5,color:'#68756d',lineHeight:1.6,margin:'10px auto 16px',maxWidth:600}}>{config.heroSubtitle}</div>}{config.buttonText&&config.buttonText.trim()&&<button style={{border:0,borderRadius:10,padding:'12px 19px',background:coul,color:'#fff',fontWeight:900}}>{config.buttonText}</button>}</div>}</div>;
     if(type==='image_texte'||baseSectionType(type)==='image_texte'){const suf=suffixeSection(type);const img=config[`imageTexteImage${suf}`];const titre=config[`imageTexteTitre${suf}`];const texte=config[`imageTexteTexte${suf}`];const inverse=config[`imageTextePosition${suf}`]==='droite';return <div style={{...common,padding:0}}><div style={{display:'flex',flexDirection:device==='mobile'?'column':(inverse?'row-reverse':'row')}}><div style={{flex:1,minHeight:device==='mobile'?160:220,background:img?`url(${img}) center/cover`:`linear-gradient(135deg,${coul},#0b2416)`}}/><div style={{flex:1,padding:'26px 22px',display:'flex',flexDirection:'column',justifyContent:'center'}}><div style={{fontSize:device==='mobile'?18:22,fontWeight:900,color:'#132019',marginBottom:8}}>{titre}</div><div style={{fontSize:12,color:'#68756d',lineHeight:1.65}}>{texte}</div></div></div></div>;}
     if(type==='flash_sale')return <div style={{...common,padding:'26px 20px',textAlign:'center',background:'linear-gradient(135deg,#D64933,#e8920a)'}}><div style={{color:'#fff',fontWeight:900,fontSize:device==='mobile'?16:19}}>{config.flashSaleTitre}</div><div style={{color:'rgba(255,255,255,.86)',fontSize:11.5,margin:'6px 0 16px'}}>{config.flashSaleTexte}</div><div style={{display:'flex',justifyContent:'center',gap:8}}>{['Jours','Hr','Min','Sec'].map(u=><div key={u} style={{background:'rgba(255,255,255,.18)',borderRadius:10,padding:'8px 12px',color:'#fff',minWidth:48}}><div style={{fontWeight:950,fontSize:16}}>00</div><div style={{fontSize:8.5,opacity:.85}}>{u}</div></div>)}</div></div>;
     if(type==='stats')return <div style={{...common,textAlign:'center',background:'#FAFAF7'}}><div style={{fontSize:10,color:'#8A9089',fontWeight:800,marginBottom:16,letterSpacing:'.05em'}}>NOS CHIFFRES</div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:12}}>{(config.statsItems||[]).map((s,i)=><div key={i}><div style={{fontSize:device==='mobile'?18:24,fontWeight:950,color:coul}}>{s.valeur}</div><div style={{fontSize:10,color:'#6B7168',marginTop:4}}>{s.label}</div></div>)}</div></div>;
     if(type==='brands_cta')return <div style={{...common,textAlign:'center',background:'#16231F'}}><div style={{fontWeight:900,fontSize:device==='mobile'?15:18,color:'#fff',marginBottom:8}}>{config.brandsCtaTitre}</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.65)',maxWidth:420,margin:'0 auto 16px',lineHeight:1.6}}>{config.brandsCtaTexte}</div><button style={{border:0,borderRadius:10,padding:'11px 22px',background:'#25d366',color:'#fff',fontWeight:900,fontSize:12}}>💬 Écrire sur WhatsApp</button></div>;
     if(type==='payment_methods')return <div style={{...common,textAlign:'center'}}><div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:8}}>{(config.paymentMethodsListe||[]).map((m,i)=><div key={i} style={{background:'#FAFAF7',border:'1px solid #ECE8DC',borderRadius:8,padding:'8px 13px',fontSize:11,fontWeight:700,color:'#16231F'}}>{m}</div>)}</div></div>;
     if(type==='category_tiles')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Faites vos achats par catégorie</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:10}}>{derivedCollections.slice(0,8).map(c=><div key={c.id} style={{borderRadius:12,overflow:'hidden',background:'#f5f8f5',textAlign:'center',padding:'16px 8px'}}><div style={{fontSize:22}}>🗂️</div><div style={{fontWeight:850,fontSize:11,marginTop:6}}>{c.nom||c.name}</div></div>)}{!derivedCollections.length&&<div style={{gridColumn:'1/-1',padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Crée des collections dans « Produits → Collections » pour remplir cette grille.</div>}</div></div>;
-    if(type==='featured_product'){const p=products.find(x=>x.id===config.featuredProductId)||products[0];const inverse=config.featuredProductPosition==='droite';return <div style={{...common,padding:0}}>{!p?<div style={{padding:24,textAlign:'center',background:'#f6f9f6',color:'#728078',fontSize:11}}>Choisis un produit dans le panneau de droite.</div>:<div style={{display:'flex',flexDirection:device==='mobile'?'column':(inverse?'row-reverse':'row')}}><div style={{flex:1,minHeight:device==='mobile'?180:260,background:p.image?`url(${p.image}) center/cover`:'#eef3ee',display:p.image?undefined:'flex',alignItems:'center',justifyContent:'center',fontSize:34}}>{!p.image&&'🛍️'}</div><div style={{flex:1,padding:'26px 24px',display:'flex',flexDirection:'column',justifyContent:'center'}}><div style={{fontSize:10,fontWeight:900,color:coul,letterSpacing:'.06em',marginBottom:6}}>{(config.featuredProductLabel||'').toUpperCase()}</div><div style={{fontSize:device==='mobile'?18:23,fontWeight:900,color:'#132019',marginBottom:8}}>{p.name}</div><div style={{fontSize:12,color:'#68756d',lineHeight:1.65,marginBottom:12}}>{(p.description||'').slice(0,160)}{(p.description||'').length>160?'…':''}</div><div style={{fontSize:18,fontWeight:900,color:coul,marginBottom:12}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):''}</div><button style={{alignSelf:'flex-start',border:0,borderRadius:10,padding:'11px 20px',background:coul,color:'#fff',fontWeight:900,fontSize:11.5}}>{config.buttonText||'Découvrir'}</button></div></div>}</div>;}
+    if(type==='featured_product'){const suf=suffixeSection(type);const kId=`featuredProductId${suf}`,kLabel=`featuredProductLabel${suf}`,kPos=`featuredProductPosition${suf}`;const p=products.find(x=>x.id===config[kId])||products[0];const inverse=config[kPos]==='droite';return <div style={{...common,padding:0}}>{!p?<div style={{padding:24,textAlign:'center',background:'#f6f9f6',color:'#728078',fontSize:11}}>Choisis un produit dans le panneau de droite.</div>:<div style={{display:'flex',flexDirection:device==='mobile'?'column':(inverse?'row-reverse':'row')}}><div style={{flex:1,minHeight:device==='mobile'?180:260,background:p.image?`url(${p.image}) center/cover`:'#eef3ee',display:p.image?undefined:'flex',alignItems:'center',justifyContent:'center',fontSize:34}}>{!p.image&&'🛍️'}</div><div style={{flex:1,padding:'26px 24px',display:'flex',flexDirection:'column',justifyContent:'center'}}><div style={{fontSize:10,fontWeight:900,color:coul,letterSpacing:'.06em',marginBottom:6}}>{(config[kLabel]||'').toUpperCase()}</div><div style={{fontSize:device==='mobile'?18:23,fontWeight:900,color:'#132019',marginBottom:8}}>{p.name}</div><div style={{fontSize:12,color:'#68756d',lineHeight:1.65,marginBottom:12}}>{(p.description||'').slice(0,160)}{(p.description||'').length>160?'…':''}</div><div style={{fontSize:18,fontWeight:900,color:coul,marginBottom:12}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):''}</div><button style={{alignSelf:'flex-start',border:0,borderRadius:10,padding:'11px 20px',background:coul,color:'#fff',fontWeight:900,fontSize:11.5}}>{config.buttonText||'Découvrir'}</button></div></div>}</div>;}
     if(type==='rich_text')return <div style={{...common,textAlign:'center'}}><div style={{fontSize:device==='mobile'?19:24,fontWeight:900,color:'#132019',marginBottom:10}}>{config.richTextTitre}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.75,maxWidth:560,margin:'0 auto'}}>{config.richTextTexte}</div></div>;
     if(type==='video')return <div style={common}>{config.videoTitre&&<div style={{fontSize:18,fontWeight:900,color:'#132019',marginBottom:12,textAlign:'center'}}>{config.videoTitre}</div>}{config.videoUrl?<div style={{position:'relative',paddingTop:'56.25%',borderRadius:12,overflow:'hidden',background:'#000'}}><iframe src={urlEmbedVideo(config.videoUrl)} style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}} allowFullScreen/></div>:<div style={{padding:40,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Colle un lien YouTube ou Vimeo dans le panneau de droite.</div>}</div>;
     if(type==='trust_logos')return <div style={{...common,textAlign:'center'}}>{(config.trustLogos||[]).length?<div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:22}}>{config.trustLogos.map((u,i)=><img key={i} src={u} alt="" style={{height:34,objectFit:'contain',opacity:.85}}/>)}</div>:<div style={{padding:20,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ajoute des logos depuis le panneau de droite.</div>}</div>;
@@ -2896,7 +2932,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(type==='cta_banner')return <div style={{...common,textAlign:'center',background:config.ctaBannerCouleur||coul}}><div style={{color:'#fff',fontWeight:900,fontSize:device==='mobile'?18:22,marginBottom:8}}>{config.ctaBannerTitre}</div><div style={{color:'rgba(255,255,255,.85)',fontSize:12,marginBottom:16}}>{config.ctaBannerTexte}</div><button style={{border:0,borderRadius:10,padding:'11px 22px',background:'#fff',color:config.ctaBannerCouleur||coul,fontWeight:900,fontSize:12}}>{config.ctaBannerBouton}</button></div>;
     if(type==='contact_form')return <div style={common}><div style={{fontSize:19,fontWeight:900,color:'#132019',marginBottom:6,textAlign:'center'}}>{config.contactFormTitre}</div><div style={{fontSize:12,color:'#68756d',marginBottom:16,textAlign:'center'}}>{config.contactFormTexte}</div><div style={{display:'grid',gap:8,maxWidth:400,margin:'0 auto'}}><input disabled placeholder="Nom" style={{...fieldStyle,background:'#f6f9f6'}}/><input disabled placeholder="Téléphone" style={{...fieldStyle,background:'#f6f9f6'}}/><textarea disabled placeholder="Message" rows={3} style={{...fieldStyle,background:'#f6f9f6',resize:'none'}}/><button style={{border:0,borderRadius:10,padding:'11px',background:coul,color:'#fff',fontWeight:900,fontSize:12}}>Envoyer sur WhatsApp</button></div></div>;
     if(type==='diaporama'){const slide=(config.diaporamaSlides||[])[0];return <div style={{...common,padding:0,position:'relative'}}>{!slide?<div style={{padding:30,textAlign:'center',background:'#f6f9f6',color:'#728078',fontSize:11}}>Ajoute au moins une image dans le panneau de droite.</div>:<div style={{position:'relative',minHeight:device==='mobile'?170:260,background:slide.image?`url(${slide.image}) center/cover`:`linear-gradient(135deg,${coul},#0b2416)`,display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',color:'#fff',padding:20}}><div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.28)'}}/><div style={{position:'relative',zIndex:2}}><div style={{fontSize:device==='mobile'?20:28,fontWeight:950,marginBottom:8}}>{slide.titre}</div><div style={{fontSize:12,opacity:.9,marginBottom:14,maxWidth:420}}>{slide.texte}</div>{slide.bouton&&<button style={{border:0,borderRadius:10,padding:'10px 20px',background:'#fff',color:coul,fontWeight:900,fontSize:11.5}}>{slide.bouton}</button>}</div></div>}{(config.diaporamaSlides||[]).length>1&&<div style={{position:'absolute',bottom:10,left:0,right:0,display:'flex',justifyContent:'center',gap:5}}>{config.diaporamaSlides.map((_,i)=><div key={i} style={{width:i===0?18:6,height:5,borderRadius:3,background:i===0?'#fff':'rgba(255,255,255,.5)'}}/>)}</div>}</div>;}
-    if(type==='featured_collection'){const col=derivedCollections.find(c=>c.id===config.featuredCollectionId)||derivedCollections[0];return <div style={{...common,padding:0}}>{!col?<div style={{padding:24,textAlign:'center',background:'#f6f9f6',color:'#728078',fontSize:11}}>Crée une collection puis choisis-la dans le panneau de droite.</div>:<div style={{position:'relative',minHeight:device==='mobile'?170:240,background:`linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.6)),linear-gradient(135deg,${coul},#0b2416)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',color:'#fff',padding:24}}><div style={{fontSize:10,fontWeight:900,letterSpacing:'.08em',opacity:.85,marginBottom:6}}>COLLECTION</div><div style={{fontSize:device==='mobile'?20:27,fontWeight:950,marginBottom:8}}>{config.featuredCollectionTitre||col.nom||col.name}</div><div style={{fontSize:12,opacity:.9,marginBottom:14,maxWidth:420}}>{config.featuredCollectionTexte}</div><button style={{border:0,borderRadius:10,padding:'10px 20px',background:'#fff',color:coul,fontWeight:900,fontSize:11.5}}>Voir la collection</button></div>}</div>;}
+    if(type==='featured_collection'){const suf=suffixeSection(type);const kId=`featuredCollectionId${suf}`,kTitre=`featuredCollectionTitre${suf}`,kTexte=`featuredCollectionTexte${suf}`;const col=derivedCollections.find(c=>c.id===config[kId])||derivedCollections[0];const produitsCol=col?(collectionProduitsMap[col.id]||[]):[];return <div style={{...common,padding:0}}>{!col?<div style={{padding:24,textAlign:'center',background:'#f6f9f6',color:'#728078',fontSize:11}}>Crée une collection puis choisis-la dans le panneau de droite.</div>:<><div style={{position:'relative',minHeight:device==='mobile'?170:240,background:`linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.6)),linear-gradient(135deg,${coul},#0b2416)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',color:'#fff',padding:24}}><div style={{fontSize:10,fontWeight:900,letterSpacing:'.08em',opacity:.85,marginBottom:6}}>COLLECTION</div><div style={{fontSize:device==='mobile'?20:27,fontWeight:950,marginBottom:8}}>{config[kTitre]||col.nom||col.name}</div><div style={{fontSize:12,opacity:.9,marginBottom:14,maxWidth:420}}>{config[kTexte]}</div><button style={{border:0,borderRadius:10,padding:'10px 20px',background:'#fff',color:coul,fontWeight:900,fontSize:11.5}}>Voir la collection</button></div>{produitsCol.length>0&&<div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8,padding:14}}>{produitsCol.slice(0,device==='mobile'?4:8).map(p=><div key={p.id} style={{textAlign:'center'}}><div style={{width:'100%',aspectRatio:'1/1',borderRadius:8,background:p.photo_url?`url(${p.photo_url}) center/cover`:'#eef3ee',marginBottom:4}}/><div style={{fontSize:9,color:'#344239',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nom}</div></div>)}</div>}</>}</div>;}
     if(type==='tabs')return <div style={common}><div style={{display:'flex',gap:6,marginBottom:14,flexWrap:'wrap',justifyContent:'center'}}>{(config.tabsItems||[]).map((t,i)=><div key={t.id} style={{padding:'8px 14px',borderRadius:999,background:i===0?coul:'#f0f3f0',color:i===0?'#fff':'#425048',fontSize:11,fontWeight:800}}>{t.titre}</div>)}</div>{config.tabsItems?.[0]&&<div style={{textAlign:'center',fontSize:12.5,color:'#68756d',lineHeight:1.65,maxWidth:480,margin:'0 auto'}}>{config.tabsItems[0].texte}</div>}</div>;
     if(type==='timeline')return <div style={common}><div style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':`repeat(${(config.timelineEtapes||[]).length},1fr)`,gap:16}}>{(config.timelineEtapes||[]).map((e,i)=><div key={e.id} style={{textAlign:'center'}}><div style={{width:34,height:34,borderRadius:'50%',background:coul,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,margin:'0 auto 10px',fontSize:14}}>{i+1}</div><div style={{fontWeight:900,fontSize:12.5,color:'#132019',marginBottom:5}}>{e.titre}</div><div style={{fontSize:11,color:'#68756d',lineHeight:1.5}}>{e.texte}</div></div>)}</div></div>;
     if(type==='reviews_carousel')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b',textAlign:'center'}}>Ce que disent nos clients</h3><div style={{display:'flex',gap:10,overflow:'hidden'}}>{(avisBoutique.length?avisBoutique:[{client_nom:'Cliente satisfaite',note:5,commentaire:'Très bon produit, livraison rapide !'}]).slice(0,3).map((a,i)=><div key={i} style={{flex:'0 0 auto',width:device==='mobile'?200:240,background:'#FAFAF7',border:'1px solid #ECE8DC',borderRadius:12,padding:14}}><div style={{color:'#e8920a',fontSize:13,marginBottom:6}}>{'★'.repeat(a.note||5)}</div><div style={{fontSize:11.5,color:'#16231F',lineHeight:1.5,marginBottom:8}}>{a.commentaire}</div><div style={{fontSize:10.5,fontWeight:800,color:'#6B7168'}}>{a.client_nom}</div></div>)}</div></div>;
@@ -2929,9 +2965,22 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   function Editor(){
     const type=selected;
     const supporteCouleur=type&&type!=='header'&&type!=='footer';
+    const styleSection=config.sectionStyles?.[type]||{};
+    function majStyleSection(champ,val){setConfig(c=>({...c,sectionStyles:{...(c.sectionStyles||{}),[type]:{...(c.sectionStyles?.[type]||{}),[champ]:val}}}))}
     return <>
       {supporteCouleur&&<label style={labelStyle}>Couleur de cette section<div style={{display:'flex',gap:7}}><input type="color" value={config.sectionColors?.[type]||config.couleur} onChange={e=>setConfig(c=>({...c,sectionColors:{...(c.sectionColors||{}),[type]:e.target.value}}))} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.sectionColors?.[type]||config.couleur} onChange={e=>setConfig(c=>({...c,sectionColors:{...(c.sectionColors||{}),[type]:e.target.value}}))}/><button onClick={()=>setConfig(c=>{const sc={...(c.sectionColors||{})};delete sc[type];return {...c,sectionColors:sc}})} title="Revenir à la couleur globale" style={{fontSize:10,border:'1px solid #DDD8CC',borderRadius:8,padding:'0 10px',background:'#fff',cursor:'pointer'}}>↺</button></div></label>}
-      <EditorInterne/>
+      {supporteCouleur&&<div style={{border:'1px solid #e5ebe6',borderRadius:10,padding:10,marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>🖼️ Fond & encadrement de cette section</div>
+        <label style={labelStyle}>Fond de la section<div style={{display:'flex',gap:7}}><input type="color" value={styleSection.fond||'#ffffff'} onChange={e=>majStyleSection('fond',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} placeholder="ex: #ffffff ou transparent" value={styleSection.fond||''} onChange={e=>majStyleSection('fond',e.target.value)}/><button onClick={()=>majStyleSection('fond',null)} title="Revenir au fond par défaut" style={{fontSize:10,border:'1px solid #DDD8CC',borderRadius:8,padding:'0 10px',background:'#fff',cursor:'pointer'}}>↺</button></div></label>
+        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',margin:'8px 0'}}><input type="checkbox" checked={!!styleSection.bordure} onChange={e=>majStyleSection('bordure',e.target.checked)}/> Encadrer cette section (bordure)</label>
+        {styleSection.bordure&&<>
+          <label style={labelStyle}>Couleur de la bordure<div style={{display:'flex',gap:7}}><input type="color" value={styleSection.bordureCouleur||'#dddddd'} onChange={e=>majStyleSection('bordureCouleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={styleSection.bordureCouleur||'#dddddd'} onChange={e=>majStyleSection('bordureCouleur',e.target.value)}/></div></label>
+          <label style={labelStyle}>Épaisseur (px)<input type="number" min={1} max={10} style={fieldStyle} value={styleSection.bordureEpaisseur??2} onChange={e=>majStyleSection('bordureEpaisseur',Number(e.target.value)||1)}/></label>
+          <label style={labelStyle}>Coins arrondis (px)<input type="number" min={0} max={40} style={fieldStyle} value={styleSection.arrondi??12} onChange={e=>majStyleSection('arrondi',Number(e.target.value)||0)}/></label>
+          <label style={labelStyle}>Marge intérieure (px)<input type="number" min={0} max={60} style={fieldStyle} value={styleSection.espacement??16} onChange={e=>majStyleSection('espacement',Number(e.target.value)||0)}/></label>
+        </>}
+      </div>}
+      {EditorInterne()}
     </>;
   }
   function EditorInterne(){
@@ -2947,13 +2996,24 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Liens du menu de navigation</div>
       <div style={{display:'grid',gap:6,marginBottom:8}}>{(config.headerLinks||[]).map((l,i)=>{
         const optionsCibles=[{v:'#',l:'Accueil (haut de page)'},{v:'#produits',l:'Produits'},{v:'#promo',l:'Promotions'},{v:'#bundles',l:'Bundles / Packs'},{v:'#avis',l:'Avis clients'},{v:'#faq',l:'Questions fréquentes'},{v:'#livraison',l:'Livraison'},{v:'#whatsapp',l:'WhatsApp'},{v:'#contact',l:'Contact'}];
-        const estExterne=l.href&&!l.href.startsWith('#');
+        const href=l.href||'#';
+        const estPage=href.startsWith('?page=');
+        const estCollection=href.startsWith('?collection=');
+        const estProduit=href.startsWith('?produit=');
+        const estExterne=href&&!href.startsWith('#')&&!estPage&&!estCollection&&!estProduit;
+        const modeActuel=estPage?'page':estCollection?'collection':estProduit?'produit':estExterne?'externe':href;
         return <div key={l.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:8,display:'grid',gap:6}}>
           <div style={{display:'flex',gap:6}}><input placeholder="Libellé (ex: Nos produits)" value={l.label} onChange={e=>modifierLienHeader(l.id,'label',e.target.value)} style={{...fieldStyle,flex:1}}/><button onClick={()=>deplacerLienHeader(i,-1)} disabled={i===0} style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={()=>deplacerLienHeader(i,1)} disabled={i===(config.headerLinks||[]).length-1} style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={()=>supprimerLienHeader(l.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>
-          <select value={estExterne?'externe':(l.href||'#')} onChange={e=>modifierLienHeader(l.id,'href',e.target.value==='externe'?'https://':e.target.value)} style={{...fieldStyle,background:'#fff'}}>
+          <select value={modeActuel} onChange={e=>{const v=e.target.value;if(v==='externe')modifierLienHeader(l.id,'href','https://');else if(v==='page'){const p=pagesDisponibles[0];modifierLienHeader(l.id,'href',p?`?page=${p.slug}`:'?page=');if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.titre);}else if(v==='collection'){const c=derivedCollections[0];modifierLienHeader(l.id,'href',c?`?collection=${c.id}`:'?collection=');if(c&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',c.nom||c.name);}else if(v==='produit'){const p=products[0];modifierLienHeader(l.id,'href',p?`?produit=${p.id}`:'?produit=');if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.name);}else modifierLienHeader(l.id,'href',v);}} style={{...fieldStyle,background:'#fff'}}>
             {optionsCibles.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+            <option value="page">📄 Une page</option>
+            <option value="collection">📁 Une collection</option>
+            <option value="produit">🛍️ Un produit précis</option>
             <option value="externe">🔗 Lien externe (autre site)</option>
           </select>
+          {estPage&&(pagesDisponibles.length?<select value={href.replace('?page=','')} onChange={e=>{const p=pagesDisponibles.find(x=>x.slug===e.target.value);modifierLienHeader(l.id,'href',`?page=${e.target.value}`);if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.titre);}} style={fieldStyle}>{pagesDisponibles.map(p=><option key={p.slug} value={p.slug}>{p.titre}</option>)}</select>:<div style={{fontSize:10.5,color:'#bd4b38'}}>Aucune page créée — vas dans "Pages" pour en ajouter.</div>)}
+          {estCollection&&(derivedCollections.length?<select value={href.replace('?collection=','')} onChange={e=>{const c=derivedCollections.find(x=>x.id===e.target.value);modifierLienHeader(l.id,'href',`?collection=${e.target.value}`);if(c&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',c.nom||c.name);}} style={fieldStyle}>{derivedCollections.map(c=><option key={c.id} value={c.id}>{c.nom||c.name}</option>)}</select>:<div style={{fontSize:10.5,color:'#bd4b38'}}>Aucune collection créée.</div>)}
+          {estProduit&&(products.length?<select value={href.replace('?produit=','')} onChange={e=>{const p=products.find(x=>x.id===e.target.value);modifierLienHeader(l.id,'href',`?produit=${e.target.value}`);if(p&&(!l.label||l.label==='Nouveau lien'))modifierLienHeader(l.id,'label',p.name);}} style={fieldStyle}>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>:<div style={{fontSize:10.5,color:'#bd4b38'}}>Aucun produit disponible.</div>)}
           {estExterne&&<input placeholder="https://..." value={l.href} onChange={e=>modifierLienHeader(l.id,'href',e.target.value)} style={fieldStyle}/>}
         </div>;
       })}</div>
@@ -2965,10 +3025,32 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       <label style={labelStyle}>Couleur de fond<div style={{display:'flex',gap:7}}><input type="color" value={config.footerBgColor} onChange={e=>update('footerBgColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.footerBgColor} onChange={e=>update('footerBgColor',e.target.value)}/></div></label>
       <label style={labelStyle}>Couleur du texte<div style={{display:'flex',gap:7}}><input type="color" value={config.footerTextColor} onChange={e=>update('footerTextColor',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.footerTextColor} onChange={e=>update('footerTextColor',e.target.value)}/></div></label>
       <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',margin:'2px 0 14px'}}><input type="checkbox" checked={!!config.footerBackToTop} onChange={e=>update('footerBackToTop',e.target.checked)}/> Bouton "Retour en haut"</label>
+      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,cursor:'pointer',margin:'2px 0 14px'}}><input type="checkbox" checked={config.footerBoutiqueVisible!==false} onChange={e=>update('footerBoutiqueVisible',e.target.checked)}/> Colonne "Boutique" automatique (catégories, meilleures ventes, nouveautés)</label>
+      <div style={{fontSize:10,color:'#8a958e',marginTop:-8,marginBottom:8,lineHeight:1.5}}>💡 Générée toute seule à partir de tes collections — les politiques (livraison, retours, confidentialité) et tes pages importées apparaissent déjà, séparément, dans "Informations".</div>
       <div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:8}}>Colonnes de liens</div>
       <div style={{display:'grid',gap:8,marginBottom:8}}>{(config.footerColonnes||[]).map(col=><div key={col.id} style={{border:'1px solid #e5ebe6',borderRadius:9,padding:9}}>
         <div style={{display:'flex',gap:6,marginBottom:7}}><input value={col.titre} onChange={e=>renommerColonneFooter(col.id,e.target.value)} style={{...fieldStyle,flex:1,fontWeight:800}}/><button onClick={()=>supprimerColonneFooter(col.id)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>× colonne</button></div>
-        <div style={{display:'grid',gap:5}}>{(col.liens||[]).map((l,idx)=><div key={idx} style={{display:'flex',gap:5}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienColonneFooter(col.id,idx,'label',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><input placeholder="Lien" value={l.href} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><button onClick={()=>supprimerLienColonneFooter(col.id,idx)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}</div>
+        <div style={{display:'grid',gap:5}}>{(col.liens||[]).map((l,idx)=>{
+          const href=l.href||'#';
+          const estPage=href.startsWith('?page=');
+          const estCollection=href.startsWith('?collection=');
+          const estProduit=href.startsWith('?produit=');
+          const estExterne=href&&!estPage&&!estCollection&&!estProduit;
+          const modeActuel=estPage?'page':estCollection?'collection':estProduit?'produit':'externe';
+          return <div key={idx} style={{border:'1px solid #eef1ee',borderRadius:7,padding:6,display:'grid',gap:5}}>
+            <div style={{display:'flex',gap:5}}><input placeholder="Libellé" value={l.label} onChange={e=>modifierLienColonneFooter(col.id,idx,'label',e.target.value)} style={{...fieldStyle,flex:1,fontSize:11}}/><button onClick={()=>supprimerLienColonneFooter(col.id,idx)} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>
+            <select value={modeActuel} onChange={e=>{const v=e.target.value;if(v==='page')modifierLienColonneFooter(col.id,idx,'href',pagesDisponibles[0]?`?page=${pagesDisponibles[0].slug}`:'?page=');else if(v==='collection')modifierLienColonneFooter(col.id,idx,'href',derivedCollections[0]?`?collection=${derivedCollections[0].id}`:'?collection=');else if(v==='produit')modifierLienColonneFooter(col.id,idx,'href',products[0]?`?produit=${products[0].id}`:'?produit=');else modifierLienColonneFooter(col.id,idx,'href','https://');}} style={{...fieldStyle,fontSize:11,background:'#fff'}}>
+              <option value="page">📄 Une page</option>
+              <option value="collection">📁 Une collection</option>
+              <option value="produit">🛍️ Un produit précis</option>
+              <option value="externe">🔗 Lien externe</option>
+            </select>
+            {estPage&&(pagesDisponibles.length?<select value={href.replace('?page=','')} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',`?page=${e.target.value}`)} style={{...fieldStyle,fontSize:11}}>{pagesDisponibles.map(p=><option key={p.slug} value={p.slug}>{p.titre}</option>)}</select>:<div style={{fontSize:10,color:'#bd4b38'}}>Aucune page créée.</div>)}
+            {estCollection&&(derivedCollections.length?<select value={href.replace('?collection=','')} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',`?collection=${e.target.value}`)} style={{...fieldStyle,fontSize:11}}>{derivedCollections.map(c=><option key={c.id} value={c.id}>{c.nom||c.name}</option>)}</select>:<div style={{fontSize:10,color:'#bd4b38'}}>Aucune collection créée.</div>)}
+            {estProduit&&(products.length?<select value={href.replace('?produit=','')} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',`?produit=${e.target.value}`)} style={{...fieldStyle,fontSize:11}}>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>:<div style={{fontSize:10,color:'#bd4b38'}}>Aucun produit disponible.</div>)}
+            {estExterne&&<input placeholder="https://..." value={l.href} onChange={e=>modifierLienColonneFooter(col.id,idx,'href',e.target.value)} style={{...fieldStyle,fontSize:11}}/>}
+          </div>;
+        })}</div>
         <button onClick={()=>ajouterLienColonneFooter(col.id)} style={{marginTop:6,width:'100%',border:'1px dashed #cdd8d0',background:'#fafcfa',borderRadius:7,padding:6,fontSize:10,fontWeight:800,color:'#1a7a3c',cursor:'pointer'}}>＋ Lien</button>
       </div>)}</div>
       <button onClick={ajouterColonneFooter} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:14}}>＋ Ajouter une colonne</button>
@@ -2990,7 +3072,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(type==='brands_cta')return <><label style={labelStyle}>Titre<input style={fieldStyle} value={config.brandsCtaTitre} onChange={e=>update('brandsCtaTitre',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.brandsCtaTexte} onChange={e=>update('brandsCtaTexte',e.target.value)}/></label><div style={{fontSize:10.5,color:'#8A9089',marginTop:6}}>Le bouton WhatsApp utilise automatiquement le numéro renseigné dans Paramètres avancés.</div></>;
     if(type==='payment_methods')return <div>{(config.paymentMethodsListe||[]).map((p,i)=><div key={i} style={{display:'flex',gap:5,marginBottom:6}}><input style={{...fieldStyle,flex:1}} value={p} onChange={e=>setConfig(c=>({...c,paymentMethodsListe:c.paymentMethodsListe.map((x,j)=>j===i?e.target.value:x)}))}/><button onClick={()=>setConfig(c=>({...c,paymentMethodsListe:c.paymentMethodsListe.filter((_,j)=>j!==i)}))} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>)}<button onClick={()=>setConfig(c=>({...c,paymentMethodsListe:[...(c.paymentMethodsListe||[]),'💳 Nouveau moyen']}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:8,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un moyen de paiement</button></div>;
     if(type==='category_tiles')return <div style={{fontSize:11,color:'#6b776f'}}>Cette grille affiche automatiquement tes collections existantes. Crée-les dans « Produits → Collections ».</div>;
-    if(type==='featured_product')return <><label style={labelStyle}>Étiquette (optionnelle)<input style={fieldStyle} value={config.featuredProductLabel} onChange={e=>update('featuredProductLabel',e.target.value)}/></label><label style={labelStyle}>Position de l'image<select style={fieldStyle} value={config.featuredProductPosition} onChange={e=>update('featuredProductPosition',e.target.value)}><option value="gauche">Image à gauche</option><option value="droite">Image à droite</option></select></label><div style={{fontSize:11,color:'#6b776f',margin:'10px 0'}}>Choisis le produit à mettre en avant :</div>{products.length?<div style={{display:'grid',gap:6,maxHeight:280,overflow:'auto'}}>{products.map(p=>{const on=config.featuredProductId===p.id;return <button key={p.id} onClick={()=>update('featuredProductId',p.id)} style={{display:'flex',alignItems:'center',gap:8,textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:7,cursor:'pointer'}}>{p.image?<img src={p.image} alt="" style={{width:38,height:38,objectFit:'cover',borderRadius:7}}/>:<span style={{width:38,height:38,borderRadius:7,background:'#eef3ee',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>🛍️</span>}<span style={{flex:1,fontSize:10.8,fontWeight:850,color:'#233128'}}>{on?'☑ ':'□ '}{p.name}</span></button>})}</div>:<div style={{padding:12,background:'#fff6e8',borderRadius:9,fontSize:11}}>Aucun produit dans ton espace.</div>}</>;
+    if(type==='featured_product'){const suf=suffixeSection(type);const kId=`featuredProductId${suf}`,kLabel=`featuredProductLabel${suf}`,kPos=`featuredProductPosition${suf}`;return <><label style={labelStyle}>Étiquette (optionnelle)<input style={fieldStyle} value={config[kLabel]||''} onChange={e=>update(kLabel,e.target.value)}/></label><label style={labelStyle}>Position de l'image<select style={fieldStyle} value={config[kPos]||'gauche'} onChange={e=>update(kPos,e.target.value)}><option value="gauche">Image à gauche</option><option value="droite">Image à droite</option></select></label><div style={{fontSize:11,color:'#6b776f',margin:'10px 0'}}>Choisis le produit à mettre en avant :</div>{products.length?<div style={{display:'grid',gap:6,maxHeight:280,overflow:'auto'}}>{products.map(p=>{const on=config[kId]===p.id;return <button key={p.id} onClick={()=>update(kId,p.id)} style={{display:'flex',alignItems:'center',gap:8,textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:7,cursor:'pointer'}}>{p.image?<img src={p.image} alt="" style={{width:38,height:38,objectFit:'cover',borderRadius:7}}/>:<span style={{width:38,height:38,borderRadius:7,background:'#eef3ee',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>🛍️</span>}<span style={{flex:1,fontSize:10.8,fontWeight:850,color:'#233128'}}>{on?'☑ ':'□ '}{p.name}</span></button>})}</div>:<div style={{padding:12,background:'#fff6e8',borderRadius:9,fontSize:11}}>Aucun produit dans ton espace.</div>}</>;}
     if(type==='rich_text')return <><label style={labelStyle}>Titre<input style={fieldStyle} value={config.richTextTitre} onChange={e=>update('richTextTitre',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={6} value={config.richTextTexte} onChange={e=>update('richTextTexte',e.target.value)}/></label></>;
     if(type==='video')return <><label style={labelStyle}>Titre (optionnel)<input style={fieldStyle} value={config.videoTitre} onChange={e=>update('videoTitre',e.target.value)}/></label><label style={labelStyle}>Lien YouTube ou Vimeo<input style={fieldStyle} placeholder="https://www.youtube.com/watch?v=..." value={config.videoUrl} onChange={e=>update('videoUrl',e.target.value)}/></label></>;
     if(type==='trust_logos')return <div><FileButton kind="trustLogo" label="Ajouter un logo"/>{(config.trustLogos||[]).length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:7,marginTop:10}}>{config.trustLogos.map((u,i)=><div key={i} style={{position:'relative',background:'#f6f9f6',borderRadius:8,padding:8}}><img src={u} alt="" style={{width:'100%',height:34,objectFit:'contain'}}/><button onClick={()=>setConfig(c=>({...c,trustLogos:c.trustLogos.filter((_,j)=>j!==i)}))} style={{position:'absolute',right:2,top:2,border:0,borderRadius:999,background:'#fff',color:'#b63d2c',cursor:'pointer',fontSize:11,width:18,height:18}}>×</button></div>)}</div>}</div>;
@@ -2998,7 +3080,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(type==='cta_banner')return <><label style={labelStyle}>Titre<input style={fieldStyle} value={config.ctaBannerTitre} onChange={e=>update('ctaBannerTitre',e.target.value)}/></label><label style={labelStyle}>Texte<input style={fieldStyle} value={config.ctaBannerTexte} onChange={e=>update('ctaBannerTexte',e.target.value)}/></label><label style={labelStyle}>Texte du bouton<input style={fieldStyle} value={config.ctaBannerBouton} onChange={e=>update('ctaBannerBouton',e.target.value)}/></label><label style={labelStyle}>Couleur du bandeau<div style={{display:'flex',gap:7}}><input type="color" value={config.ctaBannerCouleur||config.couleur} onChange={e=>update('ctaBannerCouleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.ctaBannerCouleur||''} placeholder="Laisser vide = couleur principale" onChange={e=>update('ctaBannerCouleur',e.target.value)}/></div></label></>;
     if(type==='contact_form')return <><label style={labelStyle}>Titre<input style={fieldStyle} value={config.contactFormTitre} onChange={e=>update('contactFormTitre',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.contactFormTexte} onChange={e=>update('contactFormTexte',e.target.value)}/></label><div style={{fontSize:10.5,color:'#8A9089',marginTop:6}}>Le formulaire envoie directement le message sur ton numéro WhatsApp renseigné dans Paramètres avancés.</div></>;
     if(type==='diaporama')return <div>{(config.diaporamaSlides||[]).map((s,i)=><div key={s.id} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:9,marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:10.5,fontWeight:900,color:'#344239'}}>Slide {i+1}</span><button onClick={()=>setConfig(c=>({...c,diaporamaSlides:c.diaporamaSlides.filter((_,j)=>j!==i)}))} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div>{s.image&&<img src={s.image} alt="" style={{width:'100%',height:70,objectFit:'cover',borderRadius:8,marginBottom:6}}/>}<FileButton kind={`diaporamaSlide_${s.id}`} label="Télécharger l'image"/><input placeholder="Titre" style={{...fieldStyle,marginTop:6}} value={s.titre} onChange={e=>setConfig(c=>({...c,diaporamaSlides:c.diaporamaSlides.map(x=>x.id===s.id?{...x,titre:e.target.value}:x)}))}/><input placeholder="Texte" style={{...fieldStyle,marginTop:6}} value={s.texte} onChange={e=>setConfig(c=>({...c,diaporamaSlides:c.diaporamaSlides.map(x=>x.id===s.id?{...x,texte:e.target.value}:x)}))}/><input placeholder="Texte du bouton" style={{...fieldStyle,marginTop:6}} value={s.bouton} onChange={e=>setConfig(c=>({...c,diaporamaSlides:c.diaporamaSlides.map(x=>x.id===s.id?{...x,bouton:e.target.value}:x)}))}/></div>)}<button onClick={()=>setConfig(c=>({...c,diaporamaSlides:[...(c.diaporamaSlides||[]),{id:'ds'+Date.now(),image:'',titre:'Nouveau slide',texte:'',bouton:'Découvrir'}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un slide</button></div>;
-    if(type==='featured_collection')return <><label style={labelStyle}>Titre affiché (optionnel, sinon le nom de la collection)<input style={fieldStyle} value={config.featuredCollectionTitre} onChange={e=>update('featuredCollectionTitre',e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.featuredCollectionTexte} onChange={e=>update('featuredCollectionTexte',e.target.value)}/></label><div style={{fontSize:11,color:'#6b776f',margin:'10px 0'}}>Choisis la collection :</div>{derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{const on=config.featuredCollectionId===c.id;return <button key={c.id} onClick={()=>update('featuredCollectionId',c.id)} style={{textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:'9px 10px',cursor:'pointer',fontSize:11,fontWeight:800}}>{on?'☑':'□'} {c.nom||c.name}</button>})}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucune collection créée.</div>}</>;
+    if(type==='featured_collection'){const suf=suffixeSection(type);const kId=`featuredCollectionId${suf}`,kTitre=`featuredCollectionTitre${suf}`,kTexte=`featuredCollectionTexte${suf}`;return <><label style={labelStyle}>Titre affiché (optionnel, sinon le nom de la collection)<input style={fieldStyle} value={config[kTitre]||''} onChange={e=>update(kTitre,e.target.value)}/></label><label style={labelStyle}>Texte<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config[kTexte]||''} onChange={e=>update(kTexte,e.target.value)}/></label><div style={{fontSize:11,color:'#6b776f',margin:'10px 0'}}>Choisis la collection :</div>{derivedCollections.length?<div style={{display:'grid',gap:6}}>{derivedCollections.map(c=>{const on=config[kId]===c.id;const nbProduits=(collectionProduitsMap[c.id]||[]).length;return <button key={c.id} onClick={()=>update(kId,c.id)} style={{textAlign:'left',border:`1px solid ${on?'#1a7a3c':'#e2e8e3'}`,background:on?'#eef8f0':'#fff',borderRadius:9,padding:'9px 10px',cursor:'pointer',fontSize:11,fontWeight:800}}>{on?'☑':'□'} {c.nom||c.name} <span style={{fontWeight:600,color:'#8a958e'}}>({nbProduits} produit{nbProduits>1?'s':''})</span></button>})}</div>:<div style={{padding:12,background:'#f6f9f6',borderRadius:9,fontSize:11}}>Aucune collection créée.</div>}</>;}
     if(type==='tabs')return <div>{(config.tabsItems||[]).map((t,i)=><div key={t.id} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:9,marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:10.5,fontWeight:900,color:'#344239'}}>Onglet {i+1}</span><button onClick={()=>setConfig(c=>({...c,tabsItems:c.tabsItems.filter((_,j)=>j!==i)}))} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div><input placeholder="Titre de l'onglet" style={fieldStyle} value={t.titre} onChange={e=>setConfig(c=>({...c,tabsItems:c.tabsItems.map(x=>x.id===t.id?{...x,titre:e.target.value}:x)}))}/><textarea placeholder="Texte" rows={2} style={{...fieldStyle,marginTop:6,resize:'vertical'}} value={t.texte} onChange={e=>setConfig(c=>({...c,tabsItems:c.tabsItems.map(x=>x.id===t.id?{...x,texte:e.target.value}:x)}))}/></div>)}<button onClick={()=>setConfig(c=>({...c,tabsItems:[...(c.tabsItems||[]),{id:'tb'+Date.now(),titre:'Nouvel onglet',texte:''}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter un onglet</button></div>;
     if(type==='timeline')return <div>{(config.timelineEtapes||[]).map((e,i)=><div key={e.id} style={{border:'1px solid #e5ebe6',borderRadius:10,padding:9,marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:10.5,fontWeight:900,color:'#344239'}}>Étape {i+1}</span><button onClick={()=>setConfig(c=>({...c,timelineEtapes:c.timelineEtapes.filter((_,j)=>j!==i)}))} style={{border:0,background:'transparent',color:'#bd4b38',cursor:'pointer'}}>×</button></div><input placeholder="Titre" style={fieldStyle} value={e.titre} onChange={ev=>setConfig(c=>({...c,timelineEtapes:c.timelineEtapes.map(x=>x.id===e.id?{...x,titre:ev.target.value}:x)}))}/><textarea placeholder="Texte" rows={2} style={{...fieldStyle,marginTop:6,resize:'vertical'}} value={e.texte} onChange={ev=>setConfig(c=>({...c,timelineEtapes:c.timelineEtapes.map(x=>x.id===e.id?{...x,texte:ev.target.value}:x)}))}/></div>)}<button onClick={()=>setConfig(c=>({...c,timelineEtapes:[...(c.timelineEtapes||[]),{id:'tl'+Date.now(),titre:'Nouvelle étape',texte:''}]}))} style={{width:'100%',border:'1px dashed #9fb5a5',background:'#f7faf7',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une étape</button></div>;
     if(type==='reviews_carousel')return <div style={{fontSize:11,color:'#6b776f'}}>Cette section affiche automatiquement tes vrais avis clients enregistrés (mêmes que la section "Avis clients"). Rien à configurer ici.</div>;
@@ -3035,8 +3117,8 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       <div className={`rv-builder-panel ${ongletBuilder==='structure'?'active':''}`} style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>
       <div onClick={()=>setSelected('header')} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 5px',marginBottom:6,background:selected==='header'?'#f0f7f1':'#fafbfa',border:'1px dashed #cdd8d0',borderRadius:8,cursor:'pointer'}}><span>🧭</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>En-tête</span><span style={{fontSize:9,color:'#93a097'}}>🔒 fixe</span></div>
       {config.sections.map((s,i)=><div key={`${s}-${i}`} ref={el=>{rowRefs.current[i]=el}} onClick={()=>setSelected(s)} style={{display:'flex',alignItems:'center',gap:4,padding:'8px 5px',borderBottom:'1px solid #edf1ee',background:dragIndex===i?'#eaf3ec':selected===s?'#f0f7f1':'transparent',borderRadius:8,cursor:'pointer',boxShadow:dragIndex===i?'0 6px 16px rgba(17,38,26,.18)':'none',opacity:dragIndex===i?0.85:1,transition:dragIndex===i?'none':'background .12s'}}><span onPointerDown={e=>handlePointerDownDrag(e,i)} title="Glisser pour réordonner" style={{cursor:dragIndex===i?'grabbing':'grab',touchAction:'none',padding:'2px 4px',color:'#9aa79f',fontSize:12,userSelect:'none'}}>⠿</span><span>{sectionCatalog[s]?.icon||sectionCatalog[baseSectionType(s)]?.icon||'▦'}</span><span style={{flex:1,fontSize:10.8,fontWeight:800,color:'#24332a'}}>{sectionCatalog[s]?.label||(suffixeSection(s)?`${sectionCatalog[baseSectionType(s)]?.label||baseSectionType(s)} (${suffixeSection(s).slice(1)})`:sectionCatalog[s]?.label)||s}</span><button onClick={e=>{e.stopPropagation();move(i,-1)}} title="Monter" style={{border:0,background:'transparent',cursor:'pointer'}}>↑</button><button onClick={e=>{e.stopPropagation();move(i,1)}} title="Descendre" style={{border:0,background:'transparent',cursor:'pointer'}}>↓</button><button onClick={e=>{e.stopPropagation();remove(i)}} title="Supprimer" style={{border:0,background:'transparent',cursor:'pointer',color:'#bd4b38'}}>×</button></div>)}<button onClick={()=>setShowAdd(!showAdd)} style={{width:'100%',marginTop:10,border:'1px dashed #b9c8bd',background:'#f8fbf8',borderRadius:9,padding:9,fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer'}}>＋ Ajouter une section</button>{showAdd&&<div style={{marginTop:7,display:'grid',gap:4,maxHeight:280,overflow:'auto'}}>{Object.entries(sectionCatalog).filter(([k])=>k!=='header').map(([k,v])=><button key={k} onClick={()=>addSection(k)} style={{textAlign:'left',border:'1px solid #e7ece8',background:'#fff',borderRadius:8,padding:8,fontSize:10.5,cursor:'pointer'}}>{v.icon} {v.label}</button>)}</div>}</div>
-      <div className={`rv-builder-panel ${ongletBuilder==='apercu'?'active':''}`} style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div onClick={()=>setSelected('header')} style={{cursor:'pointer',outline:selected==='header'?'2px solid '+config.couleur:'none',outlineOffset:'-2px',background:config.headerBgColor}}><div style={{background:'rgba(0,0,0,.12)',color:config.headerTextColor,padding:'5px 14px',fontSize:9.5,textAlign:'center',opacity:.85}}>{config.headerBarreTop?config.headerBarreTop:'🚚 Livraison rapide  ·  💵 Paiement à la livraison  ·  🛡️ Achat sécurisé'}</div><div style={{background:config.headerBgColor,color:config.headerTextColor,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:null}{config.nom}</div>{config.headerShowSearch&&<div style={{flex:1,minWidth:90,display:'flex',background:'#fff',borderRadius:999,overflow:'hidden'}}><span style={{padding:'8px 0 8px 10px',fontSize:11,color:'#8A9089'}}>🔍</span><input placeholder="Rechercher..." disabled style={{flex:1,border:0,padding:'8px 10px 8px 4px',fontSize:10.5,outline:'none'}}/></div>}{workspace.whatsapp_number&&<span style={{background:'#EAF3DE',color:'#3B6D11',padding:'6px 10px',borderRadius:999,fontSize:9.5,fontWeight:700,whiteSpace:'nowrap'}}>💬 Nous contacter</span>}{config.headerShowPanier&&<span style={{background:'rgba(255,255,255,.2)',borderRadius:8,padding:'7px 9px',fontSize:12}}>🛒</span>}</div><div style={{background:config.headerBgColor,filter:'brightness(0.85)',padding:'8px 16px',display:'flex',gap:14,fontSize:10,color:config.headerTextColor,flexWrap:'wrap'}}>{(config.headerLinks||[]).length===0?<span style={{opacity:.6,fontStyle:'italic'}}>Aucun lien ajouté</span>:(config.headerLinks||[]).map(l=><span key={l.id} style={{opacity:.85}}>{l.label}</span>)}</div></div>{config.sections.map((s,i)=><div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={{outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'}}><PreviewSection type={s}/></div>)}</div></div>
-      <div className={`rv-builder-panel ${ongletBuilder==='reglages'?'active':''}`} style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><button onClick={async()=>{setRegenLienEnCours(true);const{data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});if(nouveauSlug){await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);setRegenLienFait(nouveauSlug);}setRegenLienEnCours(false);}} disabled={regenLienEnCours} style={{width:'100%',border:'1px solid #9fb5a5',background:'#f7faf7',borderRadius:9,padding:'8px 10px',fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:12}}>{regenLienEnCours?'Régénération...':'🔄 Régénérer le lien de la boutique maintenant'}</button>{regenLienFait&&<div style={{fontSize:10,color:'#1a7a3c',marginTop:-8,marginBottom:12,wordBreak:'break-all'}}>✅ Nouveau lien : ?boutique={regenLienFait}</div>}<div style={{border:'1px solid #d9c9f7',background:'#f8f4ff',borderRadius:10,padding:11,marginBottom:14}}><div style={{fontSize:11,fontWeight:950,color:'#5b3ba8',marginBottom:6}}>🪄 Générer toute ma boutique avec l'IA</div><div style={{fontSize:10,color:'#6a6180',lineHeight:1.5,marginBottom:8}}>Couleur, titre d'accueil, réassurance, chiffres clés — l'IA rédige tout à partir du nom de ta boutique (et, si tu veux, une courte description de ton produit phare). Tu gardes la main : rien n'est publié tant que tu ne cliques pas sur "Publier".</div><textarea placeholder="Optionnel : décris ton produit ou ton activité en une phrase..." value={briefIA} onChange={e=>setBriefIA(e.target.value)} rows={2} style={{...fieldStyle,resize:'vertical',marginBottom:8,fontSize:11}}/>{genererIAErreur&&<div style={{fontSize:10,color:'#c0392b',marginBottom:8}}>{genererIAErreur}</div>}<button onClick={genererBoutiqueIA} disabled={genererIAEnCours} style={{width:'100%',border:'none',background:genererIAFait?'#e4d9fb':'#6b3fd4',borderRadius:9,padding:'9px 10px',fontSize:10.5,fontWeight:900,color:genererIAFait?'#5b3ba8':'white',cursor:'pointer'}}>{genererIAEnCours?'Génération en cours...':genererIAFait?'✅ Généré — vérifie et publie':'🪄 Générer avec l\'IA'}</button></div><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div><Editor/></div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
+      <div className={`rv-builder-panel ${ongletBuilder==='apercu'?'active':''}`} style={{background:'#e9efea',borderRadius:16,padding:12,minHeight:720,overflow:'auto'}}><div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>{[['desktop','🖥️ Desktop'],['tablet','▣ Tablette'],['mobile','📱 Mobile']].map(([k,l])=><button key={k} onClick={()=>setDevice(k)} style={{border:0,borderRadius:9,padding:'7px 10px',background:device===k?config.couleur:'#fff',color:device===k?'#fff':'#435047',fontSize:10.5,fontWeight:850,cursor:'pointer'}}>{l}</button>)}</div><div style={{margin:'0 auto',width:device==='mobile'?375:device==='tablet'?680:'100%',maxWidth:'100%',background:'#fff',borderRadius:15,overflow:'hidden',boxShadow:'0 20px 55px rgba(15,37,24,.14)'}}><div style={{height:4,background:config.couleur}}/><div onClick={()=>setSelected('header')} style={{cursor:'pointer',outline:selected==='header'?'2px solid '+config.couleur:'none',outlineOffset:'-2px',background:config.headerBgColor}}><div style={{background:'rgba(0,0,0,.12)',color:config.headerTextColor,padding:'5px 14px',fontSize:9.5,textAlign:'center',opacity:.85}}>{config.headerBarreTop?config.headerBarreTop:'🚚 Livraison rapide  ·  💵 Paiement à la livraison  ·  🛡️ Achat sécurisé'}</div><div style={{background:config.headerBgColor,color:config.headerTextColor,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><div style={{display:'flex',alignItems:'center',gap:8,fontWeight:950}}>{config.logo?<img src={config.logo} alt="" style={{width:30,height:30,objectFit:'contain',borderRadius:8}}/>:null}{config.nom}</div>{config.headerShowSearch&&<div style={{flex:1,minWidth:90,display:'flex',background:'#fff',borderRadius:999,overflow:'hidden'}}><span style={{padding:'8px 0 8px 10px',fontSize:11,color:'#8A9089'}}>🔍</span><input placeholder="Rechercher..." disabled style={{flex:1,border:0,padding:'8px 10px 8px 4px',fontSize:10.5,outline:'none'}}/></div>}{workspace.whatsapp_number&&<span style={{background:'#EAF3DE',color:'#3B6D11',padding:'6px 10px',borderRadius:999,fontSize:9.5,fontWeight:700,whiteSpace:'nowrap'}}>💬 Nous contacter</span>}{config.headerShowPanier&&<span style={{background:'rgba(255,255,255,.2)',borderRadius:8,padding:'7px 9px',fontSize:12}}>🛒</span>}</div><div style={{background:config.headerBgColor,filter:'brightness(0.85)',padding:'8px 16px',display:'flex',gap:14,fontSize:10,color:config.headerTextColor,flexWrap:'wrap'}}>{(config.headerLinks||[]).length===0?<span style={{opacity:.6,fontStyle:'italic'}}>Aucun lien ajouté</span>:(config.headerLinks||[]).map(l=><span key={l.id} style={{opacity:.85}}>{l.label}</span>)}</div></div>{config.sections.map((s,i)=>{const st=config.sectionStyles?.[s]||{};const wrapStyle={outline:selected===s?'2px solid '+config.couleur:'none',outlineOffset:'-2px',cursor:'pointer'};if(st.fond)wrapStyle.background=st.fond;if(st.bordure){wrapStyle.border=`${st.bordureEpaisseur??2}px solid ${st.bordureCouleur||'#dddddd'}`;wrapStyle.borderRadius=st.arrondi??12;wrapStyle.padding=st.espacement??16;wrapStyle.margin='10px';wrapStyle.overflow='hidden';}return <div key={`${s}-${i}`} onClick={()=>setSelected(s)} style={wrapStyle}>{PreviewSection({type:s})}</div>})}</div></div>
+      <div className={`rv-builder-panel ${ongletBuilder==='reglages'?'active':''}`} style={{...cardStyle,padding:14,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:12}}>⚙️ Réglages</div><label style={labelStyle}>Nom de la boutique<input style={fieldStyle} value={config.nom} onChange={e=>update('nom',e.target.value)}/></label><button onClick={async()=>{setRegenLienEnCours(true);const{data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});if(nouveauSlug){await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);setRegenLienFait(nouveauSlug);}setRegenLienEnCours(false);}} disabled={regenLienEnCours} style={{width:'100%',border:'1px solid #9fb5a5',background:'#f7faf7',borderRadius:9,padding:'8px 10px',fontSize:10.5,fontWeight:900,color:'#1a7a3c',cursor:'pointer',marginBottom:12}}>{regenLienEnCours?'Régénération...':'🔄 Régénérer le lien de la boutique maintenant'}</button>{regenLienFait&&<div style={{fontSize:10,color:'#1a7a3c',marginTop:-8,marginBottom:12,wordBreak:'break-all'}}>✅ Nouveau lien : ?boutique={regenLienFait}</div>}<div style={{border:'1px solid #d9c9f7',background:'#f8f4ff',borderRadius:10,padding:11,marginBottom:14}}><div style={{fontSize:11,fontWeight:950,color:'#5b3ba8',marginBottom:6}}>🪄 Générer toute ma boutique avec l'IA</div><div style={{fontSize:10,color:'#6a6180',lineHeight:1.5,marginBottom:8}}>Couleur, titre d'accueil, réassurance, chiffres clés — l'IA rédige tout à partir du nom de ta boutique (et, si tu veux, une courte description de ton produit phare). Tu gardes la main : rien n'est publié tant que tu ne cliques pas sur "Publier".</div><textarea placeholder="Optionnel : décris ton produit ou ton activité en une phrase..." value={briefIA} onChange={e=>setBriefIA(e.target.value)} rows={2} style={{...fieldStyle,resize:'vertical',marginBottom:8,fontSize:11}}/>{genererIAErreur&&<div style={{fontSize:10,color:'#c0392b',marginBottom:8}}>{genererIAErreur}</div>}<button onClick={genererBoutiqueIA} disabled={genererIAEnCours} style={{width:'100%',border:'none',background:genererIAFait?'#e4d9fb':'#6b3fd4',borderRadius:9,padding:'9px 10px',fontSize:10.5,fontWeight:900,color:genererIAFait?'#5b3ba8':'white',cursor:'pointer'}}>{genererIAEnCours?'Génération en cours...':genererIAFait?'✅ Généré — vérifie et publie':'🪄 Générer avec l\'IA'}</button></div><label style={labelStyle}>Couleur<div style={{display:'flex',gap:7}}><input type="color" value={config.couleur} onChange={e=>update('couleur',e.target.value)} style={{width:42,height:38,border:0,padding:0}}/><input style={{...fieldStyle,flex:1}} value={config.couleur} onChange={e=>update('couleur',e.target.value)}/></div></label><label style={labelStyle}>Description<textarea style={{...fieldStyle,resize:'vertical'}} rows={3} value={config.description} onChange={e=>update('description',e.target.value)}/></label>{config.logo&&<img src={config.logo} alt="" style={{width:54,height:54,objectFit:'contain',borderRadius:9,border:'1px solid #e2e9e3',marginBottom:8}}/>}<FileButton kind="logo" label="Télécharger / changer le logo"/><div style={{borderTop:'1px solid #edf1ee',margin:'13px 0',paddingTop:13}}><div style={{fontSize:11,fontWeight:900,color:'#344239',marginBottom:9}}>Section sélectionnée</div><div style={{fontSize:12,fontWeight:900,color:'#16231c'}}>{sectionCatalog[selected]?.icon} {sectionCatalog[selected]?.label||selected}</div><div style={{fontSize:10.5,color:'#7b867f',lineHeight:1.45,margin:'4px 0 11px'}}>{sectionCatalog[selected]?.description}</div>{Editor()}</div><div style={{borderTop:'1px solid #edf1ee',paddingTop:12,marginTop:12,fontSize:10.5,color:'#748078',lineHeight:1.5}}>💡 Les produits et collections viennent de ton espace RecuVente. L’import CSV Shopify reste disponible dans « Produits ». Les images du Store Builder sont envoyées dans le stockage boutique. Pour le Journal d'audit, le Pixel Facebook, la Marque blanche et les réseaux sociaux, utilise "⚙️ Paramètres avancés" en haut.</div></div>
     </div>
   </div>;
 }
@@ -3505,18 +3587,36 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   async function importerProduitsCSV(lignes) {
-    const nomsExistants = new Set(produits.map((p) => p.nom.toLowerCase().trim()));
+    const nomVersProduitExistant = {};
+    produits.forEach((p) => { nomVersProduitExistant[p.nom.toLowerCase().trim()] = p; });
     const nomsDejaVusDansCeCSV = new Set();
-    const produitsAImporter = [];
+    const produitsAImporter = []; // nouveaux produits à créer
+    const produitsExistantsAReliers = []; // déjà dans le catalogue, mais à rattacher/compléter côté collections
     let ignores = 0;
 
     for (const l of lignes) {
       const nomNormalise = (l.nom || "").toLowerCase().trim();
-      if (!nomNormalise || nomsExistants.has(nomNormalise) || nomsDejaVusDansCeCSV.has(nomNormalise)) {
+      if (!nomNormalise || nomsDejaVusDansCeCSV.has(nomNormalise)) {
         ignores += 1;
         continue;
       }
       nomsDejaVusDansCeCSV.add(nomNormalise);
+
+      const collectionsLigne = (Array.isArray(l.collections) ? l.collections : []).filter(Boolean);
+      const typeLigne = (l.type || "").trim() || null;
+
+      const existant = nomVersProduitExistant[nomNormalise];
+      if (existant) {
+        // Le produit existe déjà dans le catalogue : on ne le recrée pas, mais s'il porte une
+        // info de collection dans ce CSV, on le rattache quand même — utile pour réparer un
+        // import précédent qui aurait laissé les produits dispersés hors de leurs collections.
+        ignores += 1;
+        if (collectionsLigne.length || typeLigne) {
+          produitsExistantsAReliers.push({ id: existant.id, _type: typeLigne, _collections: collectionsLigne });
+        }
+        continue;
+      }
+
       produitsAImporter.push({
         workspace_id: workspace.id,
         nom: l.nom,
@@ -3525,54 +3625,68 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         photo_url: l.photo_url || null,
         photos_galerie: l.photos_galerie && l.photos_galerie.length ? l.photos_galerie : null,
         cout_achat: 0,
-        _type: (l.type || "").trim() || null, // gardé temporairement pour recréer les collections, retiré avant l'insertion
+        _type: typeLigne, // gardé temporairement pour recréer les collections, retiré avant l'insertion
+        _collections: collectionsLigne,
       });
     }
 
-    if (produitsAImporter.length === 0) {
+    if (produitsAImporter.length === 0 && produitsExistantsAReliers.length === 0) {
       return { succes: false, importes: 0, ignores, message: "Aucun nouveau produit à importer — tous existent déjà dans ton catalogue." };
     }
 
-    const aInserer = produitsAImporter.map(({ _type, ...p }) => p);
-    const { data: inseres, error } = await supabase
-      .from("produits")
-      .upsert(aInserer, { onConflict: "workspace_id,nom", ignoreDuplicates: true })
-      .select("id, nom");
-    if (error) {
-      return { succes: false, importes: 0, ignores: 0, message: "Erreur : " + error.message };
+    let inseres = [];
+    if (produitsAImporter.length > 0) {
+      const aInserer = produitsAImporter.map(({ _type, _collections, ...p }) => p);
+      const { data, error } = await supabase
+        .from("produits")
+        .upsert(aInserer, { onConflict: "workspace_id,nom", ignoreDuplicates: true })
+        .select("id, nom");
+      if (error) {
+        return { succes: false, importes: 0, ignores: 0, message: "Erreur : " + error.message };
+      }
+      inseres = data || [];
     }
 
-    // Recrée automatiquement les collections à partir de la colonne "Type" de Shopify,
-    // et y range chaque produit importé — pour retrouver la même disposition par catégorie.
+    // Rattache chaque produit concerné (nouveau OU déjà présent dans le catalogue) à TOUTES ses
+    // collections d'origine : en priorité la colonne "Collection" façon Matrixify (une ou plusieurs
+    // collections à la fois, exactement comme sur Shopify), sinon en repli le "Type" Shopify. Les
+    // collections manquantes sont créées automatiquement, que le CSV "Collections" ait été importé
+    // avant ou après — l'ordre d'import n'a plus d'importance.
+    const nomVersId = {};
+    inseres.forEach((p) => { nomVersId[p.nom.toLowerCase().trim()] = p.id; });
+
+    const aRelier = [
+      ...produitsAImporter.map((p) => ({ id: nomVersId[p.nom.toLowerCase().trim()], _type: p._type, _collections: p._collections })),
+      ...produitsExistantsAReliers,
+    ].filter((p) => p.id && (p._collections?.length || p._type));
+
     let collectionsCreees = 0;
-    const typesPresents = [...new Set(produitsAImporter.map((p) => p._type).filter(Boolean))];
-    if (typesPresents.length > 0 && inseres && inseres.length > 0) {
+    if (aRelier.length > 0) {
       const { data: collectionsExistantes } = await supabase.from("collections").select("id, nom").eq("workspace_id", workspace.id);
-      const collectionParNom = {};
-      (collectionsExistantes || []).forEach((c) => { collectionParNom[c.nom.toLowerCase().trim()] = c.id; });
+      const collectionParCle = {};
+      (collectionsExistantes || []).forEach((c) => { collectionParCle[normaliserNomCollection(c.nom)] = c.id; });
 
       let ordreSuivant = (collectionsExistantes || []).length;
-      for (const type of typesPresents) {
-        const cle = type.toLowerCase().trim();
-        if (!collectionParNom[cle]) {
-          const { data: nouvelle } = await supabase.from("collections").insert([{ workspace_id: workspace.id, nom: type, ordre: ordreSuivant }]).select("id").single();
+      const tousNoms = [...new Set(aRelier.flatMap((p) => (p._collections?.length ? p._collections : [p._type])).filter(Boolean))];
+      for (const nomCollection of tousNoms) {
+        const cle = normaliserNomCollection(nomCollection);
+        if (!collectionParCle[cle]) {
+          const { data: nouvelle } = await supabase.from("collections").insert([{ workspace_id: workspace.id, nom: nomCollection, ordre: ordreSuivant }]).select("id").single();
           if (nouvelle) {
-            collectionParNom[cle] = nouvelle.id;
+            collectionParCle[cle] = nouvelle.id;
             ordreSuivant += 1;
             collectionsCreees += 1;
           }
         }
       }
 
-      const nomVersId = {};
-      inseres.forEach((p) => { nomVersId[p.nom.toLowerCase().trim()] = p.id; });
-
       const liaisons = [];
-      produitsAImporter.forEach((p) => {
-        if (!p._type) return;
-        const produitId = nomVersId[p.nom.toLowerCase().trim()];
-        const collectionId = collectionParNom[p._type.toLowerCase().trim()];
-        if (produitId && collectionId) liaisons.push({ collection_id: collectionId, produit_id: produitId });
+      aRelier.forEach((p) => {
+        const noms = p._collections?.length ? p._collections : [p._type];
+        noms.forEach((nom) => {
+          const collectionId = collectionParCle[normaliserNomCollection(nom)];
+          if (collectionId) liaisons.push({ collection_id: collectionId, produit_id: p.id });
+        });
       });
       if (liaisons.length > 0) {
         await supabase.from("collection_produits").upsert(liaisons, { onConflict: "collection_id,produit_id", ignoreDuplicates: true });
@@ -3646,6 +3760,19 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await supabase.from("produits").delete().eq("id", id);
     await enregistrerAudit("Suppression produit", produitConcerne ? produitConcerne.nom : id);
     await loadProduits();
+  }
+
+  async function deleteProduitsMultiples(ids) {
+    if (!ids || ids.length === 0) return { succes: false, message: "Aucun produit sélectionné." };
+    const nomsConcernes = produits.filter((p) => ids.includes(p.id)).map((p) => p.nom);
+    const { error } = await supabase.from("produits").delete().in("id", ids);
+    if (error) return { succes: false, message: "Erreur : " + error.message };
+    await enregistrerAudit(
+      "Suppression groupée de produits",
+      `${nomsConcernes.length} produit(s) : ${nomsConcernes.slice(0, 10).join(", ")}${nomsConcernes.length > 10 ? "…" : ""}`
+    );
+    await loadProduits();
+    return { succes: true, supprimes: nomsConcernes.length };
   }
 
   async function addLivreur(form) {
@@ -6138,7 +6265,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
@@ -9799,10 +9926,44 @@ function parserCSV(texte) {
   });
 }
 
+// Fait correspondre un nom de collection quel que soit son format d'origine : titre Shopify
+// ("Chaussures Homme"), handle Matrixify ("chaussures-homme") ou variations d'espaces/casse —
+// pour que "Custom Collections: chaussures-homme" se rattache bien à la collection "Chaussures Homme".
+function normaliserNomCollection(s) {
+  return String(s || "").toLowerCase().trim().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+}
+
+// Matrixify exporte par défaut en .xlsx (Excel), pas en .csv — cette fonction lit les deux
+// indifféremment (selon l'extension du fichier choisi) et renvoie toujours le même format :
+// un tableau de lignes, chaque ligne étant un objet { "Nom de colonne": "valeur" }, comme le
+// produirait un CSV. Tout le reste du code (mapperColonnesShopify, etc.) n'a pas à savoir
+// d'où vient le fichier.
+async function lireFichierTabulaire(fichier) {
+  const nom = (fichier.name || "").toLowerCase();
+  if (nom.endsWith(".xlsx") || nom.endsWith(".xls")) {
+    const donnees = await fichier.arrayBuffer();
+    const classeur = XLSX.read(donnees, { type: "array" });
+    const premiereFeuille = classeur.Sheets[classeur.SheetNames[0]];
+    // defval: "" évite les "undefined" sur les cellules vides ; raw: false renvoie du texte
+    // formaté (ex: "12500" plutôt qu'un Number JS) pour rester cohérent avec le parsing CSV.
+    const lignes = XLSX.utils.sheet_to_json(premiereFeuille, { defval: "", raw: false });
+    // sheet_to_json garde les en-têtes/valeurs tels quels (espaces compris) — on les nettoie
+    // pour que "Title " (avec un espace) matche bien la clé "Title" attendue par le mapping.
+    return lignes.map((ligne) => {
+      const propre = {};
+      Object.entries(ligne).forEach(([cle, valeur]) => { propre[cle.trim()] = typeof valeur === "string" ? valeur.trim() : valeur; });
+      return propre;
+    });
+  }
+  const texte = await fichier.text();
+  return parserCSV(texte);
+}
+
 function mapperColonnesShopify(lignesBrutes) {
   // Shopify exporte une ligne par variante ET une ligne par image supplémentaire,
   // toutes partageant le même "Handle". On regroupe donc d'abord par handle pour
-  // récupérer TOUTES les photos d'un même produit avant de dédupliquer.
+  // récupérer TOUTES les photos (et TOUTES les collections) d'un même produit avant
+  // de dédupliquer.
   const ordreHandles = [];
   const parHandle = {};
   for (const l of lignesBrutes) {
@@ -9810,6 +9971,15 @@ function mapperColonnesShopify(lignesBrutes) {
     const handle = l["Handle"] || nom;
     if (!handle) continue;
     const image = (l["Image Src"] || l["photo_url"] || l["Photo"] || l["image"] || "").trim();
+    // Colonne(s) "Collection" — présente dans les exports Matrixify ("Collection" à l'import,
+    // "Custom Collections" / "Smart Collections" à l'export) : liste, séparée par des virgules,
+    // de TOUTES les collections auxquelles appartient ce produit. C'est CETTE info — et non
+    // le "Type" Shopify, qui ne permet qu'une seule catégorie — qui reproduit exactement le
+    // rattachement fait sur la boutique d'origine, y compris à plusieurs collections à la fois.
+    const collectionsBrutes = (
+      l["Collection"] || l["Collections"] || l["Custom Collections"] || l["Custom Collection"] ||
+      l["Smart Collections"] || l["Smart Collection"] || l["Product Collections"] || l["collections"] || ""
+    ).trim();
     if (!parHandle[handle]) {
       if (!nom) continue; // une ligne "image supplémentaire" Shopify peut ne pas répéter le titre
       ordreHandles.push(handle);
@@ -9819,9 +9989,13 @@ function mapperColonnesShopify(lignesBrutes) {
         prix_vente: l["Variant Price"] || l["prix_vente"] || l["Prix"] || l["price"] || "",
         type: (l["Type"] || l["Product Type"] || l["type"] || "").trim(),
         images: [],
+        collections: new Set(),
       };
     }
     if (image && !parHandle[handle].images.includes(image)) parHandle[handle].images.push(image);
+    if (collectionsBrutes) {
+      collectionsBrutes.split(",").map((c) => c.trim()).filter(Boolean).forEach((c) => parHandle[handle].collections.add(c));
+    }
   }
   return ordreHandles.map((handle) => {
     const p = parHandle[handle];
@@ -9832,6 +10006,7 @@ function mapperColonnesShopify(lignesBrutes) {
       type: p.type,
       photo_url: p.images[0] || "",
       photos_galerie: p.images.slice(1),
+      collections: Array.from(p.collections),
     };
   });
 }
@@ -9870,16 +10045,15 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     setImportCollectionsEnCours(true);
     setResultatImportCollections(null);
     try {
-      const texte = await fichier.text();
-      const brut = parserCSV(texte);
+      const brut = await lireFichierTabulaire(fichier);
       const mappees = mapperColonnesCollectionsShopify(brut);
       if (mappees.length === 0) {
         setResultatImportCollections({ succes: false, message: "Aucune collection reconnue dans ce fichier." });
         setImportCollectionsEnCours(false);
         return;
       }
-      const existantesNoms = new Set((collections || []).map((c) => c.nom.toLowerCase().trim()));
-      const aCreer = mappees.filter((c) => !existantesNoms.has(c.nom.toLowerCase().trim()));
+      const existantesNoms = new Set((collections || []).map((c) => normaliserNomCollection(c.nom)));
+      const aCreer = mappees.filter((c) => !existantesNoms.has(normaliserNomCollection(c.nom)));
       let ordreSuivant = (collections || []).length;
       let creees = 0;
       let avecDetailsPerdus = false;
@@ -10063,9 +10237,9 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             )}
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importCollectionsEnCours ? "default" : "pointer", marginBottom: 10 }}>
-              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV de collections Shopify"}
+              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel de collections"}
               <input
-                type="file" accept=".csv" style={{ display: "none" }}
+                type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) importerCollectionsCSV(f); e.target.value = ""; }}
               />
             </label>
@@ -11356,6 +11530,32 @@ function slugifierPage(texte) {
 }
 
 // Reconnaît un export Shopify "Pages" (Title, Body (HTML), Handle).
+// Shopify n'assigne pas non plus les pages importées à un menu de façon "magique" — même
+// côté Shopify natif, il faut aller les glisser dans Navigation après coup. Ce qu'on peut
+// faire de mieux ici : deviner un emplacement par défaut sensé à partir du titre/handle
+// (comme le fait n'importe quel thème Shopify par convention : les pages "politique/légal/
+// CGV/FAQ" vivent presque toujours en pied de page, jamais dans le menu principal), pour
+// que l'utilisateur n'ait quasiment rien à corriger à la main après l'import.
+const RV_MOTS_CLES_PAGE_FOOTER = [
+  "politique", "policy", "confidential", "privacy", "remboursement", "refund", "retour",
+  "return", "livraison", "shipping", "expedition", "expédition", "mentions legales",
+  "mentions légales", "legal", "légal", "condition", "terms", "cgv", "cgu", "faq", "aide",
+  "help", "garantie", "warranty", "paiement", "payment", "cookie",
+];
+// Les seules pages qu'un menu principal Shopify contient généralement, en plus du
+// catalogue et des collections (gérés ailleurs) — tout le reste (légal, FAQ...) va,
+// comme sur Shopify, dans le pied de page par défaut.
+const RV_MOTS_CLES_PAGE_HEADER = [
+  "a propos", "à propos", "about", "notre histoire", "qui sommes", "contact",
+  "nous contacter", "accueil", "home", "blog",
+];
+function deviserEmplacementPage(titre, slug) {
+  const cle = `${titre} ${slug}`.toLowerCase();
+  if (RV_MOTS_CLES_PAGE_HEADER.some((mot) => cle.includes(mot))) return "header";
+  if (RV_MOTS_CLES_PAGE_FOOTER.some((mot) => cle.includes(mot))) return "footer";
+  return "footer"; // par défaut : comme le menu Footer de Shopify, qui accueille tout ce qui n'est pas explicitement mis en avant
+}
+
 function mapperColonnesPagesShopify(lignesBrutes) {
   const dejaVus = new Set();
   const resultat = [];
@@ -11365,7 +11565,12 @@ function mapperColonnesPagesShopify(lignesBrutes) {
     const slug = slugifierPage(l["Handle"] || titre);
     if (dejaVus.has(slug)) continue;
     dejaVus.add(slug);
-    resultat.push({ titre, slug, contenu: (l["Body (HTML)"] || l["contenu"] || l["Contenu"] || l["description"] || "").trim() });
+    resultat.push({
+      titre,
+      slug,
+      contenu: (l["Body (HTML)"] || l["contenu"] || l["Contenu"] || l["description"] || "").trim(),
+      emplacement: deviserEmplacementPage(titre, slug),
+    });
   }
   return resultat;
 }
@@ -11396,7 +11601,7 @@ function PagesModal({ workspace, onClose }) {
   async function ajouterPage() {
     if (!nouveauTitre.trim()) return;
     const slug = slugifierPage(nouveauTitre);
-    const nouvelle = { titre: nouveauTitre.trim(), slug, contenu: nouveauContenu.trim() };
+    const nouvelle = { titre: nouveauTitre.trim(), slug, contenu: nouveauContenu.trim(), emplacement: deviserEmplacementPage(nouveauTitre, slug) };
     const ok = await sauvegarderListe([...pages.filter((p) => p.slug !== slug), nouvelle]);
     if (ok) { setNouveauTitre(""); setNouveauContenu(""); }
   }
@@ -11406,12 +11611,18 @@ function PagesModal({ workspace, onClose }) {
     await sauvegarderListe(pages.filter((p) => p.slug !== slug));
   }
 
+  // Reclassement en un clic : "header" (menu principal), "footer" (pied de page), ou
+  // "aucun" (créée mais pas encore affichée dans la navigation).
+  async function changerEmplacementPage(slug, emplacement) {
+    await sauvegarderListe(pages.map((p) => (p.slug === slug ? { ...p, emplacement } : p)));
+    if (pageOuverte?.slug === slug) setPageOuverte((po) => ({ ...po, emplacement }));
+  }
+
   async function importerPagesCSV(fichier) {
     setImportEnCours(true);
     setResultatImport(null);
     try {
-      const texte = await fichier.text();
-      const brut = parserCSV(texte);
+      const brut = await lireFichierTabulaire(fichier);
       const mappees = mapperColonnesPagesShopify(brut);
       if (mappees.length === 0) {
         setResultatImport({ succes: false, message: "Aucune page reconnue dans ce fichier." });
@@ -11419,8 +11630,10 @@ function PagesModal({ workspace, onClose }) {
         const slugsExistants = new Set(pages.map((p) => p.slug));
         const nouvelles = mappees.filter((p) => !slugsExistants.has(p.slug));
         const ok = await sauvegarderListe([...pages, ...nouvelles]);
+        const versFooter = nouvelles.filter((p) => p.emplacement === "footer").length;
+        const versHeader = nouvelles.length - versFooter;
         setResultatImport(ok
-          ? { succes: true, message: `${nouvelles.length} page(s) importée(s) sur ${mappees.length}.${mappees.length - nouvelles.length > 0 ? ` ${mappees.length - nouvelles.length} existai(en)t déjà.` : ""}` }
+          ? { succes: true, message: `${nouvelles.length} page(s) créée(s) et positionnée(s) automatiquement — ${versFooter} en pied de page, ${versHeader} dans le menu principal (modifiable en un clic ci-dessous).${mappees.length - nouvelles.length > 0 ? ` ${mappees.length - nouvelles.length} existai(en)t déjà.` : ""}` }
           : { succes: false, message: "La colonne pages_personnalisees n'existe pas encore sur la table workspaces." });
       }
     } catch (e) {
@@ -11446,12 +11659,12 @@ function PagesModal({ workspace, onClose }) {
         {!pageOuverte ? (
           <>
             <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14 }}>
-              Crée des pages libres (À propos, Mentions légales...) affichées dans le pied de page de ta boutique.
+              Crée des pages libres (À propos, Mentions légales...). À l'import, chaque page est positionnée automatiquement — pied de page par défaut, menu principal pour Contact/À propos/Accueil — et reclassable en un clic.
             </div>
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importEnCours ? "default" : "pointer", marginBottom: 10 }}>
-              {importEnCours ? "Import en cours..." : "📥 Importer un CSV de pages Shopify"}
-              <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel de pages"}
+              <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
             </label>
             {resultatImport && (
               <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAEA", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#EFC2C2"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#B3261E", lineHeight: 1.5 }}>
@@ -11468,22 +11681,58 @@ function PagesModal({ workspace, onClose }) {
             {pages.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Aucune page pour l'instant.</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {pages.map((p) => (
-                <div key={p.slug} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                  <button onClick={() => setPageOuverte(p)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>{p.titre}</button>
-                  <button onClick={() => supprimerPage(p.slug)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                <div key={p.slug} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <button onClick={() => setPageOuverte(p)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>{p.titre}</button>
+                    <button onClick={() => supprimerPage(p.slug)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[["header", "☰ Menu principal"], ["footer", "▦ Pied de page"], ["aucun", "🚫 Masquée"]].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => changerEmplacementPage(p.slug, val)}
+                        style={{
+                          fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 999, cursor: "pointer",
+                          border: (p.emplacement || "footer") === val ? "1px solid #1a7a3c" : "1px solid #DDD8CC",
+                          background: (p.emplacement || "footer") === val ? "#EAF3DE" : "#fff",
+                          color: (p.emplacement || "footer") === val ? "#3B6D11" : "#8A9089",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <div style={{ fontSize: 13, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pageOuverte.contenu }} />
+          <>
+            <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+              {[["header", "☰ Menu principal"], ["footer", "▦ Pied de page"], ["aucun", "🚫 Masquée"]].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => changerEmplacementPage(pageOuverte.slug, val)}
+                  style={{
+                    fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                    border: (pageOuverte.emplacement || "footer") === val ? "1px solid #1a7a3c" : "1px solid #DDD8CC",
+                    background: (pageOuverte.emplacement || "footer") === val ? "#EAF3DE" : "#fff",
+                    color: (pageOuverte.emplacement || "footer") === val ? "#3B6D11" : "#8A9089",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 13, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pageOuverte.contenu }} />
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, currency, workspaceId, onClose, onImportCSV }) {
   const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
   const [nouveauNom, setNouveauNom] = useState("");
@@ -11518,6 +11767,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [confirmSuppr, setConfirmSuppr] = useState(null);
+  const [modeSelection, setModeSelection] = useState(false);
+  const [produitsSelectionnes, setProduitsSelectionnes] = useState(new Set());
+  const [confirmSupprMultiple, setConfirmSupprMultiple] = useState(false);
+  const [suppressionMultipleEnCours, setSuppressionMultipleEnCours] = useState(false);
   const [creationEnCours, setCreationEnCours] = useState(false);
   const [creationErreur, setCreationErreur] = useState("");
   const [derniereCreation, setDerniereCreation] = useState("");
@@ -11569,6 +11822,44 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   function flash(nom) {
     setSavedFlash(nom);
     setTimeout(() => setSavedFlash((f) => (f === nom ? null : f)), 1600);
+  }
+
+  function basculerSelectionProduit(id) {
+    setProduitsSelectionnes((prev) => {
+      const suivant = new Set(prev);
+      if (suivant.has(id)) suivant.delete(id);
+      else suivant.add(id);
+      return suivant;
+    });
+  }
+
+  function toutSelectionner() {
+    if (produitsSelectionnes.size === produitsFiltres.length) {
+      setProduitsSelectionnes(new Set());
+    } else {
+      setProduitsSelectionnes(new Set(produitsFiltres.map((p) => p.id)));
+    }
+  }
+
+  function quitterModeSelection() {
+    setModeSelection(false);
+    setProduitsSelectionnes(new Set());
+    setConfirmSupprMultiple(false);
+  }
+
+  async function confirmerSuppressionMultiple() {
+    if (!onBulkDelete || produitsSelectionnes.size === 0) return;
+    setSuppressionMultipleEnCours(true);
+    const idsASupprimer = Array.from(produitsSelectionnes);
+    const resultat = await onBulkDelete(idsASupprimer);
+    setSuppressionMultipleEnCours(false);
+    setConfirmSupprMultiple(false);
+    if (resultat?.succes) {
+      if (idsASupprimer.includes(selectedId)) setSelectedId(null);
+      quitterModeSelection();
+    } else {
+      alert(resultat?.message || "Erreur lors de la suppression groupée.");
+    }
   }
 
   function regenererVariantes() {
@@ -11824,7 +12115,57 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               />
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => setAjoutOuvert((v) => !v)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>＋ Nouveau produit</button>
+                {produits.length > 0 && onBulkDelete && (
+                  <button
+                    onClick={() => (modeSelection ? quitterModeSelection() : setModeSelection(true))}
+                    style={{ background: modeSelection ? "#16231F" : "#fff", color: modeSelection ? "white" : "#16231F", border: "1px solid #DDD8CC", borderRadius: 8, padding: "9px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {modeSelection ? "✕ Annuler" : "☑️ Sélectionner"}
+                  </button>
+                )}
               </div>
+
+              {modeSelection && (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#16231F", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={produitsFiltres.length > 0 && produitsSelectionnes.size === produitsFiltres.length}
+                      onChange={toutSelectionner}
+                    />
+                    Tout sélectionner {recherche.trim() ? `(${produitsFiltres.length} résultat${produitsFiltres.length > 1 ? "s" : ""})` : `(${produitsFiltres.length})`}
+                  </label>
+
+                  {produitsSelectionnes.size > 0 && (
+                    confirmSupprMultiple ? (
+                      <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 8, padding: 10, fontSize: 12, color: "#B3261E" }}>
+                        <div style={{ marginBottom: 8, fontWeight: 600 }}>
+                          Supprimer définitivement {produitsSelectionnes.size} produit{produitsSelectionnes.size > 1 ? "s" : ""} ? Cette action est irréversible.
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            onClick={confirmerSuppressionMultiple}
+                            disabled={suppressionMultipleEnCours}
+                            style={{ background: "#D64933", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: suppressionMultipleEnCours ? "default" : "pointer" }}
+                          >
+                            {suppressionMultipleEnCours ? "Suppression..." : "Confirmer"}
+                          </button>
+                          <button onClick={() => setConfirmSupprMultiple(false)} disabled={suppressionMultipleEnCours} style={{ background: "#fff", border: "1px solid #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmSupprMultiple(true)}
+                        style={{ background: "none", border: "1px solid #F0B8AC", color: "#D64933", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                      >
+                        🗑️ Supprimer la sélection ({produitsSelectionnes.size})
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
             </div>
 
             {ajoutOuvert && (
@@ -11993,17 +12334,16 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
             )}
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, margin: 14, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer" }}>
-              {importEnCours ? "Import en cours..." : "📥 Importer un CSV"}
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel"}
               <input
-                type="file" accept=".csv" style={{ display: "none" }}
+                type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }}
                 onChange={async (e) => {
                   const fichier = e.target.files?.[0];
                   if (!fichier) return;
                   setImportEnCours(true);
                   setResultatImport(null);
                   try {
-                    const texte = await fichier.text();
-                    const brut = parserCSV(texte);
+                    const brut = await lireFichierTabulaire(fichier);
                     const mappe = mapperColonnesShopify(brut);
                     if (mappe.length === 0) {
                       setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });
@@ -12040,16 +12380,27 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                 const st = Number(p.stock_initial || 0);
                 const rest = st - qp.commandees;
                 const actif = p.id === selectedId;
+                const coche = produitsSelectionnes.has(p.id);
                 return (
                   <button
                     key={p.id}
-                    onClick={() => setSelectedId(p.id)}
+                    onClick={() => (modeSelection ? basculerSelectionProduit(p.id) : setSelectedId(p.id))}
                     style={{
                       display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
-                      background: actif ? "#EAF3DE" : "transparent", border: actif ? "1px solid #C7DDA3" : "1px solid transparent",
+                      background: modeSelection ? (coche ? "#EAF3DE" : "transparent") : (actif ? "#EAF3DE" : "transparent"),
+                      border: modeSelection ? (coche ? "1px solid #C7DDA3" : "1px solid transparent") : (actif ? "1px solid #C7DDA3" : "1px solid transparent"),
                       borderRadius: 9, padding: 9, cursor: "pointer", marginBottom: 4,
                     }}
                   >
+                    {modeSelection && (
+                      <input
+                        type="checkbox"
+                        checked={coche}
+                        onChange={() => basculerSelectionProduit(p.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ flexShrink: 0, width: 16, height: 16 }}
+                      />
+                    )}
                     {p.photo_url ? (
                       <img src={p.photo_url} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: "cover", flexShrink: 0 }} />
                     ) : (

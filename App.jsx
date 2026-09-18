@@ -3338,6 +3338,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showDashboardBusiness, setShowDashboardBusiness] = useState(false);
   const [showTemoignages, setShowTemoignages] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
+  const [showPages, setShowPages] = useState(false);
   const [showCodesPromo, setShowCodesPromo] = useState(false);
   const [showPaniersAbandonnes, setShowPaniersAbandonnes] = useState(false);
   const [showAzaliDesign, setShowAzaliDesign] = useState(false);
@@ -3522,6 +3523,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         description: l.description || null,
         prix_vente: l.prix_vente ? Number(l.prix_vente) : null,
         photo_url: l.photo_url || null,
+        photos_galerie: l.photos_galerie && l.photos_galerie.length ? l.photos_galerie : null,
         cout_achat: 0,
         _type: (l.type || "").trim() || null, // gardé temporairement pour recréer les collections, retiré avant l'insertion
       });
@@ -4713,13 +4715,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showPages || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
         showBatch || showAdd;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowPages(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
         setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
@@ -4733,7 +4735,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showPages, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
     showBatch, showAdd, vue,
   ]);
@@ -5052,6 +5054,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             📁 Collections
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowPages(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            📄 Pages
           </button>
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && workspace.slug === "azaliexpress" && (
@@ -6176,6 +6186,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showTemoignages && !accesBloque && <TemoignagesModal workspace={workspace} onClose={() => setShowTemoignages(false)} />}
       {showCollections && !accesBloque && <CollectionsModal workspaceId={workspace.id} produits={produits} onClose={() => setShowCollections(false)} />}
+      {showPages && !accesBloque && <PagesModal workspace={workspace} onClose={() => setShowPages(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
       {showVisiteursEnLigne && !accesBloque && <VisiteursEnLigneModal workspaceId={workspace.id} onClose={() => setShowVisiteursEnLigne(false)} />}
       {showTraficBoutique && !accesBloque && <TraficBoutiqueModal workspaceId={workspace.id} onClose={() => setShowTraficBoutique(false)} />}
@@ -9789,20 +9800,57 @@ function parserCSV(texte) {
 }
 
 function mapperColonnesShopify(lignesBrutes) {
+  // Shopify exporte une ligne par variante ET une ligne par image supplémentaire,
+  // toutes partageant le même "Handle". On regroupe donc d'abord par handle pour
+  // récupérer TOUTES les photos d'un même produit avant de dédupliquer.
+  const ordreHandles = [];
+  const parHandle = {};
+  for (const l of lignesBrutes) {
+    const nom = (l["Title"] || l["nom"] || l["Nom"] || l["name"] || "").trim();
+    const handle = l["Handle"] || nom;
+    if (!handle) continue;
+    const image = (l["Image Src"] || l["photo_url"] || l["Photo"] || l["image"] || "").trim();
+    if (!parHandle[handle]) {
+      if (!nom) continue; // une ligne "image supplémentaire" Shopify peut ne pas répéter le titre
+      ordreHandles.push(handle);
+      parHandle[handle] = {
+        nom,
+        description: (l["Body (HTML)"] || l["description"] || l["Description"] || "").trim(),
+        prix_vente: l["Variant Price"] || l["prix_vente"] || l["Prix"] || l["price"] || "",
+        type: (l["Type"] || l["Product Type"] || l["type"] || "").trim(),
+        images: [],
+      };
+    }
+    if (image && !parHandle[handle].images.includes(image)) parHandle[handle].images.push(image);
+  }
+  return ordreHandles.map((handle) => {
+    const p = parHandle[handle];
+    return {
+      nom: p.nom,
+      description: p.description,
+      prix_vente: p.prix_vente,
+      type: p.type,
+      photo_url: p.images[0] || "",
+      photos_galerie: p.images.slice(1),
+    };
+  });
+}
+
+// Reconnaît un export Shopify "Collections" (Title, Body (HTML), Image Src, Handle)
+// en plus des noms de colonnes déjà utilisés côté produits.
+function mapperColonnesCollectionsShopify(lignesBrutes) {
   const dejaVus = new Set();
   const resultat = [];
   for (const l of lignesBrutes) {
-    const nom = l["Title"] || l["nom"] || l["Nom"] || l["name"] || "";
-    if (!nom.trim()) continue;
+    const nom = (l["Title"] || l["nom"] || l["Nom"] || l["name"] || "").trim();
+    if (!nom) continue;
     const handle = l["Handle"] || nom;
-    if (dejaVus.has(handle)) continue; // Shopify exporte une ligne par variante, on ne garde que la première
+    if (dejaVus.has(handle)) continue;
     dejaVus.add(handle);
     resultat.push({
-      nom: nom.trim(),
+      nom,
       description: (l["Body (HTML)"] || l["description"] || l["Description"] || "").trim(),
-      prix_vente: l["Variant Price"] || l["prix_vente"] || l["Prix"] || l["price"] || "",
-      photo_url: l["Image Src"] || l["photo_url"] || l["Photo"] || l["image"] || "",
-      type: (l["Type"] || l["Product Type"] || l["type"] || "").trim(),
+      image_url: (l["Image Src"] || l["photo_url"] || l["Image"] || "").trim(),
     });
   }
   return resultat;
@@ -9815,6 +9863,49 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
   const [produitsDeLaCollection, setProduitsDeLaCollection] = useState(new Set());
   const [classementEnCours, setClassementEnCours] = useState(false);
   const [resultatClassement, setResultatClassement] = useState(null);
+  const [importCollectionsEnCours, setImportCollectionsEnCours] = useState(false);
+  const [resultatImportCollections, setResultatImportCollections] = useState(null);
+
+  async function importerCollectionsCSV(fichier) {
+    setImportCollectionsEnCours(true);
+    setResultatImportCollections(null);
+    try {
+      const texte = await fichier.text();
+      const brut = parserCSV(texte);
+      const mappees = mapperColonnesCollectionsShopify(brut);
+      if (mappees.length === 0) {
+        setResultatImportCollections({ succes: false, message: "Aucune collection reconnue dans ce fichier." });
+        setImportCollectionsEnCours(false);
+        return;
+      }
+      const existantesNoms = new Set((collections || []).map((c) => c.nom.toLowerCase().trim()));
+      const aCreer = mappees.filter((c) => !existantesNoms.has(c.nom.toLowerCase().trim()));
+      let ordreSuivant = (collections || []).length;
+      let creees = 0;
+      let avecDetailsPerdus = false;
+      for (const c of aCreer) {
+        // On tente d'abord avec description + image (si les colonnes existent déjà
+        // côté Supabase) ; en cas d'échec de schéma, on retombe sur le nom seul,
+        // pour ne jamais bloquer l'import à cause de colonnes manquantes.
+        let { error } = await supabase.from("collections").insert([{ workspace_id: workspaceId, nom: c.nom, ordre: ordreSuivant, description: c.description || null, image_url: c.image_url || null }]);
+        if (error) {
+          avecDetailsPerdus = true;
+          const retry = await supabase.from("collections").insert([{ workspace_id: workspaceId, nom: c.nom, ordre: ordreSuivant }]);
+          if (retry.error) continue;
+        }
+        ordreSuivant += 1;
+        creees += 1;
+      }
+      setResultatImportCollections({
+        succes: true,
+        message: `${creees} collection(s) importée(s) sur ${mappees.length}.${mappees.length - aCreer.length > 0 ? ` ${mappees.length - aCreer.length} existai(en)t déjà.` : ""}${avecDetailsPerdus ? " ⚠️ Description/image non enregistrées — il manque les colonnes description/image_url sur la table collections dans Supabase." : ""}`,
+      });
+      await charger();
+    } catch (e) {
+      setResultatImportCollections({ succes: false, message: "Impossible de lire ce fichier : " + e.message });
+    }
+    setImportCollectionsEnCours(false);
+  }
 
   // Dictionnaire de mots-clés pour deviner la catégorie d'un produit à partir de son nom —
   // classement "au mieux", à vérifier ensuite, pas une science exacte.
@@ -9968,6 +10059,19 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
             {resultatClassement && (
               <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                 ✅ {resultatClassement}
+              </div>
+            )}
+
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importCollectionsEnCours ? "default" : "pointer", marginBottom: 10 }}>
+              {importCollectionsEnCours ? "Import en cours..." : "📥 Importer un CSV de collections Shopify"}
+              <input
+                type="file" accept=".csv" style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) importerCollectionsCSV(f); e.target.value = ""; }}
+              />
+            </label>
+            {resultatImportCollections && (
+              <div style={{ background: resultatImportCollections.succes ? "#EAF3DE" : "#FBEAEA", border: `1px solid ${resultatImportCollections.succes ? "#C7DDA3" : "#EFC2C2"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: resultatImportCollections.succes ? "#3B6D11" : "#B3261E", lineHeight: 1.5 }}>
+                {resultatImportCollections.succes ? "✅ " : "⚠️ "}{resultatImportCollections.message}
               </div>
             )}
 
@@ -11242,6 +11346,138 @@ function TemoignagesModal({ workspace, onClose }) {
         <button onClick={sauvegarder} disabled={saving} style={{ width: "100%", background: saved ? "#1F9D6E" : "#16231F", color: "white", border: "none", borderRadius: 10, padding: "11px 0", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
           {saved ? "✅ Enregistré" : saving ? "Enregistrement..." : "Enregistrer les témoignages"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function slugifierPage(texte) {
+  return (texte || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "page";
+}
+
+// Reconnaît un export Shopify "Pages" (Title, Body (HTML), Handle).
+function mapperColonnesPagesShopify(lignesBrutes) {
+  const dejaVus = new Set();
+  const resultat = [];
+  for (const l of lignesBrutes) {
+    const titre = (l["Title"] || l["titre"] || l["Titre"] || l["nom"] || "").trim();
+    if (!titre) continue;
+    const slug = slugifierPage(l["Handle"] || titre);
+    if (dejaVus.has(slug)) continue;
+    dejaVus.add(slug);
+    resultat.push({ titre, slug, contenu: (l["Body (HTML)"] || l["contenu"] || l["Contenu"] || l["description"] || "").trim() });
+  }
+  return resultat;
+}
+
+// Pages personnalisées (À propos, Mentions légales, etc.) — stockées dans une seule
+// colonne JSON sur `workspaces` (pages_personnalisees), pour rester compatible avec
+// l'existant sans créer de nouvelle table. Si la colonne n'existe pas encore côté
+// Supabase, on l'indique clairement plutôt que d'échouer en silence.
+function PagesModal({ workspace, onClose }) {
+  const [pages, setPages] = useState(Array.isArray(workspace.pages_personnalisees) ? workspace.pages_personnalisees : []);
+  const [colonneManquante, setColonneManquante] = useState(false);
+  const [nouveauTitre, setNouveauTitre] = useState("");
+  const [nouveauContenu, setNouveauContenu] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [importEnCours, setImportEnCours] = useState(false);
+  const [resultatImport, setResultatImport] = useState(null);
+  const [pageOuverte, setPageOuverte] = useState(null);
+
+  async function sauvegarderListe(nouvellesPages) {
+    setSaving(true);
+    const { error } = await supabase.from("workspaces").update({ pages_personnalisees: nouvellesPages }).eq("id", workspace.id);
+    setSaving(false);
+    if (error) { setColonneManquante(true); return false; }
+    setPages(nouvellesPages);
+    return true;
+  }
+
+  async function ajouterPage() {
+    if (!nouveauTitre.trim()) return;
+    const slug = slugifierPage(nouveauTitre);
+    const nouvelle = { titre: nouveauTitre.trim(), slug, contenu: nouveauContenu.trim() };
+    const ok = await sauvegarderListe([...pages.filter((p) => p.slug !== slug), nouvelle]);
+    if (ok) { setNouveauTitre(""); setNouveauContenu(""); }
+  }
+
+  async function supprimerPage(slug) {
+    if (!window.confirm("Supprimer cette page ?")) return;
+    await sauvegarderListe(pages.filter((p) => p.slug !== slug));
+  }
+
+  async function importerPagesCSV(fichier) {
+    setImportEnCours(true);
+    setResultatImport(null);
+    try {
+      const texte = await fichier.text();
+      const brut = parserCSV(texte);
+      const mappees = mapperColonnesPagesShopify(brut);
+      if (mappees.length === 0) {
+        setResultatImport({ succes: false, message: "Aucune page reconnue dans ce fichier." });
+      } else {
+        const slugsExistants = new Set(pages.map((p) => p.slug));
+        const nouvelles = mappees.filter((p) => !slugsExistants.has(p.slug));
+        const ok = await sauvegarderListe([...pages, ...nouvelles]);
+        setResultatImport(ok
+          ? { succes: true, message: `${nouvelles.length} page(s) importée(s) sur ${mappees.length}.${mappees.length - nouvelles.length > 0 ? ` ${mappees.length - nouvelles.length} existai(en)t déjà.` : ""}` }
+          : { succes: false, message: "La colonne pages_personnalisees n'existe pas encore sur la table workspaces." });
+      }
+    } catch (e) {
+      setResultatImport({ succes: false, message: "Impossible de lire ce fichier : " + e.message });
+    }
+    setImportEnCours(false);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 460, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{pageOuverte ? `📄 ${pageOuverte.titre}` : "📄 Pages"}</div>
+          <button onClick={pageOuverte ? () => setPageOuverte(null) : onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>{pageOuverte ? "← Retour" : "×"}</button>
+        </div>
+
+        {colonneManquante && (
+          <div style={{ background: "#FBEAEA", border: "1px solid #EFC2C2", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 11.5, color: "#B3261E", lineHeight: 1.5 }}>
+            ⚠️ Cette fonctionnalité nécessite une petite mise à jour de la base de données (une colonne à ajouter sur la table <code>workspaces</code>). Transmets ça à ton assistant technique : <code>ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS pages_personnalisees jsonb DEFAULT '[]'::jsonb;</code>
+          </div>
+        )}
+
+        {!pageOuverte ? (
+          <>
+            <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14 }}>
+              Crée des pages libres (À propos, Mentions légales...) affichées dans le pied de page de ta boutique.
+            </div>
+
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importEnCours ? "default" : "pointer", marginBottom: 10 }}>
+              {importEnCours ? "Import en cours..." : "📥 Importer un CSV de pages Shopify"}
+              <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importerPagesCSV(f); e.target.value = ""; }} />
+            </label>
+            {resultatImport && (
+              <div style={{ background: resultatImport.succes ? "#EAF3DE" : "#FBEAEA", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#EFC2C2"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#B3261E", lineHeight: 1.5 }}>
+                {resultatImport.succes ? "✅ " : "⚠️ "}{resultatImport.message}
+              </div>
+            )}
+
+            <input placeholder="Titre de la page (ex: À propos)" value={nouveauTitre} onChange={(e) => setNouveauTitre(e.target.value)} style={{ ...inputStyle }} />
+            <textarea placeholder="Contenu (texte ou HTML simple)" value={nouveauContenu} onChange={(e) => setNouveauContenu(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+            <button onClick={ajouterPage} disabled={saving || !nouveauTitre.trim()} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 16, opacity: saving || !nouveauTitre.trim() ? 0.6 : 1 }}>
+              {saving ? "Enregistrement..." : "+ Ajouter la page"}
+            </button>
+
+            {pages.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Aucune page pour l'instant.</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {pages.map((p) => (
+                <div key={p.slug} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => setPageOuverte(p)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>{p.titre}</button>
+                  <button onClick={() => supprimerPage(p.slug)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pageOuverte.contenu }} />
+        )}
       </div>
     </div>
   );

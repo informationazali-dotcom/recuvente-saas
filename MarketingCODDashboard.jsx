@@ -3,65 +3,38 @@ import { supabase } from "./supabaseClient";
 
 const money = (n) => `${Number(n || 0).toLocaleString("fr-FR")} F CFA`;
 const pct = (n) => `${Number(n || 0).toFixed(1)} %`;
+const num = (n) => Number(n || 0).toLocaleString("fr-FR");
 
-export default function MarketingCODDashboard() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [workspaceId, setWorkspaceId] = useState("");
-  const [days, setDays] = useState(30);
-  const [model, setModel] = useState("last_non_direct");
+const DIMENSIONS = [["campagne","Campagnes"],["adset","Ensembles publicitaires"],["creative","Créatifs"],["produit","Produits"],["ville","Villes"],["zone","Zones"],["closer","Closers"],["livreur","Livreurs"],["type_client","Nouveaux / anciens"],["global","Vue globale"]];
+const TABS = [["overview","Dashboard"],["funnel","Funnel"],["products","Produits"],["customers","Clients / RFM"],["acquisition","Acquisition"],["retention","Rétention / Cohortes"],["optimization","Recommandations"]];
+const card = {background:"white",border:"1px solid #e2e7e2",borderRadius:16,padding:16};
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { if (alive) { setError("Connecte-toi à RecuVente pour voir ce rapport."); setLoading(false); } return; }
-      const { data: memberships, error: mErr } = await supabase.from("workspace_members").select("workspace_id,role").eq("user_id", user.id).in("role", ["owner", "admin"]);
-      if (mErr || !memberships?.length) { if (alive) { setError("Aucun espace administrateur accessible."); setLoading(false); } return; }
-      if (alive) setWorkspaceId(memberships[0].workspace_id);
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!workspaceId) return;
-    let alive = true;
-    (async () => {
-      setLoading(true); setError("");
-      const from = new Date(Date.now() - days * 86400000).toISOString();
-      const to = new Date().toISOString();
-      const { data, error: e } = await supabase.rpc("rapport_marketing_cod", { p_workspace_id: workspaceId, p_from: from, p_to: to, p_model: model });
-      if (!alive) return;
-      if (e) setError(e.message || "Impossible de charger le rapport.");
-      else setRows(data || []);
-      setLoading(false);
-    })();
-    return () => { alive = false; };
-  }, [workspaceId, days, model]);
-
-  const totals = useMemo(() => rows.reduce((a, r) => {
-    for (const k of ["sessions","visitors","view_content","add_to_cart","initiate_checkout","orders","confirmed_orders","delivered_orders","collected_orders"]) a[k] += Number(r[k] || 0);
-    for (const k of ["order_value","collected_revenue","ad_spend"]) a[k] += Number(r[k] || 0);
-    return a;
-  }, {sessions:0,visitors:0,view_content:0,add_to_cart:0,initiate_checkout:0,orders:0,confirmed_orders:0,delivered_orders:0,collected_orders:0,order_value:0,collected_revenue:0,ad_spend:0}), [rows]);
-
-  const cards = [
-    ["Sessions", totals.sessions], ["Commandes", totals.orders], ["Confirmées", totals.confirmed_orders], ["Livrées", totals.delivered_orders], ["Encaissées", totals.collected_orders], ["CA encaissé", money(totals.collected_revenue)], ["Dépenses pub", money(totals.ad_spend)], ["ROAS encaissé", totals.ad_spend ? `${(totals.collected_revenue / totals.ad_spend).toFixed(2)}x` : "—"]
-  ];
-
-  return <div style={{minHeight:"100vh",background:"#f7f8f6",padding:"28px",fontFamily:"Inter,system-ui,sans-serif",color:"#172019"}}>
-    <div style={{maxWidth:1500,margin:"0 auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",gap:20,alignItems:"center",flexWrap:"wrap",marginBottom:24}}>
-        <div><div style={{fontSize:12,fontWeight:800,letterSpacing:1.5,color:"#198754"}}>RECUVENTE ANALYTICS</div><h1 style={{margin:"5px 0",fontSize:30}}>Marketing COD</h1><div style={{color:"#69736b"}}>De la publicité jusqu'à l'argent réellement encaissé.</div></div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><select value={days} onChange={e=>setDays(Number(e.target.value))} style={{padding:10,borderRadius:10,border:"1px solid #d9ded9",background:"white"}}><option value={7}>7 jours</option><option value={30}>30 jours</option><option value={90}>90 jours</option></select><select value={model} onChange={e=>setModel(e.target.value)} style={{padding:10,borderRadius:10,border:"1px solid #d9ded9",background:"white"}}><option value="last_non_direct">Dernier clic non direct</option><option value="last">Dernier clic</option><option value="first">Premier clic</option></select></div>
-      </div>
-      {error && <div style={{padding:14,borderRadius:12,background:"#fff1f0",color:"#a22",marginBottom:18}}>{error}</div>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:20}}>{cards.map(([label,value])=><div key={label} style={{background:"white",border:"1px solid #e2e7e2",borderRadius:14,padding:16}}><div style={{fontSize:12,color:"#707970"}}>{label}</div><div style={{fontSize:22,fontWeight:800,marginTop:6}}>{value}</div></div>)}</div>
-      <div style={{background:"white",border:"1px solid #e2e7e2",borderRadius:16,overflow:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:1450}}><thead><tr>{["Source","Campagne","Sessions","Vue produit","Panier","Checkout","Commandes","Confirmées","Livrées","Encaissées","CA encaissé","Pub","Conv.","Confirm.","Livraison","Encaissement","ROAS"].map(h=><th key={h} style={{textAlign:"left",padding:"13px 10px",fontSize:11,color:"#69736b",borderBottom:"1px solid #e7ebe7",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan="17" style={{padding:30,textAlign:"center"}}>Chargement…</td></tr> : rows.filter(r=>Number(r.sessions||0)+Number(r.orders||0)+Number(r.collected_orders||0)>0).sort((a,b)=>Number(b.collected_revenue||0)-Number(a.collected_revenue||0)).map((r,i)=><tr key={`${r.source}-${r.campaign}-${i}`}>{[r.source||"direct",r.campaign||"—",r.sessions,r.view_content,r.add_to_cart,r.initiate_checkout,r.orders,r.confirmed_orders,r.delivered_orders,r.collected_orders,money(r.collected_revenue),money(r.ad_spend),pct(r.conversion_rate),pct(r.confirmation_rate),pct(r.delivery_rate),pct(r.collection_rate),r.roas_collected==null?"—":`${Number(r.roas_collected).toFixed(2)}x`].map((v,j)=><td key={j} style={{padding:"12px 10px",fontSize:12,borderBottom:"1px solid #f0f2f0",whiteSpace:"nowrap",fontWeight:j===10||j===16?700:400}}>{v}</td>)}</tr>)}{!loading && !rows.length && <tr><td colSpan="17" style={{padding:30,textAlign:"center",color:"#69736b"}}>Aucune donnée sur cette période.</td></tr>}</tbody></table>
-      </div>
-      <div style={{marginTop:18,padding:16,borderRadius:14,background:"#edf8f1",color:"#245a38",fontSize:13}}><strong>Lecture COD :</strong> la commande créée n'est pas la conversion finale. RecuVente distingue commande, confirmation, livraison et encaissement. Le ROAS affiché ici utilise le chiffre d'affaires réellement encaissé.</div>
-    </div>
-  </div>;
+export default function MarketingCODDashboard(){
+ const [workspaceId,setWorkspaceId]=useState(""); const [days,setDays]=useState(30); const [tab,setTab]=useState("overview");
+ const [rows,setRows]=useState([]); const [center,setCenter]=useState(null); const [dimension,setDimension]=useState("campagne");
+ const [loading,setLoading]=useState(true); const [error,setError]=useState("");
+ useEffect(()=>{(async()=>{const {data:{user}}=await supabase.auth.getUser(); if(!user){setError("Connecte-toi à RecuVente.");setLoading(false);return;} const {data,error:e}=await supabase.from("workspace_members").select("workspace_id,role").eq("user_id",user.id).in("role",["owner","admin"]); if(e||!data?.length){setError("Aucun espace administrateur accessible.");setLoading(false);return;} setWorkspaceId(data[0].workspace_id);})();},[]);
+ const load=async()=>{if(!workspaceId)return;setLoading(true);setError("");const from=new Date(Date.now()-days*86400000).toISOString(),to=new Date().toISOString(); const [a,b]=await Promise.all([supabase.rpc("rapport_pilotage_cod",{p_workspace_id:workspaceId,p_from:from,p_to:to,p_dimension:dimension}),supabase.rpc("shopify_optimisation_center",{p_workspace_id:workspaceId,p_days:days})]); if(a.error&&!b.error)setError(a.error.message); else if(b.error)setError(b.error.message); setRows(a.data||[]);setCenter(b.data||null);setLoading(false);};
+ useEffect(()=>{load();},[workspaceId,days,dimension]);
+ const totals=useMemo(()=>rows.reduce((a,r)=>{for(const k of ["sessions","visiteurs","commandes","confirmees","livrees","encaissees","ca_commande","ca_confirme","ca_livre","ca_encaisse","cout_produits","cout_livraison","cout_retour","commissions","autres_couts","couts_publicitaires","benefice_net"])a[k]=(a[k]||0)+Number(r[k]||0);return a;},{sessions:0,visiteurs:0,commandes:0,confirmees:0,livrees:0,encaissees:0,ca_commande:0,ca_confirme:0,ca_livre:0,ca_encaisse:0,cout_produits:0,cout_livraison:0,cout_retour:0,commissions:0,autres_couts:0,couts_publicitaires:0,benefice_net:0}),[rows]);
+ const rate=(a,b)=>b?a/b*100:0; const roas=totals.couts_publicitaires?totals.ca_encaisse/totals.couts_publicitaires:0; const margin=totals.ca_encaisse?totals.benefice_net/totals.ca_encaisse*100:0;
+ const dash=center?.dashboard||{}; const funnel=center?.funnel||{};
+ const metrics=[["Commandes",num(dash.orders??totals.commandes),"créées"],["CA commandé",money(dash.revenue??totals.ca_commande),"CA brut"],["CA encaissé",money(dash.collected_revenue??totals.ca_encaisse),"revenu réel"],["Confirmation",pct(rate(dash.confirmed??totals.confirmees,dash.orders??totals.commandes)),"commande → confirmée"],["Livraison",pct(rate(dash.delivered??totals.livrees,dash.orders??totals.commandes)),"commande → livrée"],["Encaissement",pct(dash.collection_rate_pct??rate(totals.encaissees,totals.commandes)),"COD réel"],["ROAS encaissé",`${roas.toFixed(2)}x`,"revenu / publicité"],["Bénéfice net",money(totals.benefice_net),`${margin.toFixed(1)} % marge`]];
+ const table=<div style={{...card,overflow:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:1500}}><thead><tr>{["Dimension","Source","Campagne","Adset","Créatif","Commandes","Confirm.","Livrées","Encaissées","CA encaissé","Produits","Livraison","Retours","Pub","Bénéfice","Marge","ROAS"].map(h=><th key={h} style={{textAlign:"left",padding:11,fontSize:11,color:"#69736b",borderBottom:"1px solid #e7ebe7",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=>{const key=dimension==="campagne"?r.campagne:dimension==="adset"?r.adset:dimension==="creative"?r.creative:dimension==="produit"?r.produit:dimension==="ville"?r.ville:dimension==="zone"?r.zone:dimension==="closer"?r.closer:dimension==="livreur"?r.livreur:dimension==="type_client"?r.type_client:"Global";const m=r.ca_encaisse?Number(r.benefice_net||0)/Number(r.ca_encaisse)*100:0;const rr=r.couts_publicitaires?Number(r.ca_encaisse||0)/Number(r.couts_publicitaires):0;return <tr key={i}>{[key,r.source||"direct",r.campagne||"—",r.adset||"—",r.creative||"—",num(r.commandes),num(r.confirmees),num(r.livrees),num(r.encaissees),money(r.ca_encaisse),money(r.cout_produits),money(r.cout_livraison),money(r.cout_retour),money(r.couts_publicitaires),money(r.benefice_net),pct(m),`${rr.toFixed(2)}x`].map((v,j)=><td key={j} style={{padding:10,fontSize:12,borderBottom:"1px solid #f0f2f0",whiteSpace:"nowrap",fontWeight:[0,9,14,15,16].includes(j)?700:400}}>{v}</td>)}</tr>})}{!loading&&!rows.length&&<tr><td colSpan="17" style={{padding:30,textAlign:"center"}}>Aucune donnée.</td></tr>}</tbody></table></div>;
+ const sectionTitle=(title,sub)=><div style={{marginBottom:16}}><h2 style={{margin:0,fontSize:21}}>{title}</h2><div style={{color:"#69736b",fontSize:13,marginTop:4}}>{sub}</div></div>;
+ return <div style={{minHeight:"100vh",background:"#f7f8f6",padding:28,fontFamily:"Inter,system-ui,sans-serif",color:"#172019"}}><div style={{maxWidth:1600,margin:"auto"}}>
+  <header style={{display:"flex",justifyContent:"space-between",gap:18,alignItems:"center",flexWrap:"wrap",marginBottom:20}}><div><div style={{fontSize:12,fontWeight:800,letterSpacing:1.5,color:"#198754"}}>RECUVENTE OPTIMIZATION CENTER</div><h1 style={{margin:"5px 0",fontSize:30}}>Shopify Optimization Center</h1><div style={{color:"#69736b"}}>Comprendre → détecter → optimiser → mesurer.</div></div><div style={{display:"flex",gap:8}}><select value={days} onChange={e=>setDays(+e.target.value)} style={{padding:10,borderRadius:10,border:"1px solid #d9ded9",background:"white"}}><option value={7}>7 jours</option><option value={30}>30 jours</option><option value={90}>90 jours</option><option value={180}>180 jours</option></select><select value={dimension} onChange={e=>setDimension(e.target.value)} style={{padding:10,borderRadius:10,border:"1px solid #d9ded9",background:"white"}}>{DIMENSIONS.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></div></header>
+  <nav style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:16}}>{TABS.map(([v,l])=><button key={v} onClick={()=>setTab(v)} style={{border:"1px solid #dfe4df",background:tab===v?"#172019":"white",color:tab===v?"white":"#344039",borderRadius:999,padding:"9px 14px",fontWeight:700,whiteSpace:"nowrap",cursor:"pointer"}}>{l}</button>)}</nav>
+  {error&&<div style={{padding:14,borderRadius:12,background:"#fff1f0",color:"#a22",marginBottom:18}}>{error}</div>}
+  {loading?<div style={{...card,padding:40,textAlign:"center"}}>Analyse et optimisation en cours…</div>:
+  <>
+   {tab==="overview"&&<><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:12,marginBottom:18}}>{metrics.map(([l,v,s])=><div style={card} key={l}><div style={{fontSize:12,color:"#69736b"}}>{l}</div><div style={{fontSize:21,fontWeight:800,marginTop:5}}>{v}</div><div style={{fontSize:11,color:"#8a928c",marginTop:3}}>{s}</div></div>)}</div>{sectionTitle("Performance globale","La vérité commerciale combine conversion, encaissement et rentabilité.")}{table}</>}
+   {tab==="funnel"&&<><div style={{...card,marginBottom:16}}>{sectionTitle("Funnel de conversion","Chaque étape doit être optimisée séparément.")}<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>{[["Sessions",funnel.sessions],["Visiteurs",funnel.visitors],["Vues produit",funnel.product_views],["Ajouts panier",funnel.add_to_cart],["Checkout",funnel.checkout],["Achats",funnel.purchase]].map(([l,v])=><div style={{padding:15,border:"1px solid #e8ece8",borderRadius:12}} key={l}><div style={{fontSize:12,color:"#69736b"}}>{l}</div><strong style={{fontSize:22}}>{num(v)}</strong></div>)}</div></div><div style={{...card}}><strong>Règle d’optimisation</strong><p style={{color:"#69736b"}}>Beaucoup de vues + peu d’ajouts = page/offre à optimiser. Beaucoup de checkout + peu d’achats = panier/checkout à optimiser.</p></div></>}
+   {tab==="products"&&<><div style={{...card}}>{sectionTitle("Produits","Identifier les produits qui convertissent, encaissent et créent de la marge.")}<table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Produit","Commandes","Unités","CA","Coût","Marge brute","Encaissement"].map(h=><th key={h} style={{textAlign:"left",padding:11,borderBottom:"1px solid #eee",fontSize:12}}>{h}</th>)}</tr></thead><tbody>{(center?.products||[]).map(p=><tr key={p.produit_id}><td style={{padding:11}}><strong>{p.produit_nom}</strong></td><td>{num(p.orders)}</td><td>{num(p.units_ordered)}</td><td>{money(p.revenue)}</td><td>{money(p.product_cost)}</td><td>{money(Number(p.revenue||0)-Number(p.product_cost||0))}</td><td>{money(p.collected||0)}</td></tr>)}</tbody></table></div></>}
+   {tab==="customers"&&<><div style={{...card}}>{sectionTitle("Clients & RFM","Récence, fréquence, valeur et potentiel de réachat.")}<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:16}}><div style={card}><small>Nouveaux</small><h3>{num(dash.new_customers)}</h3></div><div style={card}><small>Récurrents</small><h3>{num(dash.returning_customers)}</h3></div><div style={card}><small>Forte valeur</small><h3>{num(center?.retention?.high_value_customers)}</h3></div><div style={card}><small>Taux réachat</small><h3>{pct(center?.retention?.repeat_customer_rate_pct)}</h3></div></div>{(center?.customers||[]).map(c=><div key={c.phone} style={{padding:12,borderTop:"1px solid #eee",display:"flex",justifyContent:"space-between",gap:15,flexWrap:"wrap"}}><span><strong>{c.client||"Client"}</strong><br/><small>{c.segment} · {num(c.orders)} commande(s)</small></span><strong>{money(c.collected)}</strong></div>)}</div></>}
+   {tab==="acquisition"&&<><div style={card}>{sectionTitle("Acquisition","Comparer l’acquisition au revenu réellement encaissé.")}{(center?.acquisition||[]).map((a,i)=><div key={i} style={{padding:13,borderTop:"1px solid #eee",display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}><span><strong>{a.source}</strong> / {a.medium}</span><span>{a.campaign}</span><span>{num(a.orders)} commandes</span><strong>{money(a.collected)}</strong></div>)}</div></>}
+   {tab==="retention"&&<><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12}}><div style={card}><small>Clients récurrents</small><h2>{num(center?.retention?.returning_customers)}</h2></div><div style={card}><small>Taux de réachat</small><h2>{pct(center?.retention?.repeat_customer_rate_pct)}</h2></div><div style={card}><small>Clients forte valeur</small><h2>{num(center?.retention?.high_value_customers)}</h2></div></div><div style={{...card,marginTop:16}}><strong>Cohortes</strong><p style={{color:"#69736b"}}>La structure est prête à comparer les clients par mois de première commande et leur valeur cumulée. Elle sera alimentée à mesure que RecuVente reçoit davantage d’historique.</p></div></>}
+   {tab==="optimization"&&<><div style={{...card,background:"#172019",color:"white",marginBottom:16}}><div style={{fontSize:12,opacity:.7}}>BUSINESS OPTIMIZATION ENGINE</div><h2 style={{margin:"6px 0"}}>Ce que RecuVente doit optimiser</h2><div style={{opacity:.75}}>Les recommandations ne se limitent pas au chiffre d’affaires : elles intègrent conversion, encaissement, coûts et marge.</div></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:12}}>{(center?.recommendations||[]).map((r,i)=><div style={card} key={i}><div style={{width:30,height:30,borderRadius:8,background:"#edf8f1",display:"grid",placeItems:"center",fontWeight:800,color:"#198754"}}>{i+1}</div><p style={{marginBottom:0,lineHeight:1.5}}>{r}</p></div>)}</div></>}
+  </>}
+ </div></div>;
 }

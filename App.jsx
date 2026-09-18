@@ -11449,6 +11449,32 @@ function slugifierPage(texte) {
 }
 
 // Reconnaît un export Shopify "Pages" (Title, Body (HTML), Handle).
+// Shopify n'assigne pas non plus les pages importées à un menu de façon "magique" — même
+// côté Shopify natif, il faut aller les glisser dans Navigation après coup. Ce qu'on peut
+// faire de mieux ici : deviner un emplacement par défaut sensé à partir du titre/handle
+// (comme le fait n'importe quel thème Shopify par convention : les pages "politique/légal/
+// CGV/FAQ" vivent presque toujours en pied de page, jamais dans le menu principal), pour
+// que l'utilisateur n'ait quasiment rien à corriger à la main après l'import.
+const RV_MOTS_CLES_PAGE_FOOTER = [
+  "politique", "policy", "confidential", "privacy", "remboursement", "refund", "retour",
+  "return", "livraison", "shipping", "expedition", "expédition", "mentions legales",
+  "mentions légales", "legal", "légal", "condition", "terms", "cgv", "cgu", "faq", "aide",
+  "help", "garantie", "warranty", "paiement", "payment", "cookie",
+];
+// Les seules pages qu'un menu principal Shopify contient généralement, en plus du
+// catalogue et des collections (gérés ailleurs) — tout le reste (légal, FAQ...) va,
+// comme sur Shopify, dans le pied de page par défaut.
+const RV_MOTS_CLES_PAGE_HEADER = [
+  "a propos", "à propos", "about", "notre histoire", "qui sommes", "contact",
+  "nous contacter", "accueil", "home", "blog",
+];
+function deviserEmplacementPage(titre, slug) {
+  const cle = `${titre} ${slug}`.toLowerCase();
+  if (RV_MOTS_CLES_PAGE_HEADER.some((mot) => cle.includes(mot))) return "header";
+  if (RV_MOTS_CLES_PAGE_FOOTER.some((mot) => cle.includes(mot))) return "footer";
+  return "footer"; // par défaut : comme le menu Footer de Shopify, qui accueille tout ce qui n'est pas explicitement mis en avant
+}
+
 function mapperColonnesPagesShopify(lignesBrutes) {
   const dejaVus = new Set();
   const resultat = [];
@@ -11458,7 +11484,12 @@ function mapperColonnesPagesShopify(lignesBrutes) {
     const slug = slugifierPage(l["Handle"] || titre);
     if (dejaVus.has(slug)) continue;
     dejaVus.add(slug);
-    resultat.push({ titre, slug, contenu: (l["Body (HTML)"] || l["contenu"] || l["Contenu"] || l["description"] || "").trim() });
+    resultat.push({
+      titre,
+      slug,
+      contenu: (l["Body (HTML)"] || l["contenu"] || l["Contenu"] || l["description"] || "").trim(),
+      emplacement: deviserEmplacementPage(titre, slug),
+    });
   }
   return resultat;
 }
@@ -11489,7 +11520,7 @@ function PagesModal({ workspace, onClose }) {
   async function ajouterPage() {
     if (!nouveauTitre.trim()) return;
     const slug = slugifierPage(nouveauTitre);
-    const nouvelle = { titre: nouveauTitre.trim(), slug, contenu: nouveauContenu.trim() };
+    const nouvelle = { titre: nouveauTitre.trim(), slug, contenu: nouveauContenu.trim(), emplacement: deviserEmplacementPage(nouveauTitre, slug) };
     const ok = await sauvegarderListe([...pages.filter((p) => p.slug !== slug), nouvelle]);
     if (ok) { setNouveauTitre(""); setNouveauContenu(""); }
   }
@@ -11497,6 +11528,13 @@ function PagesModal({ workspace, onClose }) {
   async function supprimerPage(slug) {
     if (!window.confirm("Supprimer cette page ?")) return;
     await sauvegarderListe(pages.filter((p) => p.slug !== slug));
+  }
+
+  // Reclassement en un clic : "header" (menu principal), "footer" (pied de page), ou
+  // "aucun" (créée mais pas encore affichée dans la navigation).
+  async function changerEmplacementPage(slug, emplacement) {
+    await sauvegarderListe(pages.map((p) => (p.slug === slug ? { ...p, emplacement } : p)));
+    if (pageOuverte?.slug === slug) setPageOuverte((po) => ({ ...po, emplacement }));
   }
 
   async function importerPagesCSV(fichier) {
@@ -11511,8 +11549,10 @@ function PagesModal({ workspace, onClose }) {
         const slugsExistants = new Set(pages.map((p) => p.slug));
         const nouvelles = mappees.filter((p) => !slugsExistants.has(p.slug));
         const ok = await sauvegarderListe([...pages, ...nouvelles]);
+        const versFooter = nouvelles.filter((p) => p.emplacement === "footer").length;
+        const versHeader = nouvelles.length - versFooter;
         setResultatImport(ok
-          ? { succes: true, message: `${nouvelles.length} page(s) importée(s) sur ${mappees.length}.${mappees.length - nouvelles.length > 0 ? ` ${mappees.length - nouvelles.length} existai(en)t déjà.` : ""}` }
+          ? { succes: true, message: `${nouvelles.length} page(s) créée(s) et positionnée(s) automatiquement — ${versFooter} en pied de page, ${versHeader} dans le menu principal (modifiable en un clic ci-dessous).${mappees.length - nouvelles.length > 0 ? ` ${mappees.length - nouvelles.length} existai(en)t déjà.` : ""}` }
           : { succes: false, message: "La colonne pages_personnalisees n'existe pas encore sur la table workspaces." });
       }
     } catch (e) {
@@ -11538,7 +11578,7 @@ function PagesModal({ workspace, onClose }) {
         {!pageOuverte ? (
           <>
             <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14 }}>
-              Crée des pages libres (À propos, Mentions légales...) affichées dans le pied de page de ta boutique.
+              Crée des pages libres (À propos, Mentions légales...). À l'import, chaque page est positionnée automatiquement — pied de page par défaut, menu principal pour Contact/À propos/Accueil — et reclassable en un clic.
             </div>
 
             <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: importEnCours ? "default" : "pointer", marginBottom: 10 }}>
@@ -11560,15 +11600,51 @@ function PagesModal({ workspace, onClose }) {
             {pages.length === 0 && <div style={{ color: "#8A9089", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Aucune page pour l'instant.</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {pages.map((p) => (
-                <div key={p.slug} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                  <button onClick={() => setPageOuverte(p)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>{p.titre}</button>
-                  <button onClick={() => supprimerPage(p.slug)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                <div key={p.slug} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <button onClick={() => setPageOuverte(p)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>{p.titre}</button>
+                    <button onClick={() => supprimerPage(p.slug)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[["header", "☰ Menu principal"], ["footer", "▦ Pied de page"], ["aucun", "🚫 Masquée"]].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => changerEmplacementPage(p.slug, val)}
+                        style={{
+                          fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 999, cursor: "pointer",
+                          border: (p.emplacement || "footer") === val ? "1px solid #1a7a3c" : "1px solid #DDD8CC",
+                          background: (p.emplacement || "footer") === val ? "#EAF3DE" : "#fff",
+                          color: (p.emplacement || "footer") === val ? "#3B6D11" : "#8A9089",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <div style={{ fontSize: 13, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pageOuverte.contenu }} />
+          <>
+            <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+              {[["header", "☰ Menu principal"], ["footer", "▦ Pied de page"], ["aucun", "🚫 Masquée"]].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => changerEmplacementPage(pageOuverte.slug, val)}
+                  style={{
+                    fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                    border: (pageOuverte.emplacement || "footer") === val ? "1px solid #1a7a3c" : "1px solid #DDD8CC",
+                    background: (pageOuverte.emplacement || "footer") === val ? "#EAF3DE" : "#fff",
+                    color: (pageOuverte.emplacement || "footer") === val ? "#3B6D11" : "#8A9089",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 13, color: "#16231F", lineHeight: 1.6, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: pageOuverte.contenu }} />
+          </>
         )}
       </div>
     </div>

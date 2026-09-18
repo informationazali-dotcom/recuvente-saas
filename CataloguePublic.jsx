@@ -1936,7 +1936,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               const collectionChoisie = produitOuvert.produits_similaires_collection_id
                 ? collectionsManuelles.find((c) => c.id === produitOuvert.produits_similaires_collection_id)
                 : null;
-              const idsDeCollection = collectionChoisie ? collectionChoisie.produitIds : [];
+              const idsDeCollection = collectionChoisie ? (collectionChoisie.produitIds || []) : [];
               const idsCombines = [...new Set([...idsDeCollection, ...idsChoisis])].filter((id) => id !== produitOuvert.produit_id);
               const similaires = idsCombines.length > 0
                 ? idsCombines.map((id) => produits.find((p) => p.produit_id === id)).filter(Boolean)
@@ -2374,7 +2374,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       ? collectionsManuelles.find((c) => c.id === collectionOuverte.replace("manuelle-", ""))
       : null;
     const listeCollection = collectionManuelleActive
-      ? produits.filter((p) => collectionManuelleActive.produitIds.includes(p.produit_id))
+      ? produits.filter((p) => (collectionManuelleActive.produitIds || []).includes(p.produit_id))
       : collectionOuverte === "bestseller"
         ? [...produits].filter((p) => p.nb_ventes > 0).sort((a, b) => b.nb_ventes - a.nb_ventes)
         : collectionOuverte === "nouveautes"
@@ -2628,7 +2628,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         )}
 
         {!recherche.trim() && collectionsManuelles.map((col) => {
-          const produitsDeLaCollection = produits.filter((p) => col.produitIds.includes(p.produit_id));
+          const produitsDeLaCollection = produits.filter((p) => (col.produitIds || []).includes(p.produit_id));
           if (produitsDeLaCollection.length === 0) return null;
           return (
             <SectionCollection
@@ -4556,7 +4556,7 @@ function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
 
 function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur, ouvrirProduit, avisBoutique, entreprise, onAjouterAuPanier, setCollectionOuverte }) {
   function produitsDeCollection(col) {
-    return produits.filter((p) => col.produitIds.includes(p.produit_id));
+    return produits.filter((p) => (col.produitIds || []).includes(p.produit_id));
   }
 
   return (
@@ -4717,7 +4717,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     : [];
 
   function produitsDeCollection(col) {
-    return produits.filter((p) => col.produitIds.includes(p.produit_id));
+    return produits.filter((p) => (col.produitIds || []).includes(p.produit_id));
   }
 
   const commonPad = { padding: "34px 18px", borderBottom: "1px solid #edf1ee" };

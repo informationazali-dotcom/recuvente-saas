@@ -11,7 +11,7 @@ import { MedaillonBoutique, couleurTexteSur, injecterCssAmorce } from "./AmorceB
 //    ambianceReveal      true/false  (produits qui apparaissent au défilement)
 //    ambianceCurseur     true/false  (halo lumineux qui suit la souris, PC)
 //    ambianceProgression true/false  (fine barre de progression du défilement)
-//    ambianceDefilement  doux | natif   (défilement à la molette lissé, PC)
+//    ambianceDefilement  true/false  (défilement doux à inertie, souris sur PC)
 //
 //  Principes : aucune dépendance, animations sur transform/opacity uniquement
 //  (GPU), pause quand l'onglet est caché, respect de prefers-reduced-motion,
@@ -35,7 +35,7 @@ export const AMBIANCE_DEFAUTS = {
   ambianceReveal: true,
   ambianceCurseur: true,
   ambianceProgression: true,
-  ambianceDefilement: "doux",
+  ambianceDefilement: true,
 };
 
 export function lireAmbiance(sc) {
@@ -134,8 +134,7 @@ function useApparition(ref, actif) {
       racine.querySelectorAll(SELECTEUR_REVEAL).forEach((el) => {
         if (vus.has(el)) return;
         vus.add(el);
-        // Déjà animé par <RevealOnScroll> (CataloguePublic) : on ne double pas l'effet
-        if (el.closest && el.closest("[data-rv-rev]")) return;
+        if (el.closest("[data-rv-natif]")) return; // déjà animé par RevealOnScroll
         const r = el.getBoundingClientRect();
         // Déjà à l'écran au chargement : on ne le cache jamais (pas de clignotement)
         if (r.height > 0 && r.top < window.innerHeight * 0.94 && r.bottom > 0) return;
@@ -162,15 +161,107 @@ function useApparition(ref, actif) {
   }, [actif]);
 }
 
+// ---------- Défilement doux (souris, PC) ----------
+// Inertie « à la Apple » : la molette pousse une cible, la page la rejoint en
+// glissant (interpolation exponentielle indépendante de la fréquence d'écran).
+// On ne touche à RIEN sur téléphone / tablette (le défilement tactile natif est
+// déjà le plus fluide) ni sur pavé tactile (déjà à inertie) ni si l'utilisateur
+// demande moins de mouvement. Les zones qui défilent seules (panier, fenêtres,
+// carrousels) et le zoom (Ctrl + molette) restent 100 % natifs.
+function useDefilementDoux(actif) {
+  useEffect(() => {
+    if (!actif || typeof window === "undefined") return undefined;
+    if (mouvementReduit() || !pointeurFin()) return undefined;
+    const html = document.documentElement;
+    const scrollBehaviorAvant = html.style.scrollBehavior;
+    html.style.scrollBehavior = "auto"; // évite un double lissage avec le CSS du site
+
+    let cible = window.scrollY;
+    let courant = window.scrollY;
+    let raf = 0;
+    let enCours = false;
+    let dernier = 0;
+
+    const maxScroll = () => Math.max(0, html.scrollHeight - window.innerHeight);
+    const limiter = (v) => Math.min(maxScroll(), Math.max(0, v));
+
+    // Un élément parent peut-il défiler lui-même dans cette direction ?
+    function defilePar(el, dy) {
+      for (let n = el; n && n !== document.body && n !== html; n = n.parentElement) {
+        if (n.nodeType !== 1) continue;
+        const st = getComputedStyle(n);
+        if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) {
+          if (dy < 0 ? n.scrollTop > 0 : n.scrollTop + n.clientHeight < n.scrollHeight - 1) return true;
+        }
+      }
+      return false;
+    }
+    const pageBloquee = () =>
+      getComputedStyle(document.body).overflowY === "hidden" || getComputedStyle(html).overflowY === "hidden";
+
+    function pas(t) {
+      const dt = Math.min(64, dernier ? t - dernier : 16);
+      dernier = t;
+      const ecart = cible - courant;
+      if (Math.abs(ecart) < 0.35) {
+        courant = cible;
+        window.scrollTo(0, courant);
+        enCours = false;
+        dernier = 0;
+        return;
+      }
+      courant += ecart * (1 - Math.exp(-dt / 115)); // ~115 ms de « traîne » : doux sans être mou
+      window.scrollTo(0, courant);
+      raf = requestAnimationFrame(pas);
+    }
+
+    function roue(e) {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      // Cran de molette (multiples de 120) ou mode « lignes » : on lisse.
+      // Petites valeurs continues = pavé tactile : on laisse le système faire.
+      const cran =
+        e.deltaMode !== 0 ||
+        (typeof e.wheelDeltaY === "number" ? e.wheelDeltaY % 120 === 0 : Math.abs(e.deltaY) >= 50);
+      if (!cran) return;
+      const px = e.deltaMode === 1 ? e.deltaY * 34 : e.deltaMode === 2 ? e.deltaY * window.innerHeight : e.deltaY;
+      if (pageBloquee() || defilePar(e.target, px)) return;
+      e.preventDefault();
+      if (!enCours) {
+        courant = window.scrollY;
+        cible = courant;
+      }
+      cible = limiter(cible + px);
+      if (!enCours) {
+        enCours = true;
+        dernier = 0;
+        raf = requestAnimationFrame(pas);
+      }
+    }
+    // Clavier, ascenseur, ancres, « retour en haut » : on resynchronise la cible
+    const surScroll = () => {
+      if (!enCours) {
+        courant = window.scrollY;
+        cible = courant;
+      }
+    };
+
+    window.addEventListener("wheel", roue, { passive: false });
+    window.addEventListener("scroll", surScroll, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", roue);
+      window.removeEventListener("scroll", surScroll);
+      cancelAnimationFrame(raf);
+      html.style.scrollBehavior = scrollBehaviorAvant;
+    };
+  }, [actif]);
+}
+
 // ---------- Halo qui suit le curseur (PC uniquement) ----------
 function useCurseur(ref, actif) {
   useEffect(() => {
     const el = ref.current;
     if (!actif || !el || !pointeurFin()) return undefined;
-    // Le halo est une couche à part déplacée en transform (compositeur GPU) : changer des
-    // variables CSS sur la racine de la boutique forçait un recalcul de style de TOUTE
-    // la page à chaque mouvement de souris, ce qui saccadait le défilement.
-    const spot = el.querySelector(".rvA-spot");
     let raf = 0;
     let x = 0, y = 0, carte = null;
     const bouger = (e) => {
@@ -180,10 +271,8 @@ function useCurseur(ref, actif) {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        if (spot) {
-          spot.style.transform = `translate3d(${x}px,${y}px,0)`;
-          spot.style.opacity = "1";
-        }
+        el.style.setProperty("--mx", `${x}px`);
+        el.style.setProperty("--my", `${y}px`);
         if (carte) {
           const r = carte.getBoundingClientRect();
           carte.style.setProperty("--cx", `${x - r.left}px`);
@@ -195,90 +284,6 @@ function useCurseur(ref, actif) {
     return () => {
       window.removeEventListener("pointermove", bouger);
       cancelAnimationFrame(raf);
-    };
-  }, [actif]);
-}
-
-// ---------- Défilement doux (molette de souris, PC) ----------
-// La molette d'une souris avance par crans de ~100px : c'est ce qui donne la sensation
-// « bloc par bloc ». Ici chaque cran devient une cible vers laquelle la page glisse avec
-// une décélération naturelle (~0,4 s). Ne touche JAMAIS :
-//   - au tactile (le défilement natif du téléphone est déjà à inertie),
-//   - aux pavés tactiles (ils sont déjà fluides),
-//   - aux zones qui défilent seules (panier, fenêtres, carrousels),
-//   - au clavier, à la barre de défilement, aux ancres (on se resynchronise).
-function ancetreDefilable(depart, dy) {
-  let el = depart && depart.nodeType === 1 ? depart : depart && depart.parentElement;
-  while (el && el !== document.body && el !== document.documentElement) {
-    const s = window.getComputedStyle(el);
-    if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1) {
-      const peutDescendre = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-      const peutMonter = el.scrollTop > 0;
-      if (dy > 0 ? peutDescendre : peutMonter) return true;
-    }
-    el = el.parentElement;
-  }
-  return false;
-}
-
-function useDefilementDoux(actif) {
-  useEffect(() => {
-    if (!actif || !pointeurFin()) return undefined;
-    const doc = document.documentElement;
-    let cible = window.scrollY, courant = cible, pose = cible;
-    let raf = 0, dernier = 0, trackpadJusque = 0;
-    const max = () => Math.max(0, doc.scrollHeight - window.innerHeight);
-    const borne = (v) => Math.min(Math.max(v, 0), max());
-    // Si la feuille de style demande un scroll-behavior:smooth, il se battrait avec le nôtre
-    const comportementAvant = doc.style.scrollBehavior;
-    doc.style.scrollBehavior = "auto";
-
-    function image(t) {
-      const dt = Math.min(50, dernier ? t - dernier : 16.7);
-      dernier = t;
-      // Amortissement indépendant de la fréquence d'écran (60 / 120 / 144 Hz)
-      courant += (cible - courant) * (1 - Math.pow(1 - 0.12, dt / 16.7));
-      if (Math.abs(cible - courant) < 0.5) courant = cible;
-      window.scrollTo(0, courant);
-      pose = window.scrollY;
-      if (courant === cible) { raf = 0; dernier = 0; return; }
-      raf = requestAnimationFrame(image);
-    }
-
-    const roue = (e) => {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey) return; // zoom, etc.
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // geste horizontal
-      const maintenant = performance.now();
-      // Petits deltas = pavé tactile : déjà lisse, on laisse le navigateur faire
-      if (e.deltaMode === 0 && Math.abs(e.deltaY) < 40) trackpadJusque = maintenant + 700;
-      if (maintenant < trackpadJusque) return;
-      if (document.body.style.overflow === "hidden") return; // fenêtre modale qui bloque la page
-      if (ancetreDefilable(e.target, e.deltaY)) return;
-      let dy = e.deltaY;
-      if (e.deltaMode === 1) dy *= 40; // Firefox : lignes
-      else if (e.deltaMode === 2) dy *= window.innerHeight;
-      e.preventDefault();
-      if (!raf) { cible = courant = pose = window.scrollY; }
-      cible = borne(cible + dy);
-      if (!raf) raf = requestAnimationFrame(image);
-    };
-
-    // Défilement venu d'ailleurs (clavier, barre de défilement, ancre) : on se resynchronise
-    const surScroll = () => {
-      const y = window.scrollY;
-      if (Math.abs(y - pose) > 3) {
-        cible = courant = pose = y;
-        if (raf) { cancelAnimationFrame(raf); raf = 0; dernier = 0; }
-      }
-    };
-
-    window.addEventListener("wheel", roue, { passive: false });
-    window.addEventListener("scroll", surScroll, { passive: true });
-    return () => {
-      window.removeEventListener("wheel", roue);
-      window.removeEventListener("scroll", surScroll);
-      cancelAnimationFrame(raf);
-      doc.style.scrollBehavior = comportementAvant;
     };
   }, [actif]);
 }
@@ -402,29 +407,18 @@ function BarreProgression() {
   const ref = useRef(null);
   useEffect(() => {
     let raf = 0;
-    let max = 0;
-    // La hauteur de page est mesurée seulement quand elle change (redimensionnement,
-    // nouveau contenu) — la relire à chaque image de défilement force un recalcul de mise en page.
-    const mesurer = () => { max = document.documentElement.scrollHeight - window.innerHeight; };
     const maj = () => {
       raf = 0;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
       if (ref.current) ref.current.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
     };
     const sur = () => { if (!raf) raf = requestAnimationFrame(maj); };
-    const remesurer = () => { mesurer(); sur(); };
-    mesurer();
-    maj();
     window.addEventListener("scroll", sur, { passive: true });
-    window.addEventListener("resize", remesurer);
-    let ro = null;
-    if ("ResizeObserver" in window) {
-      ro = new ResizeObserver(remesurer);
-      ro.observe(document.body);
-    }
+    window.addEventListener("resize", sur);
+    maj();
     return () => {
       window.removeEventListener("scroll", sur);
-      window.removeEventListener("resize", remesurer);
-      if (ro) ro.disconnect();
+      window.removeEventListener("resize", sur);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -480,7 +474,7 @@ export function AmbianceShop({ config, couleur, identite, cle, rideau = false, f
 
   useApparition(racine, a.ambianceReveal !== false && !reduit);
   useCurseur(racine, actif && a.ambianceCurseur !== false && !reduit);
-  useDefilementDoux(a.ambianceDefilement !== "natif" && !reduit);
+  useDefilementDoux(a.ambianceDefilement !== false && !reduit);
 
   const rgbA = hexVersRgb(couleur);
   const rgbB = couleurSecondaire(couleur);
@@ -488,6 +482,8 @@ export function AmbianceShop({ config, couleur, identite, cle, rideau = false, f
     "--a": couleur,
     "--a-rgb": rgbA.join(","),
     "--b-rgb": rgbB.join(","),
+    "--mx": "50%",
+    "--my": "30%",
   };
   const classes = [
     "rvA",
@@ -522,13 +518,13 @@ const CSS_AMBIANCE = `
 .rvA-i-intense{--k:1.55}
 
 /* Calque fixe, derrière tout le contenu, jamais cliquable */
-.rvA-calque{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict}
+.rvA-calque{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
 .rvA-calque i,.rvA-calque u{position:absolute;display:block;text-decoration:none}
 .rvA-calque canvas{pointer-events:none}
-.rvA-grain{position:absolute;inset:0;opacity:.045;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.6'/></svg>")}
+.rvA-grain{position:absolute;inset:0;opacity:.05;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.6'/></svg>")}
 
 /* Halo qui suit le curseur (PC) */
-.rvA-spot{position:absolute;left:0;top:0;width:800px;height:800px;margin:-400px 0 0 -400px;border-radius:50%;opacity:0;transition:opacity .4s ease;will-change:transform;background:radial-gradient(circle closest-side,rgba(var(--a-rgb),calc(.13*var(--k))),transparent 65%)}
+.rvA-spot{position:absolute;inset:0;background:radial-gradient(400px circle at var(--mx,50%) var(--my,30%),rgba(var(--a-rgb),calc(.13*var(--k))),transparent 65%)}
 .rvA:not(.rvA-aucune) .rv-card::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;transition:opacity .25s ease;background:radial-gradient(230px circle at var(--cx,50%) var(--cy,50%),rgba(var(--a-rgb),.17),transparent 65%)}
 @media (hover:hover){.rvA:not(.rvA-aucune) .rv-card:hover::after{opacity:1}}
 
@@ -551,15 +547,16 @@ const CSS_AMBIANCE = `
 
 /* OR & IVOIRE */
 .rvA-or .rvA-calque{background:linear-gradient(180deg,rgba(255,238,200,calc(.55*var(--k))),rgba(255,250,238,calc(.25*var(--k))) 46%,transparent 82%)}
-.rvA-or .rvA-calque i{top:-10%;bottom:-10%;left:-45%;width:38%;background:linear-gradient(105deg,transparent,rgba(201,162,75,calc(.18*var(--k))),rgba(255,236,170,calc(.30*var(--k))),rgba(201,162,75,calc(.18*var(--k))),transparent);transform:translateX(0) skewX(-14deg);will-change:transform;animation:rvAReflet 12s cubic-bezier(.5,0,.2,1) infinite}
-@keyframes rvAReflet{0%,52%{transform:translateX(0) skewX(-14deg)}100%{transform:translateX(466%) skewX(-14deg)}}
+.rvA-or .rvA-calque i{top:-10%;bottom:-10%;left:-45%;width:38%;background:linear-gradient(105deg,transparent,rgba(201,162,75,calc(.18*var(--k))),rgba(255,236,170,calc(.30*var(--k))),rgba(201,162,75,calc(.18*var(--k))),transparent);transform:skewX(-14deg);will-change:transform;animation:rvAReflet 12s cubic-bezier(.5,0,.2,1) infinite}
+@keyframes rvAReflet{0%,52%{transform:skewX(-14deg) translate3d(0,0,0)}100%{transform:skewX(-14deg) translate3d(466%,0,0)}}
 .rvA-or .rv-card{border-color:rgba(201,162,75,.38)}
 
 /* FUTURISTE */
 .rvA-neon .rvA-calque .lueur{left:50%;top:-30%;width:92vmax;height:60vmax;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(var(--b-rgb),calc(.16*var(--k))),transparent)}
-.rvA-neon .rvA-calque .grille{left:-50%;right:-50%;bottom:-8%;height:72%;background-image:linear-gradient(rgba(var(--a-rgb),calc(.24*var(--k))) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--a-rgb),calc(.24*var(--k))) 1px,transparent 1px);background-size:58px 58px;transform:perspective(520px) rotateX(64deg);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(to top,#000 0,transparent 88%);mask-image:linear-gradient(to top,#000 0,transparent 88%);animation:rvAGrille 6s linear infinite}
+.rvA-neon .rvA-calque .grille{left:-50%;right:-50%;bottom:-8%;height:72%;overflow:hidden;transform:perspective(520px) rotateX(64deg);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(to top,#000 0,transparent 88%);mask-image:linear-gradient(to top,#000 0,transparent 88%)}
+.rvA-neon .rvA-calque .grille::before{content:"";position:absolute;left:0;right:0;top:-58px;bottom:0;background-image:linear-gradient(rgba(var(--a-rgb),calc(.24*var(--k))) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--a-rgb),calc(.24*var(--k))) 1px,transparent 1px);background-size:58px 58px;will-change:transform;animation:rvAGrille 6s linear infinite}
 .rvA-neon .rvA-calque .scan{left:0;right:0;height:160px;top:-160px;background:linear-gradient(to bottom,transparent,rgba(var(--a-rgb),calc(.10*var(--k))),transparent);animation:rvAScan 10s linear infinite}
-@keyframes rvAGrille{to{background-position:0 58px}}
+@keyframes rvAGrille{to{transform:translate3d(0,58px,0)}}
 @keyframes rvAScan{to{transform:translateY(calc(100vh + 320px))}}
 
 /* Barre de progression du défilement */
@@ -567,9 +564,9 @@ const CSS_AMBIANCE = `
 .rvA-prog i{display:block;height:100%;transform-origin:left;transform:scaleX(0);background:linear-gradient(90deg,rgba(var(--a-rgb),1),rgba(var(--b-rgb),1))}
 
 /* Apparition des produits au défilement */
-.rvA-pre{opacity:0;translate:0 26px}
-.rvA-pre.rvA-in{animation:rvAEntree .75s cubic-bezier(.2,.8,.2,1) var(--rvd,0ms) both}
-@keyframes rvAEntree{from{opacity:0;translate:0 26px}to{opacity:1;translate:0 0}}
+.rvA-pre{opacity:0;translate:0 30px}
+.rvA-pre.rvA-in{animation:rvAEntree .9s cubic-bezier(.16,.84,.24,1) var(--rvd,0ms) both}
+@keyframes rvAEntree{from{opacity:0;translate:0 30px}to{opacity:1;translate:0 0}}
 
 /* Fondu d'ouverture (première visite, sans rideau) */
 .rvA-fondu{animation:rvAFondu .6s ease both}
@@ -648,14 +645,10 @@ export function PanneauAmbiance({ config, update, labelStyle, fieldStyle }) {
         </select>
       </label>
 
-      <label style={labelStyle}>
-        Défilement de la page (souris)
-        <select style={fieldStyle} value={a.ambianceDefilement} onChange={(e) => update("ambianceDefilement", e.target.value)}>
-          <option value="doux">Doux et fluide (recommandé)</option>
-          <option value="natif">Standard du navigateur</option>
-        </select>
+      <label style={case_}>
+        <input type="checkbox" checked={a.ambianceDefilement !== false} onChange={(e) => update("ambianceDefilement", e.target.checked)} />
+        Défilement doux et fluide (souris sur ordinateur)
       </label>
-
       <label style={case_}>
         <input type="checkbox" checked={a.ambianceReveal !== false} onChange={(e) => update("ambianceReveal", e.target.checked)} />
         Les produits apparaissent en douceur au défilement

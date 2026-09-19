@@ -4846,19 +4846,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     return produits.filter((p) => (col.produitIds || []).includes(p.produit_id));
   }
 
-  const commonPad = { padding: "34px 18px", borderBottom: "1px solid rgba(255,255,255,.08)" };
-  const themePreset = config.themePreset || "africa_luxe";
-  const themeSecondary = config.themeSecondary || "#e8920a";
-  const themeBackground = config.themeBackground || "#050B08";
-  const themeSurface = config.themeSurface || "#0D1712";
-  const themeText = config.themeText || "#F5F7F3";
-  const themeGlow = config.themeGlow !== false;
-  const themeGlass = config.themeGlass !== false;
-  const themeParticles = config.themeParticles !== false;
-  const themeHeroOverlay = config.themeHeroOverlay !== false;
-  const themeRadius = config.themeRadius === "small" ? 12 : config.themeRadius === "medium" ? 18 : 26;
-  const isDarkTheme = themePreset === "africa_luxe" || themePreset === "midnight";
-  const themeFont = config.themeFont === "editorial" ? "'Fraunces',Georgia,serif" : "Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+  const commonPad = { padding: "34px 18px", borderBottom: "1px solid #edf1ee" };
   const aDesLiensNav = meilleuresVentesToutes.length > 0 || nouveautesToutes.length > 0 || collectionsManuelles.length > 0;
 
   function GrilleProduits({ liste, max }) {
@@ -5352,30 +5340,26 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         return <HeroAzaliExpress slides={slides} sideCards={sideCards} onOuvrirCollection={setCollectionOuverte} devise={devise} />;
       }
       return (
-      <div className={`rv-premium-hero rv-premium-hero-${themePreset}`} style={{ textAlign: "center", position:"relative", overflow:"hidden", background:isDarkTheme?themeBackground:"#ffffff" }}>
-        <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(270px,78vw,500px)}} .rv-premium-hero::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 78% 18%,${themeSecondary}55 0%,transparent 25%),radial-gradient(circle at 15% 80%,${couleurSection}42 0%,transparent 30%);mix-blend-mode:screen;opacity:${themeGlow?1:0}}`}</style>
+      <div style={{ textAlign: "center" }}>
+        <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(260px,75vw,480px)}}`}</style>
         {entreprise.banniere ? (
-          <div style={{ position:"relative", minHeight:"clamp(380px,48vw,800px)" }}>
-            <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
-            {themeHeroOverlay && <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(3,9,6,.08) 0%,rgba(3,9,6,.18) 38%,rgba(3,9,6,.88) 100%)"}}/>}
-            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"clamp(24px,5vw,70px) 20px",boxSizing:"border-box",zIndex:2}}>
-              <div style={{maxWidth:980,textAlign:"center",color:"#fff",textShadow:"0 3px 25px rgba(0,0,0,.35)"}}>
-                {config.heroTitle?.trim() && <div style={{fontSize:"clamp(30px,6vw,72px)",fontWeight:950,lineHeight:.98,letterSpacing:"-.045em"}}>{config.heroTitle}</div>}
-                {config.heroSubtitle?.trim() && <div style={{fontSize:"clamp(13px,1.5vw,17px)",lineHeight:1.55,maxWidth:700,margin:"16px auto 22px",color:"rgba(255,255,255,.86)"}}>{config.heroSubtitle}</div>}
-                {config.buttonText?.trim() && <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{border:0,borderRadius:999,padding:"14px 24px",background:`linear-gradient(135deg,${couleurSection},${themeSecondary})`,color:"#fff",fontWeight:950,fontSize:13,cursor:"pointer",boxShadow:`0 12px 35px ${couleurSection}55`}}>{config.buttonText}</button>}
-              </div>
-            </div>
-          </div>
+          <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
-          <div style={{ minHeight:"clamp(380px,48vw,800px)",display:"flex",alignItems:"center",justifyContent:"center",padding:"60px 20px",boxSizing:"border-box",background:`radial-gradient(circle at 78% 18%,${themeSecondary}66,transparent 24%),radial-gradient(circle at 15% 80%,${couleurSection}55,transparent 30%),linear-gradient(135deg,${themeBackground},#0b2416)`,color:"#fff",position:"relative",zIndex:1 }}>
-            <div style={{maxWidth:850}}>
-              <div style={{fontSize:"clamp(32px,6vw,70px)",fontWeight:950,lineHeight:.98,letterSpacing:"-.045em"}}>{config.heroTitle}</div>
-              {config.heroSubtitle?.trim() && <div style={{fontSize:15,lineHeight:1.55,color:"rgba(255,255,255,.82)",maxWidth:680,margin:"18px auto 24px"}}>{config.heroSubtitle}</div>}
-              {config.buttonText?.trim() && <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{border:0,borderRadius:999,padding:"14px 24px",background:`linear-gradient(135deg,${couleurSection},${themeSecondary})`,color:"#fff",fontWeight:950,cursor:"pointer"}}>{config.buttonText}</button>}
-            </div>
+          <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleurSection},#0b2416)`, color: "#fff" }}>
+            <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
           </div>
         )}
-        {!entreprise.banniere && !config.heroTitle?.trim() && <div style={{padding:26,color:isDarkTheme?"#fff":"#132019"}}>Bienvenue dans notre boutique.</div>}
+        {(config.heroTitle?.trim() || config.heroSubtitle?.trim() || (config.buttonText && config.buttonText.trim())) && (
+          <div style={{ padding: "26px 20px 34px" }}>
+            {config.heroTitle?.trim() && <div style={{ fontSize: "clamp(24px,5vw,38px)", fontWeight: 950, color: "#132019", lineHeight: 1.08 }}>{config.heroTitle}</div>}
+            {config.heroSubtitle?.trim() && <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.6, margin: "12px auto 18px", maxWidth: 600 }}>{config.heroSubtitle}</div>}
+            {config.buttonText && config.buttonText.trim() && (
+              <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 10, padding: "13px 22px", background: couleurSection, color: "#fff", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+                {config.buttonText}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       );
     }
@@ -5574,25 +5558,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   }
 
   return (
-    <div className={`rv-storefront rv-storefront-${themePreset}`} style={{ minHeight: "100vh", background: themeBackground, color: themeText, fontFamily: themeFont, position:"relative", overflow:"hidden" }}>
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "sans-serif" }}>
       <style>{`
-        .rv-storefront{--rv-accent:${couleur};--rv-secondary:${themeSecondary};--rv-bg:${themeBackground};--rv-surface:${themeSurface};--rv-text:${themeText};}
-        .rv-storefront::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;background:radial-gradient(circle at 12% 12%,${couleur}22 0%,transparent 22%),radial-gradient(circle at 88% 28%,${themeSecondary}18 0%,transparent 20%),radial-gradient(circle at 55% 88%,${couleur}16 0%,transparent 24%);filter:blur(28px);opacity:${themeGlow?1:0}}
-        .rv-storefront>*{position:relative;z-index:1}
-        .rv-storefront .rv-theme-section{position:relative}
-        .rv-storefront .rv-theme-section::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,${couleur}0f,transparent 40%,${themeSecondary}0b);opacity:${themeParticles?1:0}}
-        .rv-storefront.rv-storefront-africa_luxe .rv-theme-section,
-        .rv-storefront.rv-storefront-midnight .rv-theme-section{border-bottom-color:rgba(255,255,255,.07)!important}
-        .rv-storefront.rv-storefront-africa_luxe .rv-card-verre,
-        .rv-storefront.rv-storefront-midnight .rv-card-verre{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.035))!important;border-color:rgba(255,255,255,.12)!important;box-shadow:0 18px 50px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.12)!important;backdrop-filter:blur(14px)}
-        .rv-storefront.rv-storefront-africa_luxe .rv-card-nom,
-        .rv-storefront.rv-storefront-midnight .rv-card-nom{color:#f3f7f4}
-        .rv-storefront.rv-storefront-africa_luxe .rv-card-media,
-        .rv-storefront.rv-storefront-midnight .rv-card-media{background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(0,0,0,.18))}
-        .rv-storefront.rv-storefront-africa_luxe .rv-shop-header-inner,
-        .rv-storefront.rv-storefront-midnight .rv-shop-header-inner{backdrop-filter:blur(18px)}
-        .rv-storefront.rv-storefront-africa_luxe .rv-premium-section-card,
-        .rv-storefront.rv-storefront-midnight .rv-premium-section-card{background:rgba(255,255,255,.045)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 18px 55px rgba(0,0,0,.2)}
         .rv-collections-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
         .rv-collections-row::-webkit-scrollbar { height: 5px; }
         .rv-collections-row::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
@@ -5632,11 +5599,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           wrapStyle.maxWidth = 1100;
           wrapStyle.overflow = "hidden";
         }
-        if (!st.fond && isDarkTheme) {
-          wrapStyle.background = "linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.015))";
-        }
         return (
-          <div key={s.id} id={idsCorrespondants[s.type] || undefined} className={`rv-theme-section rv-theme-section-${s.type}`} style={wrapStyle}>
+          <div key={s.id} id={idsCorrespondants[s.type] || undefined} style={wrapStyle}>
             {i === 0 ? <Section s={s} /> : <RevealOnScroll><Section s={s} /></RevealOnScroll>}
           </div>
         );

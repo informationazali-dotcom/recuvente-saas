@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { jsPDF } from "jspdf";
 import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
-import { AmbianceShop } from "./PremiumAmbiance.jsx";
+import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1694,7 +1694,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     }
 
     return (
-      <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
+      <AmbianceShop config={{ ...(entreprise.storeConfig || {}), ambiance: "aucune" }} couleur={couleur} cle={cleIdentite} style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
 
         <style>{`
@@ -2426,7 +2426,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             </div>
           </div>
         )}
-      </div>
+      </AmbianceShop>
     );
   }
 
@@ -2509,7 +2509,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   if (entreprise.storeConfig && Array.isArray(entreprise.storeConfig.sections) && entreprise.storeConfig.sections.length > 0) {
     return (
-      <>
+      <AmbianceShop
+        config={entreprise.storeConfig}
+        couleur={couleur}
+        identite={identitePrecoce}
+        cle={cleIdentite}
+        rideau={!!(identitePrecoce && (identitePrecoce.logo || identitePrecoce.nom))}
+        fondu={!identitePrecoce}
+        style={{ background: lireAmbiance(entreprise.storeConfig).ambiance !== "aucune" ? "#FAFAF7" : "#fff", minHeight: "100vh", fontFamily: "sans-serif" }}
+      >
         <PageAccueilPersonnalisee
           config={entreprise.storeConfig}
           entreprise={entreprise}
@@ -2550,7 +2558,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             onViderPanier={viderPanier}
           />
         )}
-      </>
+      </AmbianceShop>
     );
   }
 
@@ -3972,6 +3980,7 @@ function RevealOnScroll({ children, delai = 0 }) {
   return (
     <div
       ref={ref}
+      data-rv-rev=""
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(18px)",
@@ -4925,6 +4934,7 @@ function joliNomCollection(nom) {
 }
 
 function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meilleuresVentes, meilleuresVentesToutes, nouveautes, nouveautesToutes, collectionsManuelles, recherche, setRecherche, produitsFiltres, ouvrirProduit, naviguerVersCollection, setCollectionOuverte, setPolitiqueOuverte, politiqueOuverte, setPagePersoOuverte, pagePersoOuverte, NOMBRE_MAX_ACCUEIL, avisBoutique = [], totalArticlesPanier = 0, onOuvrirPanier, onAjouterAuPanier, biensLocation = [], onOuvrirBien }) {
+  const ambianceActive = lireAmbiance(config).ambiance !== "aucune";
   const devise = formaterDevise(entreprise.devise);
   const sectionsNormalisees = (config.sections || []).map((s, i) =>
     typeof s === "string" ? { id: `s${i}`, type: s, visible: true } : { id: s.id || `s${i}`, type: s.type, visible: s.visible !== false }
@@ -5661,7 +5671,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: ambianceActive ? "transparent" : "#fff", fontFamily: "sans-serif" }}>
       <style>{`
         .rv-collections-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
         .rv-collections-row::-webkit-scrollbar { height: 5px; }

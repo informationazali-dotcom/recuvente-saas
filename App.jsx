@@ -2839,10 +2839,17 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       // Toute section dont les réglages sont propres à chaque instance (titre, produit ou
       // collection choisis...) doit recevoir un identifiant distinct (_2, _3...) dès qu'on
       // en ajoute une deuxième — sinon les deux partagent littéralement les mêmes réglages.
+      // On prend toujours un numéro strictement supérieur au plus grand déjà utilisé (et pas
+      // juste "nombre actuel + 1"), sinon supprimer une section puis en rajouter une autre
+      // peut retomber sur un numéro déjà pris par une section encore présente.
       const typesDuplicablesAvecSuffixe=['image_texte','featured_collection','featured_product'];
       if(typesDuplicablesAvecSuffixe.includes(type)){
-        const existants=c.sections.filter(s=>baseSectionType(s)===type).length;
-        if(existants>0) nouveauType=`${type}_${existants+1}`;
+        const instancesExistantes=c.sections.filter(s=>baseSectionType(s)===type);
+        if(instancesExistantes.length>0){
+          const numeros=instancesExistantes.map(s=>{const suf=suffixeSection(s);return suf?parseInt(suf.slice(1),10):1;});
+          const prochainNumero=Math.max(...numeros)+1;
+          nouveauType=`${type}_${prochainNumero}`;
+        }
       }
       typeFinal=nouveauType;
       const suf=suffixeSection(nouveauType);

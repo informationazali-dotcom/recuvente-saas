@@ -4964,15 +4964,21 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (type === "featured_collection") {
       const suf = (/_\d+$/.exec(type) || [""])[0];
       const kId = `featuredCollectionId${suf}`, kTitre = `featuredCollectionTitre${suf}`, kTexte = `featuredCollectionTexte${suf}`, kImg = `featuredCollectionImage${suf}`;
+      const kColMobile = `featuredCollectionColMobile${suf}`, kColDesktop = `featuredCollectionColDesktop${suf}`, kNombre = `featuredCollectionNombre${suf}`;
       const col = derivedCollections.find((c) => c.id === config[kId]) || null;
       if (!col) return null;
       const produitsCol = col.produitIds ? produitsDeCollection(col) : [];
+      const colMobile = config[kColMobile] || 2;
+      const colDesktop = config[kColDesktop] || 4;
+      const nbAAfficher = config[kNombre] || 8;
+      const classeGrille = `rv-fc-grid${suf}`;
       // Fond de la bannière : la photo choisie manuellement dans le Store Builder en priorité,
       // sinon une vraie photo tirée de la collection (le premier produit avec image) plutôt
       // qu'un dégradé plat générique — bien plus premium, sans rien configurer.
       const photoFond = config[kImg] || produitsCol.find((p) => p.photo_url)?.photo_url;
       return (
         <div>
+          <style>{`.${classeGrille}{display:grid;grid-template-columns:repeat(${colMobile},1fr);gap:10px} @media(min-width:641px){.${classeGrille}{grid-template-columns:repeat(${colDesktop},1fr);gap:20px}}`}</style>
           <div
             style={{
               position: "relative", minHeight: 260, display: "flex", flexDirection: "column", alignItems: "center",
@@ -4991,12 +4997,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
           {produitsCol.length > 0 && (
             <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 16px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20 }}>
-                {produitsCol.slice(0, 4).map((p) => (
+              <div className={classeGrille}>
+                {produitsCol.slice(0, nbAAfficher).map((p) => (
                   <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
                 ))}
               </div>
-              {produitsCol.length > 4 && (
+              {produitsCol.length > nbAAfficher && (
                 <div style={{ textAlign: "center", marginTop: 22 }}>
                   <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: `1.5px solid ${couleurSection}`, background: "none", color: couleurSection, borderRadius: 10, padding: "11px 24px", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
                     Voir les {produitsCol.length} produits de la collection →

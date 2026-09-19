@@ -2894,8 +2894,19 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){}
     if(workspace?.id){
       const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:config,store_config_published:config,store_is_published:true,store_published_at:new Date().toISOString()};
-      const {error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id);
+      const {data,error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id).select('store_config_published');
       if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return false;}
+      if(!data||data.length===0){setSaving(false);alert('⚠️ L\'enregistrement semble avoir échoué silencieusement (aucune ligne modifiée en base). Vérifie que tu es bien connecté avec le bon compte, propriétaire de cette boutique.');return false;}
+      // Auto-vérification, utilisable par n'importe quel abonné même sans accès à la base : on
+      // relit ce que le serveur a RÉELLEMENT enregistré et on compare au nombre de sections
+      // qu'on vient d'envoyer — pour ne jamais laisser croire que tout est bon si ce n'est pas le cas.
+      const sectionsEnregistrees=Array.isArray(data[0]?.store_config_published?.sections)?data[0].store_config_published.sections:[];
+      const sectionsEnvoyees=Array.isArray(config.sections)?config.sections:[];
+      if(JSON.stringify(sectionsEnregistrees)!==JSON.stringify(sectionsEnvoyees)){
+        setSaving(false);
+        alert(`⚠️ L'enregistrement a répondu sans erreur, mais ce qui revient du serveur ne correspond pas à ce qu'on vient d'envoyer.\n\nEnvoyé : ${sectionsEnvoyees.length} section(s)\nEnregistré côté serveur : ${sectionsEnregistrees.length} section(s)\n\nRecharge cette page et réessaie. Si ça persiste, c'est un vrai bug à signaler avec ce message exact.`);
+        return false;
+      }
       // Le nom a changé : on régénère le lien de la boutique (slug) pour qu'il reste cohérent avec le nouveau nom.
       if(config.nom && config.nom !== workspace.name){
         const {data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});
@@ -2913,6 +2924,16 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       const {data,error}=await supabase.from('workspaces').update({store_config_published:config,store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id).select();
       if(error){alert('Publication impossible : '+error.message);return;}
       if(!data||data.length===0){alert('⚠️ La publication semble avoir échoué silencieusement (aucune ligne modifiée). Vérifie les droits sur la table "workspaces" dans Supabase.');return;}
+      // Auto-vérification, utilisable par n'importe quel abonné sans accès à la base : on relit
+      // ce que le serveur a RÉELLEMENT enregistré (pas juste ce qu'on a envoyé) et on compare —
+      // si ça ne correspond pas, on le dit clairement au lieu de laisser croire que tout est bon.
+      const sectionsEnregistrees=Array.isArray(data[0]?.store_config_published?.sections)?data[0].store_config_published.sections:[];
+      const sectionsEnvoyees=Array.isArray(config.sections)?config.sections:[];
+      const identiques=JSON.stringify(sectionsEnregistrees)===JSON.stringify(sectionsEnvoyees);
+      if(!identiques){
+        alert(`⚠️ La publication a été enregistrée, mais ce qui revient du serveur ne correspond pas exactement à ce que tu viens d'envoyer.\n\nEnvoyé : ${sectionsEnvoyees.length} section(s)\nEnregistré côté serveur : ${sectionsEnregistrees.length} section(s)\n\nRecharge cette page et republie. Si ça persiste après ça, c'est un vrai bug à signaler avec ce message exact.`);
+        return;
+      }
     }
     setPublishedSnapshot(config);
     setPublished(true);setTimeout(()=>setPublished(false),2500);
@@ -3117,8 +3138,8 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
         .rv-builder-panel.active{display:block}
       }
     `}</style>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7,flexWrap:'wrap'}}>{workspace?.id && <a href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}` : `${window.location.origin}/?catalogue=${workspace.id}`} target="_blank" rel="noopener noreferrer" style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer',textDecoration:'none',display:'inline-flex',alignItems:'center',gap:5}}>👁️ Voir ma boutique</a>}{onOuvrirParametresAvances && <button onClick={onOuvrirParametresAvances} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>⚙️ Paramètres avancés</button>}<button onClick={save} disabled={saving} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré et publié':'💾 Enregistrer et publier'}</button></div></div>
-    {published && workspace?.id && <div style={{background:'#eaf5eb',border:'1px solid #c7dda3',borderRadius:10,padding:'10px 14px',marginBottom:13,display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><span style={{fontSize:12,fontWeight:800,color:'#3B6D11'}}>✅ Ta boutique est en ligne !</span><a href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}` : `${window.location.origin}/?catalogue=${workspace.id}`} target="_blank" rel="noopener noreferrer" style={{background:'#1a7a3c',color:'#fff',borderRadius:8,padding:'7px 14px',fontSize:11.5,fontWeight:800,textDecoration:'none'}}>👁️ Voir ma boutique →</a></div>}
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:13}}><div><div style={{fontSize:20,fontWeight:950,color:'#122019'}}>🛍️ Store Builder <span style={{fontSize:10,background:'#eaf5eb',color:'#1a7a3c',padding:'5px 7px',borderRadius:999}}>{activityLabel}</span></div><button onClick={onClose} style={{marginLeft:'auto',border:'1px solid #dce5de',background:'#fff',color:'#526057',borderRadius:10,padding:'9px 11px',fontSize:11,fontWeight:850,cursor:'pointer'}}>✕ Fermer</button><div style={{fontSize:11.5,color:'#748078',marginTop:4}}>Construis ta boutique visuellement. Chaque section est éditable et reliée à ton catalogue.</div></div><div style={{display:'flex',gap:7,flexWrap:'wrap'}}>{workspace?.id && <a href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}&_t=${Date.now()}` : `${window.location.origin}/?catalogue=${workspace.id}&_t=${Date.now()}`} target="_blank" rel="noopener noreferrer" style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer',textDecoration:'none',display:'inline-flex',alignItems:'center',gap:5}}>👁️ Voir ma boutique</a>}{onOuvrirParametresAvances && <button onClick={onOuvrirParametresAvances} style={{border:'1px solid #dce5de',background:'#fff',color:'#1c2b22',borderRadius:10,padding:'10px 12px',fontSize:11,fontWeight:850,cursor:'pointer'}}>⚙️ Paramètres avancés</button>}<button onClick={save} disabled={saving} style={{border:0,background:config.couleur,color:'#fff',borderRadius:10,padding:'10px 13px',fontSize:11,fontWeight:900,cursor:'pointer'}}>{saving?'Enregistrement…':saved?'✓ Enregistré et publié':'💾 Enregistrer et publier'}</button></div></div>
+    {published && workspace?.id && <div style={{background:'#eaf5eb',border:'1px solid #c7dda3',borderRadius:10,padding:'10px 14px',marginBottom:13,display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><span style={{fontSize:12,fontWeight:800,color:'#3B6D11'}}>✅ Ta boutique est en ligne !</span><a href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}&_t=${Date.now()}` : `${window.location.origin}/?catalogue=${workspace.id}&_t=${Date.now()}`} target="_blank" rel="noopener noreferrer" style={{background:'#1a7a3c',color:'#fff',borderRadius:8,padding:'7px 14px',fontSize:11.5,fontWeight:800,textDecoration:'none'}}>👁️ Voir ma boutique →</a></div>}
     <div className="rv-builder-mobile-tabs">{[['structure','📋 Structure'],['apercu','👁️ Aperçu'],['reglages','⚙️ Réglages']].map(([k,l])=><button key={k} onClick={()=>setOngletBuilder(k)} style={{flex:1,border:0,borderRadius:9,padding:'9px 4px',fontSize:11,fontWeight:850,cursor:'pointer',background:ongletBuilder===k?config.couleur:'#eef2ee',color:ongletBuilder===k?'#fff':'#435047'}}>{l}</button>)}</div>
     <div className="rv-builder-grid" style={{display:'grid',gridTemplateColumns:device==='mobile'?'1fr':device==='tablet'?'190px minmax(0,1fr)':'220px minmax(0,1fr) 290px',gap:12,alignItems:'start'}}>
       <div className={`rv-builder-panel ${ongletBuilder==='structure'?'active':''}`} style={{...cardStyle,padding:12,boxShadow:'none'}}><div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:9}}>Structure de la page</div>
@@ -5350,7 +5371,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               </button>
               {workspace.id && (
                 <a
-                  href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}` : `${window.location.origin}/?catalogue=${workspace.id}`}
+                  href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}&_t=${Date.now()}` : `${window.location.origin}/?catalogue=${workspace.id}&_t=${Date.now()}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.25)", color: "white", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}
@@ -16320,7 +16341,7 @@ function IntegrationsModal({ workspace, onClose }) {
   const [whatsappSaved, setWhatsappSaved] = useState(false);
   const webhookUrl = `${window.location.origin}/api/shopify-webhook?secret=${workspace.webhook_secret}`;
   const lienCommande = `${window.location.origin}/?commander=${workspace.id}`;
-  const lienCatalogue = workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}` : `${window.location.origin}/?catalogue=${workspace.id}`;
+  const lienCatalogue = workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}&_t=${Date.now()}` : `${window.location.origin}/?catalogue=${workspace.id}&_t=${Date.now()}`;
 
   function copier() {
     navigator.clipboard.writeText(webhookUrl);

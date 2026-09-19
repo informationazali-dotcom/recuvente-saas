@@ -12463,6 +12463,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     // produit), on croise les deux pour retrouver les rattachements que la
                     // feuille Products seule ne contient pas (colonne "Collection" absente,
                     // "Type" vide — cas fréquent avec un export personnalisé).
+                    let messageCroisement = "";
                     if ((fichier.name || "").toLowerCase().match(/\.xlsx?$/)) {
                       try {
                         const brutCollections = await lireFichierTabulaire(fichier, ["Collections"]);
@@ -12480,19 +12481,23 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                               titreVersCollections[titreProduit].add(titre);
                             });
                           });
+                          let nbProduitsEnrichis = 0;
                           mappe.forEach((p) => {
                             const collectionsTrouvees = titreVersCollections[p.nom];
-                            if (collectionsTrouvees) p.collections = [...new Set([...(p.collections || []), ...collectionsTrouvees])];
+                            if (collectionsTrouvees) { p.collections = [...new Set([...(p.collections || []), ...collectionsTrouvees])]; nbProduitsEnrichis += 1; }
                           });
+                          messageCroisement = ` (onglet Collections détecté : ${nbProduitsEnrichis} produit(s) sur ${mappe.length} rattaché(s) à ${Object.keys(titreVersCollections).length ? "une collection" : "aucune collection"}.)`;
+                        } else {
+                          messageCroisement = " (pas d'onglet Collections au format attendu dans ce fichier.)";
                         }
-                      } catch (e) { /* pas d'onglet Collections dans ce fichier, ou format inattendu — on continue avec ce qu'on a */ }
+                      } catch (e) { messageCroisement = ` (erreur pendant le croisement Collections : ${e.message})`; }
                     }
                     if (mappe.length === 0) {
                       setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });
                     } else {
                       const resultat = await onImportCSV(mappe);
                       if (resultat.succes) {
-                        setResultatImport({ succes: true, message: `${resultat.importes} produit(s) importé(s).${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré(s).` : ""}${resultat.collectionsCreees > 0 ? ` ${resultat.collectionsCreees} collection(s) recréée(s) automatiquement.` : ""}` });
+                        setResultatImport({ succes: true, message: `${resultat.importes} produit(s) importé(s).${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré(s).` : ""}${resultat.collectionsCreees > 0 ? ` ${resultat.collectionsCreees} collection(s) recréée(s) automatiquement.` : ""}${messageCroisement}` });
                       } else {
                         setResultatImport({ succes: false, message: resultat.message || "Erreur lors de l'import." });
                       }

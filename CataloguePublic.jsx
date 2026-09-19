@@ -3657,6 +3657,23 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   // Déclaré tout en haut, avant les "return" conditionnels ci-dessous, pour respecter les
   // règles des Hooks React (un Hook ne doit jamais dépendre d'un chemin de retour anticipé).
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+  // L'en-tête reste épinglé en haut (position: sticky) pendant tout le défilement ;
+  // "replie" ne fait que le rendre plus compact passé un petit seuil de scroll, pour
+  // qu'il libère de la place sans jamais disparaître. Un seul booleen à changer, lu
+  // via requestAnimationFrame : aucune boucle continue, donc aucun impact sur la fluidité.
+  const [enteteRepliee, setEnteteRepliee] = useState(false);
+  useEffect(() => {
+    let ticking = false;
+    function verifier() {
+      setEnteteRepliee(window.scrollY > 44);
+      ticking = false;
+    }
+    function onScroll() {
+      if (!ticking) { window.requestAnimationFrame(verifier); ticking = true; }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   if (entreprise.slug === "luxury-car") {
     return (
@@ -3706,9 +3723,13 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         .rv-shop-nav-desktop { display: flex; }
         .rv-shop-nav-toggle { display: none; }
         .rv-shop-hdr-row { display: flex; align-items: center; gap: 12px; }
-        .rv-shop-header-nom { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-        .rv-shop-header-logo { width: 38px; height: 38px; border-radius: 10px; object-fit: contain; flex-shrink: 0; background: rgba(255,255,255,0.12); }
+        .rv-shop-header-nom { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; transition: font-size 0.22s ease; }
+        .rv-shop-header-logo { width: 38px; height: 38px; border-radius: 10px; object-fit: contain; flex-shrink: 0; background: rgba(255,255,255,0.12); transition: width 0.22s ease, height 0.22s ease; }
         .rv-shop-header-whatsapp-txt { display: inline; }
+        /* En-tête "replié" : reste épinglé en haut (sticky), juste plus compact — logo et
+           texte réduits en douceur, pour laisser plus de place au contenu qui défile. */
+        .rv-shop-hdr-row-compact .rv-shop-header-logo { width: 28px; height: 28px; border-radius: 8px; }
+        .rv-shop-hdr-row-compact .rv-shop-header-nom { font-size: 13.5px; }
         @media (max-width: 680px) {
           .rv-shop-nav-desktop { display: none; }
           .rv-shop-nav-toggle { display: flex; }
@@ -3719,9 +3740,15 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           .rv-shop-header-search { order: 9; flex: 1 1 100% !important; }
           .rv-shop-header-nom { font-size: 15px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; max-width: none !important; }
           .rv-shop-header-logo { width: 34px; height: 34px; }
+          /* Repliée sur mobile : on repasse le nom sur une seule ligne compacte
+             et la recherche redevient plus fine, au lieu de garder 2 lignes de texte. */
+          .rv-shop-hdr-row-compact { row-gap: 4px; }
+          .rv-shop-hdr-row-compact .rv-shop-header-nom { font-size: 13px; -webkit-line-clamp: 1; }
+          .rv-shop-hdr-row-compact .rv-shop-header-logo { width: 26px; height: 26px; }
+          .rv-shop-hdr-row-compact .rv-shop-header-search input { padding-top: 7px; padding-bottom: 7px; }
         }
       `}</style>
-      <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden" }}>
+      <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1, transition: "max-height 0.28s ease, opacity 0.2s ease" }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {headerConfig?.barreTop ? (
             <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
@@ -3733,8 +3760,8 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         </div>
       </div>
 
-      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px" }}>
-        <div className="rv-shop-hdr-row">
+      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: enteteRepliee ? "6px 16px" : "10px 16px", transition: "padding 0.22s ease" }}>
+        <div className={`rv-shop-hdr-row${enteteRepliee ? " rv-shop-hdr-row-compact" : ""}`}>
           {aDesLiensNav && (
             <button
               className="rv-shop-nav-toggle"

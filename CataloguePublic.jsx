@@ -3721,8 +3721,15 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   const afficherPanier = headerConfig?.showPanier !== false;
 
   return (
-    <div style={{ background: bgHeader, borderBottom: "1px solid rgba(0,0,0,0.08)", position: "sticky", top: 0, zIndex: 30 }}>
+    <div className="rv-shop-header-sticky" style={{ background: bgHeader, borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
       <style>{`
+        /* Position en CSS (avec le préfixe -webkit-) plutôt qu'en style inline : certains
+           anciens navigateurs (Safari iOS < 13, webviews WhatsApp/Instagram intégrées,
+           fréquentes chez les clients qui ouvrent un lien boutique reçu par message)
+           ignorent silencieusement "position: sticky" sans le préfixe -webkit-, et un
+           style inline React ne peut pas déclarer les deux formes à la fois — la classe le peut.
+           Le !important protège aussi contre un style global qui l'écraserait par erreur. */
+        .rv-shop-header-sticky { position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 30 !important; }
         .rv-shop-nav-desktop { display: flex; }
         .rv-shop-nav-toggle { display: none; }
         .rv-shop-hdr-row { display: flex; align-items: center; gap: 12px; }

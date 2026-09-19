@@ -2500,28 +2500,28 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
         .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
         @media (max-width: 420px) { .rv-shop-header-whatsapp-txt { display: none; } .rv-shop-header-nom { display: none; } }
-        .rv-shop-banner { height: 190px; }
-        .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .rv-shop-banner { height: 150px; }
+        .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
         .rv-shop-collection-scroll::-webkit-scrollbar-thumb { background: #DDD8CC; border-radius: 999px; }
         .rv-shop-collection-card { flex: 0 0 140px; min-width: 0; max-width: 140px; }
         @media (min-width: 640px) {
           .rv-shop-content { max-width: 720px; padding: 0 24px; }
-          .rv-shop-banner { height: 300px; }
-          .rv-shop-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; }
+          .rv-shop-banner { height: 240px; }
+          .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
           .rv-shop-collection-scroll { display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; gap: 16px; }
           .rv-shop-collection-card { flex: none; width: auto; min-width: 0; max-width: none; }
         }
         @media (min-width: 960px) {
           .rv-shop-content { max-width: 1100px; padding: 0 32px; }
-          .rv-shop-banner { height: 400px; }
-          .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
+          .rv-shop-banner { height: 340px; }
+          .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
           .rv-shop-collection-scroll { grid-template-columns: repeat(4, 1fr); gap: 20px; }
         }
         @media (min-width: 1280px) {
           .rv-shop-content, .rv-shop-header-inner { max-width: 1400px; }
-          .rv-shop-grid { grid-template-columns: repeat(4, 1fr); }
+          .rv-shop-grid { grid-template-columns: repeat(5, 1fr); }
           .rv-shop-collection-scroll { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
@@ -4709,7 +4709,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
   const selectedProductIds = config.selectedProductIds || [];
   const selectedCollectionIds = config.selectedCollectionIds || [];
   const selectionnes = selectedProductIds.length ? produits.filter((p) => selectedProductIds.includes(p.produit_id)) : [];
-  const fallbackProduits = selectionnes.length ? selectionnes : produits.slice(0, 6);
+  const fallbackProduits = selectionnes.length ? selectionnes : produits.slice(0, 8);
   const bestsellersAffiches = meilleuresVentes.length ? meilleuresVentes : fallbackProduits.slice(0, 4);
 
   const derivedCollections = collectionsManuelles.length
@@ -4963,30 +4963,52 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "featured_collection") {
       const suf = (/_\d+$/.exec(type) || [""])[0];
-      const kId = `featuredCollectionId${suf}`, kTitre = `featuredCollectionTitre${suf}`, kTexte = `featuredCollectionTexte${suf}`;
+      const kId = `featuredCollectionId${suf}`, kTitre = `featuredCollectionTitre${suf}`, kTexte = `featuredCollectionTexte${suf}`, kImg = `featuredCollectionImage${suf}`;
       const col = derivedCollections.find((c) => c.id === config[kId]) || derivedCollections[0];
       if (!col) return null;
       const produitsCol = col.produitIds ? produitsDeCollection(col) : [];
+      // Fond de la bannière : la photo choisie manuellement dans le Store Builder en priorité,
+      // sinon une vraie photo tirée de la collection (le premier produit avec image) plutôt
+      // qu'un dégradé plat générique — bien plus premium, sans rien configurer.
+      const photoFond = config[kImg] || produitsCol.find((p) => p.photo_url)?.photo_url;
       return (
         <div>
-          <div style={{ position: "relative", minHeight: 220, background: `linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.6)),linear-gradient(135deg,${couleurSection},#0b2416)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", color: "white", padding: 28 }}>
+          <div
+            style={{
+              position: "relative", minHeight: 260, display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", textAlign: "center", color: "white", padding: 28,
+              background: photoFond
+                ? `linear-gradient(180deg,rgba(0,0,0,0.25),rgba(0,0,0,0.65)), url(${photoFond}) center/cover`
+                : `linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.6)),linear-gradient(135deg,${couleurSection},#0b2416)`,
+            }}
+          >
             <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.08em", opacity: 0.85, marginBottom: 8 }}>COLLECTION</div>
-            <div style={{ fontSize: 28, fontWeight: 950, marginBottom: 10 }}>{config[kTitre] || joliNomCollection(col.nom)}</div>
-            <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 18, maxWidth: 440 }}>{config[kTexte]}</div>
+            <div style={{ fontSize: 30, fontWeight: 950, marginBottom: 10, textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>{config[kTitre] || joliNomCollection(col.nom)}</div>
+            <div style={{ fontSize: 13, opacity: 0.95, marginBottom: 18, maxWidth: 440, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>{config[kTexte]}</div>
             <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
-              Voir la collection
+              Voir la collection ({produitsCol.length})
             </button>
           </div>
           {produitsCol.length > 0 && (
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 16px", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 16 }}>
-              {produitsCol.slice(0, 8).map((p) => (
-                <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
-              ))}
+            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20 }}>
+                {produitsCol.slice(0, 4).map((p) => (
+                  <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
+                ))}
+              </div>
+              {produitsCol.length > 4 && (
+                <div style={{ textAlign: "center", marginTop: 22 }}>
+                  <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: `1.5px solid ${couleurSection}`, background: "none", color: couleurSection, borderRadius: 10, padding: "11px 24px", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
+                    Voir les {produitsCol.length} produits de la collection →
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       );
     }
+
 
     if (type === "tabs") {
       const items = config.tabsItems || [];
@@ -5097,11 +5119,6 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     }
 
     if (type === "hero") {
-      const heroCollectionCover = (() => {
-        const candidates = derivedCollections.flatMap((c) => produitsDeCollection(c)).filter((p) => p?.photo_url);
-        if (candidates[0]?.photo_url) return candidates[0].photo_url;
-        return produits.find((p) => p?.photo_url)?.photo_url || "";
-      })();
       if (entreprise.slug === "azaliexpress") {
         const collectionsAvecProduits = derivedCollections.map((c) => ({ collection: c, produits: produitsDeCollection(c) })).filter((x) => x.produits.length > 0);
         if (collectionsAvecProduits.length === 0) return null;
@@ -5129,26 +5146,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
       <div style={{ textAlign: "center" }}>
         <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(260px,75vw,480px)}}`}</style>
-        {(entreprise.banniere || heroCollectionCover) ? (
-          <div style={{ position: "relative", overflow: "hidden", background: couleurSection }}>
-            <img
-              src={entreprise.banniere || heroCollectionCover}
-              alt=""
-              className="rv-hero-couverture"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
-            />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(7,20,13,.72) 0%, rgba(7,20,13,.28) 55%, rgba(7,20,13,.08) 100%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "clamp(24px,5vw,64px)", textAlign: "left", color: "#fff" }}>
-              <div style={{ maxWidth: 680 }}>
-                <div style={{ fontSize: "clamp(10px,1.4vw,13px)", fontWeight: 900, letterSpacing: ".12em", textTransform: "uppercase", opacity: .9, marginBottom: 9 }}>
-                  {entreprise.banniere ? "À découvrir" : "Notre sélection"}
-                </div>
-                <div style={{ fontSize: "clamp(28px,5vw,58px)", fontWeight: 950, lineHeight: 1.02, textShadow: "0 3px 18px rgba(0,0,0,.22)" }}>
-                  {config.heroTitle}
-                </div>
-              </div>
-            </div>
-          </div>
+        {entreprise.banniere ? (
+          <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
           <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleurSection},#0b2416)`, color: "#fff" }}>
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
@@ -5209,7 +5208,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
     if (type === "bestsellers" || type === "products") {
       const liste = type === "bestsellers" ? bestsellersAffiches : produitsFiltres;
-      const max = type === "products" ? Math.min(Number(NOMBRE_MAX_ACCUEIL) || 20, 8) : 4;
+      const max = type === "products" ? NOMBRE_MAX_ACCUEIL : 8;
       const troncature = liste.length > max;
       return (
         <div id={type === "products" ? "rv-shop-produits" : undefined} style={commonPad}>
@@ -5374,17 +5373,17 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
         .rv-builder-grid-bundles { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .rv-builder-grid-galerie { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
         @media (min-width: 640px) {
-          .rv-builder-grid-produits { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+          .rv-builder-grid-produits { grid-template-columns: repeat(3, 1fr); gap: 16px; }
           .rv-builder-grid-bundles { grid-template-columns: repeat(2, 1fr); }
           .rv-builder-grid-galerie { grid-template-columns: repeat(3, 1fr); }
         }
         @media (min-width: 960px) {
-          .rv-builder-grid-produits { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+          .rv-builder-grid-produits { grid-template-columns: repeat(4, 1fr); gap: 20px; }
           .rv-builder-grid-bundles { grid-template-columns: repeat(3, 1fr); }
           .rv-builder-grid-galerie { grid-template-columns: repeat(4, 1fr); }
         }
         @media (min-width: 1280px) {
-          .rv-builder-grid-produits { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+          .rv-builder-grid-produits { grid-template-columns: repeat(5, 1fr); }
         }
       `}</style>
       <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} headerConfig={{ liens: config.headerLinks, bgColor: config.headerBgColor, textColor: config.headerTextColor, barreTop: config.headerBarreTop, showSearch: config.headerShowSearch, showPanier: config.headerShowPanier }} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={onOuvrirPanier} onOuvrirPagePerso={setPagePersoOuverte} />

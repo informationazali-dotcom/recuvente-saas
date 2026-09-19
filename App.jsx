@@ -10108,6 +10108,10 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
   const [nouveauNom, setNouveauNom] = useState("");
   const [collectionOuverte, setCollectionOuverte] = useState(null);
   const [produitsDeLaCollection, setProduitsDeLaCollection] = useState(new Set());
+  const [editionCollectionId, setEditionCollectionId] = useState(null);
+  const [editionNom, setEditionNom] = useState("");
+  const [editionDescription, setEditionDescription] = useState("");
+  const [enregistrementEditionEnCours, setEnregistrementEditionEnCours] = useState(false);
   const [classementEnCours, setClassementEnCours] = useState(false);
   const [resultatClassement, setResultatClassement] = useState(null);
   const [importCollectionsEnCours, setImportCollectionsEnCours] = useState(false);
@@ -10245,6 +10249,33 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     if (collectionOuverte === id) setCollectionOuverte(null);
   }
 
+  function ouvrirEditionCollection(c) {
+    setEditionCollectionId(c.id);
+    setEditionNom(c.nom || "");
+    setEditionDescription(c.description || "");
+  }
+
+  function annulerEditionCollection() {
+    setEditionCollectionId(null);
+    setEditionNom("");
+    setEditionDescription("");
+  }
+
+  async function enregistrerEditionCollection() {
+    if (!editionNom.trim()) return;
+    setEnregistrementEditionEnCours(true);
+    // Comme pour l'import, on tente nom + description ensemble ; si la colonne
+    // description n'existe pas côté Supabase, on retombe sur le nom seul pour
+    // ne jamais bloquer le renommage à cause d'une colonne manquante.
+    let { error } = await supabase.from("collections").update({ nom: editionNom.trim(), description: editionDescription.trim() || null }).eq("id", editionCollectionId);
+    if (error) {
+      await supabase.from("collections").update({ nom: editionNom.trim() }).eq("id", editionCollectionId);
+    }
+    setEnregistrementEditionEnCours(false);
+    annulerEditionCollection();
+    await charger();
+  }
+
   async function deplacerCollection(index, direction) {
     const liste = [...collections];
     const autreIndex = index + direction;
@@ -10339,16 +10370,44 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(collections || []).map((c, i) => (
-                <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button onClick={() => deplacerCollection(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#DDD8CC" : "#6B7168", cursor: i === 0 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
-                    <button onClick={() => deplacerCollection(i, 1)} disabled={i === collections.length - 1} style={{ background: "none", border: "none", color: i === collections.length - 1 ? "#DDD8CC" : "#6B7168", cursor: i === collections.length - 1 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
+                editionCollectionId === c.id ? (
+                  <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #1a7a3c", borderRadius: 10, padding: "10px 12px" }}>
+                    <input
+                      placeholder="Nom de la collection"
+                      value={editionNom}
+                      onChange={(e) => setEditionNom(e.target.value)}
+                      style={{ ...inputStyle, marginBottom: 6 }}
+                    />
+                    <textarea
+                      placeholder="Description (optionnelle) — visible sur ta boutique publique"
+                      value={editionDescription}
+                      onChange={(e) => setEditionDescription(e.target.value)}
+                      rows={2}
+                      style={{ ...inputStyle, marginBottom: 8, resize: "vertical" }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={enregistrerEditionCollection} disabled={enregistrementEditionEnCours || !editionNom.trim()} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                        {enregistrementEditionEnCours ? "Enregistrement..." : "✅ Enregistrer"}
+                      </button>
+                      <button onClick={annulerEditionCollection} style={{ background: "none", border: "1px solid #DDD8CC", color: "#6B7168", borderRadius: 8, padding: "8px 12px", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                        Annuler
+                      </button>
+                    </div>
                   </div>
-                  <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer", fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>
-                    {c.nom}
-                  </button>
-                  <button onClick={() => supprimerCollection(c.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
-                </div>
+                ) : (
+                  <div key={c.id} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <button onClick={() => deplacerCollection(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#DDD8CC" : "#6B7168", cursor: i === 0 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
+                      <button onClick={() => deplacerCollection(i, 1)} disabled={i === collections.length - 1} style={{ background: "none", border: "none", color: i === collections.length - 1 ? "#DDD8CC" : "#6B7168", cursor: i === collections.length - 1 ? "default" : "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
+                    </div>
+                    <button onClick={() => ouvrirGestionProduits(c.id)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", flex: 1, cursor: "pointer" }}>
+                      <div style={{ fontWeight: 600, fontSize: 13.5, color: "#16231F" }}>{c.nom}</div>
+                      {c.description && <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.description}</div>}
+                    </button>
+                    <button onClick={() => ouvrirEditionCollection(c)} style={{ background: "none", border: "none", color: "#6B7168", cursor: "pointer", fontSize: 13 }}>✏️</button>
+                    <button onClick={() => supprimerCollection(c.id)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                  </div>
+                )
               ))}
             </div>
             <div style={{ fontSize: 11, color: "#8A9089", marginTop: 8 }}>Utilise les flèches ▲▼ pour changer l'ordre d'affichage sur ta boutique.</div>

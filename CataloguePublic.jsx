@@ -1348,6 +1348,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   }
 
   const couleur = entreprise?.couleur || "#1a7a3c";
+  // Style des cartes produits choisi par le marchand dans le Store Builder.
+  appliquerStyleCarte(entreprise?.storeConfig);
   const t = creerTraducteur(entreprise?.langue);
 
   if (entreprise === undefined && !erreur) {
@@ -2388,8 +2390,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
         <style>{`
           .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
-          .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
-          .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
+
           @media (max-width: 680px) { .rv-shop-header-whatsapp-txt { display: none; } }
           .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
           @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
@@ -2497,8 +2498,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <style>{`
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
-        .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
-        .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
+
         @media (max-width: 680px) { .rv-shop-header-whatsapp-txt { display: none; } }
         .rv-shop-banner { height: 150px; }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -3886,49 +3886,126 @@ function RevealOnScroll({ children, delai = 0 }) {
   );
 }
 
+// ===== STYLE DES CARTES PRODUITS (piloté depuis le Store Builder) =====
+// L'abonné choisit son ambiance dans Réglages → "Cartes produits" : aucun code à toucher.
+let STYLE_CARTE = { style: "verre", anim: "lift", radius: "moyen", decor: true };
+function appliquerStyleCarte(sc) {
+  STYLE_CARTE = {
+    style: sc?.cardStyle || "verre",
+    anim: sc?.cardAnim || "lift",
+    radius: sc?.cardRadius || "moyen",
+    decor: sc?.cardDecor !== false,
+  };
+}
+function cssCartesProduits(cfg, couleur) {
+  const c = couleur || "#1F9D6E";
+  const rad = cfg.radius === "petit" ? 10 : cfg.radius === "grand" ? 22 : 16;
+  const decorOpacite = cfg.decor ? 0.5 : 0;
+  return `
+  .rv-card{position:relative;display:block;width:100%;max-width:100%;box-sizing:border-box;border-radius:${rad}px;overflow:hidden;cursor:pointer;text-align:left;background:#fff;border:1px solid #ECE8DC;box-shadow:0 2px 8px rgba(22,35,31,.05);transition:transform .35s cubic-bezier(.2,.8,.3,1),box-shadow .35s,border-color .35s;transform-style:preserve-3d}
+  .rv-card-media{position:relative;width:100%;padding-top:100%;overflow:hidden;background:linear-gradient(160deg,#F7F9F6,#EDF1EC)}
+  .rv-card-media>img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;transition:transform .6s cubic-bezier(.2,.8,.3,1)}
+  .rv-card-vide{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;z-index:0}
+  .rv-card-halo{position:absolute;left:50%;top:54%;width:82%;height:82%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,${c}2e 0%,transparent 62%);z-index:0;pointer-events:none;transition:opacity .4s,transform .6s}
+  .rv-card-shine{position:absolute;top:-10%;bottom:-10%;width:40%;left:-65%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-18deg);z-index:2;pointer-events:none;transition:left .8s ease}
+  .rv-card-coins,.rv-card-coins i{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:2;display:block}
+  .rv-card-coins::before,.rv-card-coins::after,.rv-card-coins i::before,.rv-card-coins i::after{content:"";position:absolute;width:15px;height:15px;border:1.6px solid ${c};opacity:${decorOpacite};transition:opacity .3s,transform .3s}
+  .rv-card-coins::before{top:9px;left:9px;border-right:0;border-bottom:0;border-radius:5px 0 0 0}
+  .rv-card-coins::after{top:9px;right:9px;border-left:0;border-bottom:0;border-radius:0 5px 0 0}
+  .rv-card-coins i::before{bottom:9px;left:9px;border-right:0;border-top:0;border-radius:0 0 0 5px}
+  .rv-card-coins i::after{bottom:9px;right:9px;border-left:0;border-top:0;border-radius:0 0 5px 0}
+  .rv-card-corps{padding:11px 12px 14px}
+  .rv-card-nom{font-weight:650;font-size:13.5px;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.32;min-height:2.64em;color:#16231F}
+  .rv-card-prix{font-weight:800;font-size:15px;color:${c};letter-spacing:-.01em}
+  .rv-card-badge{z-index:4}
+
+  /* --- Ambiances --- */
+  .rv-card-verre{background:linear-gradient(170deg,#ffffff 0%,#f6faf8 100%);border:1px solid rgba(22,35,31,.07);box-shadow:0 10px 28px rgba(16,31,26,.07),inset 0 1px 0 rgba(255,255,255,.9)}
+  .rv-card-neon{background:linear-gradient(170deg,#101a15,#0a110d);border:1px solid ${c}55;box-shadow:0 0 0 1px rgba(255,255,255,.03),0 14px 34px rgba(0,0,0,.45)}
+  .rv-card-neon .rv-card-media{background:linear-gradient(160deg,#16211b,#0d1611)}
+  .rv-card-neon .rv-card-nom{color:#eaf3ee}
+  .rv-card-neon .rv-card-prix{color:#fff}
+  .rv-card-minimal{background:transparent;border:0;box-shadow:none}
+  .rv-card-minimal .rv-card-corps{padding:10px 2px 6px}
+  .rv-card-classique{background:#fff;border:1px solid #ECE8DC;box-shadow:0 2px 8px rgba(22,35,31,.04)}
+
+  @media (hover:hover){
+    .rv-card:hover .rv-card-shine{left:135%}
+    .rv-card:hover .rv-card-coins::before,.rv-card:hover .rv-card-coins::after,.rv-card:hover .rv-card-coins i::before,.rv-card:hover .rv-card-coins i::after{opacity:${cfg.decor ? 1 : 0}}
+    .rv-card:hover .rv-card-coins::before{transform:translate(-3px,-3px)}
+    .rv-card:hover .rv-card-coins::after{transform:translate(3px,-3px)}
+    .rv-card:hover .rv-card-coins i::before{transform:translate(-3px,3px)}
+    .rv-card:hover .rv-card-coins i::after{transform:translate(3px,3px)}
+    .rv-card:hover .rv-card-halo{transform:translate(-50%,-50%) scale(1.15)}
+    .rv-anim-lift:hover{transform:translateY(-8px);box-shadow:0 22px 46px rgba(16,31,26,.17)}
+    .rv-anim-lift:hover .rv-card-media>img{transform:scale(1.06)}
+    .rv-anim-zoom:hover .rv-card-media>img{transform:scale(1.1)}
+    .rv-anim-tilt:hover{transform:perspective(900px) rotateX(4deg) rotateY(-5deg) translateY(-6px);box-shadow:0 26px 50px rgba(16,31,26,.2)}
+    .rv-anim-tilt:hover .rv-card-media>img{transform:scale(1.05)}
+    .rv-card-neon.rv-anim-lift:hover,.rv-card-neon.rv-anim-tilt:hover{box-shadow:0 0 0 1px ${c}88,0 18px 44px ${c}40}
+  }
+  @media (max-width:640px){
+    .rv-card-corps{padding:9px 10px 12px}
+    .rv-card-nom{font-size:12.5px;margin-bottom:4px}
+    .rv-card-prix{font-size:13.5px}
+    .rv-card-coins::before,.rv-card-coins::after,.rv-card-coins i::before,.rv-card-coins i::after{width:11px;height:11px;top:auto;bottom:auto}
+    .rv-card-coins::before{top:7px;left:7px}
+    .rv-card-coins::after{top:7px;right:7px}
+    .rv-card-coins i::before{bottom:7px;left:7px}
+    .rv-card-coins i::after{bottom:7px;right:7px}
+  }
+  @media (prefers-reduced-motion: reduce){ .rv-card,.rv-card *{transition:none !important} }
+  `;
+}
+function injecterCssCartes(couleur) {
+  if (typeof document === "undefined") return;
+  const css = cssCartesProduits(STYLE_CARTE, couleur);
+  let el = document.getElementById("rv-css-cartes");
+  if (!el) { el = document.createElement("style"); el.id = "rv-css-cartes"; document.head.appendChild(el); }
+  if (el.textContent !== css) el.textContent = css;
+}
+
 function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, estAzali }) {
   const t = creerTraducteur(langue);
   const aDesVraisAvis = p.note_moyenne != null && Number(p.nb_avis) > 0;
+  useEffect(() => { injecterCssCartes(couleur); }, [couleur]);
+  const classes = `rv-shop-card rv-card rv-card-${STYLE_CARTE.style} rv-anim-${STYLE_CARTE.anim}`;
   return (
-    <div
-      onClick={() => onOpen(p)}
-      className="rv-shop-card"
-      role="button"
-      tabIndex={0}
-      style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 0, overflow: "hidden", cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(22,35,31,0.04)" }}
-    >
-      <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
+    <div onClick={() => onOpen(p)} className={classes} role="button" tabIndex={0}>
+      <div className="rv-card-media">
+        <div className="rv-card-halo" />
         {p.photo_url ? (
           <img
             src={p.photo_url}
             alt={p.produit_nom}
             loading="lazy"
-            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
             onError={(e) => { e.target.style.display = "none"; }}
           />
         ) : (
-          <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>📦</div>
+          <div className="rv-card-vide">📦</div>
         )}
+        <span className="rv-card-shine" />
+        <span className="rv-card-coins"><i /></span>
         {estAzali && (
-          <span style={{ position: "absolute", top: 7, right: 7, width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, zIndex: 2 }}>♡</span>
+          <span className="rv-card-badge" style={{ position: "absolute", top: 7, right: 7, width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>♡</span>
         )}
         {p.nb_ventes > 0 && (
-          <div style={{ position: "absolute", top: 6, left: 6, background: "#8A6412", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", top: 7, left: 7, background: "rgba(138,100,18,0.95)", backdropFilter: "blur(6px)", color: "white", fontSize: 9.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             🔥 {t("bestSeller")}
           </div>
         )}
         {p.est_nouveau && (
-          <div style={{ position: "absolute", top: 6, right: estAzali ? 34 : 6, background: "#1a7a3c", color: "white", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", top: 7, right: estAzali ? 36 : 7, background: "rgba(26,122,60,0.95)", backdropFilter: "blur(6px)", color: "white", fontSize: 9.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             {t("nouveauBadge")}
           </div>
         )}
         {p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5 && (
-          <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(214,73,51,0.92)", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", bottom: 7, left: 7, background: "rgba(214,73,51,0.94)", backdropFilter: "blur(6px)", color: "white", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             ⚡ {p.stock_initial} {t("restants")}
           </div>
         )}
         {p.livraison_gratuite && !(p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5) && (
-          <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(31,157,110,0.92)", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", bottom: 7, left: 7, background: "rgba(31,157,110,0.94)", backdropFilter: "blur(6px)", color: "white", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             🎁 {t("livraisonGratuiteCourt")}
           </div>
         )}
@@ -3936,22 +4013,23 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
           <button
             onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
             aria-label={t("ajouterPanier")}
-            style={{ position: "absolute", bottom: 6, right: 6, width: 32, height: 32, borderRadius: "50%", background: couleur, color: "white", border: "2px solid white", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}
+            className="rv-card-badge"
+            style={{ position: "absolute", bottom: 7, right: 7, width: 34, height: 34, borderRadius: "50%", background: couleur, color: "white", border: "2px solid rgba(255,255,255,0.9)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.28)" }}
           >
             🛒
           </button>
         )}
       </div>
-      <div style={{ padding: "10px 12px 14px" }}>
+      <div className="rv-card-corps">
         {estAzali && <div style={{ fontSize: 8.5, fontWeight: 700, color: "#8A9089", letterSpacing: "0.3px", marginBottom: 2 }}>AZALIEXPRESS®</div>}
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.3, minHeight: "2.6em" }}>{p.produit_nom}</div>
+        <div className="rv-card-nom">{p.produit_nom}</div>
         {(aDesVraisAvis || estAzali) && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             <span style={{ color: "#e8920a", fontSize: 11.5 }}>{aDesVraisAvis ? "★".repeat(Math.round(p.note_moyenne)) + "☆".repeat(5 - Math.round(p.note_moyenne)) : "★★★★★"}</span>
             <span style={{ fontSize: 10.5, color: "#8A9089" }}>({aDesVraisAvis ? p.nb_avis : "4.7"})</span>
           </div>
         )}
-        <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>
+        <div className="rv-card-prix">
           {Number(p.prix_vente).toLocaleString("fr-FR")} {devise}
         </div>
         {estAzali && <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>}
@@ -4159,6 +4237,9 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
   ].filter((r) => r.url);
   const bgFooter = footerConfig?.bgColor || "#16231F";
   const texteFooter = footerConfig?.textColor || "rgba(255,255,255,0.75)";
+  const accent = footerConfig?.accent || "#1F9D6E";
+  const ambiance = footerConfig?.ambiance || "degrade"; // sobre | degrade | neon
+  const colMobile = Number(footerConfig?.colonnesMobile) === 1 ? 1 : 2;
   const colonnesPerso = Array.isArray(footerConfig?.colonnes) ? footerConfig.colonnes.filter((c) => c.titre) : [];
   // Pages libres importées/créées côté admin (À propos, Mentions légales, CGV, FAQ...),
   // positionnées automatiquement en pied de page (sauf celles marquées "aucun").
@@ -4166,44 +4247,90 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
     ? entreprise.pagesPersonnalisees.filter((p) => (p.emplacement || "footer") === "footer")
     : [];
 
+  const fondFooter = ambiance === "sobre"
+    ? bgFooter
+    : `radial-gradient(1200px 400px at 15% -10%, ${accent}26, transparent 60%), linear-gradient(180deg, ${bgFooter} 0%, rgba(0,0,0,0.55) 100%), ${bgFooter}`;
+
   return (
-    <div style={{ background: bgFooter, color: texteFooter, marginTop: 30 }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+    <div className={`rv-ft rv-ft-${ambiance}`} style={{ background: fondFooter, color: texteFooter, marginTop: 30, position: "relative", overflow: "hidden" }}>
+      <style>{`
+        @keyframes rvFtLine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+        .rv-ft{position:relative}
+        .rv-ft-top{height:2px;background:linear-gradient(90deg,transparent,${accent},#7c5cff,${accent},transparent);background-size:200% 100%;animation:rvFtLine 5s linear infinite}
+        .rv-ft-sobre .rv-ft-top{display:none}
+        .rv-ft-neon::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.10;background-image:linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 5%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 0%,#000 5%,transparent 70%)}
+        .rv-ft-in{max-width:1100px;margin:0 auto;position:relative;z-index:2}
+        .rv-ft-badges{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:24px 18px}
+        .rv-ft-badge{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 13px;transition:background .3s,transform .3s,border-color .3s}
+        .rv-ft-badge b{font-size:12.5px;font-weight:700;color:#fff;line-height:1.25}
+        .rv-ft-badge span.ic{font-size:21px;flex-shrink:0;line-height:1}
+        .rv-ft-cols{display:grid;grid-template-columns:1.5fr repeat(auto-fit,minmax(160px,1fr));gap:30px;padding:30px 18px}
+        .rv-ft-titre{display:flex;flex-direction:column;gap:7px;font-weight:800;font-size:11.5px;color:#fff;text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px}
+        .rv-ft-titre em{display:block;width:26px;height:2px;border-radius:2px;background:${accent};font-style:normal}
+        .rv-ft-liens{display:flex;flex-direction:column}
+        .rv-ft-lien{background:none;border:none;color:inherit;opacity:.78;font-size:13px;text-align:left;cursor:pointer;padding:7px 0;text-decoration:none;display:block;line-height:1.35;transition:opacity .2s,transform .2s,color .2s}
+        .rv-ft-marque-nom{font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em}
+        .rv-ft-desc{font-size:13px;line-height:1.6;opacity:.8;margin-bottom:15px;max-width:340px}
+        .rv-ft-soc{display:flex;gap:9px;flex-wrap:wrap}
+        .rv-ft-soc a{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none;transition:transform .25s,background .25s}
+        .rv-ft-news{padding:24px 18px;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);text-align:center}
+        .rv-ft-cta{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#0f1a15;border-radius:999px;padding:12px 26px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 12px 30px rgba(0,0,0,.3);transition:transform .25s,box-shadow .25s}
+        .rv-ft-pay{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:18px 18px 0}
+        .rv-ft-pay span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 12px;font-size:11.5px;font-weight:600}
+        .rv-ft-bas{border-top:1px solid rgba(255,255,255,.1);padding:18px;text-align:center;font-size:11.5px;opacity:.5;line-height:1.5}
+        @media (hover:hover){
+          .rv-ft-badge:hover{background:rgba(255,255,255,.1);border-color:${accent}66;transform:translateY(-2px)}
+          .rv-ft-lien:hover{opacity:1;color:#fff;transform:translateX(3px)}
+          .rv-ft-soc a:hover{background:${accent};transform:translateY(-3px)}
+          .rv-ft-cta:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(0,0,0,.4)}
+        }
+        /* ---- Mobile : deux colonnes compactes au lieu d'une longue liste ---- */
+        @media (max-width:760px){
+          .rv-ft-badges{grid-template-columns:1fr 1fr;gap:8px;padding:18px 14px}
+          .rv-ft-badge{padding:10px 11px;gap:9px;border-radius:12px}
+          .rv-ft-badge b{font-size:11.5px}
+          .rv-ft-badge span.ic{font-size:18px}
+          .rv-ft-cols{grid-template-columns:repeat(${colMobile},minmax(0,1fr));gap:20px 14px;padding:22px 14px}
+          .rv-ft-marque{grid-column:1/-1}
+          .rv-ft-desc{font-size:12.5px;margin-bottom:13px;max-width:none}
+          .rv-ft-titre{font-size:10.5px;margin-bottom:9px}
+          .rv-ft-lien{font-size:12.5px;padding:6px 0}
+          .rv-ft-news{padding:20px 14px}
+          .rv-ft-cta{width:100%;justify-content:center;max-width:320px}
+        }
+        @media (max-width:360px){ .rv-ft-badges{grid-template-columns:1fr} }
+        @media (prefers-reduced-motion: reduce){ .rv-ft-top{animation:none} }
+      `}</style>
+
+      <div className="rv-ft-top" />
+
+      <div className="rv-ft-in rv-ft-badges">
         {[
           { icone: "🚚", texte: t("livraisonRapide") },
           { icone: "💵", texte: t("paiementLivraison") },
           { icone: "🔄", texte: t("retourFacile") },
           { icone: "🛡️", texte: t("achatSecurise") },
         ].map((badge, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 14px" }}>
-            <span style={{ fontSize: 24, flexShrink: 0 }}>{badge.icone}</span>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "white" }}>{badge.texte}</span>
+          <div key={i} className="rv-ft-badge">
+            <span className="ic">{badge.icone}</span>
+            <b>{badge.texte}</b>
           </div>
         ))}
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 26 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+      <div className="rv-ft-in rv-ft-cols">
+        <div className="rv-ft-marque">
+          <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
             {entreprise.logo && (
-              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 40, height: 40, borderRadius: 10, objectFit: "contain", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 44, height: 44, borderRadius: 12, objectFit: "contain", flexShrink: 0, background: "rgba(255,255,255,0.07)" }} onError={(e) => { e.target.style.display = "none"; }} />
             )}
-            <div style={{ fontWeight: 700, fontSize: 16, color: "white" }}>{entreprise.nom}</div>
+            <div className="rv-ft-marque-nom">{entreprise.nom}</div>
           </div>
-          {entreprise.description && <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 14 }}>{entreprise.description}</div>}
+          {entreprise.description && <div className="rv-ft-desc">{entreprise.description}</div>}
           {reseaux.length > 0 && (
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="rv-ft-soc">
               {reseaux.map((r) => (
-                <a
-                  key={r.nom}
-                  href={r.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={r.nom}
-                  style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, textDecoration: "none" }}
-                >
-                  {r.icone}
-                </a>
+                <a key={r.nom} href={r.url} target="_blank" rel="noopener noreferrer" aria-label={r.nom}>{r.icone}</a>
               ))}
             </div>
           )}
@@ -4211,17 +4338,13 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
 
         {footerConfig?.boutiqueVisible !== false && (aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0) && onNaviguerVersCollection && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("boutique")}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button onClick={() => onNaviguerVersCollection(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("accueil")}</button>
-              {aDesBestSellers && (
-                <button onClick={() => onNaviguerVersCollection("bestseller")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("meilleuresVentes")}</button>
-              )}
-              {aDesNouveautes && (
-                <button onClick={() => onNaviguerVersCollection("nouveautes")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("nouveautes")}</button>
-              )}
+            <div className="rv-ft-titre">{t("boutique")}<em /></div>
+            <div className="rv-ft-liens">
+              <button className="rv-ft-lien" onClick={() => onNaviguerVersCollection(null)}>{t("accueil")}</button>
+              {aDesBestSellers && <button className="rv-ft-lien" onClick={() => onNaviguerVersCollection("bestseller")}>{t("meilleuresVentes")}</button>}
+              {aDesNouveautes && <button className="rv-ft-lien" onClick={() => onNaviguerVersCollection("nouveautes")}>{t("nouveautes")}</button>}
               {collectionsManuelles.map((col) => (
-                <button key={col.id} onClick={() => onNaviguerVersCollection(`manuelle-${col.id}`)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{col.nom}</button>
+                <button key={col.id} className="rv-ft-lien" onClick={() => onNaviguerVersCollection(`manuelle-${col.id}`)}>{col.nom}</button>
               ))}
             </div>
           </div>
@@ -4229,34 +4352,29 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
 
         {(entreprise.politiqueLivraison || entreprise.politiqueRetours || entreprise.politiqueConfidentialite || pagesFooter.length > 0) && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("informations")}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {entreprise.politiqueLivraison && (
-                <button onClick={() => onOuvrirPolitique("livraison")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("politiqueLivraison")}</button>
-              )}
-              {entreprise.politiqueRetours && (
-                <button onClick={() => onOuvrirPolitique("retours")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("politiqueRetours")}</button>
-              )}
-              {entreprise.politiqueConfidentialite && (
-                <button onClick={() => onOuvrirPolitique("confidentialite")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{t("confidentialite")}</button>
-              )}
+            <div className="rv-ft-titre">{t("informations")}<em /></div>
+            <div className="rv-ft-liens">
+              {entreprise.politiqueLivraison && <button className="rv-ft-lien" onClick={() => onOuvrirPolitique("livraison")}>{t("politiqueLivraison")}</button>}
+              {entreprise.politiqueRetours && <button className="rv-ft-lien" onClick={() => onOuvrirPolitique("retours")}>{t("politiqueRetours")}</button>}
+              {entreprise.politiqueConfidentialite && <button className="rv-ft-lien" onClick={() => onOuvrirPolitique("confidentialite")}>{t("confidentialite")}</button>}
               {pagesFooter.map((p) => (
-                <button key={p.slug} onClick={() => onOuvrirPagePerso?.(p)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0 }}>{p.titre}</button>
+                <button key={p.slug} className="rv-ft-lien" onClick={() => onOuvrirPagePerso?.(p)}>{p.titre}</button>
               ))}
             </div>
           </div>
         )}
+
         {colonnesPerso.map((col) => (
           <div key={col.id}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "white", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.03em" }}>{col.titre}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="rv-ft-titre">{col.titre}<em /></div>
+            <div className="rv-ft-liens">
               {(col.liens || []).filter((l) => l.label).map((l, i) => (
                 <a
                   key={i}
+                  className="rv-ft-lien"
                   href={l.href || "#"}
                   target={l.href && l.href.startsWith("http") ? "_blank" : undefined}
                   rel={l.href && l.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                  style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "left", cursor: "pointer", padding: 0, textDecoration: "none" }}
                 >
                   {l.label}
                 </a>
@@ -4264,36 +4382,34 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
             </div>
           </div>
         ))}
+
         {entreprise.whatsapp && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              {entreprise.logo && (
-                <img src={entreprise.logo} alt="" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "contain", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
-              )}
-              <div style={{ fontWeight: 700, fontSize: 13, color: "white", textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("contact")}</div>
+            <div className="rv-ft-titre">{t("contact")}<em /></div>
+            <div className="rv-ft-liens">
+              <a
+                className="rv-ft-lien"
+                href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                💬 {t("discuterWhatsapp")}
+              </a>
             </div>
-            <a
-              href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, textDecoration: "none" }}
-            >
-              {t("discuterWhatsapp")}
-            </a>
           </div>
         )}
       </div>
 
       {footerConfig?.newsletterActif && (
-        <div style={{ textAlign: "center", padding: "20px 16px", borderTop: "1px solid rgba(255,255,255,0.12)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: "white" }}>📩 {t("resteInforme")}</div>
-          {footerConfig.newsletterTexte && <div style={{ fontSize: 11.5, opacity: 0.75, margin: "6px 0 12px" }}>{footerConfig.newsletterTexte}</div>}
+        <div className="rv-ft-news">
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: "white" }}>📩 {t("resteInforme")}</div>
+          {footerConfig.newsletterTexte && <div style={{ fontSize: 12.5, opacity: 0.75, margin: "7px auto 14px", maxWidth: 420, lineHeight: 1.5 }}>{footerConfig.newsletterTexte}</div>}
           {entreprise.whatsapp && (
             <a
+              className="rv-ft-cta"
               href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}?text=${encodeURIComponent(t("texteInscriptionNewsletter"))}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: "inline-block", background: "rgba(255,255,255,0.9)", color: "#16231F", borderRadius: 999, padding: "9px 20px", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
             >
               {t("sInscrire")}
             </a>
@@ -4302,25 +4418,23 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
       )}
 
       {Array.isArray(footerConfig?.paiements) && footerConfig.paiements.filter(Boolean).length > 0 && (
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", padding: "18px 20px 0" }}>
-          {footerConfig.paiements.filter(Boolean).map((p, i) => (
-            <span key={i} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 7, padding: "6px 11px", fontSize: 11, fontWeight: 600 }}>{p}</span>
-          ))}
+        <div className="rv-ft-pay">
+          {footerConfig.paiements.filter(Boolean).map((p, i) => <span key={i}>{p}</span>)}
         </div>
       )}
 
       {footerConfig?.backToTop !== false && (
-        <div style={{ textAlign: "center", padding: "16px 0" }}>
+        <div style={{ textAlign: "center", padding: "18px 0 4px" }}>
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)", borderRadius: 999, padding: "8px 18px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)", borderRadius: 999, padding: "10px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
           >
             {t("retourEnHaut")}
           </button>
         </div>
       )}
 
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "16px 20px", textAlign: "center", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
+      <div className="rv-ft-bas">
         © {anneeEnCours} {entreprise.nom}{!entreprise.marqueBlanche && ` — ${t("proposePar")}`}
       </div>
     </div>
@@ -5533,7 +5647,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         </div>
       )}
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop, boutiqueVisible: config.footerBoutiqueVisible }} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop, boutiqueVisible: config.footerBoutiqueVisible, ambiance: config.footerAmbiance, colonnesMobile: config.footerColonnesMobile, accent: config.couleur }} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>

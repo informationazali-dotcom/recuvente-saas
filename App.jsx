@@ -9950,15 +9950,24 @@ function normaliserNomCollection(s) {
 // un tableau de lignes, chaque ligne étant un objet { "Nom de colonne": "valeur" }, comme le
 // produirait un CSV. Tout le reste du code (mapperColonnesShopify, etc.) n'a pas à savoir
 // d'où vient le fichier.
-async function lireFichierTabulaire(fichier) {
+async function lireFichierTabulaire(fichier, nomsFeuillePreferes = []) {
   const nom = (fichier.name || "").toLowerCase();
   if (nom.endsWith(".xlsx") || nom.endsWith(".xls")) {
     const donnees = await fichier.arrayBuffer();
     const classeur = XLSX.read(donnees, { type: "array" });
-    const premiereFeuille = classeur.Sheets[classeur.SheetNames[0]];
+    // Un export Matrixify combiné (Products + Collections + Pages...) est un seul fichier
+    // Excel avec un onglet par type de donnée. On va chercher l'onglet qui correspond à ce
+    // qu'on importe (ex: "Pages") plutôt que de toujours lire le premier — sinon déposer ce
+    // même fichier sur "Importer les pages" lirait par erreur l'onglet "Products".
+    let nomFeuilleChoisi = classeur.SheetNames[0];
+    for (const cible of nomsFeuillePreferes) {
+      const trouve = classeur.SheetNames.find((n) => n.trim().toLowerCase() === cible.toLowerCase());
+      if (trouve) { nomFeuilleChoisi = trouve; break; }
+    }
+    const feuilleChoisie = classeur.Sheets[nomFeuilleChoisi];
     // defval: "" évite les "undefined" sur les cellules vides ; raw: false renvoie du texte
     // formaté (ex: "12500" plutôt qu'un Number JS) pour rester cohérent avec le parsing CSV.
-    const lignes = XLSX.utils.sheet_to_json(premiereFeuille, { defval: "", raw: false });
+    const lignes = XLSX.utils.sheet_to_json(feuilleChoisie, { defval: "", raw: false });
     // sheet_to_json garde les en-têtes/valeurs tels quels (espaces compris) — on les nettoie
     // pour que "Title " (avec un espace) matche bien la clé "Title" attendue par le mapping.
     return lignes.map((ligne) => {
@@ -10057,7 +10066,7 @@ function CollectionsModal({ workspaceId, produits, onClose }) {
     setImportCollectionsEnCours(true);
     setResultatImportCollections(null);
     try {
-      const brut = await lireFichierTabulaire(fichier);
+      const brut = await lireFichierTabulaire(fichier, ["Collections"]);
       const mappees = mapperColonnesCollectionsShopify(brut);
       if (mappees.length === 0) {
         setResultatImportCollections({ succes: false, message: "Aucune collection reconnue dans ce fichier." });
@@ -11634,7 +11643,7 @@ function PagesModal({ workspace, onClose }) {
     setImportEnCours(true);
     setResultatImport(null);
     try {
-      const brut = await lireFichierTabulaire(fichier);
+      const brut = await lireFichierTabulaire(fichier, ["Pages"]);
       const mappees = mapperColonnesPagesShopify(brut);
       if (mappees.length === 0) {
         setResultatImport({ succes: false, message: "Aucune page reconnue dans ce fichier." });
@@ -12424,7 +12433,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   setImportEnCours(true);
                   setResultatImport(null);
                   try {
-                    const brut = await lireFichierTabulaire(fichier);
+                    const brut = await lireFichierTabulaire(fichier, ["Products"]);
                     const mappe = mapperColonnesShopify(brut);
                     if (mappe.length === 0) {
                       setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });

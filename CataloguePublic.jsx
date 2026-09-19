@@ -618,6 +618,18 @@ function prixUnitairePourBundle(prixVente, bundle) {
 export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, domaine }) {
   const [workspaceId, setWorkspaceId] = useState(workspaceIdProp || null);
   const [entreprise, setEntreprise] = useState(undefined);
+  // Identité "précoce" : nom, logo, couleur mis en cache localement lors d'une
+  // précédente visite de CETTE boutique. Sert uniquement à afficher immédiatement
+  // le bon logo/onglet/couleur pendant que la vraie donnée réseau arrive — jamais
+  // utilisée pour le contenu (produits, prix...), qui attend toujours la vraie requête.
+  const cleIdentite = workspaceIdProp || slug || domaine || null;
+  const [identitePrecoce] = useState(() => {
+    if (!cleIdentite) return null;
+    try {
+      const brut = localStorage.getItem(`rv_identite_${cleIdentite}`);
+      return brut ? JSON.parse(brut) : null;
+    } catch (_) { return null; }
+  });
   const [produits, setProduits] = useState([]);
   const [biensLocation, setBiensLocation] = useState([]);
   const [filtreCategorieBien, setFiltreCategorieBien] = useState(null);
@@ -679,6 +691,26 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const totalArticlesPanier = panier.reduce((s, it) => s + it.quantite, 0);
   const totalPanier = panier.reduce((s, it) => s + it.prix_unitaire * it.quantite, 0);
   const [produitOuvert, setProduitOuvert] = useState(null);
+
+  useEffect(() => {
+    // S'exécute une seule fois, au tout premier rendu, uniquement si on a un cache
+    // et que la vraie donnée n'est pas encore là — évite le "flash" du logo RecuVente
+    // dans l'onglet du navigateur sur une boutique déjà visitée une fois.
+    if (entreprise !== undefined || !identitePrecoce?.logo) return;
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((lien) => lien.remove());
+    const urlAvecCache = `${identitePrecoce.logo}${identitePrecoce.logo.includes("?") ? "&" : "?"}v=${encodeURIComponent(cleIdentite || "shop")}`;
+    [
+      { rel: "icon", type: "image/png", sizes: "192x192" },
+      { rel: "icon", type: "image/png", sizes: "512x512" },
+      { rel: "apple-touch-icon" },
+    ].forEach((attrs) => {
+      const lien = document.createElement("link");
+      Object.entries(attrs).forEach(([k, v]) => lien.setAttribute(k, v));
+      lien.setAttribute("href", urlAvecCache);
+      document.head.appendChild(lien);
+    });
+    if (identitePrecoce.nom) document.title = identitePrecoce.nom;
+  }, []);
 
   useEffect(() => {
     if (entreprise === undefined || entreprise === null) return;
@@ -958,6 +990,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         // `pages_personnalisees` de `workspaces` — sinon ce tableau reste vide en silence.
         pagesPersonnalisees: Array.isArray(data[0].pages_personnalisees) ? data[0].pages_personnalisees : [],
       });
+      // Identité mise en cache pour la prochaine visite de cette boutique : la fois
+      // suivante, le bon logo/couleur/nom s'affichent dès l'ouverture de la page,
+      // sans attendre cette requête réseau.
+      if (cleIdentite) {
+        try {
+          localStorage.setItem(`rv_identite_${cleIdentite}`, JSON.stringify({
+            nom: data[0].entreprise_nom,
+            logo: data[0].logo_url,
+            couleur: data[0].couleur_marque || "#1a7a3c",
+          }));
+        } catch (_) {}
+      }
       chargerPixelFacebook(data[0].facebook_pixel_id);
       chargerPixelTiktok(data[0].tiktok_pixel_id);
       if (data[0].facebook_domain_verification) {
@@ -1353,13 +1397,24 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const t = creerTraducteur(entreprise?.langue);
 
   if (entreprise === undefined && !erreur) {
+    // Si cette boutique a déjà été visitée une fois sur cet appareil, on connaît déjà
+    // son logo/nom/couleur (voir identitePrecoce) : autant les afficher tout de suite
+    // au lieu d'une barre grise anonyme — la boutique paraît s'ouvrir instantanément.
     return (
       <div style={{ minHeight: "100vh", fontFamily: "sans-serif", background: "#FAFAF7" }}>
         <style>{`@keyframes rvPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } } .rv-skel { animation: rvPulse 1.4s ease-in-out infinite; background: #E5E2D8; border-radius: 8px; }`}</style>
-        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-          <div className="rv-skel" style={{ width: 100, height: 32 }} />
-          <div className="rv-skel" style={{ flex: 1, height: 32, borderRadius: 8 }} />
-          <div className="rv-skel" style={{ width: 60, height: 32 }} />
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, background: identitePrecoce?.couleur || undefined }}>
+          {identitePrecoce?.logo ? (
+            <img src={identitePrecoce.logo} alt="" style={{ width: 34, height: 34, borderRadius: 8, objectFit: "contain", flexShrink: 0 }} />
+          ) : (
+            <div className="rv-skel" style={{ width: 100, height: 32 }} />
+          )}
+          {identitePrecoce?.nom ? (
+            <span style={{ fontWeight: 700, fontSize: 15, color: identitePrecoce.couleur ? "#fff" : "#16231F" }}>{identitePrecoce.nom}</span>
+          ) : (
+            <div className="rv-skel" style={{ flex: 1, height: 32, borderRadius: 8 }} />
+          )}
+          <div className="rv-skel" style={{ width: 60, height: 32, marginLeft: "auto" }} />
         </div>
         <div className="rv-skel" style={{ margin: "0 16px 16px", height: 200, borderRadius: 14 }} />
         <div style={{ display: "flex", gap: 12, padding: "0 16px", overflow: "hidden" }}>

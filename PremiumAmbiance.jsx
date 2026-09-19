@@ -11,6 +11,7 @@ import { MedaillonBoutique, couleurTexteSur, injecterCssAmorce } from "./AmorceB
 //    ambianceReveal      true/false  (produits qui apparaissent au défilement)
 //    ambianceCurseur     true/false  (halo lumineux qui suit la souris, PC)
 //    ambianceProgression true/false  (fine barre de progression du défilement)
+//    ambianceDefilement  doux | natif   (défilement à la molette lissé, PC)
 //
 //  Principes : aucune dépendance, animations sur transform/opacity uniquement
 //  (GPU), pause quand l'onglet est caché, respect de prefers-reduced-motion,
@@ -34,6 +35,7 @@ export const AMBIANCE_DEFAUTS = {
   ambianceReveal: true,
   ambianceCurseur: true,
   ambianceProgression: true,
+  ambianceDefilement: "doux",
 };
 
 export function lireAmbiance(sc) {
@@ -132,6 +134,8 @@ function useApparition(ref, actif) {
       racine.querySelectorAll(SELECTEUR_REVEAL).forEach((el) => {
         if (vus.has(el)) return;
         vus.add(el);
+        // Déjà animé par <RevealOnScroll> (CataloguePublic) : on ne double pas l'effet
+        if (el.closest && el.closest("[data-rv-rev]")) return;
         const r = el.getBoundingClientRect();
         // Déjà à l'écran au chargement : on ne le cache jamais (pas de clignotement)
         if (r.height > 0 && r.top < window.innerHeight * 0.94 && r.bottom > 0) return;
@@ -163,6 +167,10 @@ function useCurseur(ref, actif) {
   useEffect(() => {
     const el = ref.current;
     if (!actif || !el || !pointeurFin()) return undefined;
+    // Le halo est une couche à part déplacée en transform (compositeur GPU) : changer des
+    // variables CSS sur la racine de la boutique forçait un recalcul de style de TOUTE
+    // la page à chaque mouvement de souris, ce qui saccadait le défilement.
+    const spot = el.querySelector(".rvA-spot");
     let raf = 0;
     let x = 0, y = 0, carte = null;
     const bouger = (e) => {
@@ -172,8 +180,10 @@ function useCurseur(ref, actif) {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        el.style.setProperty("--mx", `${x}px`);
-        el.style.setProperty("--my", `${y}px`);
+        if (spot) {
+          spot.style.transform = `translate3d(${x}px,${y}px,0)`;
+          spot.style.opacity = "1";
+        }
         if (carte) {
           const r = carte.getBoundingClientRect();
           carte.style.setProperty("--cx", `${x - r.left}px`);
@@ -185,6 +195,90 @@ function useCurseur(ref, actif) {
     return () => {
       window.removeEventListener("pointermove", bouger);
       cancelAnimationFrame(raf);
+    };
+  }, [actif]);
+}
+
+// ---------- Défilement doux (molette de souris, PC) ----------
+// La molette d'une souris avance par crans de ~100px : c'est ce qui donne la sensation
+// « bloc par bloc ». Ici chaque cran devient une cible vers laquelle la page glisse avec
+// une décélération naturelle (~0,4 s). Ne touche JAMAIS :
+//   - au tactile (le défilement natif du téléphone est déjà à inertie),
+//   - aux pavés tactiles (ils sont déjà fluides),
+//   - aux zones qui défilent seules (panier, fenêtres, carrousels),
+//   - au clavier, à la barre de défilement, aux ancres (on se resynchronise).
+function ancetreDefilable(depart, dy) {
+  let el = depart && depart.nodeType === 1 ? depart : depart && depart.parentElement;
+  while (el && el !== document.body && el !== document.documentElement) {
+    const s = window.getComputedStyle(el);
+    if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+      const peutDescendre = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+      const peutMonter = el.scrollTop > 0;
+      if (dy > 0 ? peutDescendre : peutMonter) return true;
+    }
+    el = el.parentElement;
+  }
+  return false;
+}
+
+function useDefilementDoux(actif) {
+  useEffect(() => {
+    if (!actif || !pointeurFin()) return undefined;
+    const doc = document.documentElement;
+    let cible = window.scrollY, courant = cible, pose = cible;
+    let raf = 0, dernier = 0, trackpadJusque = 0;
+    const max = () => Math.max(0, doc.scrollHeight - window.innerHeight);
+    const borne = (v) => Math.min(Math.max(v, 0), max());
+    // Si la feuille de style demande un scroll-behavior:smooth, il se battrait avec le nôtre
+    const comportementAvant = doc.style.scrollBehavior;
+    doc.style.scrollBehavior = "auto";
+
+    function image(t) {
+      const dt = Math.min(50, dernier ? t - dernier : 16.7);
+      dernier = t;
+      // Amortissement indépendant de la fréquence d'écran (60 / 120 / 144 Hz)
+      courant += (cible - courant) * (1 - Math.pow(1 - 0.12, dt / 16.7));
+      if (Math.abs(cible - courant) < 0.5) courant = cible;
+      window.scrollTo(0, courant);
+      pose = window.scrollY;
+      if (courant === cible) { raf = 0; dernier = 0; return; }
+      raf = requestAnimationFrame(image);
+    }
+
+    const roue = (e) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey) return; // zoom, etc.
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // geste horizontal
+      const maintenant = performance.now();
+      // Petits deltas = pavé tactile : déjà lisse, on laisse le navigateur faire
+      if (e.deltaMode === 0 && Math.abs(e.deltaY) < 40) trackpadJusque = maintenant + 700;
+      if (maintenant < trackpadJusque) return;
+      if (document.body.style.overflow === "hidden") return; // fenêtre modale qui bloque la page
+      if (ancetreDefilable(e.target, e.deltaY)) return;
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 40; // Firefox : lignes
+      else if (e.deltaMode === 2) dy *= window.innerHeight;
+      e.preventDefault();
+      if (!raf) { cible = courant = pose = window.scrollY; }
+      cible = borne(cible + dy);
+      if (!raf) raf = requestAnimationFrame(image);
+    };
+
+    // Défilement venu d'ailleurs (clavier, barre de défilement, ancre) : on se resynchronise
+    const surScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - pose) > 3) {
+        cible = courant = pose = y;
+        if (raf) { cancelAnimationFrame(raf); raf = 0; dernier = 0; }
+      }
+    };
+
+    window.addEventListener("wheel", roue, { passive: false });
+    window.addEventListener("scroll", surScroll, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", roue);
+      window.removeEventListener("scroll", surScroll);
+      cancelAnimationFrame(raf);
+      doc.style.scrollBehavior = comportementAvant;
     };
   }, [actif]);
 }
@@ -308,18 +402,29 @@ function BarreProgression() {
   const ref = useRef(null);
   useEffect(() => {
     let raf = 0;
+    let max = 0;
+    // La hauteur de page est mesurée seulement quand elle change (redimensionnement,
+    // nouveau contenu) — la relire à chaque image de défilement force un recalcul de mise en page.
+    const mesurer = () => { max = document.documentElement.scrollHeight - window.innerHeight; };
     const maj = () => {
       raf = 0;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
       if (ref.current) ref.current.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
     };
     const sur = () => { if (!raf) raf = requestAnimationFrame(maj); };
-    window.addEventListener("scroll", sur, { passive: true });
-    window.addEventListener("resize", sur);
+    const remesurer = () => { mesurer(); sur(); };
+    mesurer();
     maj();
+    window.addEventListener("scroll", sur, { passive: true });
+    window.addEventListener("resize", remesurer);
+    let ro = null;
+    if ("ResizeObserver" in window) {
+      ro = new ResizeObserver(remesurer);
+      ro.observe(document.body);
+    }
     return () => {
       window.removeEventListener("scroll", sur);
-      window.removeEventListener("resize", sur);
+      window.removeEventListener("resize", remesurer);
+      if (ro) ro.disconnect();
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -375,6 +480,7 @@ export function AmbianceShop({ config, couleur, identite, cle, rideau = false, f
 
   useApparition(racine, a.ambianceReveal !== false && !reduit);
   useCurseur(racine, actif && a.ambianceCurseur !== false && !reduit);
+  useDefilementDoux(a.ambianceDefilement !== "natif" && !reduit);
 
   const rgbA = hexVersRgb(couleur);
   const rgbB = couleurSecondaire(couleur);
@@ -382,8 +488,6 @@ export function AmbianceShop({ config, couleur, identite, cle, rideau = false, f
     "--a": couleur,
     "--a-rgb": rgbA.join(","),
     "--b-rgb": rgbB.join(","),
-    "--mx": "50%",
-    "--my": "30%",
   };
   const classes = [
     "rvA",
@@ -418,13 +522,13 @@ const CSS_AMBIANCE = `
 .rvA-i-intense{--k:1.55}
 
 /* Calque fixe, derrière tout le contenu, jamais cliquable */
-.rvA-calque{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.rvA-calque{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict}
 .rvA-calque i,.rvA-calque u{position:absolute;display:block;text-decoration:none}
 .rvA-calque canvas{pointer-events:none}
-.rvA-grain{position:absolute;inset:0;opacity:.07;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.6'/></svg>")}
+.rvA-grain{position:absolute;inset:0;opacity:.045;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.6'/></svg>")}
 
 /* Halo qui suit le curseur (PC) */
-.rvA-spot{position:absolute;inset:0;background:radial-gradient(400px circle at var(--mx,50%) var(--my,30%),rgba(var(--a-rgb),calc(.13*var(--k))),transparent 65%)}
+.rvA-spot{position:absolute;left:0;top:0;width:800px;height:800px;margin:-400px 0 0 -400px;border-radius:50%;opacity:0;transition:opacity .4s ease;will-change:transform;background:radial-gradient(circle closest-side,rgba(var(--a-rgb),calc(.13*var(--k))),transparent 65%)}
 .rvA:not(.rvA-aucune) .rv-card::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;transition:opacity .25s ease;background:radial-gradient(230px circle at var(--cx,50%) var(--cy,50%),rgba(var(--a-rgb),.17),transparent 65%)}
 @media (hover:hover){.rvA:not(.rvA-aucune) .rv-card:hover::after{opacity:1}}
 
@@ -447,8 +551,8 @@ const CSS_AMBIANCE = `
 
 /* OR & IVOIRE */
 .rvA-or .rvA-calque{background:linear-gradient(180deg,rgba(255,238,200,calc(.55*var(--k))),rgba(255,250,238,calc(.25*var(--k))) 46%,transparent 82%)}
-.rvA-or .rvA-calque i{top:-10%;bottom:-10%;left:-45%;width:38%;background:linear-gradient(105deg,transparent,rgba(201,162,75,calc(.18*var(--k))),rgba(255,236,170,calc(.30*var(--k))),rgba(201,162,75,calc(.18*var(--k))),transparent);transform:skewX(-14deg);will-change:left;animation:rvAReflet 12s cubic-bezier(.5,0,.2,1) infinite}
-@keyframes rvAReflet{0%,52%{left:-45%}100%{left:132%}}
+.rvA-or .rvA-calque i{top:-10%;bottom:-10%;left:-45%;width:38%;background:linear-gradient(105deg,transparent,rgba(201,162,75,calc(.18*var(--k))),rgba(255,236,170,calc(.30*var(--k))),rgba(201,162,75,calc(.18*var(--k))),transparent);transform:translateX(0) skewX(-14deg);will-change:transform;animation:rvAReflet 12s cubic-bezier(.5,0,.2,1) infinite}
+@keyframes rvAReflet{0%,52%{transform:translateX(0) skewX(-14deg)}100%{transform:translateX(466%) skewX(-14deg)}}
 .rvA-or .rv-card{border-color:rgba(201,162,75,.38)}
 
 /* FUTURISTE */
@@ -541,6 +645,14 @@ export function PanneauAmbiance({ config, update, labelStyle, fieldStyle }) {
           <option value="rideau">Rideau avec ton logo (recommandé)</option>
           <option value="fondu">Fondu doux</option>
           <option value="aucune">Aucune animation</option>
+        </select>
+      </label>
+
+      <label style={labelStyle}>
+        Défilement de la page (souris)
+        <select style={fieldStyle} value={a.ambianceDefilement} onChange={(e) => update("ambianceDefilement", e.target.value)}>
+          <option value="doux">Doux et fluide (recommandé)</option>
+          <option value="natif">Standard du navigateur</option>
         </select>
       </label>
 

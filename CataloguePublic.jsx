@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { jsPDF } from "jspdf";
+import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
+import { AmbianceShop } from "./PremiumAmbiance.jsx";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -714,6 +716,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   useEffect(() => {
     if (entreprise === undefined || entreprise === null) return;
+    libererFondAmorce(entreprise.couleur);
 
     function definirMeta(nomOuProp, contenu, estProperty) {
       const selecteur = estProperty ? `meta[property="${nomOuProp}"]` : `meta[name="${nomOuProp}"]`;
@@ -1397,6 +1400,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const t = creerTraducteur(entreprise?.langue);
 
   if (entreprise === undefined && !erreur) {
+    // Boutique déjà visitée : écran aux couleurs de la boutique (même rendu que l'amorce d'index.html).
+    if (identitePrecoce && (identitePrecoce.logo || identitePrecoce.nom)) return <EcranAmorce identite={identitePrecoce} />;
     // Si cette boutique a déjà été visitée une fois sur cet appareil, on connaît déjà
     // son logo/nom/couleur (voir identitePrecoce) : autant les afficher tout de suite
     // au lieu d'une barre grise anonyme — la boutique paraît s'ouvrir instantanément.
@@ -2442,7 +2447,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       : collectionOuverte === "bestseller" ? t("meilleuresVentes") : collectionOuverte === "nouveautes" ? t("nouveautes") : t("tousLesProduits");
 
     return (
-      <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
+      <AmbianceShop config={entreprise.storeConfig} couleur={couleur} cle={cleIdentite} style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
         <style>{`
           .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
 
@@ -2487,7 +2492,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             onViderPanier={viderPanier}
           />
         )}
-      </div>
+      </AmbianceShop>
     );
   }
 
@@ -2550,7 +2555,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   }
 
   return (
-    <div style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <AmbianceShop config={entreprise.storeConfig} couleur={couleur} identite={identitePrecoce} cle={cleIdentite} rideau={!!(identitePrecoce && (identitePrecoce.logo || identitePrecoce.nom))} fondu={!identitePrecoce} style={{ background: "#FAFAF7", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <style>{`
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
 
@@ -2790,7 +2795,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           onViderPanier={viderPanier}
         />
       )}
-    </div>
+    </AmbianceShop>
   );
 }
 

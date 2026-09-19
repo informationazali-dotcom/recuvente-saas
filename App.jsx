@@ -10034,6 +10034,29 @@ function mapperColonnesShopify(lignesBrutes) {
 
 // Reconnaît un export Shopify "Collections" (Title, Body (HTML), Image Src, Handle)
 // en plus des noms de colonnes déjà utilisés côté produits.
+// Dans un export Matrixify, une collection "manuelle" (avec des produits choisis à la main,
+// pas une règle automatique) est exportée avec UNE LIGNE PAR PRODUIT dans l'onglet
+// "Collections" — le handle du produit apparaît dans "Condition: Value" quand
+// "Condition: Field" vaut "Manual Selection". Cette fonction regroupe ça en :
+// { handleDeLaCollection: { titre, handlesProduits: Set<handle> } }
+function extraireRattachementsCollectionsMatrixify(lignesBrutesCollections) {
+  const parCollection = {};
+  for (const l of lignesBrutesCollections || []) {
+    const handleCollection = (l["Handle"] || "").trim();
+    const titre = (l["Title"] || "").trim();
+    if (!handleCollection && !titre) continue;
+    const cle = handleCollection || titre;
+    if (!parCollection[cle]) parCollection[cle] = { titre: titre || handleCollection, handlesProduits: new Set() };
+    if (titre && !parCollection[cle].titre) parCollection[cle].titre = titre;
+    const champCondition = (l["Condition: Field"] || "").trim();
+    const valeurCondition = (l["Condition: Value"] || "").trim();
+    if (champCondition === "Manual Selection" && valeurCondition) {
+      parCollection[cle].handlesProduits.add(valeurCondition);
+    }
+  }
+  return parCollection;
+}
+
 function mapperColonnesCollectionsShopify(lignesBrutes) {
   const dejaVus = new Set();
   const resultat = [];
@@ -12435,6 +12458,35 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   try {
                     const brut = await lireFichierTabulaire(fichier, ["Products"]);
                     const mappe = mapperColonnesShopify(brut);
+                    // Si le même fichier contient aussi un onglet "Collections" au format
+                    // Matrixify (une ligne par produit avec "Condition: Value" = handle du
+                    // produit), on croise les deux pour retrouver les rattachements que la
+                    // feuille Products seule ne contient pas (colonne "Collection" absente,
+                    // "Type" vide — cas fréquent avec un export personnalisé).
+                    if ((fichier.name || "").toLowerCase().match(/\.xlsx?$/)) {
+                      try {
+                        const brutCollections = await lireFichierTabulaire(fichier, ["Collections"]);
+                        const aUneVraieFeuilleCollections = brutCollections.some((l) => "Condition: Field" in l);
+                        if (aUneVraieFeuilleCollections) {
+                          const rattachements = extraireRattachementsCollectionsMatrixify(brutCollections);
+                          const handleVersTitre = {};
+                          brut.forEach((l) => { const h = (l["Handle"] || "").trim(); const t = (l["Title"] || "").trim(); if (h && t && !handleVersTitre[h]) handleVersTitre[h] = t; });
+                          const titreVersCollections = {};
+                          Object.values(rattachements).forEach(({ titre, handlesProduits }) => {
+                            handlesProduits.forEach((h) => {
+                              const titreProduit = handleVersTitre[h];
+                              if (!titreProduit) return;
+                              if (!titreVersCollections[titreProduit]) titreVersCollections[titreProduit] = new Set();
+                              titreVersCollections[titreProduit].add(titre);
+                            });
+                          });
+                          mappe.forEach((p) => {
+                            const collectionsTrouvees = titreVersCollections[p.nom];
+                            if (collectionsTrouvees) p.collections = [...new Set([...(p.collections || []), ...collectionsTrouvees])];
+                          });
+                        }
+                      } catch (e) { /* pas d'onglet Collections dans ce fichier, ou format inattendu — on continue avec ce qu'on a */ }
+                    }
                     if (mappe.length === 0) {
                       setResultatImport({ succes: false, message: "Aucun produit reconnu dans ce fichier." });
                     } else {

@@ -4822,7 +4822,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (type === "featured_product") {
       const suf = (/_\d+$/.exec(type) || [""])[0];
       const kId = `featuredProductId${suf}`, kLabel = `featuredProductLabel${suf}`, kPos = `featuredProductPosition${suf}`;
-      const p = produits.find((x) => x.produit_id === config[kId]) || produits[0];
+      const p = produits.find((x) => x.produit_id === config[kId]) || null;
       if (!p) return null;
       const inverse = config[kPos] === "droite";
       const descriptionExtrait = (p.produit_description || "").replace(/<[^>]*>/g, "").slice(0, 160);
@@ -4964,7 +4964,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (type === "featured_collection") {
       const suf = (/_\d+$/.exec(type) || [""])[0];
       const kId = `featuredCollectionId${suf}`, kTitre = `featuredCollectionTitre${suf}`, kTexte = `featuredCollectionTexte${suf}`, kImg = `featuredCollectionImage${suf}`;
-      const col = derivedCollections.find((c) => c.id === config[kId]) || derivedCollections[0];
+      const col = derivedCollections.find((c) => c.id === config[kId]) || null;
       if (!col) return null;
       const produitsCol = col.produitIds ? produitsDeCollection(col) : [];
       // Fond de la bannière : la photo choisie manuellement dans le Store Builder en priorité,

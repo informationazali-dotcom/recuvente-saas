@@ -18,15 +18,21 @@ const params = new URLSearchParams(window.location.search);
 const suiviId = params.get("suivi");
 const commanderId = params.get("commander");
 const catalogueId = params.get("catalogue");
+// Lien standard généré par le Store Builder (« ?boutique=mon-slug ») — il manquait ici,
+// donc ces liens tombaient dans la vue admin ci-dessous, qui chargeait tout le tableau
+// de bord (plus lourd) avant de rediriger en interne vers la boutique. Fini.
+const boutiqueSlug = params.get("boutique");
 const marketingId = params.get("marketing");
 const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
 const hostname = window.location.hostname;
 const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
-const estVueAdmin = !suiviId && !commanderId && !catalogueId && !marketingId && !estDomainePersonnalise;
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !estDomainePersonnalise;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
 
 function ChargementInitial() {
-  return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 34, height: 34, borderRadius: "50%", border: "3px solid #ECE8DC", borderTopColor: "#1a7a3c", animation: "rvSpin 0.7s linear infinite" }} /><style>{`@keyframes rvSpin { to { transform: rotate(360deg); } }`}</style></div>;
+  // Neutre à dessein : ni logo, ni couleur de marque RecuVente, pour que rien ne
+  // "flashe" avant que la boutique (ou l'admin) n'affiche sa propre identité.
+  return <div style={{ minHeight: "100vh", background: "#FAFAF7" }} />;
 }
 
 function PublicTracker({ workspaceId, domaine }) { return <MarketingPublicTracker workspaceId={workspaceId} domaine={domaine} />; }
@@ -35,7 +41,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
       <Suspense fallback={<ChargementInitial />}>
-        {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
+        {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <CataloguePublic slug={boutiqueSlug} /> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
       </Suspense>
     </Sentry.ErrorBoundary>
   </React.StrictMode>

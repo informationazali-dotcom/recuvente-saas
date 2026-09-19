@@ -2,6 +2,7 @@ import "./premium-landing-overrides.css";
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
+import { EcranAmorce, cleBoutiqueDepuisUrl, lireIdentiteCachee } from "./AmorceBoutique.jsx";
 
 const App = lazy(() => import("./App.jsx"));
 const SuiviPublic = lazy(() => import("./SuiviPublic.jsx"));
@@ -29,9 +30,14 @@ const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostnam
 const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !estDomainePersonnalise;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
 
+// Boutique demandée par l'URL (null = admin / suivi / marketing) et son identité gardée en cache.
+const cleShop = cleBoutiqueDepuisUrl();
+const identiteCachee = lireIdentiteCachee(cleShop);
+
 function ChargementInitial() {
-  // Neutre à dessein : ni logo, ni couleur de marque RecuVente, pour que rien ne
-  // "flashe" avant que la boutique (ou l'admin) n'affiche sa propre identité.
+  // Aux couleurs de la boutique si on la connaît déjà (identique à l'amorce posée par
+  // index.html → aucune rupture), sinon écran neutre. Jamais de marque RecuVente ici.
+  if (cleShop) return <EcranAmorce identite={identiteCachee} />;
   return <div style={{ minHeight: "100vh", background: "#FAFAF7" }} />;
 }
 

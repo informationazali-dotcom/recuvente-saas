@@ -3775,6 +3775,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return { succes: true, supprimes: nomsConcernes.length };
   }
 
+  // Filet de sécurité manuel pour les produits qui ne se sont pas rattachés automatiquement
+  // à l'import (collection renommée entre-temps, produit ajouté à la main, etc.) : rattache
+  // en masse une sélection de produits à une collection, sans toucher aux liens déjà existants.
+  async function rattacherProduitsACollection(ids, collectionId) {
+    if (!ids || ids.length === 0 || !collectionId) return { succes: false, message: "Sélection incomplète." };
+    const liaisons = ids.map((produitId) => ({ collection_id: collectionId, produit_id: produitId }));
+    const { error } = await supabase.from("collection_produits").upsert(liaisons, { onConflict: "collection_id,produit_id", ignoreDuplicates: true });
+    if (error) return { succes: false, message: "Erreur : " + error.message };
+    await enregistrerAudit("Rattachement groupé à une collection", `${ids.length} produit(s) rattaché(s)`);
+    return { succes: true, rattaches: ids.length };
+  }
+
   async function addLivreur(form) {
     const { error } = await supabase.from("livreurs").insert([{ ...form, workspace_id: workspace.id }]);
     if (error) alert("Erreur: " + error.message);
@@ -6265,7 +6277,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} onBulkAttachCollection={rattacherProduitsACollection} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
@@ -11732,7 +11744,7 @@ function PagesModal({ workspace, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, onBulkAttachCollection, currency, workspaceId, onClose, onImportCSV }) {
   const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
   const [nouveauNom, setNouveauNom] = useState("");
@@ -11771,6 +11783,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [produitsSelectionnes, setProduitsSelectionnes] = useState(new Set());
   const [confirmSupprMultiple, setConfirmSupprMultiple] = useState(false);
   const [suppressionMultipleEnCours, setSuppressionMultipleEnCours] = useState(false);
+  const [rattachementOuvert, setRattachementOuvert] = useState(false);
+  const [collectionCibleRattachement, setCollectionCibleRattachement] = useState("");
+  const [rattachementEnCours, setRattachementEnCours] = useState(false);
+  const [resultatRattachement, setResultatRattachement] = useState(null);
   const [creationEnCours, setCreationEnCours] = useState(false);
   const [creationErreur, setCreationErreur] = useState("");
   const [derniereCreation, setDerniereCreation] = useState("");
@@ -11859,6 +11875,22 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       quitterModeSelection();
     } else {
       alert(resultat?.message || "Erreur lors de la suppression groupée.");
+    }
+  }
+
+  async function confirmerRattachementMultiple() {
+    if (!onBulkAttachCollection || produitsSelectionnes.size === 0 || !collectionCibleRattachement) return;
+    setRattachementEnCours(true);
+    const ids = Array.from(produitsSelectionnes);
+    const resultat = await onBulkAttachCollection(ids, collectionCibleRattachement);
+    setRattachementEnCours(false);
+    if (resultat?.succes) {
+      const nomCollection = collectionsDispo.find((c) => c.id === collectionCibleRattachement)?.nom || "";
+      setResultatRattachement({ succes: true, message: `${resultat.rattaches} produit(s) rattaché(s) à « ${nomCollection} ».` });
+      setRattachementOuvert(false);
+      quitterModeSelection();
+    } else {
+      setResultatRattachement({ succes: false, message: resultat?.message || "Erreur lors du rattachement." });
     }
   }
 
@@ -12135,6 +12167,55 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     />
                     Tout sélectionner {recherche.trim() ? `(${produitsFiltres.length} résultat${produitsFiltres.length > 1 ? "s" : ""})` : `(${produitsFiltres.length})`}
                   </label>
+
+                  {produitsSelectionnes.size > 0 && onBulkAttachCollection && (
+                    rattachementOuvert ? (
+                      <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: 10, fontSize: 12, marginBottom: 6 }}>
+                        <div style={{ marginBottom: 8, fontWeight: 600, color: "#16231F" }}>
+                          Rattacher {produitsSelectionnes.size} produit{produitsSelectionnes.size > 1 ? "s" : ""} à :
+                        </div>
+                        {collectionsDispo.length === 0 ? (
+                          <div style={{ color: "#6B7168", fontSize: 11.5 }}>Aucune collection créée pour l'instant.</div>
+                        ) : (
+                          <>
+                            <select
+                              value={collectionCibleRattachement}
+                              onChange={(e) => setCollectionCibleRattachement(e.target.value)}
+                              style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 8 }}
+                            >
+                              <option value="">— Choisir une collection —</option>
+                              {collectionsDispo.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                            </select>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={confirmerRattachementMultiple}
+                                disabled={rattachementEnCours || !collectionCibleRattachement}
+                                style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: rattachementEnCours ? "default" : "pointer", opacity: collectionCibleRattachement ? 1 : 0.5 }}
+                              >
+                                {rattachementEnCours ? "Rattachement..." : "Confirmer"}
+                              </button>
+                              <button onClick={() => setRattachementOuvert(false)} disabled={rattachementEnCours} style={{ background: "#fff", border: "1px solid #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setRattachementOuvert(true); setResultatRattachement(null); }}
+                        style={{ background: "none", border: "1px solid #C7DDA3", color: "#1a7a3c", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 6 }}
+                      >
+                        🔗 Rattacher à une collection ({produitsSelectionnes.size})
+                      </button>
+                    )
+                  )}
+
+                  {resultatRattachement && (
+                    <div style={{ fontSize: 11.5, padding: 8, borderRadius: 8, marginBottom: 6, background: resultatRattachement.succes ? "#EAF3DE" : "#FBEAE6", color: resultatRattachement.succes ? "#3B6D11" : "#B3261E" }}>
+                      {resultatRattachement.message}
+                    </div>
+                  )}
 
                   {produitsSelectionnes.size > 0 && (
                     confirmSupprMultiple ? (

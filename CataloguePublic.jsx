@@ -3665,7 +3665,10 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   useEffect(() => {
     let ticking = false;
     function verifier() {
-      setEnteteRepliee(window.scrollY > 44);
+      // Hystérésis (44px pour replier, 20px pour redéplier) : évite de basculer l'état,
+      // donc de redéclencher un recalcul de mise en page, à chaque micro-mouvement
+      // du doigt pile autour d'un seuil unique.
+      setEnteteRepliee((etaitRepliee) => window.scrollY > (etaitRepliee ? 20 : 44));
       ticking = false;
     }
     function onScroll() {
@@ -3723,8 +3726,8 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         .rv-shop-nav-desktop { display: flex; }
         .rv-shop-nav-toggle { display: none; }
         .rv-shop-hdr-row { display: flex; align-items: center; gap: 12px; }
-        .rv-shop-header-nom { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; transition: font-size 0.22s ease; }
-        .rv-shop-header-logo { width: 38px; height: 38px; border-radius: 10px; object-fit: contain; flex-shrink: 0; background: rgba(255,255,255,0.12); transition: width 0.22s ease, height 0.22s ease; }
+        .rv-shop-header-nom { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .rv-shop-header-logo { width: 38px; height: 38px; border-radius: 10px; object-fit: contain; flex-shrink: 0; background: rgba(255,255,255,0.12); }
         .rv-shop-header-whatsapp-txt { display: inline; }
         /* En-tête "replié" : reste épinglé en haut (sticky), juste plus compact — logo et
            texte réduits en douceur, pour laisser plus de place au contenu qui défile. */
@@ -3748,7 +3751,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           .rv-shop-hdr-row-compact .rv-shop-header-search input { padding-top: 7px; padding-bottom: 7px; }
         }
       `}</style>
-      <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1, transition: "max-height 0.28s ease, opacity 0.2s ease" }}>
+      <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1 }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {headerConfig?.barreTop ? (
             <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
@@ -3760,7 +3763,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         </div>
       </div>
 
-      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: enteteRepliee ? "6px 16px" : "10px 16px", transition: "padding 0.22s ease" }}>
+      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: enteteRepliee ? "6px 16px" : "10px 16px" }}>
         <div className={`rv-shop-hdr-row${enteteRepliee ? " rv-shop-hdr-row-compact" : ""}`}>
           {aDesLiensNav && (
             <button

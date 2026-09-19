@@ -4045,22 +4045,22 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
           <span className="rv-card-badge" style={{ position: "absolute", top: 7, right: 7, width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>♡</span>
         )}
         {p.nb_ventes > 0 && (
-          <div className="rv-card-badge" style={{ position: "absolute", top: 7, left: 7, background: "rgba(138,100,18,0.95)", backdropFilter: "blur(6px)", color: "white", fontSize: 9.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", top: 7, left: 7, background: "rgba(138,100,18,0.95)", color: "white", fontSize: 9.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             🔥 {t("bestSeller")}
           </div>
         )}
         {p.est_nouveau && (
-          <div className="rv-card-badge" style={{ position: "absolute", top: 7, right: estAzali ? 36 : 7, background: "rgba(26,122,60,0.95)", backdropFilter: "blur(6px)", color: "white", fontSize: 9.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", top: 7, right: estAzali ? 36 : 7, background: "rgba(26,122,60,0.95)", color: "white", fontSize: 9.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             {t("nouveauBadge")}
           </div>
         )}
         {p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5 && (
-          <div className="rv-card-badge" style={{ position: "absolute", bottom: 7, left: 7, background: "rgba(214,73,51,0.94)", backdropFilter: "blur(6px)", color: "white", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", bottom: 7, left: 7, background: "rgba(214,73,51,0.94)", color: "white", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             ⚡ {p.stock_initial} {t("restants")}
           </div>
         )}
         {p.livraison_gratuite && !(p.stock_initial != null && Number(p.stock_initial) > 0 && Number(p.stock_initial) <= 5) && (
-          <div className="rv-card-badge" style={{ position: "absolute", bottom: 7, left: 7, background: "rgba(31,157,110,0.94)", backdropFilter: "blur(6px)", color: "white", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
+          <div className="rv-card-badge" style={{ position: "absolute", bottom: 7, left: 7, background: "rgba(31,157,110,0.94)", color: "white", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999 }}>
             🎁 {t("livraisonGratuiteCourt")}
           </div>
         )}
@@ -5195,12 +5195,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             .${uid}-wrap{position:relative;overflow:hidden;isolation:isolate;min-height:${minH};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:clamp(28px,6vw,64px) 20px;background:#08120d}
             .${uid}-photo{position:absolute;inset:-4%;background:${photoFond ? `url(${photoFond}) center/cover` : `linear-gradient(135deg,${couleurSection},#08120d)`};${animee ? `animation:${uid}Zoom 22s ease-in-out infinite alternate;` : ""}will-change:transform}
             .${uid}-voile{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,10,8,.35) 0%,rgba(4,10,8,.55) 45%,rgba(4,10,8,.88) 100%)}
-            .${uid}-blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;mix-blend-mode:screen;pointer-events:none}
-            .${uid}-b1{width:58%;aspect-ratio:1;left:-10%;top:-20%;background:radial-gradient(circle,${couleurSection} 0%,transparent 68%);${animee ? `animation:${uid}Aurora1 16s ease-in-out infinite;` : ""}}
-            .${uid}-b2{width:52%;aspect-ratio:1;right:-12%;bottom:-24%;background:radial-gradient(circle,#7c5cff 0%,transparent 68%);${animee ? `animation:${uid}Aurora2 20s ease-in-out infinite;` : ""}}
-            .${uid}-grille{position:absolute;inset:-46px 0;pointer-events:none;opacity:${anim === "neon" ? ".28" : ".14"};background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 10%,transparent 72%);mask-image:radial-gradient(ellipse at 50% 40%,#000 10%,transparent 72%);${animee ? `animation:${uid}Grid 7s linear infinite;` : ""}}
+            .${uid}-blob{position:absolute;border-radius:50%;opacity:.6;mix-blend-mode:screen;pointer-events:none;will-change:transform;transform:translateZ(0)}
+            .${uid}-b1{width:64%;aspect-ratio:1;left:-14%;top:-24%;background:radial-gradient(circle,${couleurSection} 0%,${couleurSection}80 32%,transparent 66%);${animee ? `animation:${uid}Aurora1 16s ease-in-out infinite;` : ""}}
+            .${uid}-b2{width:58%;aspect-ratio:1;right:-16%;bottom:-28%;background:radial-gradient(circle,#7c5cff 0%,#7c5cff80 32%,transparent 66%);${animee ? `animation:${uid}Aurora2 20s ease-in-out infinite;` : ""}}
+            .${uid}-grille{position:absolute;inset:-46px 0;pointer-events:none;opacity:${anim === "neon" ? ".28" : ".14"};background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 10%,transparent 72%);will-change:transform;mask-image:radial-gradient(ellipse at 50% 40%,#000 10%,transparent 72%);will-change:transform;${animee ? `animation:${uid}Grid 7s linear infinite;` : ""}}
             .${uid}-inner{position:relative;z-index:3;max-width:720px;width:100%}
-            .${uid}-label{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font-size:10.5px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;margin-bottom:16px;${animee ? `animation:${uid}Up .7s .05s both;` : ""}}
+            .${uid}-label{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.16);font-size:10.5px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;margin-bottom:16px;${animee ? `animation:${uid}Up .7s .05s both;` : ""}}
             .${uid}-label i{width:6px;height:6px;border-radius:50%;background:${anim === "neon" ? "#39ffc6" : "#fff"};display:block;${animee ? `animation:${uid}Dot 1.8s ease-in-out infinite;` : ""}}
             .${uid}-titre{font-size:clamp(26px,6.4vw,54px);line-height:1.04;font-weight:950;letter-spacing:-.02em;margin:0 0 14px;background:linear-gradient(100deg,#fff 20%,rgba(255,255,255,.55) 42%,#fff 62%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;${animee ? `animation:${uid}Up .7s .12s both,${uid}Shine 5.5s linear 1s infinite;` : "color:#fff;"}text-shadow:0 2px 24px rgba(0,0,0,.35)}
             .${uid}-texte{font-size:clamp(13px,2.4vw,16px);line-height:1.6;opacity:.92;max-width:520px;margin:0 auto 26px;${animee ? `animation:${uid}Up .7s .2s both;` : ""}}
@@ -5213,6 +5213,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             .${uid}-card:hover{transform:translateY(-6px)}
             .${uid}-more{position:relative;overflow:hidden;border:1.5px solid ${couleurSection};background:none;color:${couleurSection};border-radius:999px;padding:13px 28px;font-weight:800;font-size:13px;cursor:pointer;transition:background .25s,color .25s,transform .25s}
             .${uid}-more:hover{background:${couleurSection};color:#fff;transform:translateY(-2px)}
+            /* Sur mobile, on allege la banniere : halos plus discrets et grille figee.
+               Le geste de defilement (swipe) reste fluide, l'ambiance visuelle reste la. */
+            @media (max-width:640px){
+              .${uid}-b1,.${uid}-b2{opacity:.4}
+              .${uid}-grille{animation:none;opacity:.08}
+            }
             @media (prefers-reduced-motion: reduce){.${uid}-wrap *,.${uid}-photo{animation:none !important}}
           `}</style>
 

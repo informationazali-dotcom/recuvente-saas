@@ -4737,6 +4737,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     );
   }
 
+  function baseSectionType(t) { return String(t).replace(/_\d+$/, ""); }
+  function suffixeSection(t) { const m = /_(\d+)$/.exec(String(t)); return m ? "_" + m[1] : ""; }
+
   function Section({ s }) {
     const type = s.type;
     const couleurSection = (config.sectionColors && config.sectionColors[type]) || couleur;
@@ -4819,8 +4822,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "featured_product") {
-      const suf = (/_\d+$/.exec(type) || [""])[0];
+    if (type === "featured_product" || baseSectionType(type) === "featured_product") {
+      const suf = suffixeSection(type);
       const kId = `featuredProductId${suf}`, kLabel = `featuredProductLabel${suf}`, kPos = `featuredProductPosition${suf}`;
       const p = produits.find((x) => x.produit_id === config[kId]) || null;
       if (!p) return null;
@@ -4961,8 +4964,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "featured_collection") {
-      const suf = (/_\d+$/.exec(type) || [""])[0];
+    if (type === "featured_collection" || baseSectionType(type) === "featured_collection") {
+      const suf = suffixeSection(type);
       const kId = `featuredCollectionId${suf}`, kTitre = `featuredCollectionTitre${suf}`, kTexte = `featuredCollectionTexte${suf}`, kImg = `featuredCollectionImage${suf}`;
       const kColMobile = `featuredCollectionColMobile${suf}`, kColDesktop = `featuredCollectionColDesktop${suf}`, kNombre = `featuredCollectionNombre${suf}`;
       const col = derivedCollections.find((c) => c.id === config[kId]) || null;

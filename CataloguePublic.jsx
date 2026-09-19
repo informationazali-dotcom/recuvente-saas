@@ -4847,22 +4847,24 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "rich_text") {
+    if (type === "rich_text" || baseSectionType(type) === "rich_text") {
+      const suf = suffixeSection(type);
       return (
         <div style={{ padding: "30px 20px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.richTextTitre}</div>
-          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.75, maxWidth: 640, margin: "0 auto" }}>{config.richTextTexte}</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config[`richTextTitre${suf}`]}</div>
+          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.75, maxWidth: 640, margin: "0 auto" }}>{config[`richTextTexte${suf}`]}</div>
         </div>
       );
     }
 
-    if (type === "video") {
+    if (type === "video" || baseSectionType(type) === "video") {
+      const suf = suffixeSection(type);
       return (
         <div style={{ padding: "26px 20px" }}>
-          {config.videoTitre && <div style={{ fontSize: 19, fontWeight: 900, color: "#132019", marginBottom: 14, textAlign: "center" }}>{config.videoTitre}</div>}
-          {config.videoUrl ? (
+          {config[`videoTitre${suf}`] && <div style={{ fontSize: 19, fontWeight: 900, color: "#132019", marginBottom: 14, textAlign: "center" }}>{config[`videoTitre${suf}`]}</div>}
+          {config[`videoUrl${suf}`] ? (
             <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden", background: "#000", maxWidth: 800, margin: "0 auto" }}>
-              <iframe src={urlEmbedVideo(config.videoUrl)} title="Vidéo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen />
+              <iframe src={urlEmbedVideo(config[`videoUrl${suf}`])} title="Vidéo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen />
             </div>
           ) : null}
         </div>
@@ -4882,11 +4884,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "before_after") {
+    if (type === "before_after" || baseSectionType(type) === "before_after") {
+      const suf = suffixeSection(type);
       return (
         <div style={{ padding: "26px 20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 700, margin: "0 auto" }}>
-            {[["beforeAfterAvant", "beforeAfterLegendeAvant"], ["beforeAfterApres", "beforeAfterLegendeApres"]].map(([imgKey, legKey]) => (
+            {[[`beforeAfterAvant${suf}`, `beforeAfterLegendeAvant${suf}`], [`beforeAfterApres${suf}`, `beforeAfterLegendeApres${suf}`]].map(([imgKey, legKey]) => (
               <div key={imgKey}>
                 {config[imgKey] ? (
                   <img src={config[imgKey]} alt="" style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 12 }} />
@@ -4901,19 +4904,21 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "cta_banner") {
+    if (type === "cta_banner" || baseSectionType(type) === "cta_banner") {
+      const suf = suffixeSection(type);
       return (
-        <div style={{ padding: "34px 20px", textAlign: "center", background: config.ctaBannerCouleur || couleurSection }}>
-          <div style={{ color: "white", fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{config.ctaBannerTitre}</div>
-          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, marginBottom: 18 }}>{config.ctaBannerTexte}</div>
-          <button style={{ border: 0, borderRadius: 10, padding: "13px 26px", background: "white", color: config.ctaBannerCouleur || couleurSection, fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
-            {config.ctaBannerBouton}
+        <div style={{ padding: "34px 20px", textAlign: "center", background: config[`ctaBannerCouleur${suf}`] || couleurSection }}>
+          <div style={{ color: "white", fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{config[`ctaBannerTitre${suf}`]}</div>
+          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, marginBottom: 18 }}>{config[`ctaBannerTexte${suf}`]}</div>
+          <button style={{ border: 0, borderRadius: 10, padding: "13px 26px", background: "white", color: config[`ctaBannerCouleur${suf}`] || couleurSection, fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+            {config[`ctaBannerBouton${suf}`]}
           </button>
         </div>
       );
     }
 
-    if (type === "contact_form") {
+    if (type === "contact_form" || baseSectionType(type) === "contact_form") {
+      const suf = suffixeSection(type);
       const idBase = `cf-${s.id || Math.random().toString(36).slice(2)}`;
       const envoyer = () => {
         const nom = document.getElementById(`${idBase}-nom`)?.value || "";
@@ -4925,8 +4930,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       };
       return (
         <div style={{ padding: "30px 20px" }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 6, textAlign: "center" }}>{config.contactFormTitre}</div>
-          <div style={{ fontSize: 12.5, color: "#68756d", marginBottom: 18, textAlign: "center" }}>{config.contactFormTexte}</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 6, textAlign: "center" }}>{config[`contactFormTitre${suf}`]}</div>
+          <div style={{ fontSize: 12.5, color: "#68756d", marginBottom: 18, textAlign: "center" }}>{config[`contactFormTexte${suf}`]}</div>
           <div style={{ display: "grid", gap: 10, maxWidth: 420, margin: "0 auto" }}>
             <input id={`${idBase}-nom`} placeholder="Nom" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 16 }} />
             <input id={`${idBase}-tel`} placeholder="Téléphone" style={{ padding: "11px 13px", borderRadius: 9, border: "1px solid #dfe6df", fontSize: 16 }} />
@@ -5073,22 +5078,24 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "image_text_bubble") {
+    if (type === "image_text_bubble" || baseSectionType(type) === "image_text_bubble") {
+      const suf = suffixeSection(type);
       return (
         <div style={{ padding: "50px 24px", position: "relative" }}>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", maxWidth: 700, margin: "0 auto" }}>
-            <div style={{ flex: "1 1 320px", height: 260, borderRadius: 22, background: config.imageTextBubbleImage ? `url(${config.imageTextBubbleImage}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)`, boxShadow: "0 24px 48px rgba(0,0,0,0.15)" }} />
+            <div style={{ flex: "1 1 320px", height: 260, borderRadius: 22, background: config[`imageTextBubbleImage${suf}`] ? `url(${config[`imageTextBubbleImage${suf}`]}) center/cover` : `linear-gradient(135deg,${couleurSection},#0b2416)`, boxShadow: "0 24px 48px rgba(0,0,0,0.15)" }} />
             <div style={{ flex: "1 1 320px", marginLeft: -50, marginTop: 0, background: "white", borderRadius: 20, padding: "28px 24px", boxShadow: "0 18px 40px rgba(0,0,0,0.1)", position: "relative", zIndex: 2 }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.imageTextBubbleTitre}</div>
-              <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.65 }}>{config.imageTextBubbleTexte}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config[`imageTextBubbleTitre${suf}`]}</div>
+              <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.65 }}>{config[`imageTextBubbleTexte${suf}`]}</div>
             </div>
           </div>
         </div>
       );
     }
 
-    if (type === "custom_html") {
-      return <div dangerouslySetInnerHTML={{ __html: config.customHtmlCode || "" }} />;
+    if (type === "custom_html" || baseSectionType(type) === "custom_html") {
+      const suf = suffixeSection(type);
+      return <div dangerouslySetInnerHTML={{ __html: config[`customHtmlCode${suf}`] || "" }} />;
     }
 
     if (type === "scrolling_alert") {
@@ -5102,13 +5109,14 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "two_images_text") {
+    if (type === "two_images_text" || baseSectionType(type) === "two_images_text") {
+      const suf = suffixeSection(type);
       return (
         <div style={{ padding: "30px 20px", textAlign: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config.twoImagesTextTitre}</div>
-          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.65, maxWidth: 520, margin: "0 auto 20px" }}>{config.twoImagesTextTexte}</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{config[`twoImagesTextTitre${suf}`]}</div>
+          <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.65, maxWidth: 520, margin: "0 auto 20px" }}>{config[`twoImagesTextTexte${suf}`]}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 600, margin: "0 auto" }}>
-            {[config.twoImagesTextImage1, config.twoImagesTextImage2].map((img, i) => (
+            {[config[`twoImagesTextImage1${suf}`], config[`twoImagesTextImage2${suf}`]].map((img, i) => (
               <div key={i} style={{ height: 200, borderRadius: 14, background: img ? `url(${img}) center/cover` : "#eef3ee", display: img ? undefined : "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>
                 {!img && "🖼️"}
               </div>
@@ -5118,11 +5126,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       );
     }
 
-    if (type === "wavy_banner") {
+    if (type === "wavy_banner" || baseSectionType(type) === "wavy_banner") {
+      const suf = suffixeSection(type);
       return (
         <div style={{ background: couleurSection, padding: "44px 20px 40px", textAlign: "center", position: "relative", clipPath: "ellipse(65% 100% at 50% 0%)" }}>
-          <div style={{ color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 24, marginBottom: 18, marginTop: 14 }}>{config.wavyBannerTitre}</div>
-          <button style={{ border: 0, borderRadius: 999, padding: "13px 28px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config.wavyBannerBouton}</button>
+          <div style={{ color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 24, marginBottom: 18, marginTop: 14 }}>{config[`wavyBannerTitre${suf}`]}</div>
+          <button style={{ border: 0, borderRadius: 999, padding: "13px 28px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 13, cursor: "pointer" }}>{config[`wavyBannerBouton${suf}`]}</button>
         </div>
       );
     }
@@ -5273,14 +5282,17 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       </div>
     );
 
-    if (type === "promo") return (
-      <div style={{ ...commonPad, background: "#f7f2e7", textAlign: "center" }}>
-        <div style={{ fontSize: 10, fontWeight: 900, color: "#b16b00" }}>OFFRE LIMITÉE</div>
-        <h3 style={{ fontSize: 25, margin: "8px 0", color: "#162119" }}>{config.promoTitle}</h3>
-        <p style={{ fontSize: 12.5, color: "#6f776f" }}>{config.promoText}</p>
-        <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: "#e8920a", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button>
-      </div>
-    );
+    if (type === "promo" || baseSectionType(type) === "promo") {
+      const suf = suffixeSection(type);
+      return (
+        <div style={{ ...commonPad, background: "#f7f2e7", textAlign: "center" }}>
+          <div style={{ fontSize: 10, fontWeight: 900, color: "#b16b00" }}>OFFRE LIMITÉE</div>
+          <h3 style={{ fontSize: 25, margin: "8px 0", color: "#162119" }}>{config[`promoTitle${suf}`]}</h3>
+          <p style={{ fontSize: 12.5, color: "#6f776f" }}>{config[`promoText${suf}`]}</p>
+          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: "#e8920a", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button>
+        </div>
+      );
+    }
 
     if (type === "testimonials") {
       const manuels = (entreprise.temoignagesManuels || []).map((t) => ({ nom: t.nom, note: t.note || 5, texte: t.texte }));

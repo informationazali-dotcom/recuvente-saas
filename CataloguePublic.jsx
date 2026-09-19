@@ -2390,7 +2390,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
           .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
           .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
-          @media (max-width: 420px) { .rv-shop-header-whatsapp-txt { display: none; } .rv-shop-header-nom { display: none; } }
+          @media (max-width: 680px) { .rv-shop-header-whatsapp-txt { display: none; } }
           .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
           @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
           @media (min-width: 960px) { .rv-shop-content { max-width: 1100px; padding: 0 32px; } .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
@@ -2499,7 +2499,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
         .rv-shop-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
         .rv-shop-card:hover { box-shadow: 0 10px 24px rgba(22,35,31,0.12) !important; transform: translateY(-2px); }
-        @media (max-width: 420px) { .rv-shop-header-whatsapp-txt { display: none; } .rv-shop-header-nom { display: none; } }
+        @media (max-width: 680px) { .rv-shop-header-whatsapp-txt { display: none; } }
         .rv-shop-banner { height: 150px; }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
@@ -3650,9 +3650,20 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
       <style>{`
         .rv-shop-nav-desktop { display: flex; }
         .rv-shop-nav-toggle { display: none; }
+        .rv-shop-hdr-row { display: flex; align-items: center; gap: 12px; }
+        .rv-shop-header-nom { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .rv-shop-header-logo { width: 38px; height: 38px; border-radius: 10px; object-fit: contain; flex-shrink: 0; background: rgba(255,255,255,0.12); }
+        .rv-shop-header-whatsapp-txt { display: inline; }
         @media (max-width: 680px) {
           .rv-shop-nav-desktop { display: none; }
           .rv-shop-nav-toggle { display: flex; }
+          /* Le nom de la boutique reste TOUJOURS lisible : la recherche passe
+             sur une deuxième ligne pleine largeur au lieu d'écraser le nom. */
+          .rv-shop-hdr-row { flex-wrap: wrap; row-gap: 8px; }
+          .rv-shop-hdr-marque { flex: 1 1 auto; min-width: 0; }
+          .rv-shop-header-search { order: 9; flex: 1 1 100% !important; }
+          .rv-shop-header-nom { font-size: 15px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; max-width: none !important; }
+          .rv-shop-header-logo { width: 34px; height: 34px; }
         }
       `}</style>
       <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden" }}>
@@ -3668,7 +3679,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
       </div>
 
       <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="rv-shop-hdr-row">
           {aDesLiensNav && (
             <button
               className="rv-shop-nav-toggle"
@@ -3681,12 +3692,13 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           )}
           <button
             onClick={onLogoClick}
-            style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0, minWidth: 0, overflow: "hidden", flexShrink: 1 }}
+            className="rv-shop-hdr-marque"
+            style={{ display: "flex", alignItems: "center", gap: 9, background: "none", border: "none", cursor: onLogoClick ? "pointer" : "default", padding: 0, minWidth: 0, textAlign: "left" }}
           >
             {entreprise.logo ? (
-              <img src={entreprise.logo} alt={entreprise.nom} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "contain", flexShrink: 0 }} onError={(e) => { e.target.style.display = "none"; }} />
+              <img src={entreprise.logo} alt={entreprise.nom} className="rv-shop-header-logo" onError={(e) => { e.target.style.display = "none"; }} />
             ) : null}
-            <span className="rv-shop-header-nom" style={{ fontWeight: 700, fontSize: 15, color: texteHeader, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, maxWidth: 180 }}>{entreprise.nom}</span>
+            <span className="rv-shop-header-nom" style={{ color: texteHeader }}>{entreprise.nom}</span>
           </button>
 
           {afficherRecherche && (
@@ -4973,6 +4985,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       const suf = suffixeSection(type);
       const kId = `featuredCollectionId${suf}`, kTitre = `featuredCollectionTitre${suf}`, kTexte = `featuredCollectionTexte${suf}`, kImg = `featuredCollectionImage${suf}`;
       const kColMobile = `featuredCollectionColMobile${suf}`, kColDesktop = `featuredCollectionColDesktop${suf}`, kNombre = `featuredCollectionNombre${suf}`;
+      // Tout est personnalisable : le petit label au-dessus du titre (vide = masqué),
+      // le titre, le texte, le libellé du bouton, et le style d'animation de la bannière.
+      const kLabel = `featuredCollectionLabel${suf}`, kBouton = `featuredCollectionBouton${suf}`, kAnim = `featuredCollectionAnim${suf}`, kHauteur = `featuredCollectionHauteur${suf}`;
       const col = derivedCollections.find((c) => c.id === config[kId]) || null;
       if (!col) return null;
       const produitsCol = col.produitIds ? produitsDeCollection(col) : [];
@@ -4980,40 +4995,89 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       const colDesktop = config[kColDesktop] || 4;
       const nbAAfficher = config[kNombre] || 8;
       const classeGrille = `rv-fc-grid${suf}`;
+      const uid = `rvfc${suf.replace(/_/g, "") || "0"}`;
       // Fond de la bannière : la photo choisie manuellement dans le Store Builder en priorité,
       // sinon une vraie photo tirée de la collection (le premier produit avec image) plutôt
       // qu'un dégradé plat générique — bien plus premium, sans rien configurer.
       const photoFond = config[kImg] || produitsCol.find((p) => p.photo_url)?.photo_url;
+      const labelBanniere = config[kLabel] !== undefined ? String(config[kLabel]).trim() : "COLLECTION";
+      const titreBanniere = config[kTitre] || joliNomCollection(col.nom);
+      const texteBouton = config[kBouton] || "Voir la collection";
+      const anim = config[kAnim] || "aurora"; // aurora | neon | zoom | sobre
+      const animee = anim !== "sobre";
+      const hauteur = config[kHauteur] || "moyenne"; // compacte | moyenne | plein
+      const minH = hauteur === "compacte" ? "clamp(220px,42vw,300px)" : hauteur === "plein" ? "clamp(420px,72vh,620px)" : "clamp(300px,52vw,440px)";
       return (
         <div>
-          <style>{`.${classeGrille}{display:grid;grid-template-columns:repeat(${colMobile},1fr);gap:10px} @media(min-width:641px){.${classeGrille}{grid-template-columns:repeat(${colDesktop},1fr);gap:20px}}`}</style>
-          <div
-            style={{
-              position: "relative", minHeight: 260, display: "flex", flexDirection: "column", alignItems: "center",
-              justifyContent: "center", textAlign: "center", color: "white", padding: 28,
-              background: photoFond
-                ? `linear-gradient(180deg,rgba(0,0,0,0.25),rgba(0,0,0,0.65)), url(${photoFond}) center/cover`
-                : `linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.6)),linear-gradient(135deg,${couleurSection},#0b2416)`,
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.08em", opacity: 0.85, marginBottom: 8 }}>COLLECTION</div>
-            <div style={{ fontSize: 30, fontWeight: 950, marginBottom: 10, textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>{config[kTitre] || joliNomCollection(col.nom)}</div>
-            <div style={{ fontSize: 13, opacity: 0.95, marginBottom: 18, maxWidth: 440, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>{config[kTexte]}</div>
-            <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: 0, borderRadius: 10, padding: "12px 24px", background: "white", color: couleurTexteLisible(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
-              Voir la collection ({produitsCol.length})
-            </button>
+          <style>{`
+            .${classeGrille}{display:grid;grid-template-columns:repeat(${colMobile},1fr);gap:10px}
+            @media(min-width:641px){.${classeGrille}{grid-template-columns:repeat(${colDesktop},1fr);gap:20px}}
+
+            @keyframes ${uid}Zoom{0%{transform:scale(1.04)}100%{transform:scale(1.18)}}
+            @keyframes ${uid}Aurora1{0%{transform:translate3d(-12%,-8%,0) scale(1)}50%{transform:translate3d(10%,8%,0) scale(1.3)}100%{transform:translate3d(-12%,-8%,0) scale(1)}}
+            @keyframes ${uid}Aurora2{0%{transform:translate3d(14%,10%,0) scale(1.2)}50%{transform:translate3d(-10%,-6%,0) scale(1)}100%{transform:translate3d(14%,10%,0) scale(1.2)}}
+            @keyframes ${uid}Shine{0%{background-position:-220% 0}100%{background-position:220% 0}}
+            @keyframes ${uid}Dot{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:1;transform:scale(1.5)}}
+            @keyframes ${uid}Up{0%{opacity:0;transform:translateY(26px)}100%{opacity:1;transform:none}}
+            @keyframes ${uid}Sweep{0%{left:-70%}60%,100%{left:140%}}
+            @keyframes ${uid}Line{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+            @keyframes ${uid}Grid{0%{transform:translateY(0)}100%{transform:translateY(46px)}}
+
+            .${uid}-wrap{position:relative;overflow:hidden;isolation:isolate;min-height:${minH};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:clamp(28px,6vw,64px) 20px;background:#08120d}
+            .${uid}-photo{position:absolute;inset:-4%;background:${photoFond ? `url(${photoFond}) center/cover` : `linear-gradient(135deg,${couleurSection},#08120d)`};${animee ? `animation:${uid}Zoom 22s ease-in-out infinite alternate;` : ""}will-change:transform}
+            .${uid}-voile{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,10,8,.35) 0%,rgba(4,10,8,.55) 45%,rgba(4,10,8,.88) 100%)}
+            .${uid}-blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;mix-blend-mode:screen;pointer-events:none}
+            .${uid}-b1{width:58%;aspect-ratio:1;left:-10%;top:-20%;background:radial-gradient(circle,${couleurSection} 0%,transparent 68%);${animee ? `animation:${uid}Aurora1 16s ease-in-out infinite;` : ""}}
+            .${uid}-b2{width:52%;aspect-ratio:1;right:-12%;bottom:-24%;background:radial-gradient(circle,#7c5cff 0%,transparent 68%);${animee ? `animation:${uid}Aurora2 20s ease-in-out infinite;` : ""}}
+            .${uid}-grille{position:absolute;inset:-46px 0;pointer-events:none;opacity:${anim === "neon" ? ".28" : ".14"};background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 10%,transparent 72%);mask-image:radial-gradient(ellipse at 50% 40%,#000 10%,transparent 72%);${animee ? `animation:${uid}Grid 7s linear infinite;` : ""}}
+            .${uid}-inner{position:relative;z-index:3;max-width:720px;width:100%}
+            .${uid}-label{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font-size:10.5px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;margin-bottom:16px;${animee ? `animation:${uid}Up .7s .05s both;` : ""}}
+            .${uid}-label i{width:6px;height:6px;border-radius:50%;background:${anim === "neon" ? "#39ffc6" : "#fff"};display:block;${animee ? `animation:${uid}Dot 1.8s ease-in-out infinite;` : ""}}
+            .${uid}-titre{font-size:clamp(26px,6.4vw,54px);line-height:1.04;font-weight:950;letter-spacing:-.02em;margin:0 0 14px;background:linear-gradient(100deg,#fff 20%,rgba(255,255,255,.55) 42%,#fff 62%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;${animee ? `animation:${uid}Up .7s .12s both,${uid}Shine 5.5s linear 1s infinite;` : "color:#fff;"}text-shadow:0 2px 24px rgba(0,0,0,.35)}
+            .${uid}-texte{font-size:clamp(13px,2.4vw,16px);line-height:1.6;opacity:.92;max-width:520px;margin:0 auto 26px;${animee ? `animation:${uid}Up .7s .2s both;` : ""}}
+            .${uid}-cta{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:14px 28px;background:rgba(255,255,255,.96);color:#0d1a13;font-weight:900;font-size:13.5px;cursor:pointer;box-shadow:0 14px 40px rgba(0,0,0,.35),0 0 0 0 rgba(255,255,255,.25);transition:transform .25s cubic-bezier(.2,.8,.3,1),box-shadow .25s;${animee ? `animation:${uid}Up .7s .28s both;` : ""}}
+            .${uid}-cta:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 20px 50px rgba(0,0,0,.45),0 0 0 6px rgba(255,255,255,.14)}
+            .${uid}-cta span.s{position:absolute;top:0;bottom:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-18deg);${animee ? `animation:${uid}Sweep 3.4s ease-in-out infinite;` : "display:none"}}
+            .${uid}-pill{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:${couleurSection};color:#fff;font-size:11px;font-weight:900}
+            .${uid}-fil{height:2px;background:linear-gradient(90deg,transparent,${couleurSection},#7c5cff,${couleurSection},transparent);background-size:200% 100%;${animee ? `animation:${uid}Line 3.5s linear infinite;` : ""}}
+            .${uid}-card{${animee ? `animation:${uid}Up .55s both;` : ""}transition:transform .3s cubic-bezier(.2,.8,.3,1)}
+            .${uid}-card:hover{transform:translateY(-6px)}
+            .${uid}-more{position:relative;overflow:hidden;border:1.5px solid ${couleurSection};background:none;color:${couleurSection};border-radius:999px;padding:13px 28px;font-weight:800;font-size:13px;cursor:pointer;transition:background .25s,color .25s,transform .25s}
+            .${uid}-more:hover{background:${couleurSection};color:#fff;transform:translateY(-2px)}
+            @media (prefers-reduced-motion: reduce){.${uid}-wrap *,.${uid}-photo{animation:none !important}}
+          `}</style>
+
+          <div className={`${uid}-wrap`}>
+            <div className={`${uid}-photo`} />
+            <div className={`${uid}-voile`} />
+            {anim !== "sobre" && anim !== "zoom" && <><div className={`${uid}-blob ${uid}-b1`} /><div className={`${uid}-blob ${uid}-b2`} /></>}
+            {anim !== "sobre" && <div className={`${uid}-grille`} />}
+            <div className={`${uid}-inner`}>
+              {labelBanniere ? <div className={`${uid}-label`}><i />{labelBanniere}</div> : null}
+              <h2 className={`${uid}-titre`}>{titreBanniere}</h2>
+              {config[kTexte] ? <p className={`${uid}-texte`}>{config[kTexte]}</p> : null}
+              <button className={`${uid}-cta`} onClick={() => setCollectionOuverte(`manuelle-${col.id}`)}>
+                <span className="s" />
+                {texteBouton}
+                {produitsCol.length > 0 && <span className={`${uid}-pill`}>{produitsCol.length}</span>}
+              </button>
+            </div>
           </div>
+          <div className={`${uid}-fil`} />
+
           {produitsCol.length > 0 && (
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 16px" }}>
+            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "clamp(22px,4vw,40px) 16px" }}>
               <div className={classeGrille}>
-                {produitsCol.slice(0, nbAAfficher).map((p) => (
-                  <CarteProduit key={p.produit_id} p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
+                {produitsCol.slice(0, nbAAfficher).map((p, i) => (
+                  <div key={p.produit_id} className={`${uid}-card`} style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}>
+                    <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
+                  </div>
                 ))}
               </div>
               {produitsCol.length > nbAAfficher && (
-                <div style={{ textAlign: "center", marginTop: 22 }}>
-                  <button onClick={() => setCollectionOuverte(`manuelle-${col.id}`)} style={{ border: `1.5px solid ${couleurSection}`, background: "none", color: couleurSection, borderRadius: 10, padding: "11px 24px", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
-                    Voir les {produitsCol.length} produits de la collection →
+                <div style={{ textAlign: "center", marginTop: 26 }}>
+                  <button className={`${uid}-more`} onClick={() => setCollectionOuverte(`manuelle-${col.id}`)}>
+                    Voir les {produitsCol.length} produits →
                   </button>
                 </div>
               )}

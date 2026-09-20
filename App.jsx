@@ -12106,7 +12106,11 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [contextePourIA, setContextePourIA] = useState({ pourQui: "", difference: "" });
   const [genererAvecIA, setGenererAvecIA] = useState(true);
   const [iaEnCours, setIaEnCours] = useState(false);
-  const [ajoutOuvert, setAjoutOuvert] = useState(produits.length === 0);
+  // Vues : « liste » (les produits, seuls), « edition » (un produit en pleine page, sans liste à côté),
+  // « nouveau » (création en pleine page : s'ouvre tout de suite, le nom se tape ensuite).
+  const [vue, setVue] = useState(produits.length === 0 ? "nouveau" : "liste");
+  const ajoutOuvert = vue === "nouveau";
+  const [descriptionEnPreparation, setDescriptionEnPreparation] = useState(false);
   const refFormulaireAjout = React.useRef(null);
   useEffect(() => {
     // Correctif : sur mobile, la colonne de liste est limitée en hauteur
@@ -12177,7 +12181,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       setOptionsProduit([0, 1, 2].map((i) => optsExistantes[i] ? { nom: optsExistantes[i].nom || "", valeursTexte: (optsExistantes[i].valeurs || []).join(", ") } : { nom: "", valeursTexte: "" }));
       setVariantesListe(Array.isArray(selected.variantes) ? selected.variantes.map((v) => ({ ...v, prix: v.prix ?? "", stock: v.stock ?? "" })) : []);
     }
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId, !!selected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Quand la fiche (description IA, photo) vient d'être préparée, on recharge la description à l'écran.
+  useEffect(() => {
+    if (!descriptionEnPreparation && selected) setChamps((c) => ({ ...c, description: selected.description || "" }));
+  }, [descriptionEnPreparation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function flash(nom) {
     setSavedFlash(nom);
@@ -12324,6 +12333,12 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       return;
     }
 
+    // Le produit existe : on ouvre TOUT DE SUITE son éditeur en pleine page. La photo et la fiche IA
+    // (si demandées) se terminent en arrière-plan, avec un message dans l'éditeur.
+    setSelectedId(resultat.id);
+    setDescriptionEnPreparation(!!(ficheIAPreGeneree || genererAvecIA));
+    setVue("edition");
+
     // Photo envoyée avec la création — pas besoin de revenir remplir le produit après coup.
     // Deux cas : une photo hébergée trouvée via un lien produit (déjà en ligne, rien à envoyer),
     // ou une photo choisie manuellement par le marchand (à compresser puis envoyer).
@@ -12437,9 +12452,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
     setLienProduit("");
     setFicheIAPreGeneree(null);
     setContextePourIA({ pourQui: "", difference: "" });
-    setAjoutOuvert(false);
-    // Sélectionne automatiquement le produit qu'on vient de créer, s'il est renvoyé
-    if (resultat?.id) setSelectedId(resultat.id);
+    setDescriptionEnPreparation(false);
     setDerniereCreation(nomCree);
     setTimeout(() => setDerniereCreation((n) => (n === nomCree ? "" : n)), 3500);
   }
@@ -12453,7 +12466,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const restantSel = stockSel - q.commandees;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: vue === "liste" ? 16 : 0, zIndex: 50 }} onClick={onClose}>
       <style>{`
         .rv-pm-body { display: flex; min-height: 0; flex: 1; }
         .rv-pm-list { width: 340px; flex-shrink: 0; border-right: 1px solid #ECE8DC; overflow-y: auto; }
@@ -12463,13 +12476,27 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
           .rv-pm-list { width: 100%; border-right: none; border-bottom: 1px solid #ECE8DC; max-height: 260px; overflow-y: auto; }
         }
         .rv-pm-field:focus { outline: 2px solid #1a7a3c; outline-offset: -1px; }
+        .rv-pm-vue-liste .rv-pm-detail { display: none; }
+        .rv-pm-vue-liste .rv-pm-list { width: 100%; border-right: none; max-height: none; flex: 1; }
+        .rv-pm-vue-liste .rv-pm-list > * { width: 100%; max-width: 760px; box-sizing: border-box; margin-left: auto !important; margin-right: auto !important; }
+        .rv-pm-vue-edition .rv-pm-list { display: none !important; }
+        .rv-pm-vue-edition .rv-pm-detail > * { max-width: 900px; margin-left: auto !important; margin-right: auto !important; }
+        .rv-pm-vue-nouveau .rv-pm-detail { display: none; }
+        .rv-pm-vue-nouveau .rv-pm-list { width: 100%; border: none; max-height: none; flex: 1; background: #fff; }
+        .rv-pm-vue-nouveau .rv-pm-list > * { width: 100%; max-width: 660px; box-sizing: border-box; margin-left: auto !important; margin-right: auto !important; }
+        .rv-pm-vue-nouveau .rv-pm-cache-nouveau { display: none !important; }
       `}</style>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 1180, height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "sans-serif" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: vue === "liste" ? 16 : 0, width: "100%", maxWidth: vue === "liste" ? 1180 : "none", height: vue === "liste" ? "90vh" : "100%", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "sans-serif" }}>
 
         {/* ===== Barre du haut ===== */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 22px", borderBottom: "1px solid #ECE8DC", flexWrap: "wrap" }}>
-          <div style={{ fontWeight: 700, fontSize: 19 }}>📦 Catalogue produits</div>
-          {produits.length > 0 && (
+          {vue !== "liste" && (
+            <button onClick={() => setVue("liste")} style={{ background: "#fff", border: "1px solid #DDD8CC", borderRadius: 9, padding: "8px 13px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#16231F" }}>← {vue === "nouveau" ? "Retour" : "Tous les produits"}</button>
+          )}
+          <div style={{ fontWeight: 700, fontSize: 19, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {vue === "nouveau" ? "🆕 Nouveau produit" : vue === "edition" && selected ? `✏️ ${selected.nom}` : "📦 Catalogue produits"}
+          </div>
+          {produits.length > 0 && vue === "liste" && (
             <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: "#6B7168" }}>
               <span><strong style={{ color: "#16231F" }}>{totalStock}</strong> en stock</span>
               <span><strong style={{ color: "#8A6412" }}>{totalVendu}</strong> engagé</span>
@@ -12479,10 +12506,10 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
           <button onClick={onClose} style={{ marginLeft: "auto", background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#8A9089" }}>×</button>
         </div>
 
-        <div className="rv-pm-body">
+        <div className={`rv-pm-body rv-pm-vue-${vue}`}>
           {/* ===== Colonne gauche : liste ===== */}
           <div className="rv-pm-list" style={{ display: "flex", flexDirection: "column", background: "#FAFAF7" }}>
-            <div style={{ padding: 14, borderBottom: "1px solid #ECE8DC" }}>
+            <div className="rv-pm-cache-nouveau" style={{ padding: 14, borderBottom: "1px solid #ECE8DC" }}>
               <input
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
@@ -12490,7 +12517,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                 style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", marginBottom: 8 }}
               />
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => setAjoutOuvert((v) => !v)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>＋ Nouveau produit</button>
+                <button onClick={() => setVue("nouveau")} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>＋ Nouveau produit</button>
                 {produits.length > 0 && onBulkDelete && (
                   <button
                     onClick={() => (modeSelection ? quitterModeSelection() : setModeSelection(true))}
@@ -12602,6 +12629,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     <strong>② Créer moi-même</strong> — remplis simplement le nom et ajoute ta photo, sans l'IA.
                   </div>
                 )}
+                <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 12, lineHeight: 1.5 }}>Commence par le <strong>nom du produit</strong>. Tu complètes ensuite le reste (photo, prix, description) dans l'éditeur qui s'ouvre juste après.</div>
+                <input autoFocus placeholder="Nom du produit — ou décris-le en quelques mots (ex: lampe solaire rechargeable)" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
+                <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
                 <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, padding: 10, marginBottom: 10 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 700, color: "#5B21B6", marginBottom: 6 }}>🔗 Ou colle un lien produit (AliExpress, etc.)</div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -12652,8 +12682,6 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   <div style={{ fontSize: 10, color: "#8A8098", marginTop: 6 }}>Le nom et la photo se remplissent automatiquement s'ils sont trouvés — rien n'est deviné.</div>
                 </div>
 
-                <input placeholder="Nom du produit — ou décris-le en quelques mots (ex: lampe solaire rechargeable)" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} style={{ ...inputStyle, marginBottom: 6 }} />
-                <input placeholder="Coût d'achat (optionnel)" type="number" value={nouveauCout} onChange={(e) => setNouveauCout(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
 
                 {nouvellePhotoApercu ? (
                   <div style={{ marginBottom: 10 }}>
@@ -12758,7 +12786,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               </div>
             )}
 
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, margin: 14, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer" }}>
+            <label className="rv-pm-cache-nouveau" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, margin: 14, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#3B6D11", cursor: importEnCours ? "default" : "pointer" }}>
               {importEnCours ? "Import en cours..." : "📥 Importer un CSV ou Excel"}
               <input
                 type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style={{ display: "none" }}
@@ -12828,7 +12856,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
               </div>
             )}
 
-            <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 12px" }}>
+            <div className="rv-pm-cache-nouveau" style={{ flex: 1, overflowY: "auto", padding: "0 8px 12px" }}>
               {produitsFiltres.length === 0 && (
                 <div style={{ color: "#8A9089", fontSize: 12.5, textAlign: "center", padding: "24px 10px" }}>
                   {produits.length === 0 ? "Aucun produit dans le catalogue." : "Aucun résultat."}
@@ -12843,7 +12871,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                 return (
                   <button
                     key={p.id}
-                    onClick={() => (modeSelection ? basculerSelectionProduit(p.id) : setSelectedId(p.id))}
+                    onClick={() => (modeSelection ? basculerSelectionProduit(p.id) : (setSelectedId(p.id), setVue("edition")))}
                     style={{
                       display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
                       background: modeSelection ? (coche ? "#EAF3DE" : "transparent") : (actif ? "#EAF3DE" : "transparent"),
@@ -12890,7 +12918,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
             {!selected ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8A9089", fontSize: 13.5, textAlign: "center", flexDirection: "column", gap: 10 }}>
                 <div style={{ fontSize: 38 }}>📦</div>
-                Sélectionne un produit à gauche, ou crées-en un nouveau.
+                Aucun produit sélectionné.<button onClick={() => setVue("liste")} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>← Voir les produits</button>
               </div>
             ) : (
               <>
@@ -12901,7 +12929,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   </div>
                   {confirmSuppr === selected.id ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button onClick={() => { onDelete(selected.id); setConfirmSuppr(null); setSelectedId(null); }} style={{ background: "#D64933", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmer</button>
+                      <button onClick={() => { onDelete(selected.id); setConfirmSuppr(null); setSelectedId(null); setVue("liste"); }} style={{ background: "#D64933", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmer</button>
                       <button onClick={() => setConfirmSuppr(null)} style={{ background: "#fff", border: "1px solid #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>Annuler</button>
                     </div>
                   ) : (
@@ -12947,6 +12975,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
                 {/* --- Carte Description --- */}
                 <Carte titre="📝 Description">
+                  {descriptionEnPreparation ? (
+                    <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#5B21B6", fontWeight: 600 }}>✨ La description est en cours de rédaction… elle apparaît ici dans quelques secondes. Vous pouvez déjà remplir le reste (prix, stock, photos).</div>
+                  ) : (<>
                   <EditeurRiche
                     key={selected.id}
                     valeur={selected.description || ""}
@@ -12959,6 +12990,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     onClick={() => { onUpdateDescription(selected.id, champs.description); flash("description"); }}
                     flash={savedFlash === "description"}
                   />
+                  </>)}
                 </Carte>
 
                 {/* --- Carte Tarification --- */}

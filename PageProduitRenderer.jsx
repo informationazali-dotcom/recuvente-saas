@@ -187,7 +187,9 @@ const CSS_PAGE = `
 .rvpp-info-list div{display:flex;gap:10px;align-items:flex-start}
 .rvpp-sticky{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--pp-line);box-shadow:0 -6px 20px rgba(0,0,0,.09);padding:10px 14px calc(10px + env(safe-area-inset-bottom));transition:transform .2s ease}
 .rvpp-sticky.rvpp-off{transform:translateY(110%)}
-.rvpp-sticky-in{max-width:560px;margin:0 auto}
+.rvpp-sticky-in{max-width:560px;margin:0 auto;display:flex;gap:8px;align-items:stretch}
+.rvpp-sticky-in .rvpp-cta:not(.rvpp-cta-cart){flex:1;min-width:0}
+.rvpp-sticky .rvpp-cta-cart{flex:0 0 56px;width:56px;padding:0;font-size:22px;background:#fff;color:var(--pp-cta,var(--pp-accent));border:2px solid var(--pp-cta,var(--pp-accent));box-shadow:none}
 .rvpp-sticky .rvpp-cta{min-height:52px;padding:9px 16px}
 .rvpp-preview .rvpp-sticky{position:sticky}
 .rvpp-sel{cursor:pointer}
@@ -987,6 +989,9 @@ function CtaCollant({ ctx, libelle, total, devise }) {
   return (
     <div className={`rvpp-sticky ${masque ? "rvpp-off" : ""}`} role="region" aria-label="Commander">
       <div className="rvpp-sticky-in">
+        {ctx.peutAjouterPanier && (
+          <button type="button" className="rvpp-cta rvpp-cta-cart" aria-label="Ajouter au panier" title="Ajouter au panier" disabled={ctx.etat.varianteEnRupture} onClick={ctx.ajouterPanierCta}>🛒</button>
+        )}
         <button type="button" className="rvpp-cta" disabled={ctx.etat.varianteEnRupture} onClick={() => ctx.cliquerCta("sticky")}>
           <span className="rvpp-cta-t">{libelle}{total > 0 ? ` · ${formaterMontant(total, devise)}` : ""}</span>
         </button>
@@ -1061,7 +1066,9 @@ export function PageProduitPublique({
   const estMobile = useEstMobile(preview ? mode : null);
   const accent = couleurValide(cfg.theme.couleur, couleurValide(couleur));
   const accentTxt = couleurTextePourFond(accent);
-  const couleurBouton = (cfg.cta && cfg.cta.couleur) ? couleurValide(cfg.cta.couleur, "") : "";
+  // Couleur du bouton : celle de la page si elle en a une, sinon celle choisie pour toute la boutique
+  // (Store Builder → boutons), sinon la couleur de la marque / du thème.
+  const couleurBouton = (cfg.cta && cfg.cta.couleur) ? couleurValide(cfg.cta.couleur, "") : couleurValide(entreprise?.storeConfig?.boutonBgColor, "");
   const accentInk = couleurTextePourFond(accent) === "#ffffff" ? accent : "#16231F";
   const libelleCta = (cfg.cta.texte || "").trim() || CTA_TEXTE_DEFAUT;
 
@@ -1126,6 +1133,14 @@ export function PageProduitPublique({
     }
   };
 
+  // « Ajouter au panier » (barre collante) : mêmes garde-fous que la commande — variante choisie.
+  const ajouterPanierCta = () => {
+    evenement("clic_cta", { source: "sticky_panier", offre_id: etatComplet.bundleChoisiId });
+    if (preview || typeof actions.onAjouterPanier !== "function") return;
+    if (aDesOptions && !etatComplet.toutesOptionsChoisies) { setOptionsManquantes(true); allerVers("rvpp-options"); return; }
+    actions.onAjouterPanier();
+  };
+
   const ctx = {
     ...ctxBase, accent, accentTxt, devise, deviseCode, etat: etatComplet, liv, t, preview, libelleCta, optionsManquantes,
     photos: [produit?.photo_url, ...((produit && produit.photos_galerie) || [])].filter(Boolean),
@@ -1134,7 +1149,8 @@ export function PageProduitPublique({
       onChoisirOffre: (o) => { actionsCompletes.onChoisirOffre(o); evenement("offre_selectionnee", { offre_id: o ? o.id : "base" }); },
       onToggleBump: (id) => { actionsCompletes.onToggleBump(id); if (etatComplet.produitBumpId !== id) evenement("upsell_accepte", { produit_complement: id }); },
     },
-    rendreFormulaire, evenement, allerVers, cliquerCta,
+    rendreFormulaire, evenement, allerVers, cliquerCta, ajouterPanierCta,
+    peutAjouterPanier: typeof actions.onAjouterPanier === "function",
     cleRendu: blocsAffiches.length + (formulaireInline ? 1 : 0),
   };
 

@@ -673,10 +673,11 @@ export function creerConfig(templateId = "cod_conversion") {
     template: tpl.id,
     theme: { ...THEME_DEFAUT, ...tpl.theme },
     cta: { texte: CTA_TEXTE_DEFAUT, sous_texte: "", action: "popup", couleur: "" },
-    sticky: { mobile: true, desktop: false },
+    sticky: { mobile: true, desktop: true },
     formulaire: { commune: false, instructions: false },
     seo: { titre: "", description: "" },
     desc_migree: true,
+    sticky_v2: true,
     blocs: tpl.blocs.map(([type, surcharges]) => creerBloc(type, surcharges || {})).filter(Boolean),
   };
 }
@@ -764,7 +765,9 @@ export function normaliserConfig(brute) {
     desc_migree: true,
     theme: { ...THEME_DEFAUT, ...(nettoyerValeur(brute.theme) || {}) },
     cta: { ...base.cta, ...(nettoyerValeur(brute.cta) || {}) },
-    sticky: { ...base.sticky, ...(nettoyerValeur(brute.sticky) || {}) },
+    // Barre collante : depuis la v2 elle est aussi active sur ordinateur (avant : mobile seulement).
+    sticky: { ...base.sticky, ...(nettoyerValeur(brute.sticky) || {}), ...(brute.sticky_v2 ? {} : { desktop: true }) },
+    sticky_v2: true,
     formulaire: { ...base.formulaire, ...(nettoyerValeur(brute.formulaire) || {}) },
     seo: { ...base.seo, ...(nettoyerValeur(brute.seo) || {}) },
     blocs,

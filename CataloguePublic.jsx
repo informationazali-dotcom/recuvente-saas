@@ -1487,6 +1487,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const couleur = entreprise?.couleur || "#1a7a3c";
   // Style des cartes produits choisi par le marchand dans le Store Builder.
   appliquerStyleCarte(entreprise?.storeConfig);
+  definirBoutonsPerso(entreprise?.storeConfig);
   const t = creerTraducteur(entreprise?.langue);
 
   // Enveloppe d'ambiance commune à TOUS les écrans de la boutique (accueil Store Builder,
@@ -1688,7 +1689,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button
                 onClick={envoyerCommandeBien}
                 disabled={envoiBienEnCours}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 800, fontSize: 14, cursor: "pointer", touchAction: "manipulation" }}
+                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 800, fontSize: 14, cursor: "pointer", touchAction: "manipulation" }}
               >
                 {envoiBienEnCours ? "Envoi..." : `Confirmer ma demande`}
               </button>
@@ -2146,7 +2147,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button
                 onClick={envoyerCommande}
                 disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
+                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
                 {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
               </button>
@@ -2206,6 +2207,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 onToggleBump: (id) => setProduitBumpId((cur) => (cur === id ? null : id)),
                 onOuvrirProduit: ouvrirProduit,
                 onCommander: () => lancerCommande(),
+                onAjouterPanier: () => ajouterAuPanier(produitOuvert, quantite),
                 onCtaInline: () => {
                   trackEvenement("InitiateCheckout", {
                     content_ids: [produitOuvert.produit_id],
@@ -2347,7 +2349,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   id="rv-cta-en-ligne"
                   type="button"
                   onClick={lancerCommande}
-                  style={{ width: "100%", background: couleur, color: couleurTextePourFond(couleur), border: "none", borderRadius: 12, padding: "14px 16px", cursor: "pointer", touchAction: "manipulation", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, boxShadow: "0 6px 18px rgba(0,0,0,0.16)" }}
+                  style={{ width: "100%", ...styleBouton(couleur, couleurTextePourFond(couleur)), border: "none", borderRadius: 12, padding: "14px 16px", cursor: "pointer", touchAction: "manipulation", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, boxShadow: "0 6px 18px rgba(0,0,0,0.16)" }}
                 >
                   <span style={{ fontWeight: 800, fontSize: 16, lineHeight: 1.25 }}>{t("ctaEnLigneTitre")}</span>
                   <span style={{ fontWeight: 500, fontSize: 12.5, opacity: 0.92 }}>💵 {t("ctaEnLigneSous")}</span>
@@ -2598,7 +2600,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                     </button>
                     <button
                       onClick={lancerCommande}
-                      style={{ flex: 1, background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer", touchAction: "manipulation" }}
+                      style={{ flex: 1, ...styleBouton(couleur), border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer", touchAction: "manipulation" }}
                     >
                       {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
                     </button>
@@ -3121,7 +3123,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
             <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.6, marginBottom: 20 }}>
               Ta commande est bien enregistrée. Un conseiller va t'appeler au <strong>{form.tel}</strong> très bientôt — merci de répondre, c'est indispensable pour valider ta livraison.
             </div>
-            <button onClick={onFermer} style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+            <button onClick={onFermer} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
               Continuer mes achats
             </button>
           </div>
@@ -3157,7 +3159,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 14, paddingTop: 10, borderTop: "2px solid #ECE8DC" }}>
               <span>Total</span><span style={{ color: couleur }}>{total.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
             </div>
-            <button onClick={() => setEtape("form")} style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            <button onClick={() => setEtape("form")} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
               Passer la commande →
             </button>
           </>
@@ -3204,7 +3206,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
 
             {erreur && <div style={{ background: "#FBEAE6", color: "#D64933", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12.5 }}>{erreur}</div>}
 
-            <button onClick={envoyerCommandePanier} disabled={envoi} style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: envoi ? 0.7 : 1 }}>
+            <button onClick={envoyerCommandePanier} disabled={envoi} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: envoi ? 0.7 : 1 }}>
               {envoi ? "Envoi..." : "Confirmer ma commande"}
             </button>
           </>
@@ -3720,6 +3722,17 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Couleurs personnalisables (Store Builder → En-tête). Vide = look historique d'Azali Express.
+  const scAz = entreprise.storeConfig || {};
+  const bgPrincipal = (couleurPersoValide(scAz.headerBgColor) && scAz.headerBgColor.toLowerCase() !== "#131921") ? scAz.headerBgColor : couleur; // #131921 = valeur par défaut de l'éditeur
+  const persoPrincipal = bgPrincipal !== couleur;
+  const txtPrincipal = persoPrincipal ? (couleurPersoValide(scAz.headerTextColor) || couleurTextePourFond(bgPrincipal)) : "white";
+  const bgAnnonce = couleurPersoValide(scAz.headerBarreBgColor) || "#145c2e";
+  const txtAnnonce = couleurPersoValide(scAz.headerBarreBgColor) ? couleurTextePourFond(bgAnnonce) : "rgba(255,255,255,0.92)";
+  const bgMenu = couleurPersoValide(scAz.headerNavBgColor) || "#145c2e";
+  const txtMenu = couleurPersoValide(scAz.headerNavBgColor) ? couleurTextePourFond(bgMenu) : "white";
+  const bgPanierHeader = couleurPersoValide(scAz.headerCartBgColor) || "#e8920a";
+  const txtPanierHeader = couleurPersoValide(scAz.headerCartBgColor) ? couleurTextePourFond(bgPanierHeader) : "white";
   const styleFixe = estFixe ? { position: "fixed", top: 0, left: 0, right: 0, width: "100%", zIndex: 40, boxShadow: "0 2px 10px rgba(0,0,0,0.15)" } : {};
 
   return (
@@ -3735,7 +3748,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
       {estFixe && <div style={{ height: 52 }} />}
       <div style={styleFixe}>
         {topbarVisible && (
-          <div style={{ background: "#145c2e", color: "rgba(255,255,255,0.92)", padding: "7px 30px", position: "relative" }}>
+          <div style={{ background: bgAnnonce, color: txtAnnonce, padding: "7px 30px", position: "relative" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
               {messagesAnnonce.map((m, i) => (
                 <span key={i} style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{m.icone} {m.texte}</span>
@@ -3745,7 +3758,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           </div>
         )}
 
-        <div style={{ background: couleur, padding: estFixe ? "6px 16px" : "10px 16px", transition: "padding 0.2s ease" }}>
+        <div style={{ background: bgPrincipal, padding: estFixe ? "6px 16px" : "10px 16px", transition: "padding 0.2s ease" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <button
               className="rv-azali-nav-toggle"
@@ -3759,13 +3772,13 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
               {entreprise.logo ? (
                 <img src={entreprise.logo} alt={entreprise.nom} style={{ height: estFixe ? 28 : 40, objectFit: "contain", transition: "height 0.2s ease" }} />
               ) : (
-                <span style={{ fontWeight: 800, fontSize: estFixe ? 14 : 18, color: "white" }}>{entreprise.nom}</span>
+                <span style={{ fontWeight: 800, fontSize: estFixe ? 14 : 18, color: txtPrincipal }}>{entreprise.nom}</span>
               )}
             </div>
 
             {!estFixe && entreprise.country === "CI" && (
-              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.8)", flexShrink: 0, lineHeight: 1.3 }}>
-                📍 Livrer à<br /><span style={{ fontWeight: 700, color: "white" }}>Abidjan ▾</span>
+              <div style={{ fontSize: 10.5, color: persoPrincipal ? txtPrincipal : "rgba(255,255,255,0.8)", flexShrink: 0, lineHeight: 1.3 }}>
+                📍 Livrer à<br /><span style={{ fontWeight: 700, color: txtPrincipal }}>Abidjan ▾</span>
               </div>
             )}
 
@@ -3786,14 +3799,14 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
                 rel="noopener noreferrer"
                 style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "4px 10px", borderRadius: 6, textDecoration: "none", flexShrink: 0 }}
               >
-                <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.75)" }}>Besoin d'aide ?</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "white" }}>💬 WhatsApp</span>
+                <span style={{ fontSize: 9.5, color: persoPrincipal ? txtPrincipal : "rgba(255,255,255,0.75)" }}>Besoin d'aide ?</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: txtPrincipal }}>💬 WhatsApp</span>
               </a>
             )}
 
             <button
               onClick={onOuvrirPanier}
-              style={{ position: "relative", background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: estFixe ? "6px 11px" : "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+              style={{ position: "relative", background: bgPanierHeader, color: txtPanierHeader, border: "none", borderRadius: 8, padding: estFixe ? "6px 11px" : "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
             >
               🛒 {!estFixe && (t("panier") || "Panier")}
               {nbArticlesPanier > 0 && (
@@ -3806,21 +3819,21 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
         </div>
 
         {!estFixe && (
-        <div className="rv-azali-nav-scroll" style={{ background: "#145c2e", padding: "0 16px", overflowX: "auto" }}>
+        <div className="rv-azali-nav-scroll" style={{ background: bgMenu, padding: "0 16px", overflowX: "auto" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}>
             <span
               onClick={() => onNaviguerVersCollection(null)}
-              style={{ color: "white", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "10px 14px 10px 0", borderRight: "1px solid rgba(255,255,255,0.2)", marginRight: 6 }}
+              style={{ color: txtMenu, fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "10px 14px 10px 0", borderRight: "1px solid rgba(255,255,255,0.2)", marginRight: 6 }}
             >
               ☰ {t("toutesCollections") || "Toutes catégories"}
             </span>
             {collectionsManuelles.map((c) => (
-              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: "rgba(255,255,255,0.88)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
+              <span key={c.id} onClick={() => onNaviguerVersCollection(c.id)} style={{ color: txtMenu === "white" ? "rgba(255,255,255,0.88)" : txtMenu, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
                 {c.nom}
               </span>
             ))}
             {pagesHeader.map((p) => (
-              <span key={p.slug} onClick={() => onOuvrirPagePerso?.(p)} style={{ color: "rgba(255,255,255,0.88)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
+              <span key={p.slug} onClick={() => onOuvrirPagePerso?.(p)} style={{ color: txtMenu === "white" ? "rgba(255,255,255,0.88)" : txtMenu, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "10px 10px" }}>
                 {p.titre}
               </span>
             ))}
@@ -3836,7 +3849,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
                 </span>
               )}
               {entreprise.whatsapp && (
-                <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, fontWeight: 600, padding: "10px 0 10px 10px" }}>📞 {entreprise.whatsapp}</span>
+                <span style={{ color: txtMenu === "white" ? "rgba(255,255,255,0.75)" : txtMenu, fontSize: 12, fontWeight: 600, padding: "10px 0 10px 10px" }}>📞 {entreprise.whatsapp}</span>
               )}
             </div>
           </div>
@@ -3844,7 +3857,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
         )}
 
         {menuMobileOuvert && (
-          <div style={{ background: "#0f3d20", maxHeight: "70vh", overflowY: "auto" }}>
+          <div style={{ background: couleurPersoValide(scAz.headerNavBgColor) || "#0f3d20", maxHeight: "70vh", overflowY: "auto" }}>
             {[
               { key: "accueil", label: `☰ ${t("toutesCollections") || "Toutes catégories"}`, onClick: () => { onNaviguerVersCollection(null); setMenuMobileOuvert(false); } },
               ...collectionsManuelles.map((c) => ({ key: c.id, label: c.nom, onClick: () => { onNaviguerVersCollection(c.id); setMenuMobileOuvert(false); } })),
@@ -3855,7 +3868,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
               <button
                 key={item.key}
                 onClick={item.onClick}
-                style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "white", fontSize: 14, fontWeight: 600, padding: "13px 18px", cursor: "pointer" }}
+                style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.08)", color: txtMenu, fontSize: 14, fontWeight: 600, padding: "13px 18px", cursor: "pointer" }}
               >
                 {item.label}
               </button>
@@ -3986,7 +3999,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           .rv-shop-hdr-row-compact .rv-shop-header-search input { padding-top: 7px; padding-bottom: 7px; }
         }
       `}</style>
-      <div style={{ background: "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1 }}>
+      <div style={{ background: couleurPersoValide(entreprise.storeConfig?.headerBarreBgColor) || "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1 }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {headerConfig?.barreTop ? (
             <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
@@ -4209,6 +4222,24 @@ function RevealOnScroll({ children, delai = 0 }) {
 
 // ===== STYLE DES CARTES PRODUITS (piloté depuis le Store Builder) =====
 // L'abonné choisit son ambiance dans Réglages → "Cartes produits" : aucun code à toucher.
+// Couleurs des boutons « Ajouter au panier / Commander » choisies par le marchand dans le Store
+// Builder (storeConfig.boutonBgColor / boutonTextColor). Vide = couleur de la marque (comportement
+// historique). Variable de module, réglée à chaque rendu comme STYLE_CARTE.
+let BOUTONS_PERSO = { bg: "", txt: "" };
+const HEX6 = /^#[0-9a-f]{6}$/i;
+function definirBoutonsPerso(sc) {
+  BOUTONS_PERSO = {
+    bg: HEX6.test(String(sc?.boutonBgColor || "").trim()) ? String(sc.boutonBgColor).trim() : "",
+    txt: HEX6.test(String(sc?.boutonTextColor || "").trim()) ? String(sc.boutonTextColor).trim() : "",
+  };
+}
+function styleBouton(couleur, texteDefaut = "white") {
+  const bg = BOUTONS_PERSO.bg || couleur;
+  const txt = BOUTONS_PERSO.txt || (BOUTONS_PERSO.bg ? couleurTextePourFond(BOUTONS_PERSO.bg) : texteDefaut);
+  return { background: bg, color: txt };
+}
+function couleurPersoValide(v) { return HEX6.test(String(v || "").trim()) ? String(v).trim() : ""; }
+
 let STYLE_CARTE = { style: "verre", anim: "lift", radius: "moyen", decor: true };
 function appliquerStyleCarte(sc) {
   STYLE_CARTE = {
@@ -4335,7 +4366,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
             onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
             aria-label={t("ajouterPanier")}
             className="rv-card-badge"
-            style={{ position: "absolute", bottom: 7, right: 7, width: 34, height: 34, borderRadius: "50%", background: couleur, color: "white", border: "2px solid rgba(255,255,255,0.9)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.28)" }}
+            style={{ position: "absolute", bottom: 7, right: 7, width: 34, height: 34, borderRadius: "50%", ...styleBouton(couleur), border: "2px solid rgba(255,255,255,0.9)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.28)" }}
           >
             🛒
           </button>
@@ -5015,7 +5046,7 @@ function CarteProduitAzali({ p, devise, couleur, ouvrirProduit, onAjouterAuPanie
         {onAjouterAuPanier && (
           <button
             onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
-            style={{ width: "100%", marginTop: 7, background: couleur, color: "white", border: "none", borderRadius: 7, padding: "7px 0", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+            style={{ width: "100%", marginTop: 7, ...styleBouton(couleur), border: "none", borderRadius: 7, padding: "7px 0", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
           >
             🛒 Ajout rapide
           </button>

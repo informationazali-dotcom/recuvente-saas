@@ -15,6 +15,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabaseClient";
 import { PageProduitPublique } from "./PageProduitRenderer.jsx";
 import {
@@ -361,10 +362,16 @@ function PanneauPage({ config, onChange, couleurBoutique }) {
       <div style={{ height: 1, background: BORD, margin: "16px 0" }} />
       <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 10 }}>Bouton de commande (CTA)</div>
       <Etiquette label="Texte du bouton"><input style={champ} value={config.cta.texte} placeholder={CTA_TEXTE_DEFAUT} onChange={(e) => onChange({ ...config, cta: { ...config.cta, texte: e.target.value } })} /></Etiquette>
-      <Etiquette label="Comportement" aide="« Automatique » : fait défiler jusqu'au formulaire COD de la page (s'il existe), sinon ouvre le formulaire de commande RecuVente.">
-        <select style={champ} value={config.cta.action} onChange={(e) => onChange({ ...config, cta: { ...config.cta, action: e.target.value } })}>
-          <option value="auto">Automatique (recommandé)</option>
-          <option value="popup">Toujours ouvrir le formulaire en fenêtre</option>
+      <Etiquette label="Couleur du bouton" aide="Vide = couleur principale de la page. Le texte du bouton passe automatiquement en blanc ou en noir selon la couleur choisie.">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(config.cta.couleur || "") ? config.cta.couleur : (/^#[0-9a-f]{6}$/i.test(th.couleur || "") ? th.couleur : (couleurBoutique || VERT))} onChange={(e) => onChange({ ...config, cta: { ...config.cta, couleur: e.target.value } })} style={{ width: 44, height: 36, border: `1px solid ${BORD}`, borderRadius: 8, padding: 2, background: "#fff" }} />
+          {config.cta.couleur ? <button type="button" onClick={() => onChange({ ...config, cta: { ...config.cta, couleur: "" } })} style={btn({ padding: "7px 10px", fontSize: 12 })}>Revenir à la couleur de la page</button> : <span style={{ fontSize: 12, color: MUTED }}>Couleur de la page</span>}
+        </div>
+      </Etiquette>
+      <Etiquette label="Quand on clique sur COMMANDER" aide="Recommandé : la page de commande RecuVente s'ouvre (nom, téléphone, ville, quantité, code promo, confirmation), puis la page de remerciement avec le reçu. « Formulaire intégré » ne sert que si vous ajoutez le bloc Formulaire COD.">
+        <select style={champ} value={config.cta.action === "auto" ? "auto" : "popup"} onChange={(e) => onChange({ ...config, cta: { ...config.cta, action: e.target.value } })}>
+          <option value="popup">Ouvrir la page de commande (recommandé)</option>
+          <option value="auto">Défiler vers le formulaire intégré (bloc Formulaire COD)</option>
         </select>
       </Etiquette>
       <Etiquette label="Bouton collant en bas de l'écran">
@@ -614,6 +621,12 @@ function ApercuFormulaire({ produit, devise }) {
 
 export default function PageProduitBuilder({ workspace, produit, produits = [], onClose }) {
   const largeur = useLargeur();
+  // Page dédiée : on fige le défilement de la page derrière tant que l'éditeur est ouvert.
+  useEffect(() => {
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = avant; };
+  }, []);
   const large = largeur >= 1100;
   const devise = libelleDevise(workspace?.currency || "XOF");
   const couleurBoutique = workspace?.couleur_marque || VERT;
@@ -957,11 +970,11 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
   );
 
   if (chargement) {
-    return <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "#F4F3EE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: MUTED }}>Chargement du Page Builder…</div>;
+    return createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F4F3EE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: MUTED }}>Chargement du Page Builder…</div>, document.body);
   }
 
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "#F4F3EE", display: "flex", flexDirection: "column", fontFamily: "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", color: INK }}>
+  return createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F4F3EE", display: "flex", flexDirection: "column", fontFamily: "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", color: INK }}>
       {/* En-tête */}
       <div style={{ background: "#fff", borderBottom: `1px solid ${BORD}`, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <button type="button" onClick={fermer} style={btn({ padding: "8px 11px" })} aria-label="Fermer le Page Builder">← Fermer</button>
@@ -1007,6 +1020,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
       {modale === "templates" && <ModaleTemplates actuel={config.template} premiereFois={premiereFois && !ligne} onChoisir={choisirTemplate} onClose={() => { setModale(null); setPremiereFois(false); }} />}
       {modale === "ajout" && <ModaleAjoutBloc config={config} onAjouter={ajouterBloc} onClose={() => setModale(null)} />}
       {modale === "ia" && <ModaleIA produit={produit} produits={produits} nbAvis={avis.length} onAppliquer={appliquerIA} onClose={() => setModale(null)} />}
-    </div>
+    </div>,
+    document.body
   );
 }

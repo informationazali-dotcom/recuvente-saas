@@ -73,7 +73,7 @@ const CSS_PAGE = `
 .rvpp-sub{color:var(--pp-muted);font-size:15px;line-height:1.55;margin:0 0 22px}
 .rvpp-lead{color:var(--pp-muted);font-size:16px;line-height:1.55;margin:0 0 14px}
 .rvpp-pill{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:4px 10px;border-radius:999px;background:var(--pp-accent-soft);color:var(--pp-accent-ink)}
-.rvpp-cta{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;min-height:56px;padding:13px 18px;border:none;border-radius:var(--pp-radius);background:var(--pp-accent);color:var(--pp-accent-txt);cursor:pointer;touch-action:manipulation;box-shadow:0 6px 18px var(--pp-accent-shadow);transition:transform .12s ease,box-shadow .12s ease,opacity .12s}
+.rvpp-cta{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;min-height:56px;padding:13px 18px;border:none;border-radius:var(--pp-radius);background:var(--pp-cta,var(--pp-accent));color:var(--pp-cta-txt,var(--pp-accent-txt));cursor:pointer;touch-action:manipulation;box-shadow:0 6px 18px var(--pp-cta-shadow,var(--pp-accent-shadow));transition:transform .12s ease,box-shadow .12s ease,opacity .12s}
 .rvpp-cta:hover{transform:translateY(-1px)}
 .rvpp-cta:active{transform:translateY(0)}
 .rvpp-cta:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
@@ -949,11 +949,13 @@ function CtaCollant({ ctx, libelle, total, devise }) {
   const [masque, setMasque] = useState(false);
   useEffect(() => {
     if (ctx.preview || typeof IntersectionObserver === "undefined") return undefined;
-    const els = ["rvpp-cta-principal", "rvpp-commande"].map((id) => document.getElementById(id)).filter(Boolean);
+    // Le bouton collant se cache dès qu'un AUTRE bouton de commande de la page (hero, offres,
+    // appel à l'action…) ou le formulaire intégré est visible : jamais deux boutons en même temps.
+    const els = [...document.querySelectorAll(".rvpp-root .rvpp-cta, #rvpp-commande")].filter((el) => !el.closest(".rvpp-sticky"));
     if (els.length === 0) return undefined;
     const visibles = new Set();
     const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => { if (e.isIntersecting) visibles.add(e.target.id); else visibles.delete(e.target.id); });
+      entries.forEach((e) => { if (e.isIntersecting) visibles.add(e.target); else visibles.delete(e.target); });
       setMasque(visibles.size > 0);
     }, { threshold: 0.15 });
     els.forEach((el) => io.observe(el));
@@ -1036,6 +1038,7 @@ export function PageProduitPublique({
   const estMobile = useEstMobile(preview ? mode : null);
   const accent = couleurValide(cfg.theme.couleur, couleurValide(couleur));
   const accentTxt = couleurTextePourFond(accent);
+  const couleurBouton = (cfg.cta && cfg.cta.couleur) ? couleurValide(cfg.cta.couleur, "") : "";
   const accentInk = couleurTextePourFond(accent) === "#ffffff" ? accent : "#16231F";
   const libelleCta = (cfg.cta.texte || "").trim() || CTA_TEXTE_DEFAUT;
 
@@ -1122,6 +1125,7 @@ export function PageProduitPublique({
   const style = {
     "--pp-accent": accent, "--pp-accent-txt": accentTxt, "--pp-accent-ink": accentInk,
     "--pp-accent-soft": hexVersRgba(accent, 0.09), "--pp-accent-shadow": hexVersRgba(accent, 0.32),
+    ...(couleurBouton ? { "--pp-cta": couleurBouton, "--pp-cta-txt": couleurTextePourFond(couleurBouton), "--pp-cta-shadow": hexVersRgba(couleurBouton, 0.32) } : {}),
     "--pp-ink": "#16231F", "--pp-muted": "#5F675E", "--pp-line": creme ? "#E4DDCB" : "#E7E3D8",
     "--pp-bg": creme ? "#FBF8F1" : "#FFFFFF", "--pp-alt": creme ? "#F2EDE0" : "#F7F6F1",
     "--pp-radius": rayon, "--pp-sec-y": espace, "--pp-font-title": police,

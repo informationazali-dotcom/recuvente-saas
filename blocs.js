@@ -549,7 +549,6 @@ export const TEMPLATES = {
       ["livraison"],
       ["faq"],
       ["cross_sell"],
-      ["formulaire_cod"],
     ],
   },
   premium: {
@@ -569,7 +568,6 @@ export const TEMPLATES = {
       ["reassurance"],
       ["faq"],
       ["cross_sell", { titre: "Complétez votre sélection" }],
-      ["formulaire_cod"],
     ],
   },
   storytelling: {
@@ -592,7 +590,6 @@ export const TEMPLATES = {
       ["reassurance"],
       ["faq"],
       ["cta"],
-      ["formulaire_cod"],
     ],
   },
 };
@@ -605,7 +602,7 @@ export function creerConfig(templateId = "cod_conversion") {
     version: VERSION_CONFIG,
     template: tpl.id,
     theme: { ...THEME_DEFAUT, ...tpl.theme },
-    cta: { texte: CTA_TEXTE_DEFAUT, sous_texte: "", action: "auto" },
+    cta: { texte: CTA_TEXTE_DEFAUT, sous_texte: "", action: "popup", couleur: "" },
     sticky: { mobile: true, desktop: false },
     formulaire: { commune: false, instructions: false },
     seo: { titre: "", description: "" },

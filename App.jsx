@@ -4021,17 +4021,32 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   // « Enregistré » alors que rien n'avait été sauvegardé — les bundles « disparaissaient » au retour.
   // Si l'enregistrement groupé échoue, on réessaie champ par champ pour sauver tout ce qui peut l'être
   // et dire précisément ce qui a échoué.
-  async function updateProduitLivraisonBundles(id, patch) {
+  async function updateProduitLivraisonBundles(id, patchInitial) {
     const echecs = [];
-    const essai = await supabase.from("produits").update(patch).eq("id", id).select("id");
-    if (essai.error) {
+    let patch = { ...patchInitial };
+    // Colonne absente de la base (ex. option pas encore installée) : on la retire, on le signale,
+    // et tout le reste — bundles compris — s'enregistre quand même en un seul envoi.
+    for (let tour = 0; tour < 8 && Object.keys(patch).length > 0; tour++) {
+      const essai = await supabase.from("produits").update(patch).eq("id", id).select("id");
+      if (!essai.error) {
+        if (!essai.data || essai.data.length === 0) echecs.push({ cle: "produit", message: "aucune ligne modifiée (droit refusé ?)" });
+        patch = {};
+        break;
+      }
+      const colonne = (essai.error.message || "").match(/Could not find the '([^']+)' column/);
+      if (colonne && Object.prototype.hasOwnProperty.call(patch, colonne[1])) {
+        echecs.push({ cle: colonne[1], message: essai.error.message, colonneAbsente: true });
+        const { [colonne[1]]: _retire, ...reste } = patch;
+        patch = reste;
+        continue;
+      }
+      // Autre erreur : on réessaie champ par champ pour sauver tout ce qui peut l'être.
       for (const [cle, valeur] of Object.entries(patch)) {
         const r = await supabase.from("produits").update({ [cle]: valeur }).eq("id", id).select("id");
         if (r.error) echecs.push({ cle, message: r.error.message });
         else if (!r.data || r.data.length === 0) echecs.push({ cle, message: "aucune ligne modifiée (droit refusé ?)" });
       }
-    } else if (!essai.data || essai.data.length === 0) {
-      echecs.push({ cle: "produit", message: "aucune ligne modifiée (droit refusé ?)" });
+      break;
     }
     await loadProduits();
     return { ok: echecs.length === 0, echecs };
@@ -13382,15 +13397,26 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           produits_similaires_ids: livraison.produits_similaires_ids,
                           produits_similaires_collection_id: livraison.produits_similaires_collection_id || null,
                         });
-                        if (res && !res.ok) setErreurEnreg({ zone: "livraison", echecs: res.echecs });
-                        else flash("livraison");
+                        if (res && !res.ok) {
+                          const seulementColonnes = res.echecs.every((e) => e.colonneAbsente && e.cle !== "bundles");
+                          setErreurEnreg({ zone: "livraison", echecs: res.echecs, doux: seulementColonnes });
+                          if (seulementColonnes) flash("livraison"); // le reste (dont les bundles) est bien enregistré
+                        } else flash("livraison");
                       }}
                       style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                     >
                       Enregistrer la livraison & les bundles
                     </button>
                     {savedFlash === "livraison" && <ConfirmationEnregistre inline />}
-                    {erreurEnreg && erreurEnreg.zone === "livraison" && (
+                    {erreurEnreg && erreurEnreg.zone === "livraison" && erreurEnreg.doux && (
+                      <div role="status" style={{ marginTop: 10, background: "#FFF6E0", border: "1px solid #F0D9A0", color: "#7A5300", borderRadius: 9, padding: "10px 12px", fontSize: 12.5, lineHeight: 1.45 }}>
+                        <div style={{ fontWeight: 800, marginBottom: 4 }}>✓ Tes bundles et le reste sont enregistrés.</div>
+                        {erreurEnreg.echecs.some((e) => e.cle === "livraison_gratuite_qte_min")
+                          ? <div>Seule l'option « livraison gratuite à partir de X articles » n'est pas encore disponible sur ta base de données : elle n'a pas été enregistrée.</div>
+                          : <div>Une option n'est pas encore disponible sur ta base de données : {erreurEnreg.echecs.map((e) => e.cle).join(", ")}.</div>}
+                      </div>
+                    )}
+                    {erreurEnreg && erreurEnreg.zone === "livraison" && !erreurEnreg.doux && (
                       <div role="alert" style={{ marginTop: 10, background: "#FDECEA", border: "1px solid #F2B8B0", color: "#8A2A1E", borderRadius: 9, padding: "10px 12px", fontSize: 12.5, lineHeight: 1.45 }}>
                         <div style={{ fontWeight: 800, marginBottom: 4 }}>⚠️ Tout n'a pas pu être enregistré{erreurEnreg.echecs.some((e) => e.cle === "bundles") ? " — les bundles ne sont PAS sauvegardés" : ""}.</div>
                         {erreurEnreg.echecs.map((e) => <div key={e.cle}>• <b>{e.cle}</b> : {e.message}</div>)}

@@ -14,6 +14,8 @@ import SchoolAdmin from "./network/SchoolAdmin.jsx";
 import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import * as XLSX from "xlsx";
+// Product Page Builder : éditeur chargé À LA DEMANDE (n'alourdit ni la boutique publique ni le tableau de bord).
+const PageProduitBuilder = React.lazy(() => import("./pagebuilder/PageProduitBuilder.jsx"));
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -6418,7 +6420,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} onBulkAttachCollection={rattacherProduitsACollection} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} onBulkAttachCollection={rattacherProduitsACollection} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
@@ -12082,7 +12084,7 @@ function PagesModal({ workspace, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, onBulkAttachCollection, currency, workspaceId, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, onBulkAttachCollection, currency, workspaceId, workspace, onClose, onImportCSV }) {
   const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
   const [nouveauNom, setNouveauNom] = useState("");
@@ -13179,12 +13181,56 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                     {savedFlash === "livraison" && <ConfirmationEnregistre inline />}
                   </div>
                 </Carte>
+
+                {/* --- Carte Page produit (Product Page Builder) --- */}
+                {workspace && <CartePageProduit workspace={workspace} produit={selected} produits={produits} />}
               </>
             )}
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// Product Page Builder : point d'entrée depuis la fiche produit du catalogue. Ne modifie aucune donnée
+// du produit ; ouvre l'éditeur (chargé à la demande) qui enregistre dans la table `pages_produit`.
+function CartePageProduit({ workspace, produit, produits }) {
+  const [statut, setStatut] = useState(undefined); // undefined = chargement · null = aucune page · "brouillon" | "publie" · "indisponible"
+  const [ouvert, setOuvert] = useState(false);
+  const [cle, setCle] = useState(0);
+  useEffect(() => {
+    let annule = false;
+    setStatut(undefined);
+    supabase.from("pages_produit").select("statut").eq("workspace_id", workspace.id).eq("produit_id", produit.id).maybeSingle().then(({ data, error }) => {
+      if (annule) return;
+      setStatut(error ? "indisponible" : (data?.statut || null));
+    });
+    return () => { annule = true; };
+  }, [workspace?.id, produit?.id, cle]);
+  const badge = statut === "publie" ? { t: "● Publiée", c: "#1a7a3c", f: "#EAF3DE" }
+    : statut === "brouillon" ? { t: "● Brouillon", c: "#8A6412", f: "#FBF3E3" }
+    : statut === "indisponible" ? { t: "Migration SQL à appliquer", c: "#B33A2A", f: "#FBEAE6" }
+    : statut === null ? { t: "Fiche produit standard", c: "#6B7168", f: "#F1F2EF" } : null;
+  return (
+    <Carte titre="🧱 Page produit — Product Page Builder">
+      <div style={{ fontSize: 12.5, color: "#6B7168", lineHeight: 1.55, marginBottom: 12 }}>
+        Créez une page produit complète (galerie, vidéo, bénéfices, avis, offres, réassurance, FAQ, compléments, formulaire COD) à partir de blocs.
+        La commande est créée dans votre workflow habituel : confirmation, closer, livraison, encaissement.
+        Tant qu'aucune page n'est publiée, la fiche produit habituelle reste affichée.
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <button onClick={() => setOuvert(true)} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          {statut ? "Ouvrir le Page Builder" : "Créer la page de ce produit"}
+        </button>
+        {badge && <span style={{ background: badge.f, color: badge.c, fontSize: 11.5, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>{badge.t}</span>}
+      </div>
+      {ouvert && (
+        <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, zIndex: 300, background: "#F4F3EE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#6B7168" }}>Chargement du Page Builder…</div>}>
+          <PageProduitBuilder workspace={workspace} produit={produit} produits={produits} onClose={() => { setOuvert(false); setCle((c) => c + 1); }} />
+        </React.Suspense>
+      )}
+    </Carte>
   );
 }
 

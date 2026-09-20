@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import { jsPDF } from "jspdf";
 import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
 import { AmbianceShop } from "./PremiumAmbiance.jsx";
+// Product Page Builder (couche additive) : rendu des pages produit personnalisées.
+// Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
+import { PageProduitPublique, PageProduitSquelette } from "./pagebuilder/PageProduitRenderer.jsx";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs } from "./pagebuilder/blocs.js";
+import { creerSuiviPage } from "./pagebuilder/suivi.js";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1131,6 +1136,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setAfficherFormAvis(false);
     setFormAvis({ nom: "", note: 5, commentaire: "" });
     setAvisEnvoye(false);
+    avisChargesRef.current = p.produit_id;
     supabase.rpc("avis_produit_public", { p_produit_id: p.produit_id }).then(({ data }) => {
       // On n'affiche que les avis avec un vrai commentaire — un avis "juste des étoiles, sans texte"
       // n'apporte rien visuellement et alourdit la liste inutilement.
@@ -1296,7 +1302,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
-      p_zone: form.zone,
+      p_zone: composerZoneLivraison(form),
       p_items: items,
       p_type_livraison: (() => {
         const livraisonGratuiteP = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
@@ -1355,6 +1361,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       supabase.rpc("incrementer_utilisation_code_promo", { p_workspace_id: workspaceId, p_code: codePromoApplique.code }).then(() => {});
     }
     supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: normaliserTelephoneLocal(form.tel, entreprise.country), p_produit_id: produitOuvert.produit_id }).then(() => {});
+    suivrePage("commande_creee", { commande_id: idCommandeCreee, offre_id: bundleChoisiId ?? "base", montant: valeurCommande });
     setEnvoye(true);
   }
 
@@ -1377,6 +1384,69 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     }, 5000);
     return () => clearTimeout(delai);
   }, [form.tel, form.client, produitOuvert?.produit_id, workspaceId, envoye]);
+
+  // ===== PRODUCT PAGE BUILDER (couche additive) =====================================
+  // 1) Au chargement de la boutique, on récupère (très léger) la LISTE des produits qui ont une page
+  //    personnalisée publiée. 2) Quand un de ces produits est ouvert, on charge sa configuration.
+  //    Toute erreur (migration pas encore appliquée, réseau…) = "pas de page perso" : la fiche
+  //    produit historique s'affiche comme avant. 3) La configuration est fusionnée dans l'objet
+  //    produit (offres => bundles, complément => bump) : le tunnel de commande existant est réutilisé
+  //    tel quel, aucune logique de prix / de commande n'est dupliquée.
+  const [idsPagesPubliees, setIdsPagesPubliees] = useState(undefined);
+  const [pagesProduit, setPagesProduit] = useState({});
+  const pagesDemandeesRef = useRef(new Set());
+  const suiviPageRef = useRef(null);
+  const avisChargesRef = useRef(null);
+
+  useEffect(() => {
+    if (!workspaceId) return undefined;
+    let annule = false;
+    supabase.rpc("pages_produit_publiees", { p_workspace_id: workspaceId }).then(
+      ({ data, error }) => { if (!annule) setIdsPagesPubliees(!error && Array.isArray(data) ? data : []); },
+      () => { if (!annule) setIdsPagesPubliees([]); }
+    );
+    return () => { annule = true; };
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const id = produitOuvert?.produit_id;
+    if (!id || !workspaceId || !Array.isArray(idsPagesPubliees) || !idsPagesPubliees.includes(id)) return;
+    if (pagesDemandeesRef.current.has(id)) return;
+    pagesDemandeesRef.current.add(id);
+    supabase.rpc("page_produit_publique", { p_workspace_id: workspaceId, p_produit_id: id }).then(
+      ({ data, error }) => {
+        const valide = !error && data && configPubliqueValide(data.config);
+        setPagesProduit((m) => ({ ...m, [id]: valide ? { config: normaliserConfig(data.config), template: data.template } : { absent: true } }));
+      },
+      () => setPagesProduit((m) => ({ ...m, [id]: { absent: true } }))
+    );
+  }, [produitOuvert?.produit_id, workspaceId, idsPagesPubliees]);
+
+  const pageConfigActive = produitOuvert ? (pagesProduit[produitOuvert.produit_id]?.config || null) : null;
+
+  useEffect(() => {
+    if (!produitOuvert || !pageConfigActive || produitOuvert._pageFusionnee) return;
+    const fusion = fusionnerConfigDansProduit(produitOuvert, pageConfigActive);
+    setProduitOuvert((po) => (po && po.produit_id === fusion.produit_id && !po._pageFusionnee ? fusion : po));
+    const offreDefaut = offreParDefaut(fusion, pageConfigActive);
+    if (offreDefaut) { setBundleChoisiId(offreDefaut.id); setQuantite(offreDefaut.qty); }
+  }, [produitOuvert, pageConfigActive]);
+
+  useEffect(() => {
+    // Suivi de la page (vue, clic, formulaire, offre, commande) : jamais bloquant.
+    if (!produitOuvert || !pageConfigActive || !workspaceId) { suiviPageRef.current = null; return; }
+    suiviPageRef.current = creerSuiviPage({ supabase, workspaceId, produitId: produitOuvert.produit_id, template: pageConfigActive.template, source: sourceCampagne });
+    suiviPageRef.current("vue_page");
+    // Ouverture par lien direct (?produit=…, cas des pubs) : les avis n'ont pas encore été chargés.
+    if (avisChargesRef.current !== produitOuvert.produit_id) {
+      avisChargesRef.current = produitOuvert.produit_id;
+      supabase.rpc("avis_produit_public", { p_produit_id: produitOuvert.produit_id }).then(({ data }) => {
+        setAvisListe((data || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0));
+      });
+    }
+  }, [produitOuvert?.produit_id, pageConfigActive, workspaceId]);
+
+  const suivrePage = (evenement, infos) => { if (suiviPageRef.current) suiviPageRef.current(evenement, infos); };
 
   async function envoyerCommandeBien() {
     if (!bienOuvert || !modeChoisi) return;
@@ -1747,6 +1817,342 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       momentOuvertureFormulaireRef.current = Date.now();
     };
 
+    // --- Product Page Builder : la fiche est-elle une page personnalisée publiée ? ---
+    const pageConfig = pagesProduit[produitOuvert.produit_id]?.config || null;
+    const pageActive = !!pageConfig;
+    const pageEnChargement = !pageConfig && Array.isArray(idsPagesPubliees) && idsPagesPubliees.includes(produitOuvert.produit_id) && !pagesProduit[produitOuvert.produit_id];
+
+    // Contenu du formulaire de commande : UN SEUL code pour la fenêtre historique (enLigne = false)
+    // et pour le bloc « Formulaire COD » d'une page personnalisée (enLigne = true). Mêmes champs,
+    // mêmes validations, même envoi (envoyerCommande) : le Builder ne recrée aucun système de commande.
+    const pageBlocsActifs = pageConfig ? blocsActifs(pageConfig) : [];
+    const pageAOffres = pageBlocsActifs.some((b) => b.type === "offres" || ((b.type === "hero" || b.type === "info_produit") && b.props.afficher_offres !== false));
+    const pageAOptions = pageBlocsActifs.some((b) => b.type === "hero" || b.type === "info_produit");
+    const rendreFormulaireCommande = (enLigne = false) => (
+      <>
+              {!enLigne && (<>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ fontWeight: 700, fontSize: 17 }}>{t("tesCoordonnees")}</div>
+                <button onClick={() => setAfficherFormulaire(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+              </div>
+              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
+                {t("pourTeContacter")}
+              </div>
+              </>)}
+
+              <input
+                type="text"
+                name="site_web"
+                autoComplete="off"
+                tabIndex={-1}
+                value={form.champPiege}
+                onChange={(e) => setForm({ ...form, champPiege: e.target.value })}
+                style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+                aria-hidden="true"
+              />
+
+              <input
+                placeholder={t("tonNom")}
+                value={form.client}
+                onChange={(e) => setForm({ ...form, client: e.target.value })}
+                autoFocus={!enLigne}
+                autoComplete="name"
+                style={inputStyle}
+              />
+              <input
+                placeholder={t("tonTelephone")}
+                value={form.tel}
+                onChange={(e) => setForm({ ...form, tel: e.target.value })}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                style={inputStyle}
+              />
+              <input
+                placeholder={t("taVille")}
+                value={form.zone}
+                onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                autoComplete="address-level2"
+                style={inputStyle}
+              />
+              {pageConfig?.formulaire?.commune && (
+                <input
+                  placeholder="Commune / quartier (optionnel)"
+                  value={form.commune || ""}
+                  onChange={(e) => setForm({ ...form, commune: e.target.value })}
+                  autoComplete="address-level3"
+                  style={inputStyle}
+                />
+              )}
+              {pageConfig?.formulaire?.instructions && (
+                <textarea
+                  placeholder="Instructions de livraison : repère, étage, point de rencontre… (optionnel)"
+                  value={form.instructions || ""}
+                  onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+                  rows={2}
+                  style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                />
+              )}
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <span style={{ fontSize: 13, color: "#6B7168" }}>{t("quantite")}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    onClick={() => { setQuantite((q) => Math.max(1, q - 1)); setBundleChoisiId(null); }}
+                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                  >
+                    −
+                  </button>
+                  <div style={{ fontWeight: 700, fontSize: 16, minWidth: 20, textAlign: "center" }}>{quantite}</div>
+                  <button
+                    onClick={() => { setQuantite((q) => q + 1); setBundleChoisiId(null); }}
+                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {produitOuvert.livraison_gratuite_qte_min && !produitOuvert.livraison_gratuite && (
+                Number(quantite) >= Number(produitOuvert.livraison_gratuite_qte_min) ? (
+                  <div style={{ background: "#EAF3DE", border: "1px solid #C8E0B0", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#3B6D11", fontWeight: 700 }}>
+                    🎁 Livraison gratuite débloquée pour cette commande !
+                  </div>
+                ) : (
+                  <div style={{ background: "#FBF3E3", border: "1px solid #F0DBA8", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#8A6412", fontWeight: 700 }}>
+                    🎁 Encore {Number(produitOuvert.livraison_gratuite_qte_min) - Number(quantite)} exemplaire{Number(produitOuvert.livraison_gratuite_qte_min) - Number(quantite) > 1 ? "s" : ""} pour la livraison gratuite !
+                  </div>
+                )
+              )}
+
+              {optionsProduitListe.length > 0 && !(enLigne && pageAOptions) && (
+                <div style={{ marginBottom: 14 }}>
+                  {optionsProduitListe.map((o) => (
+                    <div key={o.nom} style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{o.nom} <span style={{ color: "#D64933" }}>*</span></div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {o.valeurs.map((val) => {
+                          const actif = optionsChoisies[o.nom] === val;
+                          return (
+                            <button
+                              key={val}
+                              onClick={() => setOptionsChoisies((c) => ({ ...c, [o.nom]: val }))}
+                              style={{ border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", color: "#16231F", borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                            >
+                              {val}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {toutesOptionsChoisies && !varianteActive && (
+                    <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 4 }}>⚠️ Cette combinaison n'est pas disponible.</div>
+                  )}
+                  {varianteEnRupture && (
+                    <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 4, fontWeight: 700 }}>🔴 Cette variante est en rupture de stock.</div>
+                  )}
+                </div>
+              )}
+
+              {optionsProduitListe.length === 0 && bundlesProduit.length > 0 && !(enLigne && pageAOffres) && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>{t("offresQuantite")}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
+                    {bundlesProduit.map((b) => {
+                      const actif = bundleChoisiId === b.id;
+                      const totalBundle = prixUnitairePourBundle(produitOuvert.prix_vente, b) * b.qty;
+                      const estPrixFixe = (b.mode || "pourcentage") === "prix_fixe";
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => {
+                            if (actif) { setBundleChoisiId(null); setQuantite(1); }
+                            else { setBundleChoisiId(b.id); setQuantite(b.qty); }
+                          }}
+                          style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : (b.couleur_fond || "white"), borderRadius: 10, padding: "8px 9px", cursor: "pointer" }}
+                        >
+                          <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
+                          {b.mode === "prix_fixe" && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}
+                          {b.mode === "offert" && <div style={{ fontSize: 9.5, color: "#8A6412", fontWeight: 800 }}>🎁 {b.nb_offerts} offert{b.nb_offerts > 1 ? "s" : ""}</div>}
+                          {(!b.mode || b.mode === "pourcentage") && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
+                          <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{totalBundle.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {livraisonGratuite && (
+                <div style={{ background: "#EAF7F1", border: "1px solid #C7E8D6", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
+                  🎁 Livraison gratuite pour ce produit
+                </div>
+              )}
+
+              {aChoixLivraison && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{t("modeLivraison")} <span style={{ color: "#D64933" }}>*</span></div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => setTypeLivraisonChoisi("livraison")}
+                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
+                    >
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ {entreprise.labelLivraisonLocale}</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisLivraisonEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                    </button>
+                    <button
+                      onClick={() => setTypeLivraisonChoisi("expedition")}
+                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
+                    >
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 {entreprise.labelLivraisonExpedition}</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisExpeditionEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                    </button>
+                  </div>
+                  {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
+                  {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
+                    <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
+
+              {(() => {
+                const bumpProduit = produitOuvert.bump_produit_id ? produits.find((p) => p.produit_id === produitOuvert.bump_produit_id) : null;
+                if (!bumpProduit) return null;
+                const bumpPrix = produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(bumpProduit.prix_vente);
+                const choisi = produitBumpId === bumpProduit.produit_id;
+                return (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>{t("ajouteProduit")}</div>
+                    <button
+                      onClick={() => setProduitBumpId(choisi ? null : bumpProduit.produit_id)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: choisi ? "#EAF3DE" : "white", border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+                    >
+                      <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, background: choisi ? couleur : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", flexShrink: 0 }}>{choisi ? "✓" : ""}</span>
+                      {bumpProduit.photo_url ? (
+                        <img src={bumpProduit.photo_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#EEF0EA", flexShrink: 0 }} />
+                      )}
+                      <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bumpProduit.produit_nom}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: couleur, flexShrink: 0 }}>
+                        {produitOuvert.bump_prix_special != null && Number(produitOuvert.bump_prix_special) < Number(bumpProduit.prix_vente) && (
+                          <span style={{ textDecoration: "line-through", color: "#8A9089", fontWeight: 500, marginRight: 5 }}>{Number(bumpProduit.prix_vente).toLocaleString("fr-FR")}</span>
+                        )}
+                        +{bumpPrix.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                      </span>
+                    </button>
+                  </div>
+                );
+              })()}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
+                  <span>{(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                </div>
+                {produitBumpId && (() => {
+                  const bump = produits.find((p) => p.produit_id === produitBumpId);
+                  if (!bump) return null;
+                  const prixBumpAffiche = produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(bump.prix_vente);
+                  return (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#6B7168" }}>+ {bump.produit_nom}</span>
+                      <span>{prixBumpAffiche.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                    </div>
+                  );
+                })()}
+                {fraisLivraisonActuel > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
+                    <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}</span>
+                    <span>+ {fraisLivraisonActuel.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                  </div>
+                )}
+                {codePromoApplique && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
+                    <span>🏷️ Code {codePromoApplique.code}</span>
+                    <span>− {codePromoApplique.montant_remise.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
+                  <span style={{ fontWeight: 700 }}>Total</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                {codePromoApplique ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#EAF7F1", border: "1px solid #C3E8D8", borderRadius: 8, padding: "8px 12px" }}>
+                    <span style={{ fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>✅ {codePromoMessage}</span>
+                    <button onClick={() => { setCodePromoApplique(null); setCodePromoInput(""); setCodePromoMessage(""); }} style={{ background: "none", border: "none", color: "#1F9D6E", fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Retirer</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      placeholder="Code promo (optionnel)"
+                      value={codePromoInput}
+                      onChange={(e) => setCodePromoInput(e.target.value)}
+                      style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, boxSizing: "border-box", textTransform: "uppercase" }}
+                    />
+                    <button
+                      onClick={() => verifierCodePromo(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0))}
+                      disabled={verificationCodePromoEnCours || !codePromoInput.trim()}
+                      style={{ background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "0 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      {verificationCodePromoEnCours ? "..." : "Appliquer"}
+                    </button>
+                  </div>
+                )}
+                {!codePromoApplique && codePromoMessage && (
+                  <div style={{ fontSize: 11, color: "#D64933", marginTop: 4 }}>{codePromoMessage}</div>
+                )}
+              </div>
+
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
+                {t("onVaAppeler")}
+              </div>
+
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+                {t("engagement")}
+              </div>
+
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, cursor: "pointer", fontSize: 12, color: "#16231F", lineHeight: 1.5 }}>
+                <input
+                  type="checkbox"
+                  checked={engagementCoche}
+                  onChange={(e) => setEngagementCoche(e.target.checked)}
+                  style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, cursor: "pointer" }}
+                />
+                <span>{t("caseEngagement")}</span>
+              </label>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 14, paddingTop: 10, borderTop: "1px solid #ECE8DC" }}>
+                {[
+                  { icone: "💵", texte: t("badgePaiement2") },
+                  { icone: "🚚", texte: t("badgeLivraison2") },
+                  { icone: "✅", texte: t("badgeVerifie") },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 14 }}>{item.icone}</span>
+                    <span style={{ fontSize: 10, color: "#6B7168", fontWeight: 600 }}>{item.texte}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={envoyerCommande}
+                disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
+                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
+              >
+                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
+              </button>
+      </>
+    );
+
     return avecAmbiance(
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
@@ -1763,6 +2169,61 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           }
         `}</style>
 
+        {pageEnChargement ? (
+          <PageProduitSquelette />
+        ) : pageActive ? (
+          <>
+            <div style={{ maxWidth: 1120, margin: "0 auto", padding: "10px 16px 0" }}>
+              <button type="button" onClick={fermerProduit} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 13, cursor: "pointer", padding: "6px 0" }}>{t("retourAccueil")}</button>
+            </div>
+            <PageProduitPublique
+              config={pageConfig}
+              produit={produitOuvert}
+              produits={produits}
+              collectionsManuelles={collectionsManuelles}
+              entreprise={entreprise}
+              couleur={couleur}
+              devise={formaterDevise(entreprise.devise)}
+              deviseCode={entreprise.devise || "XOF"}
+              avis={avisListe}
+              pointsForts={structureDescription.points}
+              descriptionTexte={String(produitOuvert.produit_description || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300)}
+              t={t}
+              etat={{
+                quantite, bundleChoisiId, optionsChoisies, produitBumpId, varianteActive,
+                varianteEnRupture: !!varianteEnRupture, toutesOptionsChoisies,
+                prixBase: varianteActive ? (varianteActive.prix != null ? Number(varianteActive.prix) : Number(produitOuvert.prix_vente)) : Number(produitOuvert.prix_vente),
+                prixUnitaireEffectif,
+              }}
+              livraison={{
+                gratuite: !!livraisonGratuite, frais: fraisLivraisonEffectif, fraisExpedition: fraisExpeditionEffectif, aChoix: aChoixLivraison,
+                labelLocal: entreprise.labelLivraisonLocale, labelExpedition: entreprise.labelLivraisonExpedition,
+                qteMinGratuite: produitOuvert.livraison_gratuite_qte_min || null,
+              }}
+              actions={{
+                onChoisirOffre: (o) => { setBundleChoisiId(o ? o.id : null); setQuantite(o ? o.qty : 1); },
+                onChoisirOption: (nom, val) => setOptionsChoisies((c) => ({ ...c, [nom]: val })),
+                onToggleBump: (id) => setProduitBumpId((cur) => (cur === id ? null : id)),
+                onOuvrirProduit: ouvrirProduit,
+                onCommander: () => lancerCommande(),
+                onCtaInline: () => {
+                  trackEvenement("InitiateCheckout", {
+                    content_ids: [produitOuvert.produit_id],
+                    contents: [{ id: produitOuvert.produit_id, quantity: quantite, item_price: Number(prixUnitaireEffectif) || 0 }],
+                    content_type: "product",
+                    content_name: produitOuvert.produit_nom,
+                    value: prixUnitaireEffectif * quantite,
+                    currency: entreprise?.devise || "XOF",
+                    num_items: quantite,
+                  });
+                  momentOuvertureFormulaireRef.current = Date.now();
+                },
+              }}
+              rendreFormulaire={() => rendreFormulaireCommande(true)}
+              onEvenement={suivrePage}
+            />
+          </>
+        ) : (
         <div className="rv-shop-produit-wrap">
           <div className="rv-shop-produit-photo-col" style={{ position: "relative", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
             <GaleriePhotosProduit
@@ -2147,6 +2608,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             )}
           </div>
         </div>
+        )}
 
         {afficherFormulaire && !envoye && (
           <div
@@ -2157,310 +2619,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               onClick={(e) => e.stopPropagation()}
               style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto" }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ fontWeight: 700, fontSize: 17 }}>{t("tesCoordonnees")}</div>
-                <button onClick={() => setAfficherFormulaire(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
-              </div>
-              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
-                {t("pourTeContacter")}
-              </div>
-
-              <input
-                type="text"
-                name="site_web"
-                autoComplete="off"
-                tabIndex={-1}
-                value={form.champPiege}
-                onChange={(e) => setForm({ ...form, champPiege: e.target.value })}
-                style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
-                aria-hidden="true"
-              />
-
-              <input
-                placeholder={t("tonNom")}
-                value={form.client}
-                onChange={(e) => setForm({ ...form, client: e.target.value })}
-                autoFocus
-                autoComplete="name"
-                style={inputStyle}
-              />
-              <input
-                placeholder={t("tonTelephone")}
-                value={form.tel}
-                onChange={(e) => setForm({ ...form, tel: e.target.value })}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                style={inputStyle}
-              />
-              <input
-                placeholder={t("taVille")}
-                value={form.zone}
-                onChange={(e) => setForm({ ...form, zone: e.target.value })}
-                autoComplete="address-level2"
-                style={inputStyle}
-              />
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <span style={{ fontSize: 13, color: "#6B7168" }}>{t("quantite")}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button
-                    onClick={() => { setQuantite((q) => Math.max(1, q - 1)); setBundleChoisiId(null); }}
-                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
-                  >
-                    −
-                  </button>
-                  <div style={{ fontWeight: 700, fontSize: 16, minWidth: 20, textAlign: "center" }}>{quantite}</div>
-                  <button
-                    onClick={() => { setQuantite((q) => q + 1); setBundleChoisiId(null); }}
-                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {produitOuvert.livraison_gratuite_qte_min && !produitOuvert.livraison_gratuite && (
-                Number(quantite) >= Number(produitOuvert.livraison_gratuite_qte_min) ? (
-                  <div style={{ background: "#EAF3DE", border: "1px solid #C8E0B0", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#3B6D11", fontWeight: 700 }}>
-                    🎁 Livraison gratuite débloquée pour cette commande !
-                  </div>
-                ) : (
-                  <div style={{ background: "#FBF3E3", border: "1px solid #F0DBA8", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#8A6412", fontWeight: 700 }}>
-                    🎁 Encore {Number(produitOuvert.livraison_gratuite_qte_min) - Number(quantite)} exemplaire{Number(produitOuvert.livraison_gratuite_qte_min) - Number(quantite) > 1 ? "s" : ""} pour la livraison gratuite !
-                  </div>
-                )
-              )}
-
-              {optionsProduitListe.length > 0 && (
-                <div style={{ marginBottom: 14 }}>
-                  {optionsProduitListe.map((o) => (
-                    <div key={o.nom} style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{o.nom} <span style={{ color: "#D64933" }}>*</span></div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {o.valeurs.map((val) => {
-                          const actif = optionsChoisies[o.nom] === val;
-                          return (
-                            <button
-                              key={val}
-                              onClick={() => setOptionsChoisies((c) => ({ ...c, [o.nom]: val }))}
-                              style={{ border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", color: "#16231F", borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                            >
-                              {val}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                  {toutesOptionsChoisies && !varianteActive && (
-                    <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 4 }}>⚠️ Cette combinaison n'est pas disponible.</div>
-                  )}
-                  {varianteEnRupture && (
-                    <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 4, fontWeight: 700 }}>🔴 Cette variante est en rupture de stock.</div>
-                  )}
-                </div>
-              )}
-
-              {optionsProduitListe.length === 0 && bundlesProduit.length > 0 && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: "#b16b00", letterSpacing: ".04em", marginBottom: 8 }}>{t("offresQuantite")}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(bundlesProduit.length, 3)}, 1fr)`, gap: 8 }}>
-                    {bundlesProduit.map((b) => {
-                      const actif = bundleChoisiId === b.id;
-                      const totalBundle = prixUnitairePourBundle(produitOuvert.prix_vente, b) * b.qty;
-                      const estPrixFixe = (b.mode || "pourcentage") === "prix_fixe";
-                      return (
-                        <button
-                          key={b.id}
-                          onClick={() => {
-                            if (actif) { setBundleChoisiId(null); setQuantite(1); }
-                            else { setBundleChoisiId(b.id); setQuantite(b.qty); }
-                          }}
-                          style={{ textAlign: "left", border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : (b.couleur_fond || "white"), borderRadius: 10, padding: "8px 9px", cursor: "pointer" }}
-                        >
-                          <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F" }}>{b.label}</div>
-                          {b.mode === "prix_fixe" && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}
-                          {b.mode === "offert" && <div style={{ fontSize: 9.5, color: "#8A6412", fontWeight: 800 }}>🎁 {b.nb_offerts} offert{b.nb_offerts > 1 ? "s" : ""}</div>}
-                          {(!b.mode || b.mode === "pourcentage") && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
-                          <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{totalBundle.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {livraisonGratuite && (
-                <div style={{ background: "#EAF7F1", border: "1px solid #C7E8D6", borderRadius: 8, padding: "9px 12px", marginBottom: 14, fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
-                  🎁 Livraison gratuite pour ce produit
-                </div>
-              )}
-
-              {aChoixLivraison && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{t("modeLivraison")} <span style={{ color: "#D64933" }}>*</span></div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => setTypeLivraisonChoisi("livraison")}
-                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
-                    >
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ {entreprise.labelLivraisonLocale}</div>
-                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisLivraisonEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
-                    </button>
-                    <button
-                      onClick={() => setTypeLivraisonChoisi("expedition")}
-                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
-                    >
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 {entreprise.labelLivraisonExpedition}</div>
-                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisExpeditionEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
-                    </button>
-                  </div>
-                  {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
-                  {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
-                    <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
-
-              {(() => {
-                const bumpProduit = produitOuvert.bump_produit_id ? produits.find((p) => p.produit_id === produitOuvert.bump_produit_id) : null;
-                if (!bumpProduit) return null;
-                const bumpPrix = produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(bumpProduit.prix_vente);
-                const choisi = produitBumpId === bumpProduit.produit_id;
-                return (
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 8 }}>{t("ajouteProduit")}</div>
-                    <button
-                      onClick={() => setProduitBumpId(choisi ? null : bumpProduit.produit_id)}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: choisi ? "#EAF3DE" : "white", border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
-                    >
-                      <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${choisi ? couleur : "#DDD8CC"}`, background: choisi ? couleur : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", flexShrink: 0 }}>{choisi ? "✓" : ""}</span>
-                      {bumpProduit.photo_url ? (
-                        <img src={bumpProduit.photo_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#EEF0EA", flexShrink: 0 }} />
-                      )}
-                      <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bumpProduit.produit_nom}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: couleur, flexShrink: 0 }}>
-                        {produitOuvert.bump_prix_special != null && Number(produitOuvert.bump_prix_special) < Number(bumpProduit.prix_vente) && (
-                          <span style={{ textDecoration: "line-through", color: "#8A9089", fontWeight: 500, marginRight: 5 }}>{Number(bumpProduit.prix_vente).toLocaleString("fr-FR")}</span>
-                        )}
-                        +{bumpPrix.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
-                      </span>
-                    </button>
-                  </div>
-                );
-              })()}
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
-                  <span>{(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
-                </div>
-                {produitBumpId && (() => {
-                  const bump = produits.find((p) => p.produit_id === produitBumpId);
-                  if (!bump) return null;
-                  const prixBumpAffiche = produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(bump.prix_vente);
-                  return (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#6B7168" }}>+ {bump.produit_nom}</span>
-                      <span>{prixBumpAffiche.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
-                    </div>
-                  );
-                })()}
-                {fraisLivraisonActuel > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
-                    <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}</span>
-                    <span>+ {fraisLivraisonActuel.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
-                  </div>
-                )}
-                {codePromoApplique && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
-                    <span>🏷️ Code {codePromoApplique.code}</span>
-                    <span>− {codePromoApplique.montant_remise.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
-                  </div>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
-                  <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: couleur }}>{Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                {codePromoApplique ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#EAF7F1", border: "1px solid #C3E8D8", borderRadius: 8, padding: "8px 12px" }}>
-                    <span style={{ fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>✅ {codePromoMessage}</span>
-                    <button onClick={() => { setCodePromoApplique(null); setCodePromoInput(""); setCodePromoMessage(""); }} style={{ background: "none", border: "none", color: "#1F9D6E", fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Retirer</button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input
-                      placeholder="Code promo (optionnel)"
-                      value={codePromoInput}
-                      onChange={(e) => setCodePromoInput(e.target.value)}
-                      style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, boxSizing: "border-box", textTransform: "uppercase" }}
-                    />
-                    <button
-                      onClick={() => verifierCodePromo(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0))}
-                      disabled={verificationCodePromoEnCours || !codePromoInput.trim()}
-                      style={{ background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "0 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      {verificationCodePromoEnCours ? "..." : "Appliquer"}
-                    </button>
-                  </div>
-                )}
-                {!codePromoApplique && codePromoMessage && (
-                  <div style={{ fontSize: 11, color: "#D64933", marginTop: 4 }}>{codePromoMessage}</div>
-                )}
-              </div>
-
-              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
-                {t("onVaAppeler")}
-              </div>
-
-              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                {t("engagement")}
-              </div>
-
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, cursor: "pointer", fontSize: 12, color: "#16231F", lineHeight: 1.5 }}>
-                <input
-                  type="checkbox"
-                  checked={engagementCoche}
-                  onChange={(e) => setEngagementCoche(e.target.checked)}
-                  style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, cursor: "pointer" }}
-                />
-                <span>{t("caseEngagement")}</span>
-              </label>
-
-              <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 14, paddingTop: 10, borderTop: "1px solid #ECE8DC" }}>
-                {[
-                  { icone: "💵", texte: t("badgePaiement2") },
-                  { icone: "🚚", texte: t("badgeLivraison2") },
-                  { icone: "✅", texte: t("badgeVerifie") },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 14 }}>{item.icone}</span>
-                    <span style={{ fontSize: 10, color: "#6B7168", fontWeight: 600 }}>{item.texte}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={envoyerCommande}
-                disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
-              >
-                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
-              </button>
+              {rendreFormulaireCommande(false)}
             </div>
           </div>
         )}
-        <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} messageDefaut={`Bonjour, j'ai une question sur "${produitOuvert.produit_nom}".`} surCtaBar={!envoye} />
+        <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} messageDefaut={`Bonjour, j'ai une question sur "${produitOuvert.produit_nom}".`} surCtaBar={!envoye && (!pageActive || pageConfig?.sticky?.mobile !== false)} />
         {panierOuvert && (
           <PanierDrawer
             panier={panier}

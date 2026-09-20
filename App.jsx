@@ -15,7 +15,7 @@ import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import * as XLSX from "xlsx";
 // Product Page Builder : éditeur chargé À LA DEMANDE (n'alourdit ni la boutique publique ni le tableau de bord).
-const PageProduitBuilder = React.lazy(() => import("./pagebuilder/PageProduitBuilder.jsx"));
+const PageProduitBuilder = React.lazy(() => import("./PageProduitBuilder.jsx"));
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 

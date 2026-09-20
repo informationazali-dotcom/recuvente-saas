@@ -13,14 +13,17 @@ function hasher(valeur) {
 
 // Même table que côté boutique publique (CataloguePublic.jsx) — évite de figer la
 // Côte d'Ivoire en dur alors que RecuVente sert plusieurs pays d'Afrique de l'Ouest.
-const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
+const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228", GN: "224", CM: "237", GA: "241", CD: "243", MA: "212", DZ: "213", TN: "216", GH: "233", NG: "234", FR: "33" };
 
 // Longueur du numéro national (sans indicatif) : en Côte d'Ivoire et au Bénin, depuis leur passage
 // à 10 chiffres, le « 0 » de tête FAIT PARTIE du numéro (+225 07 01 02 03 04). L'ancien code le
 // retirait toujours, ce qui donnait un numéro faux à Facebook (donc un achat moins bien reconnu).
-const LONGUEUR_NATIONALE = { CI: 10, BJ: 10, SN: 9, ML: 8, BF: 8, TG: 8 };
+const LONGUEUR_NATIONALE = { CI: 10, BJ: 10, SN: 9, ML: 8, BF: 8, TG: 8, GN: 9, CM: 9 };
 
 function normaliserTelephone(tel, codePays) {
+  // Boutique multi-pays : un client d'un autre pays que le pays principal est enregistré au format
+  // international « +224… » — déjà complet, on ne lui rajoute surtout pas l'indicatif du pays principal.
+  if (String(tel || "").trim().startsWith("+")) return "+" + String(tel).replace(/\D/g, "");
   let chiffres = String(tel || "").replace(/\D/g, "");
   if (chiffres.startsWith("00")) chiffres = chiffres.slice(2);
   const indicatif = INDICATIFS_PAYS[codePays] || "225";

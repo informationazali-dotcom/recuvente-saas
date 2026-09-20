@@ -339,6 +339,16 @@ const TRADUCTIONS = {
     badgeVerifie: "Vérifie avant de payer",
     merciCommander: "⚠️ Merci de ne commander que si tu es réellement intéressé(e)",
     commander: "Commander",
+    descriptionTitre: "Description",
+    ctaEnLigneTitre: "Cliquez ici pour commander",
+    ctaEnLigneSous: "paiement à la livraison",
+    noteExcellent: "Excellent",
+    noteTresBien: "Très bien",
+    noteBien: "Bien",
+    noteAvisClients: "avis clients",
+    economisez: "Économisez",
+    photoPrecedente: "Photo précédente",
+    photoSuivante: "Photo suivante",
     tesCoordonnees: "Tes coordonnées",
     pourTeContacter: "Pour qu'on puisse te contacter et te livrer.",
     tonNom: "Ton nom",
@@ -433,6 +443,16 @@ const TRADUCTIONS = {
     badgeVerifie: "Check before you pay",
     merciCommander: "⚠️ Please only order if you're genuinely interested",
     commander: "Order",
+    descriptionTitre: "Description",
+    ctaEnLigneTitre: "Click here to order",
+    ctaEnLigneSous: "pay on delivery",
+    noteExcellent: "Excellent",
+    noteTresBien: "Very good",
+    noteBien: "Good",
+    noteAvisClients: "customer reviews",
+    economisez: "Save",
+    photoPrecedente: "Previous photo",
+    photoSuivante: "Next photo",
     tesCoordonnees: "Your details",
     pourTeContacter: "So we can contact you and deliver.",
     tonNom: "Your name",
@@ -1712,6 +1732,21 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       );
     }
 
+    const structureDescription = extraireStructureDescription(produitOuvert.produit_description);
+    const lancerCommande = () => {
+      trackEvenement("InitiateCheckout", {
+        content_ids: [produitOuvert.produit_id],
+        contents: [{ id: produitOuvert.produit_id, quantity: quantite, item_price: Number(prixUnitaireEffectif) || 0 }],
+        content_type: "product",
+        content_name: produitOuvert.produit_nom,
+        value: prixUnitaireEffectif * quantite,
+        currency: entreprise?.devise || "XOF",
+        num_items: quantite,
+      });
+      setAfficherFormulaire(true);
+      momentOuvertureFormulaireRef.current = Date.now();
+    };
+
     return avecAmbiance(
       <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
@@ -1730,39 +1765,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
         <div className="rv-shop-produit-wrap">
           <div className="rv-shop-produit-photo-col" style={{ position: "relative", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
-            {(() => {
-              const toutesLesPhotos = [produitOuvert.photo_url, ...(produitOuvert.photos_galerie || [])].filter(Boolean);
-              const photoAffichee = toutesLesPhotos[photoActive] || toutesLesPhotos[0];
-              return (
-                <>
-                  <div className="rv-shop-produit-photo" style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden" }}>
-                    {photoAffichee ? (
-                      <img
-                        src={photoAffichee}
-                        alt={produitOuvert.produit_nom}
-                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-                        onError={(e) => { e.target.style.display = "none"; }}
-                      />
-                    ) : (
-                      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
-                    )}
-                  </div>
-                  {toutesLesPhotos.length > 1 && (
-                    <div style={{ display: "flex", gap: 8, padding: "10px 16px", overflowX: "auto" }}>
-                      {toutesLesPhotos.map((url, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setPhotoActive(i)}
-                          style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 8, overflow: "hidden", padding: 0, border: i === photoActive ? `2px solid ${couleur}` : "1px solid #ECE8DC", cursor: "pointer", background: "none" }}
-                        >
-                          <img src={url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+            <GaleriePhotosProduit
+              photos={[produitOuvert.photo_url, ...(produitOuvert.photos_galerie || [])].filter(Boolean)}
+              alt={produitOuvert.produit_nom}
+              couleur={couleur}
+              index={photoActive}
+              setIndex={setPhotoActive}
+              t={t}
+            />
             <button
               className="rv-shop-produit-back"
               onClick={fermerProduit}
@@ -1797,21 +1807,45 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 🔥 {t("bestSeller")} — {produitOuvert.nb_ventes} {t("ventes")}
               </div>
             )}
-            <div style={{ fontWeight: 700, fontSize: 21 }}>{produitOuvert.produit_nom}</div>
-
-            {produitOuvert.note_moyenne && (
+            {produitOuvert.note_moyenne > 0 && produitOuvert.nb_avis > 0 && (
               <button
                 onClick={() => document.getElementById("rv-shop-avis-section")?.scrollIntoView({ behavior: "smooth" })}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, marginTop: 6, cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, marginBottom: 8, cursor: "pointer", textAlign: "left" }}
               >
-                <span style={{ color: "#e8920a", fontSize: 14 }}>{"★".repeat(Math.round(produitOuvert.note_moyenne))}{"☆".repeat(5 - Math.round(produitOuvert.note_moyenne))}</span>
-                <span style={{ fontSize: 12.5, color: "#6B7168", textDecoration: "underline" }}>{produitOuvert.note_moyenne}/5 ({produitOuvert.nb_avis} avis)</span>
+                <span style={{ color: "#e8920a", fontSize: 15, letterSpacing: 1 }}>{"★".repeat(Math.round(produitOuvert.note_moyenne))}{"☆".repeat(5 - Math.round(produitOuvert.note_moyenne))}</span>
+                <span style={{ fontSize: 12.5, color: "#6B7168" }}>
+                  {produitOuvert.note_moyenne >= 4.5 ? t("noteExcellent") : produitOuvert.note_moyenne >= 4 ? t("noteTresBien") : t("noteBien")} | {produitOuvert.note_moyenne}/5 ({produitOuvert.nb_avis} {t("noteAvisClients")})
+                </span>
               </button>
             )}
 
-            <div style={{ fontWeight: 700, fontSize: 24, color: couleur, marginTop: 10, marginBottom: 4 }}>
-              {Number(produitOuvert.prix_vente).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
-            </div>
+            <h1 style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.15, margin: "0 0 4px", color: "#16231F", overflowWrap: "anywhere" }}>{produitOuvert.produit_nom}</h1>
+
+            <PointsFortsListe points={structureDescription.points} couleur={couleur} />
+
+            {(() => {
+              const prixVenteNum = Number(produitOuvert.prix_vente);
+              const prixBarreNum = Number(produitOuvert.prix_barre);
+              const aPrixBarre = Number.isFinite(prixBarreNum) && prixBarreNum > prixVenteNum && prixVenteNum > 0;
+              const economie = aPrixBarre ? Math.round((1 - prixVenteNum / prixBarreNum) * 100) : 0;
+              return (
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 10, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 26, color: couleur }}>
+                    {prixVenteNum.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                  </span>
+                  {aPrixBarre && (
+                    <span style={{ textDecoration: "line-through", color: "#8A9089", fontSize: 15 }}>
+                      {prixBarreNum.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                    </span>
+                  )}
+                  {aPrixBarre && economie > 0 && (
+                    <span style={{ background: "#EAF3DE", color: "#3B6D11", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 6, textTransform: "uppercase" }}>
+                      {t("economisez")} {economie}%
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             <div style={{ marginBottom: 12 }}>
               <BadgePersonnesEnLigne nb={nbPersonnesEnLigne} />
@@ -1843,6 +1877,34 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             {bundlesProduit.length > 0 && (
               <div style={{ background: "#fffdf7", border: "1px solid #F0DDA8", borderRadius: 10, padding: "9px 12px", marginBottom: 22, fontSize: 12, color: "#8A6412", fontWeight: 700 }}>
                 🔥 Offres quantité disponibles — choisis ton pack dans le formulaire de commande
+              </div>
+            )}
+
+            {!envoye && (
+              <div style={{ marginBottom: 22 }}>
+                <button
+                  id="rv-cta-en-ligne"
+                  type="button"
+                  onClick={lancerCommande}
+                  style={{ width: "100%", background: couleur, color: couleurTextePourFond(couleur), border: "none", borderRadius: 12, padding: "14px 16px", cursor: "pointer", touchAction: "manipulation", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, boxShadow: "0 6px 18px rgba(0,0,0,0.16)" }}
+                >
+                  <span style={{ fontWeight: 800, fontSize: 16, lineHeight: 1.25 }}>{t("ctaEnLigneTitre")}</span>
+                  <span style={{ fontWeight: 500, fontSize: 12.5, opacity: 0.92 }}>💵 {t("ctaEnLigneSous")}</span>
+                </button>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 16 }}>
+                  {[
+                    { icone: "💵", texte: t("badgePaiement2") },
+                    { icone: "🚚", texte: t("badgeLivraison2") },
+                    { icone: "✅", texte: t("badgeVerifie") },
+                  ].map((item, i) => (
+                    <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                        {item.icone}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "#3B6D11", fontWeight: 600, lineHeight: 1.3 }}>{item.texte}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1903,11 +1965,17 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                     color: ${couleur} !important;
                   }
                 `}</style>
-                <div
-                  className="rv-description-riche"
-                  style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65, marginBottom: 26 }}
-                  dangerouslySetInnerHTML={{ __html: nettoyerHTML(produitOuvert.produit_description) }}
-                />
+                {descriptionAUnContenu(structureDescription.reste) ? (
+                  <AccordeonDescription titre={t("descriptionTitre")}>
+                    <div
+                      className="rv-description-riche"
+                      style={{ fontSize: 14.5, color: "#16231F", lineHeight: 1.65 }}
+                      dangerouslySetInnerHTML={{ __html: structureDescription.reste }}
+                    />
+                  </AccordeonDescription>
+                ) : (
+                  <div style={{ marginBottom: 12 }} />
+                )}
               </>
             ) : (
               <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic", marginBottom: 26 }}>{t("aucuneDescription")}</div>
@@ -2055,24 +2123,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             })()}
 
             {!envoye && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
-                {[
-                  { icone: "💵", texte: t("badgePaiement2") },
-                  { icone: "🚚", texte: t("badgeLivraison2") },
-                  { icone: "✅", texte: t("badgeVerifie") },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                      {item.icone}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: "#3B6D11", fontWeight: 600, lineHeight: 1.3 }}>{item.texte}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!envoye && (
-              <div className="rv-shop-cta-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)", zIndex: 20 }}>
+              <BarreCtaCollante>
                 <div className="rv-shop-cta-bar-inner">
                   <div style={{ fontSize: 10.5, color: "#8A9089", textAlign: "center", marginBottom: 6 }}>
                     {t("merciCommander")}
@@ -2085,26 +2136,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       🛒
                     </button>
                     <button
-                      onClick={() => {
-                        trackEvenement("InitiateCheckout", {
-                          content_ids: [produitOuvert.produit_id],
-                          contents: [{ id: produitOuvert.produit_id, quantity: quantite, item_price: Number(prixUnitaireEffectif) || 0 }],
-                          content_type: "product",
-                          content_name: produitOuvert.produit_nom,
-                          value: prixUnitaireEffectif * quantite,
-                          currency: entreprise?.devise || "XOF",
-                          num_items: quantite,
-                        });
-                        setAfficherFormulaire(true);
-                        momentOuvertureFormulaireRef.current = Date.now();
-                      }}
+                      onClick={lancerCommande}
                       style={{ flex: 1, background: couleur, color: "white", border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer", touchAction: "manipulation" }}
                     >
                       {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
                     </button>
                   </div>
                 </div>
-              </div>
+              </BarreCtaCollante>
             )}
           </div>
         </div>
@@ -4561,6 +4600,158 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
 }
 
 const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };
+
+// ---------------------------------------------------------------------------
+// PAGE PRODUIT « style Copyfy » — briques réutilisables
+// ---------------------------------------------------------------------------
+
+// Sépare la description riche en deux : la liste de « points forts » (affichée en cases
+// à cocher sous le titre) et le reste (affiché dans l'accordéon « Description »).
+// 1) Si le marchand a inséré un bloc « ⭐ Points forts » dans l'éditeur, c'est celui-là.
+// 2) Sinon, on prend la première liste à puces du texte (2 à 8 lignes courtes).
+// Rien n'est supprimé : la liste est seulement déplacée vers le haut de la page.
+function extraireStructureDescription(html) {
+  const propre = nettoyerHTML(html);
+  if (!propre) return { points: [], reste: "" };
+  const conteneur = document.createElement("div");
+  conteneur.innerHTML = propre;
+  const texteLi = (li) => (li.textContent || "").replace(/\s+/g, " ").trim();
+  const itemsDe = (l) => Array.from(l.children).filter((c) => c.tagName === "LI");
+  const listes = Array.from(conteneur.querySelectorAll("ul, ol"));
+  let choisie = listes.find((l) => l.getAttribute("data-rv") === "points-forts");
+  if (!choisie) {
+    choisie = listes.find((l) => {
+      if (l.parentElement !== conteneur) return false;
+      const items = itemsDe(l);
+      if (items.length < 2 || items.length > 8) return false;
+      return items.every((li) => { const tx = texteLi(li); return tx.length > 0 && tx.length <= 160; });
+    });
+  }
+  if (!choisie) return { points: [], reste: propre };
+  const points = itemsDe(choisie)
+    .map((li) => texteLi(li).replace(/^[\s✔✓✅☑️•·\-–]+/u, "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  if (points.length === 0) return { points: [], reste: propre };
+  choisie.remove();
+  return { points, reste: conteneur.innerHTML };
+}
+
+function descriptionAUnContenu(html) {
+  if (!html) return false;
+  return /<(img|video)\b/i.test(html) || html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
+}
+
+function PointsFortsListe({ points, couleur }) {
+  if (!points || points.length === 0) return null;
+  const teinte = couleurTexteLisible(couleur);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "14px 0 16px" }}>
+      {points.map((tx, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#F1F2EF", borderRadius: 8, padding: "9px 12px", fontSize: 13.5, lineHeight: 1.45, color: "#16231F" }}>
+          <span aria-hidden="true" style={{ flexShrink: 0, width: 18, height: 18, marginTop: 1, borderRadius: 4, border: `1.5px solid ${teinte}`, color: teinte, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>
+          <span>{tx}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Galerie : grande photo avec flèches + balayage au doigt, et miniatures cliquables dessous.
+function GaleriePhotosProduit({ photos, alt, couleur, index, setIndex, t }) {
+  const departX = useRef(null);
+  const nb = photos.length;
+  const i = nb > 0 ? Math.min(Math.max(index, 0), nb - 1) : 0;
+  const aller = (n) => { if (nb > 1) setIndex((n + nb) % nb); };
+  const photo = photos[i];
+  const boutonFleche = { position: "absolute", top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.88)", color: "#16231F", fontSize: 18, lineHeight: 1, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, touchAction: "manipulation" };
+  return (
+    <>
+      <div
+        className="rv-shop-produit-photo"
+        style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#EEF0EA", overflow: "hidden", touchAction: "pan-y" }}
+        onTouchStart={(e) => { departX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (departX.current == null) return;
+          const dx = e.changedTouches[0].clientX - departX.current;
+          departX.current = null;
+          if (Math.abs(dx) > 45) aller(i + (dx < 0 ? 1 : -1));
+        }}
+      >
+        {photo ? (
+          <img
+            src={photo}
+            alt={alt}
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
+        ) : (
+          <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60 }}>📦</div>
+        )}
+        {nb > 1 && (
+          <>
+            <button type="button" aria-label={t("photoPrecedente")} onClick={() => aller(i - 1)} style={{ ...boutonFleche, left: 10 }}>‹</button>
+            <button type="button" aria-label={t("photoSuivante")} onClick={() => aller(i + 1)} style={{ ...boutonFleche, right: 10 }}>›</button>
+          </>
+        )}
+      </div>
+      {nb > 1 && (
+        <div style={{ display: "flex", gap: 8, padding: "10px 16px", overflowX: "auto", justifyContent: nb <= 5 ? "center" : "flex-start", WebkitOverflowScrolling: "touch" }}>
+          {photos.map((url, k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setIndex(k)}
+              style={{ flexShrink: 0, width: 62, height: 62, borderRadius: 8, overflow: "hidden", padding: 0, border: k === i ? `2px solid ${couleur}` : "1px solid #ECE8DC", opacity: k === i ? 1 : 0.8, cursor: "pointer", background: "none" }}
+            >
+              <img src={url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// Accordéon « Description » (ouvert par défaut, comme sur les pages Copyfy).
+function AccordeonDescription({ titre, children }) {
+  const [ouvert, setOuvert] = useState(true);
+  return (
+    <div style={{ borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC", marginBottom: 26 }}>
+      <button
+        type="button"
+        onClick={() => setOuvert((o) => !o)}
+        aria-expanded={ouvert}
+        style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", padding: "16px 2px", fontSize: 16, fontWeight: 700, color: "#16231F", cursor: "pointer", textAlign: "left" }}
+      >
+        <span>{titre}</span>
+        <span aria-hidden="true" style={{ fontSize: 20, fontWeight: 400, color: "#6B7168", lineHeight: 1 }}>{ouvert ? "−" : "+"}</span>
+      </button>
+      {ouvert && <div style={{ paddingBottom: 8 }}>{children}</div>}
+    </div>
+  );
+}
+
+// Barre « Commander » collée en bas de l'écran. Elle se range d'elle-même tant que le gros
+// bouton de la page (id="rv-cta-en-ligne") est visible, pour ne pas avoir deux boutons à l'écran.
+function BarreCtaCollante({ children }) {
+  const [boutonPageVisible, setBoutonPageVisible] = useState(false);
+  useEffect(() => {
+    const cible = document.getElementById("rv-cta-en-ligne");
+    if (!cible || typeof IntersectionObserver === "undefined") return undefined;
+    const obs = new IntersectionObserver(([e]) => setBoutonPageVisible(e.isIntersecting), { threshold: 0.6 });
+    obs.observe(cible);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div
+      className="rv-shop-cta-bar"
+      style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "white", borderTop: "1px solid #ECE8DC", padding: "14px 18px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)", zIndex: 20, transform: boutonPageVisible ? "translateY(115%)" : "translateY(0)", transition: "transform .25s ease" }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function BadgePersonnesEnLigne({ nb, style }) {
   if (nb < 2) return null;

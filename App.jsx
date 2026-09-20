@@ -3031,52 +3031,75 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   }
   async function save(){
     setSaving(true);setSaved(false);
-    try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){}
-    if(workspace?.id){
-      const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:config,store_config_published:config,store_is_published:true,store_published_at:new Date().toISOString()};
-      const {data,error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id).select('store_config_published');
-      if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return false;}
-      if(!data||data.length===0){setSaving(false);alert('⚠️ L\'enregistrement semble avoir échoué silencieusement (aucune ligne modifiée en base). Vérifie que tu es bien connecté avec le bon compte, propriétaire de cette boutique.');return false;}
-      // Auto-vérification, utilisable par n'importe quel abonné même sans accès à la base : on
-      // relit ce que le serveur a RÉELLEMENT enregistré et on compare au nombre de sections
-      // qu'on vient d'envoyer — pour ne jamais laisser croire que tout est bon si ce n'est pas le cas.
-      const sectionsEnregistrees=Array.isArray(data[0]?.store_config_published?.sections)?data[0].store_config_published.sections:[];
-      const sectionsEnvoyees=Array.isArray(config.sections)?config.sections:[];
-      if(JSON.stringify(sectionsEnregistrees)!==JSON.stringify(sectionsEnvoyees)){
-        setSaving(false);
-        alert(`⚠️ L'enregistrement a répondu sans erreur, mais ce qui revient du serveur ne correspond pas à ce qu'on vient d'envoyer.\n\nEnvoyé : ${sectionsEnvoyees.length} section(s)\nEnregistré côté serveur : ${sectionsEnregistrees.length} section(s)\n\nRecharge cette page et réessaie. Si ça persiste, c'est un vrai bug à signaler avec ce message exact.`);
-        return false;
+    // Tout ce qui suit est protégé par ce try/catch/finally : avant, une exception JS
+    // (coupure réseau, timeout, erreur inattendue de Supabase...) au milieu de cette
+    // fonction empêchait "setSaving(false)" de s'exécuter — le bouton restait bloqué
+    // indéfiniment dans son état désactivé (pâle), ET rien n'avait été enregistré,
+    // sans qu'aucun message n'explique pourquoi. Le "finally" garantit maintenant que
+    // le bouton se débloque TOUJOURS, quoi qu'il arrive.
+    try{
+      try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){}
+      if(workspace?.id){
+        const patch={name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:config,store_config_published:config,store_is_published:true,store_published_at:new Date().toISOString()};
+        const {data,error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id).select('store_config_published');
+        if(error){alert('Enregistrement impossible : '+error.message);return false;}
+        if(!data||data.length===0){alert('⚠️ L\'enregistrement semble avoir échoué silencieusement (aucune ligne modifiée en base). Vérifie que tu es bien connecté avec le bon compte, propriétaire de cette boutique.');return false;}
+        // Auto-vérification, utilisable par n'importe quel abonné même sans accès à la base : on
+        // relit ce que le serveur a RÉELLEMENT enregistré et on compare au nombre de sections
+        // qu'on vient d'envoyer — pour ne jamais laisser croire que tout est bon si ce n'est pas le cas.
+        const sectionsEnregistrees=Array.isArray(data[0]?.store_config_published?.sections)?data[0].store_config_published.sections:[];
+        const sectionsEnvoyees=Array.isArray(config.sections)?config.sections:[];
+        if(JSON.stringify(sectionsEnregistrees)!==JSON.stringify(sectionsEnvoyees)){
+          alert(`⚠️ L'enregistrement a répondu sans erreur, mais ce qui revient du serveur ne correspond pas à ce qu'on vient d'envoyer.\n\nEnvoyé : ${sectionsEnvoyees.length} section(s)\nEnregistré côté serveur : ${sectionsEnregistrees.length} section(s)\n\nRecharge cette page et réessaie. Si ça persiste, c'est un vrai bug à signaler avec ce message exact.`);
+          return false;
+        }
+        // Le nom a changé : on régénère le lien de la boutique (slug) pour qu'il reste cohérent avec le nouveau nom.
+        // Une éventuelle erreur ici ne doit pas faire échouer tout l'enregistrement qui, lui, a déjà réussi.
+        if(config.nom && config.nom !== workspace.name){
+          try{
+            const {data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});
+            if(nouveauSlug) await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);
+          }catch(erreurSlug){
+            console.error('Régénération du lien échouée (enregistrement principal OK) :',erreurSlug);
+          }
+        }
       }
-      // Le nom a changé : on régénère le lien de la boutique (slug) pour qu'il reste cohérent avec le nouveau nom.
-      if(config.nom && config.nom !== workspace.name){
-        const {data:nouveauSlug}=await supabase.rpc('generer_slug_boutique',{p_nom:config.nom,p_workspace_id:workspace.id});
-        if(nouveauSlug) await supabase.from('workspaces').update({slug:nouveauSlug}).eq('id',workspace.id);
-      }
+      setPublishedSnapshot(config);
+      setSaved(true);setTimeout(()=>setSaved(false),2200);
+      return true;
+    }catch(erreurInattendue){
+      console.error('Erreur inattendue pendant l\'enregistrement :',erreurInattendue);
+      alert('⚠️ Une erreur inattendue a interrompu l\'enregistrement : '+(erreurInattendue?.message||String(erreurInattendue))+'\n\nRien n\'a été enregistré. Vérifie ta connexion internet et réessaie.');
+      return false;
+    }finally{
+      setSaving(false);
     }
-    setPublishedSnapshot(config);
-    setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
-    return true;
   }
   async function publish(){
     const ok=await save();
     if(!ok)return;
-    if(workspace?.id){
-      const {data,error}=await supabase.from('workspaces').update({store_config_published:config,store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id).select();
-      if(error){alert('Publication impossible : '+error.message);return;}
-      if(!data||data.length===0){alert('⚠️ La publication semble avoir échoué silencieusement (aucune ligne modifiée). Vérifie les droits sur la table "workspaces" dans Supabase.');return;}
-      // Auto-vérification, utilisable par n'importe quel abonné sans accès à la base : on relit
-      // ce que le serveur a RÉELLEMENT enregistré (pas juste ce qu'on a envoyé) et on compare —
-      // si ça ne correspond pas, on le dit clairement au lieu de laisser croire que tout est bon.
-      const sectionsEnregistrees=Array.isArray(data[0]?.store_config_published?.sections)?data[0].store_config_published.sections:[];
-      const sectionsEnvoyees=Array.isArray(config.sections)?config.sections:[];
-      const identiques=JSON.stringify(sectionsEnregistrees)===JSON.stringify(sectionsEnvoyees);
-      if(!identiques){
-        alert(`⚠️ La publication a été enregistrée, mais ce qui revient du serveur ne correspond pas exactement à ce que tu viens d'envoyer.\n\nEnvoyé : ${sectionsEnvoyees.length} section(s)\nEnregistré côté serveur : ${sectionsEnregistrees.length} section(s)\n\nRecharge cette page et republie. Si ça persiste après ça, c'est un vrai bug à signaler avec ce message exact.`);
-        return;
+    try{
+      if(workspace?.id){
+        const {data,error}=await supabase.from('workspaces').update({store_config_published:config,store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id).select();
+        if(error){alert('Publication impossible : '+error.message);return;}
+        if(!data||data.length===0){alert('⚠️ La publication semble avoir échoué silencieusement (aucune ligne modifiée). Vérifie les droits sur la table "workspaces" dans Supabase.');return;}
+        // Auto-vérification, utilisable par n'importe quel abonné sans accès à la base : on relit
+        // ce que le serveur a RÉELLEMENT enregistré (pas juste ce qu'on a envoyé) et on compare —
+        // si ça ne correspond pas, on le dit clairement au lieu de laisser croire que tout est bon.
+        const sectionsEnregistrees=Array.isArray(data[0]?.store_config_published?.sections)?data[0].store_config_published.sections:[];
+        const sectionsEnvoyees=Array.isArray(config.sections)?config.sections:[];
+        const identiques=JSON.stringify(sectionsEnregistrees)===JSON.stringify(sectionsEnvoyees);
+        if(!identiques){
+          alert(`⚠️ La publication a été enregistrée, mais ce qui revient du serveur ne correspond pas exactement à ce que tu viens d'envoyer.\n\nEnvoyé : ${sectionsEnvoyees.length} section(s)\nEnregistré côté serveur : ${sectionsEnregistrees.length} section(s)\n\nRecharge cette page et republie. Si ça persiste après ça, c'est un vrai bug à signaler avec ce message exact.`);
+          return;
+        }
       }
+      setPublishedSnapshot(config);
+      setPublished(true);setTimeout(()=>setPublished(false),2500);
+    }catch(erreurInattendue){
+      console.error('Erreur inattendue pendant la publication :',erreurInattendue);
+      alert('⚠️ Une erreur inattendue a interrompu la publication : '+(erreurInattendue?.message||String(erreurInattendue))+'\n\nVérifie ta connexion internet et réessaie.');
     }
-    setPublishedSnapshot(config);
-    setPublished(true);setTimeout(()=>setPublished(false),2500);
   }
   const fieldStyle={width:'100%',boxSizing:'border-box',border:'1px solid #dfe6df',borderRadius:10,padding:'10px 11px',fontSize:12,outline:'none',background:'#fff'};
   const labelStyle={display:'block',fontSize:10.5,color:'#647168',fontWeight:750,marginBottom:10}; const cardStyle={background:'#fff',border:'1px solid #e4ebe5',borderRadius:16,boxShadow:'0 8px 24px rgba(17,38,26,.045)'};

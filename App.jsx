@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic, { GrilleCollections, EnteteCollectionVedette } from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
-import { normaliserHex, couleurCssSure, reparerCouleurs, completerDieze, estClaire, texteSurFond, DEVISE_PAR_DEFAUT_PAYS, DEVISES_PROPOSEES, libelleDevise } from "./blocs.js";
+import { normaliserHex, couleurCssSure, reparerCouleurs, completerDieze, estClaire, texteSurFond, DEVISE_PAR_DEFAUT_PAYS, DEVISES_PROPOSEES, libelleDevise, tauxFixe } from "./blocs.js";
 import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
 import NetworkDashboard from "./network/NetworkDashboard.jsx";
 import { MarketingReseauLanding, TunnelRecrutementPublic, BoutiqueReferralPublic } from "./network/MarketingReseauPublic.jsx";
@@ -17563,7 +17563,7 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
             <div style={{ background: "white", border: "1px solid #C3D4F0", borderRadius: 10, padding: 12, marginBottom: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1E4B8C", marginBottom: 4 }}>💱 Monnaie de chaque pays</div>
               <div style={{ fontSize: 11.5, color: "#1E4B8C", lineHeight: 1.5, marginBottom: 10 }}>
-                Tes prix restent enregistrés en <strong>{libelleDevise(devise)}</strong> (commandes, statistiques : rien ne change). Pour un client d'un autre pays, la boutique affiche les prix dans <strong>sa monnaie</strong>, calculés avec le taux que tu saisis ici — et le montant à encaisser est noté sur la commande. Le pays du client est deviné automatiquement, et il peut le changer en haut de la boutique.
+                Tes prix restent enregistrés en <strong>{libelleDevise(devise)}</strong> (commandes, statistiques : rien ne change). Pour un client d'un autre pays, la boutique affiche les prix dans <strong>sa monnaie</strong>, calculés avec le taux du jour (ou le taux que tu saisis ici, qui a la priorité) — et le montant à encaisser est noté sur la commande. Le pays du client est deviné automatiquement, et il peut le changer en haut de la boutique.
               </div>
               {paysListe.map((code) => {
                 const r = devisesPays[code] || {};
@@ -17571,6 +17571,7 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
                 const base = String(devise).toUpperCase();
                 const memeDevise = dev === base;
                 const parite = (dev === "XOF" && base === "XAF") || (dev === "XAF" && base === "XOF");
+                const pariteEuro = !parite && tauxFixe(dev, base) > 0;
                 const tauxSaisi = Number(String(r.taux1000 ?? "").replace(/\s/g, "").replace(",", ".")) > 0;
                 const nomPays = { CI: "🇨🇮 Côte d'Ivoire", SN: "🇸🇳 Sénégal", ML: "🇲🇱 Mali", BF: "🇧🇫 Burkina Faso", TG: "🇹🇬 Togo", BJ: "🇧🇯 Bénin", GN: "🇬🇳 Guinée", CM: "🇨🇲 Cameroun", GA: "🇬🇦 Gabon", CD: "🇨🇩 RD Congo", MA: "🇲🇦 Maroc", DZ: "🇩🇿 Algérie", TN: "🇹🇳 Tunisie", GH: "🇬🇭 Ghana", NG: "🇳🇬 Nigeria", FR: "🇫🇷 France" }[code] || code;
                 return (
@@ -17587,10 +17588,11 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
                       <div style={{ marginTop: 6 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
                           <span>Pour 1 000 {libelleDevise(devise)}, le client paie</span>
-                          <input inputMode="decimal" value={r.taux1000 ?? ""} onChange={(e) => majDevisePays(code, { taux1000: e.target.value })} placeholder="ex : 15 000" style={{ width: 96, padding: "6px 8px", borderRadius: 7, border: "1px solid " + (tauxSaisi ? "#C3D4F0" : "#E8B75C"), fontSize: 12.5 }} />
+                          <input inputMode="decimal" value={r.taux1000 ?? ""} onChange={(e) => majDevisePays(code, { taux1000: e.target.value })} placeholder="ex : 15 000" style={{ width: 96, padding: "6px 8px", borderRadius: 7, border: "1px solid #C3D4F0", fontSize: 12.5 }} />
                           <span>{dev}</span>
                         </div>
-                        {!tauxSaisi && <div style={{ fontSize: 11.5, color: "#8A6412", marginTop: 4 }}>⚠️ Sans taux, les clients de ce pays voient les prix en {libelleDevise(devise)}. Cherche le taux du jour (ex. sur xe.com) et remets-le à jour de temps en temps.</div>}
+                        {!tauxSaisi && pariteEuro && <div style={{ fontSize: 11.5, color: "#3B6D11", marginTop: 4 }}>✓ Taux officiel appliqué automatiquement (1 € = 655,957 F CFA). Tu peux laisser vide, ou saisir ton propre taux pour le remplacer.</div>}
+                        {!tauxSaisi && !pariteEuro && <div style={{ fontSize: 11.5, color: "#3B6D11", marginTop: 4 }}>✓ Le taux du jour est appliqué automatiquement (mis à jour toutes les 12 h). Tu peux laisser vide, ou saisir ton propre taux pour le fixer toi-même.</div>}
                       </div>
                     )}
                   </div>

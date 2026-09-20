@@ -5,7 +5,7 @@ import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, montantAffiche, DEVISE_PAR_DEFAUT_PAYS } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, montantAffiche, DEVISE_PAR_DEFAUT_PAYS } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -666,6 +666,41 @@ function instantanePaysClient() {
   return `${storePaysClient.choix}|${storePaysClient.auto}`;
 }
 
+// Taux de change du jour (repli quand le commerçant n'a saisi aucun taux). Mémorisé 12 h dans le navigateur.
+const memoireTaux = { base: "", rates: null, encours: false, ecouteurs: new Set() };
+function besoinTauxAuto(entreprise, code) {
+  const base = String(entreprise?.devise || "").toUpperCase();
+  const reglage = entreprise?.storeConfig?.devisesPays?.[code] || {};
+  const devise = String(reglage.devise || DEVISE_PAR_DEFAUT_PAYS[code] || "").toUpperCase();
+  if (!base || !devise || devise === base) return false;
+  if (Number(reglage.taux1000) > 0) return false;
+  return !(tauxFixe(devise, base) > 0);
+}
+function useTauxAuto(base, actif) {
+  const b = String(base || "").toUpperCase();
+  const [, forcer] = useState(0);
+  useEffect(() => {
+    if (!actif || !b || typeof fetch !== "function") return;
+    const ecoute = () => forcer((n) => n + 1);
+    memoireTaux.ecouteurs.add(ecoute);
+    if (memoireTaux.base !== b) {
+      memoireTaux.base = b; memoireTaux.rates = null; memoireTaux.encours = false;
+      try { const c = JSON.parse(window.localStorage.getItem("rv_taux_auto") || "null"); if (c && c.base === b && Date.now() - c.t < 43200000 && c.rates) memoireTaux.rates = c.rates; } catch (_) {}
+    }
+    if (!memoireTaux.rates && !memoireTaux.encours) {
+      memoireTaux.encours = true;
+      fetch(`/api/facebook-capi?taux=${encodeURIComponent(b)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+        if (j && j.rates && j.base === b) {
+          memoireTaux.rates = j.rates;
+          try { window.localStorage.setItem("rv_taux_auto", JSON.stringify({ base: b, t: Date.now(), rates: j.rates })); } catch (_) {}
+        }
+      }).catch(() => {}).finally(() => { memoireTaux.encours = false; memoireTaux.ecouteurs.forEach((f) => f()); });
+    }
+    return () => { memoireTaux.ecouteurs.delete(ecoute); };
+  }, [actif, b]);
+  return actif && memoireTaux.base === b ? memoireTaux.rates : null;
+}
+
 function usePaysClient(entreprise) {
   const codes = paysDeLaBoutique(entreprise);
   const multi = codes.length >= 2;
@@ -687,8 +722,10 @@ function usePaysClient(entreprise) {
     }).catch(() => {});
   }, [multi, cleCodes, choixValide]); // eslint-disable-line react-hooks/exhaustive-deps
   const principal = entreprise?.country || codes[0] || "";
-  const monnaie = multi && choisi ? monnaieDuPays(entreprise?.storeConfig?.devisesPays, entreprise?.devise, choisi) : null;
-  return { codes, multi, principal, choisi, effectif: multi ? choisi : (entreprise?.country || ""), choisir, detecter, monnaie };
+  // Taux du jour, demandé seulement si le pays choisi a une autre monnaie SANS taux saisi ni parité fixe.
+  const tauxAuto = useTauxAuto(entreprise?.devise, multi && choisi ? besoinTauxAuto(entreprise, choisi) : false);
+  const monnaie = multi && choisi ? monnaieDuPays(entreprise?.storeConfig?.devisesPays, entreprise?.devise, choisi, tauxAuto) : null;
+  return { codes, multi, principal, choisi, effectif: multi ? choisi : (entreprise?.country || ""), choisir, detecter, monnaie, tauxAuto };
 }
 
 // Texte de zone enregistré avec la commande : pays du client (boutique multi-pays) et, s'il paie dans une
@@ -705,7 +742,7 @@ function composerZoneMultiPays(zone, pays, totalBase) {
 // dans quelle monnaie s'affichent les prix et peut changer de pays en un tap.
 function SelecteurPaysEntete({ pays, entreprise, couleurTexte = "white", fond = "rgba(255,255,255,0.2)", hauteur = 36 }) {
   if (!pays || !pays.multi) return null;
-  const libelleDe = (c) => { const m = monnaieDuPays(entreprise?.storeConfig?.devisesPays, entreprise?.devise, c); return m ? m.libelle : libelleDevise(entreprise?.devise); };
+  const libelleDe = (c) => { const m = monnaieDuPays(entreprise?.storeConfig?.devisesPays, entreprise?.devise, c, pays.tauxAuto); return m ? m.libelle : libelleDevise(entreprise?.devise); };
   const info = pays.choisi ? PAYS_INFOS[pays.choisi] : null;
   return (
     <label className="rv-pays-entete" title="Pays et monnaie" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: fond, color: couleurTexte, height: hauteur, padding: "0 9px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>

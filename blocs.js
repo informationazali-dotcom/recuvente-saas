@@ -65,15 +65,29 @@ const DECIMALES_DEVISE = { EUR: 2, USD: 2, GHS: 2, MAD: 2, TND: 2 };
 
 // Monnaie d'affichage pour un pays : null = on garde la devise de la boutique (aucune conversion).
 // `devisesPays` = { GN: { devise: "GNF", taux1000: 15000 } } où taux1000 = montant local pour 1 000 de la devise de base.
-export function monnaieDuPays(devisesPays, deviseBase, codePays) {
+// Parités FIXES par la loi (1 euro = 655,957 F CFA, pour le XOF comme pour le XAF) : aucun taux à saisir.
+const PARITE_EURO_CFA = 655.957;
+export function tauxFixe(devise, base) {
+  const a = String(devise || "").toUpperCase(), b = String(base || "").toUpperCase();
+  const cfa = (x) => x === "XOF" || x === "XAF";
+  if (cfa(a) && cfa(b)) return 1;
+  if (a === "EUR" && cfa(b)) return 1 / PARITE_EURO_CFA;
+  if (cfa(a) && b === "EUR") return PARITE_EURO_CFA;
+  return 0;
+}
+// Taux pour 1 unité de la devise de la boutique : 1) taux saisi par le commerçant, 2) parité fixe (euro/F CFA),
+// 3) taux du jour (tauxAuto = { EUR: 0.0015, … } reçu du serveur). Sinon : on affiche la devise de la boutique.
+export function monnaieDuPays(devisesPays, deviseBase, codePays, tauxAuto) {
   const base = String(deviseBase || "").toUpperCase();
   const reglage = (devisesPays && devisesPays[codePays]) || {};
   const devise = String(reglage.devise || DEVISE_PAR_DEFAUT_PAYS[codePays] || "").toUpperCase();
   if (!devise || !base || devise === base) return null;
   let taux = Number(reglage.taux1000) > 0 ? Number(reglage.taux1000) / 1000 : 0;
-  if (!taux && ((devise === "XOF" && base === "XAF") || (devise === "XAF" && base === "XOF"))) taux = 1; // parité fixe
-  if (!taux) return null; // pas de taux saisi : on n'invente rien, on affiche la devise de la boutique
-  return { devise, libelle: libelleDevise(devise), taux, decimales: DECIMALES_DEVISE[devise] ?? 0 };
+  let auto = false;
+  if (!taux) { taux = tauxFixe(devise, base); auto = taux > 0; }
+  if (!taux && tauxAuto && Number(tauxAuto[devise]) > 0) { taux = Number(tauxAuto[devise]); auto = true; }
+  if (!taux) return null; // aucun taux connu : on n'invente rien, on affiche la devise de la boutique
+  return { devise, libelle: libelleDevise(devise), taux, auto, decimales: DECIMALES_DEVISE[devise] ?? 0 };
 }
 
 // Nombre déjà converti et arrondi, formaté à la française (utilisé à la place de .toLocaleString("fr-FR")).

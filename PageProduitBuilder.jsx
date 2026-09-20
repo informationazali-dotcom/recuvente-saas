@@ -15,7 +15,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { supabase } from "../supabaseClient";
+import { supabase } from "./supabaseClient";
 import { PageProduitPublique } from "./PageProduitRenderer.jsx";
 import {
   REGISTRE_BLOCS, CATEGORIES_BLOCS, TEMPLATES, IDS_TEMPLATES, creerConfig, creerBloc, dupliquerBloc, deplacerElement,

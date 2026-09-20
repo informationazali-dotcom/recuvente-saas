@@ -63,7 +63,7 @@ export function analyserVideo(url) {
   if (yt) return { type: "iframe", src: `https://www.youtube-nocookie.com/embed/${yt[1]}`, poster: `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg` };
   const vim = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vim) return { type: "iframe", src: `https://player.vimeo.com/video/${vim[1]}`, poster: null };
-  if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u) && /^https?:\/\//i.test(u)) return { type: "fichier", src: u, poster: null };
+  if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(u) && /^https?:\/\//i.test(u)) return { type: "fichier", src: u, poster: null };
   return null;
 }
 
@@ -299,7 +299,7 @@ export const REGISTRE_BLOCS = {
     defaut: () => ({ ...PROPS_INFO_DEFAUT(), video_url: "", ratio_galerie: "carre" }),
     champs: [
       ...CHAMPS_INFO_COMMUNS,
-      { cle: "video_url", label: "Vidéo dans la galerie (YouTube, Vimeo ou .mp4)", type: "texte", placeholder: "https://…" },
+      { cle: "video_url", label: "Vidéo dans la galerie", type: "video", aide: "Collez un lien (YouTube, Vimeo, .mp4) ou envoyez une vidéo depuis votre ordinateur." },
       { cle: "ratio_galerie", label: "Format de la galerie", type: "choix", options: [{ v: "carre", l: "Carré" }, { v: "portrait", l: "Portrait (4:5)" }] },
     ],
   },
@@ -308,7 +308,7 @@ export const REGISTRE_BLOCS = {
     description: "Grande galerie seule : image principale, miniatures, zoom, vidéo, plein écran.",
     defaut: () => ({ video_url: "", ratio_galerie: "carre", afficher_miniatures: true, zoom: true }),
     champs: [
-      { cle: "video_url", label: "Vidéo (YouTube, Vimeo ou .mp4)", type: "texte", placeholder: "https://…" },
+      { cle: "video_url", label: "Vidéo", type: "video", aide: "Collez un lien (YouTube, Vimeo, .mp4) ou envoyez une vidéo depuis votre ordinateur." },
       { cle: "ratio_galerie", label: "Format", type: "choix", options: [{ v: "carre", l: "Carré" }, { v: "portrait", l: "Portrait (4:5)" }] },
       { cle: "afficher_miniatures", label: "Afficher les miniatures", type: "oui_non" },
       { cle: "zoom", label: "Autoriser le zoom / plein écran", type: "oui_non" },
@@ -338,12 +338,12 @@ export const REGISTRE_BLOCS = {
   },
   video: {
     label: "Vidéo / démonstration", icone: "🎬", categorie: "contenu",
-    description: "Démonstration du produit (YouTube, Vimeo ou fichier .mp4). Chargée seulement au clic.",
+    description: "Démonstration du produit (lien YouTube / Vimeo, ou fichier envoyé depuis votre ordinateur). Chargée seulement au clic.",
     defaut: () => ({ titre: "Voir le produit en action", sous_titre: "", url: "", legende: "" }),
     champs: [
       { cle: "titre", label: "Titre", type: "texte" },
       { cle: "sous_titre", label: "Sous-titre", type: "texte" },
-      { cle: "url", label: "Lien de la vidéo", type: "texte", placeholder: "https://youtu.be/…", aide: "Sans lien, le bloc n'apparaît pas sur la page publique." },
+      { cle: "url", label: "Vidéo", type: "video", aide: "Collez un lien (YouTube, Vimeo, .mp4) OU envoyez un fichier depuis votre ordinateur. Sans vidéo, le bloc n'apparaît pas sur la page publique." },
       { cle: "legende", label: "Légende", type: "texte" },
     ],
   },
@@ -407,7 +407,7 @@ export const REGISTRE_BLOCS = {
       { cle: "colonnes", label: "Colonnes (desktop)", type: "choix", options: [{ v: "2", l: "2" }, { v: "3", l: "3" }, { v: "4", l: "4" }] },
       {
         cle: "items", label: "Contenus", type: "liste", max: 12,
-        sous: [{ cle: "image", label: "Photo", type: "image" }, { cle: "video_url", label: "Vidéo (optionnel)", type: "texte" }, { cle: "nom", label: "Prénom du client", type: "texte" }, { cle: "texte", label: "Témoignage réel", type: "zone" }],
+        sous: [{ cle: "image", label: "Photo", type: "image" }, { cle: "video_url", label: "Vidéo (optionnel)", type: "video" }, { cle: "nom", label: "Prénom du client", type: "texte" }, { cle: "texte", label: "Témoignage réel", type: "zone" }],
         nouvelElement: () => ({ image: "", video_url: "", nom: "", texte: "" }),
       },
     ],
@@ -866,7 +866,7 @@ const RAISONS = {
 };
 
 const A_FOURNIR = {
-  video: (b) => (b.aVideo ? "Collez le lien de la vidéo dans le bloc." : "Aucune vidéo déclarée : le bloc reste masqué tant qu'il n'y a pas de lien."),
+  video: (b) => (b.aVideo ? "Collez un lien ou envoyez la vidéo depuis votre ordinateur." : "Aucune vidéo déclarée : le bloc reste masqué tant qu'il n'y a pas de lien."),
   ugc: (b) => (b.aUGC ? "Ajoutez vos photos / vidéos clients dans le bloc." : "Aucun contenu client déclaré : bloc masqué tant qu'il est vide."),
   benefices: () => "Rédigez vos bénéfices (ou ils seront repris des « points forts » de la description).",
   avis: (b) => (b.nbAvisReels > 0 ? `${b.nbAvisReels} avis réel(s) seront affichés automatiquement.` : "Aucun avis approuvé pour l'instant : bloc masqué tant qu'il n'y en a pas."),

@@ -123,6 +123,39 @@ function ChampImage({ valeur, onChange, televerser }) {
   );
 }
 
+function ChampVideo({ valeur, onChange, televerser }) {
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const ref = useRef(null);
+  const envoyerFichier = televerser && televerser.video;
+  const estFichierEnvoye = /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(String(valeur || ""));
+  async function choisir(e) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f || !envoyerFichier) return;
+    setErreur("");
+    setEnvoi(true);
+    try { onChange(await envoyerFichier(f)); } catch (err) { setErreur(err?.message || "Envoi impossible."); }
+    setEnvoi(false);
+  }
+  return (
+    <div>
+      {estFichierEnvoye ? <video src={valeur} controls preload="metadata" playsInline style={{ width: "100%", maxHeight: 170, background: "#000", borderRadius: 8, border: `1px solid ${BORD}`, marginBottom: 6, display: "block" }} /> : null}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input style={{ ...champ, flex: 1, minWidth: 0 }} placeholder="Lien YouTube / Vimeo / .mp4" value={valeur || ""} onChange={(e) => onChange(e.target.value)} disabled={envoi} />
+        {valeur ? <button type="button" style={btn({ flex: "0 0 auto", padding: "8px 10px", color: "#B33A2A" })} onClick={() => onChange("")} aria-label="Retirer la vidéo" disabled={envoi}>✕</button> : null}
+      </div>
+      {envoyerFichier && (
+        <button type="button" style={btn({ width: "100%", marginTop: 6, borderStyle: "dashed" })} onClick={() => ref.current?.click()} disabled={envoi}>
+          {envoi ? "⏳ Envoi de la vidéo en cours… ne fermez pas la page" : "📤 Envoyer une vidéo depuis mon ordinateur"}
+        </button>
+      )}
+      <input ref={ref} type="file" accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.webm,.mov,.m4v,.ogg" style={{ display: "none" }} onChange={choisir} />
+      {erreur && <div role="alert" style={{ fontSize: 11.5, color: "#B33A2A", marginTop: 4 }}>{erreur}</div>}
+    </div>
+  );
+}
+
 function ChampListe({ def, valeur, onChange, televerser, produits }) {
   const liste = Array.isArray(valeur) ? valeur : [];
   const max = def.max || 20;
@@ -179,6 +212,7 @@ function Champ({ def, valeur, onChange, televerser, produits, produitCourantId, 
             {def.options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
           </select>
         );
+      case "video": return <ChampVideo valeur={valeur} onChange={onChange} televerser={televerser} />;
       case "image": return <ChampImage valeur={valeur} onChange={onChange} televerser={televerser} />;
       case "produit":
         return (
@@ -805,6 +839,17 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
     return supabase.storage.from("produits").getPublicUrl(chemin).data.publicUrl;
   }
 
+  async function televerserVideo(file) {
+    const ext = ((file?.name || "").split(".").pop() || "").toLowerCase();
+    if (!file || !(String(file.type || "").startsWith("video/") || ["mp4", "webm", "mov", "m4v", "ogg"].includes(ext))) throw new Error("Choisissez un fichier vidéo (.mp4, .webm ou .mov).");
+    if (file.size > 30 * 1024 * 1024) throw new Error("Vidéo trop lourde (max 30 Mo). Pour une vidéo plus longue, mettez-la sur YouTube et collez le lien.");
+    const extSure = ["mp4", "webm", "mov", "m4v", "ogg"].includes(ext) ? ext : "mp4";
+    const chemin = `${workspace.id}-page-${String(produit.id).slice(0, 8)}-video-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${extSure}`;
+    const { error } = await supabase.storage.from("produits").upload(chemin, file, { upsert: true, contentType: file.type || (extSure === "mov" ? "video/quicktime" : `video/${extSure}`) });
+    if (error) throw new Error("Envoi impossible : " + error.message);
+    return supabase.storage.from("produits").getPublicUrl(chemin).data.publicUrl;
+  }
+
   async function sauvegarder(publier) {
     setOccupe(true);
     const maintenant = new Date().toISOString();
@@ -928,7 +973,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
           onVisible={() => blocSelectionne && majBloc(blocSelectionne.id, { visible: blocSelectionne.visible === false })}
           onDupliquer={() => blocSelectionne && dupliquer(blocSelectionne.id)}
           onSupprimer={() => blocSelectionne && supprimerBloc(blocSelectionne.id)}
-          televerser={televerserImage}
+          televerser={Object.assign(televerserImage, { video: televerserVideo })}
           produits={produits}
           produitPublic={produitPublic}
           produitId={produit.id}

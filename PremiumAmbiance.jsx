@@ -119,12 +119,22 @@ function useApparition(ref, actif) {
           el.style.setProperty("--rvd", `${Math.min(i, 8) * 70}ms`);
           el.classList.add("rvA-in");
           io.unobserve(el);
-          const fin = (ev) => {
-            if (ev.target !== el) return;
+          // Filet de sécurité : si l'onglet passe en arrière-plan (ou tout autre cas
+          // où le navigateur suspend/rate l'animation), "animationend" peut ne jamais
+          // se déclencher — l'élément resterait alors bloqué en plein fondu (délavé)
+          // pour toujours. Un délai de secours (largement supérieur à la durée réelle
+          // de l'animation, ~900ms + décalage) force le retour à l'état normal.
+          let termine = false;
+          const nettoyer = () => {
+            if (termine) return;
+            termine = true;
             el.classList.remove("rvA-pre", "rvA-in");
             el.removeEventListener("animationend", fin);
+            clearTimeout(secours);
           };
+          const fin = (ev) => { if (ev.target === el) nettoyer(); };
           el.addEventListener("animationend", fin);
+          const secours = setTimeout(nettoyer, 1800 + Math.min(i, 8) * 70);
         });
       },
       { threshold: 0.08, rootMargin: "0px 0px -6% 0px" }
@@ -144,6 +154,15 @@ function useApparition(ref, actif) {
       });
     }
 
+    // Si l'onglet redevient actif après avoir été en arrière-plan, on ne laisse pas
+    // traîner un élément resté bloqué en fondu (délavé) : on le révèle tout de suite
+    // plutôt que d'attendre le délai de secours.
+    const surRetourOnglet = () => {
+      if (document.visibilityState !== "visible") return;
+      racine.querySelectorAll(".rvA-pre").forEach((el) => el.classList.remove("rvA-pre", "rvA-in"));
+    };
+    document.addEventListener("visibilitychange", surRetourOnglet);
+
     scanner();
     let minuterie = 0;
     const mo = new MutationObserver(() => {
@@ -156,6 +175,7 @@ function useApparition(ref, actif) {
       clearTimeout(minuterie);
       mo.disconnect();
       io.disconnect();
+      document.removeEventListener("visibilitychange", surRetourOnglet);
       racine.querySelectorAll(".rvA-pre").forEach((el) => el.classList.remove("rvA-pre", "rvA-in"));
     };
   }, [actif]);

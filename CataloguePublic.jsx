@@ -418,6 +418,7 @@ const TRADUCTIONS = {
     resultatsPour: "Résultats pour",
     tousLesProduits: "Tous les produits",
     voirTout: "Voir tout →",
+    voirPlus: "Voir plus",
     voirTousLesProduits: "Voir tous les produits",
     aucunResultat: "Aucun produit ne correspond à ta recherche.",
     retourAccueil: "← Retour à l'accueil",
@@ -522,6 +523,7 @@ const TRADUCTIONS = {
     resultatsPour: "Results for",
     tousLesProduits: "All products",
     voirTout: "See all →",
+    voirPlus: "See more",
     voirTousLesProduits: "See all products",
     aucunResultat: "No products match your search.",
     retourAccueil: "← Back to home",
@@ -2880,13 +2882,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
           {listeCollection.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, padding: "30px 0 50px" }}>Aucun produit dans cette collection pour le moment.</div>}
 
-          <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
+          <GrilleMobile className="rv-shop-grid" style={{ paddingBottom: 40 }} couleur={couleur} langue={entreprise.langue}>
             {listeTriee.map((p, i) => (
               <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
                 <CarteProduit p={p} couleur={couleur} devise={formaterDevise(entreprise.devise)} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
               </RevealOnScroll>
             ))}
-          </div>
+          </GrilleMobile>
         </div>
 
         <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} footerConfig={creerFooterConfig(entreprise.storeConfig)} />
@@ -2973,6 +2975,20 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
         @media (max-width: 680px) { .rv-shop-header-whatsapp-txt { display: none; } }
         .rv-shop-banner { height: 150px; }
+        /* Couverture sur téléphone : la photo est montrée ENTIÈRE (hauteur naturelle, plus de bandes
+           rognées à gauche/droite ni de logo qui masque le bas). Le logo et le nom passent juste en
+           dessous, sur la couleur de la marque. Une photo très haute est plafonnée pour rester
+           raisonnable. Ordinateur/tablette : rendu inchangé. */
+        @media (max-width: 639px) {
+          .rv-shop-banner { height: auto !important; overflow: visible !important; background: var(--rv-ban-bg, #1a7a3c); }
+          .rv-shop-banner picture { display: block; }
+          .rv-shop-banner-img { position: static !important; height: auto !important; max-height: 460px; object-fit: cover; object-position: center top; }
+          .rv-shop-banner-fond, .rv-shop-banner-voile { display: none !important; }
+          .rv-shop-hero-content { position: relative !important; padding: 12px 16px 14px !important; }
+          .rv-shop-banner-avec-photo .rv-shop-hero-logo { margin-top: -34px; position: relative; z-index: 1; width: 68px !important; height: 68px !important; }
+          .rv-shop-hero-nom { color: var(--rv-ban-txt, #fff) !important; text-shadow: none !important; }
+          .rv-shop-hero-desc { color: var(--rv-ban-txt, #fff) !important; opacity: .9; text-shadow: none !important; }
+        }
         .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .rv-shop-collection-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .rv-shop-collection-scroll::-webkit-scrollbar { height: 5px; }
@@ -3003,13 +3019,16 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       {entreprise.slug === "luxury-car" ? (
         <HeroLuxuryCar entreprise={entreprise} biensLocation={biensLocation} onOuvrirVehicule={(b) => setBienOuvert(b)} />
       ) : (
-      <div className="rv-shop-banner" style={{ width: "100%", position: "relative", overflow: "hidden" }}>
+      <div className={`rv-shop-banner${entreprise.banniere ? " rv-shop-banner-avec-photo" : ""}`} style={{ width: "100%", position: "relative", overflow: "hidden", "--rv-ban-bg": couleurCssSure(couleur, "#1a7a3c"), "--rv-ban-txt": texteSurFond(couleurCssSure(couleur, "#1a7a3c")) }}>
         {entreprise.banniere ? (
-          <img src={entreprise.banniere} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
+          <picture>
+            {!entreprise.storeConfig?.bannerMobile ? null : <source media="(max-width: 639px)" srcSet={entreprise.storeConfig.bannerMobile} />}
+            <img className="rv-shop-banner-img" src={entreprise.banniere} alt="" fetchpriority="high" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
+          </picture>
         ) : (
-          <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
+          <div className="rv-shop-banner-fond" style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${couleur}, ${couleur}dd)` }} />
         )}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.05) 100%)" }} />
+        <div className="rv-shop-banner-voile" style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.05) 100%)" }} />
         <div className="rv-shop-hero-content" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 16px 18px", display: "flex", alignItems: "flex-end", gap: 14 }}>
           {entreprise.logo && (
             <img
@@ -3136,13 +3155,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         )}
 
-        <div className="rv-shop-grid" style={{ paddingBottom: 20 }}>
+        <GrilleMobile className="rv-shop-grid" style={{ paddingBottom: 20 }} couleur={couleur} langue={entreprise.langue} toutAfficher={!!recherche.trim()}>
           {(recherche.trim() ? produitsFiltres : produitsFiltres.slice(0, NOMBRE_MAX_ACCUEIL)).map((p, i) => (
             <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
               <CarteProduit p={p} couleur={couleur} devise={formaterDevise(entreprise.devise)} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
             </RevealOnScroll>
           ))}
-        </div>
+        </GrilleMobile>
 
         {!recherche.trim() && produitsFiltres.length > NOMBRE_MAX_ACCUEIL && (
           <button
@@ -3883,6 +3902,8 @@ function PiedPageLuxuryCar({ entreprise, biensLocation = [] }) {
 function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLogoClick, collectionsManuelles = [], aDesBestSellers, aDesNouveautes, onNaviguerVersCollection, nbArticlesPanier = 0, onOuvrirPanier, onOuvrirPagePerso }) {
   const t = creerTraducteur(entreprise.langue);
   const [topbarVisible, setTopbarVisible] = useState(true);
+  // Bandeau fermé À LA MAIN avec la croix : il ne revient plus. Masqué seulement par le défilement : il revient en haut de page.
+  const topbarFermeeManuellement = useRef(false);
   const [estFixe, setEstFixe] = useState(false);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const messagesAnnonce = (entreprise.azaliConfig?.messagesAnnonce && entreprise.azaliConfig.messagesAnnonce.length > 0) ? entreprise.azaliConfig.messagesAnnonce : [
@@ -3903,6 +3924,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
       // Le bandeau d'annonces disparaît tout seul dès qu'on commence à faire défiler la page,
       // pour laisser toute la place au contenu — plus besoin de le fermer à la main.
       if (doitEtreFixe) setTopbarVisible(false);
+      else if (window.scrollY < 8 && !topbarFermeeManuellement.current) setTopbarVisible(true);
     }
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
@@ -3920,11 +3942,14 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
   const txtMenu = couleurPersoValide(scAz.headerNavBgColor) ? couleurTextePourFond(bgMenu) : "white";
   const bgPanierHeader = couleurPersoValide(scAz.headerCartBgColor) || "#e8920a";
   const txtPanierHeader = couleurPersoValide(scAz.headerCartBgColor) ? couleurTextePourFond(bgPanierHeader) : "white";
-  const styleFixe = estFixe ? { position: "fixed", top: 0, left: 0, right: 0, width: "100%", zIndex: 40, boxShadow: "0 2px 10px rgba(0,0,0,0.15)" } : {};
+  // Épinglé en "sticky" (et non plus "fixed" + cale de 52px) : l'en-tête reste collé en haut pendant
+  // tout le défilement, sans saut de contenu ni chevauchement quand il se réduit ou passe sur 2 lignes.
+  const styleFixe = estFixe ? { boxShadow: "0 2px 10px rgba(0,0,0,0.15)" } : {};
 
   return (
-    <div style={{ fontFamily: "sans-serif" }}>
+    <>
       <style>{`
+        .rv-azali-sticky { position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 40 !important; font-family: sans-serif; transition: box-shadow .2s ease; }
         .rv-azali-nav-scroll { display: flex; }
         .rv-azali-nav-toggle { display: none; }
         @media (max-width: 760px) {
@@ -3932,8 +3957,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           .rv-azali-nav-toggle { display: flex; }
         }
       `}</style>
-      {estFixe && <div style={{ height: 52 }} />}
-      <div style={styleFixe}>
+      <div className="rv-azali-sticky" style={styleFixe}>
         {topbarVisible && (
           <div style={{ background: bgAnnonce, color: txtAnnonce, padding: "7px 30px", position: "relative" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
@@ -3941,12 +3965,12 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
                 <span key={i} style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{m.icone} {m.texte}</span>
               ))}
             </div>
-            <button onClick={() => setTopbarVisible(false)} aria-label="Fermer" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 13 }}>✕</button>
+            <button onClick={() => { topbarFermeeManuellement.current = true; setTopbarVisible(false); }} aria-label="Fermer" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 13 }}>✕</button>
           </div>
         )}
 
         <div style={{ background: bgPrincipal, padding: estFixe ? "6px 16px" : "10px 16px", transition: "padding 0.2s ease" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: estFixe ? 8 : 14, flexWrap: "wrap" }}>
             <button
               className="rv-azali-nav-toggle"
               onClick={() => setMenuMobileOuvert((v) => !v)}
@@ -3969,7 +3993,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
               </div>
             )}
 
-            <div style={{ flex: 1, minWidth: 140, display: "flex", background: "white", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ flex: 1, minWidth: estFixe ? 90 : 140, display: "flex", background: "white", borderRadius: 8, overflow: "hidden" }}>
               <span style={{ padding: estFixe ? "6px 0 6px 12px" : "10px 0 10px 14px", fontSize: 13, color: "#8A9089" }}>🔍</span>
               <input
                 value={recherche}
@@ -4065,7 +4089,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
       </div>
 
       {entreprise.whatsapp && (
-        <div style={{ background: "#25d366", color: "white", textAlign: "center", padding: "8px 12px", fontSize: 12, fontWeight: 600 }}>
+        <div style={{ fontFamily: "sans-serif", background: "#25d366", color: "white", textAlign: "center", padding: "8px 12px", fontSize: 12, fontWeight: 600 }}>
           💬 {t("besoinAide") || "Besoin d'aide ? Contactez-nous"} — réponse en moins de 30 min !{" "}
           <a
             href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
@@ -4077,7 +4101,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           </a>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -4090,6 +4114,10 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   // qu'il libère de la place sans jamais disparaître. Un seul booleen à changer, lu
   // via requestAnimationFrame : aucune boucle continue, donc aucun impact sur la fluidité.
   const [enteteRepliee, setEnteteRepliee] = useState(false);
+  // Sur téléphone, en-tête replié : la barre de recherche se range derrière une petite loupe
+  // (l'en-tête tient alors sur UNE seule fine ligne) ; un tap sur la loupe la rouvre.
+  const [rechercheOuverte, setRechercheOuverte] = useState(false);
+  useEffect(() => { if (!enteteRepliee) setRechercheOuverte(false); }, [enteteRepliee]);
   useEffect(() => {
     let ticking = false;
     function verifier() {
@@ -4155,7 +4183,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   const afficherPanier = headerConfig?.showPanier !== false;
 
   return (
-    <div className="rv-shop-header-sticky" style={{ background: bgHeader, borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+    <div className={`rv-shop-header-sticky${enteteRepliee ? " rv-shop-header-replie" : ""}`} style={{ background: bgHeader, borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
       <style>{`
         /* Position en CSS (avec le préfixe -webkit-) plutôt qu'en style inline : certains
            anciens navigateurs (Safari iOS < 13, webviews WhatsApp/Instagram intégrées,
@@ -4174,6 +4202,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
            texte réduits en douceur, pour laisser plus de place au contenu qui défile. */
         .rv-shop-hdr-row-compact .rv-shop-header-logo { width: 28px; height: 28px; border-radius: 8px; }
         .rv-shop-hdr-row-compact .rv-shop-header-nom { font-size: 13.5px; }
+        .rv-shop-search-btn { display: none; }
         @media (max-width: 680px) {
           .rv-shop-nav-desktop { display: none; }
           .rv-shop-nav-toggle { display: flex; }
@@ -4194,9 +4223,16 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           .rv-shop-hdr-row-compact .rv-shop-header-nom { font-size: 13px; -webkit-line-clamp: 1; }
           .rv-shop-hdr-row-compact .rv-shop-header-logo { width: 26px; height: 26px; }
           .rv-shop-hdr-row-compact .rv-shop-header-search input { padding-top: 7px; padding-bottom: 7px; }
+          /* Replié sur téléphone : une seule ligne fine (menu, logo, nom, loupe, panier). */
+          .rv-shop-hdr-row-compact:not(.rv-shop-search-open) .rv-shop-header-search { display: none; }
+          .rv-shop-hdr-row-compact .rv-shop-search-btn { display: flex; }
+          .rv-shop-hdr-row-compact .rv-shop-header-whatsapp { width: 34px; height: 34px; }
+          .rv-shop-hdr-row-compact .rv-shop-nav-toggle, .rv-shop-hdr-row-compact .rv-shop-cart-btn, .rv-shop-hdr-row-compact .rv-shop-search-btn { width: 34px !important; height: 34px !important; }
         }
+        .rv-shop-header-sticky { transition: box-shadow .2s ease; }
+        .rv-shop-header-sticky.rv-shop-header-replie { box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
       `}</style>
-      <div style={{ background: couleurPersoValide(entreprise.storeConfig?.headerBarreBgColor) || "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1 }}>
+      <div style={{ background: couleurPersoValide(entreprise.storeConfig?.headerBarreBgColor) || "rgba(0,0,0,0.12)", overflow: "hidden", maxHeight: enteteRepliee ? 0 : 40, opacity: enteteRepliee ? 0 : 1, transition: "max-height .22s ease, opacity .18s ease" }}>
         <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "6px 16px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
           {headerConfig?.barreTop ? (
             <span style={{ fontSize: 10.5, fontWeight: 600, color: texteHeader, opacity: 0.95, textAlign: "center" }}>{headerConfig.barreTop}</span>
@@ -4208,8 +4244,8 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         </div>
       </div>
 
-      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: enteteRepliee ? "6px 16px" : "10px 16px" }}>
-        <div className={`rv-shop-hdr-row${enteteRepliee ? " rv-shop-hdr-row-compact" : ""}`}>
+      <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: enteteRepliee ? "6px 16px" : "10px 16px", transition: "padding .2s ease" }}>
+        <div className={`rv-shop-hdr-row${enteteRepliee ? " rv-shop-hdr-row-compact" : ""}${(rechercheOuverte || String(recherche || "").trim()) ? " rv-shop-search-open" : ""}`}>
           {aDesLiensNav && (
             <button
               className="rv-shop-nav-toggle"
@@ -4243,6 +4279,18 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
             </div>
           )}
 
+          {afficherRecherche && (
+            <button
+              type="button"
+              className="rv-shop-search-btn"
+              aria-label="Rechercher"
+              onClick={() => { setRechercheOuverte((v) => !v); setTimeout(() => document.querySelector(".rv-shop-header-search input")?.focus(), 60); }}
+              style={{ alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.2)", border: "none", color: texteHeader, width: 36, height: 36, borderRadius: 9, fontSize: 15, cursor: "pointer", flexShrink: 0 }}
+            >
+              🔍
+            </button>
+          )}
+
           {entreprise.whatsapp && (
             <a
               href={`https://wa.me/${formaterTelWhatsapp(entreprise.whatsapp, entreprise.country)}`}
@@ -4258,6 +4306,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           {afficherPanier && onOuvrirPanier && (
             <button
               onClick={onOuvrirPanier}
+              className="rv-shop-cart-btn"
               style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: couleurPersoValide(entreprise.storeConfig?.headerCartBgColor) || "rgba(255,255,255,0.2)", border: "none", color: couleurPersoValide(entreprise.storeConfig?.headerCartBgColor) ? couleurTextePourFond(entreprise.storeConfig.headerCartBgColor) : texteHeader, width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
             >
               🛒
@@ -4415,6 +4464,61 @@ function RevealOnScroll({ children, delai = 0 }) {
     >
       {children}
     </div>
+  );
+}
+
+// ===== GRILLES SUR TÉLÉPHONE : 4 produits bien alignés + « Voir plus » =====
+// Sur mobile, les grilles sont en 2 colonnes. Avec 5 (ou 7, 9…) éléments, le dernier restait
+// seul, décalé sur la gauche avec un trou à côté. Ici : on affiche d'abord 4 éléments (2 lignes
+// complètes), puis « Voir plus » en révèle 8 de plus à chaque clic — RIEN n'est jamais caché
+// définitivement : 9 produits = 9 affichables. Si le total révélé est impair, le dernier est
+// centré (jamais collé à gauche avec un vide). Sur ordinateur/tablette : aucun changement.
+// Le nombre d'éléments déjà révélés est gardé HORS du composant (Map) : certaines grilles sont
+// recréées quand la page se met à jour (ex. ajout au panier) et repartiraient sinon à 4.
+const memoireGrillesMobile = new Map();
+function useEcranMobile() {
+  const lire = () => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 639px)").matches : false);
+  const [mobile, setMobile] = useState(lire);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const maj = () => setMobile(mq.matches);
+    maj();
+    if (mq.addEventListener) mq.addEventListener("change", maj); else if (mq.addListener) mq.addListener(maj);
+    return () => { if (mq.removeEventListener) mq.removeEventListener("change", maj); else if (mq.removeListener) mq.removeListener(maj); };
+  }, []);
+  return mobile;
+}
+function GrilleMobile({ className, style, colonnes = 2, ecart = 12, toutAfficher = false, couleur = "#1a7a3c", langue, children }) {
+  const mobile = useEcranMobile();
+  const t = creerTraducteur(langue);
+  const elements = React.Children.toArray(children);
+  const depart = colonnes === 3 ? 6 : 4;
+  const pas = colonnes === 3 ? 12 : 8;
+  const cle = `${elements.length ? String(elements[0].key) : ""}|${colonnes}`;
+  const [nb, setNbBrut] = useState(() => memoireGrillesMobile.get(cle) || depart);
+  const setNb = (v) => { memoireGrillesMobile.set(cle, v); setNbBrut(v); };
+  const pagine = mobile && !toutAfficher && elements.length > depart;
+  const affiches = pagine ? elements.slice(0, nb) : elements;
+  const reste = elements.length - affiches.length;
+  const orphelin = mobile && colonnes === 2 && affiches.length % 2 === 1;
+  return (
+    <>
+      <style>{`.rv-gm-orphelin > :last-child{grid-column:1 / -1;justify-self:center;width:calc((100% - var(--rv-gm-ecart,12px)) / 2) !important;box-sizing:border-box}`}</style>
+      <div className={`${className || ""}${orphelin ? " rv-gm-orphelin" : ""}`} style={{ ...(style || {}), "--rv-gm-ecart": `${ecart}px` }}>
+        {affiches}
+      </div>
+      {reste > 0 && (
+        <button
+          type="button"
+          className="rv-gm-plus"
+          onClick={() => setNb(nb + pas)}
+          style={{ display: "block", width: "100%", background: "white", border: `1.5px solid ${couleur}`, color: couleur, borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer", margin: "4px 0 26px", touchAction: "manipulation" }}
+        >
+          {t("voirPlus")} ({reste})
+        </button>
+      )}
+    </>
   );
 }
 
@@ -5832,13 +5936,13 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
     if (!liste.length) return <div style={{ padding: 16, textAlign: "center", background: "#f6f9f6", borderRadius: 10, color: "#728078", fontSize: 12 }}>Aucun produit pour le moment.</div>;
     const estAzaliIci = entreprise.slug === "azaliexpress";
     return (
-      <div className="rv-builder-grid-produits">
+      <GrilleMobile className="rv-builder-grid-produits" couleur={couleur} langue={entreprise.langue}>
         {liste.slice(0, max || 12).map((p, i) => (
           <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
             <CarteProduit p={p} couleur={couleur} devise={devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} estAzali={estAzaliIci} />
           </RevealOnScroll>
         ))}
-      </div>
+      </GrilleMobile>
     );
   }
 
@@ -6171,13 +6275,13 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
 
           {produitsCol.length > 0 && (
             <div style={{ maxWidth: 1100, margin: "0 auto", padding: styleFc === "editorial" ? "0 16px clamp(24px,4vw,44px)" : "clamp(22px,4vw,40px) 16px" }}>
-              <div className={classeGrille}>
+              <GrilleMobile className={classeGrille} colonnes={Number(colMobile) === 3 ? 3 : Number(colMobile) === 1 ? 1 : 2} ecart={10} couleur={couleur} langue={entreprise.langue}>
                 {produitsCol.slice(0, nbAAfficher).map((p, i) => (
                   <div key={p.produit_id} className={`${uid}-card`} style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}>
                     <CarteProduit p={p} couleur={couleur} devise={entreprise.devise} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={onAjouterAuPanier} />
                   </div>
                 ))}
-              </div>
+              </GrilleMobile>
               {produitsCol.length > nbAAfficher && (
                 <div style={{ textAlign: "center", marginTop: 26 }}>
                   <button className={`${uid}-more`} onClick={() => setCollectionOuverte(`manuelle-${col.id}`)}>
@@ -6331,9 +6435,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       }
       return (
       <div style={{ textAlign: "center" }}>
-        <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} @media(max-width:640px){.rv-hero-couverture{height:clamp(260px,75vw,480px)}}`}</style>
+        <style>{`.rv-hero-couverture{width:100%;height:clamp(380px,48vw,800px);object-fit:cover;display:block} .rv-hero-picture{display:block} @media(max-width:640px){.rv-hero-couverture{height:auto;max-height:520px;object-fit:cover;object-position:center top}}`}</style>
         {entreprise.banniere ? (
-          <img src={entreprise.banniere} alt="" className="rv-hero-couverture" onError={(e) => { e.target.style.display = "none"; }} />
+          <picture className="rv-hero-picture">
+            {config.bannerMobile ? <source media="(max-width: 640px)" srcSet={config.bannerMobile} /> : null}
+            <img src={entreprise.banniere} alt="" className="rv-hero-couverture" fetchpriority="high" decoding="async" onError={(e) => { e.target.style.display = "none"; }} />
+          </picture>
         ) : (
           <div style={{ padding: "50px 20px", background: `linear-gradient(135deg,${couleurSection},#0b2416)`, color: "#fff" }}>
             <div style={{ fontSize: 28, fontWeight: 950 }}>{config.heroTitle}</div>
@@ -6478,9 +6585,9 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 15px", fontSize: 20, color: "#14221b" }}>Notre univers</h3>
-          <div className="rv-builder-grid-galerie">
+          <GrilleMobile className="rv-builder-grid-galerie" ecart={9} couleur={couleur} langue={entreprise.langue}>
             {config.gallery.map((u, i) => <img key={i} src={u} alt="" loading="lazy" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />)}
-          </div>
+          </GrilleMobile>
         </div>
       );
     }

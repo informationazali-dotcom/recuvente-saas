@@ -4016,9 +4016,25 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadProduits();
   }
 
+  // Enregistre les réglages d'un produit (livraison, bundles, variantes…) et RENVOIE le résultat :
+  // avant, une erreur (colonne absente, droit refusé…) était ignorée en silence et l'écran affichait
+  // « Enregistré » alors que rien n'avait été sauvegardé — les bundles « disparaissaient » au retour.
+  // Si l'enregistrement groupé échoue, on réessaie champ par champ pour sauver tout ce qui peut l'être
+  // et dire précisément ce qui a échoué.
   async function updateProduitLivraisonBundles(id, patch) {
-    await supabase.from("produits").update(patch).eq("id", id);
+    const echecs = [];
+    const essai = await supabase.from("produits").update(patch).eq("id", id).select("id");
+    if (essai.error) {
+      for (const [cle, valeur] of Object.entries(patch)) {
+        const r = await supabase.from("produits").update({ [cle]: valeur }).eq("id", id).select("id");
+        if (r.error) echecs.push({ cle, message: r.error.message });
+        else if (!r.data || r.data.length === 0) echecs.push({ cle, message: "aucune ligne modifiée (droit refusé ?)" });
+      }
+    } else if (!essai.data || essai.data.length === 0) {
+      echecs.push({ cle: "produit", message: "aucune ligne modifiée (droit refusé ?)" });
+    }
     await loadProduits();
+    return { ok: echecs.length === 0, echecs };
   }
 
   async function updateProduitDescription(id, description) {
@@ -12299,6 +12315,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [optionsProduit, setOptionsProduit] = useState([{ nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }]);
   const [variantesListe, setVariantesListe] = useState([]);
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
+  const [erreurEnreg, setErreurEnreg] = useState(null); // échec d'enregistrement à afficher (livraison / bundles / variantes)
 
   const produitsFiltres = recherche.trim()
     ? produits.filter((p) => p.nom.toLowerCase().includes(recherche.trim().toLowerCase()))
@@ -13189,18 +13206,25 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
                   <div>
                     <button
-                      onClick={() => {
-                        onUpdateLivraisonBundles(selected.id, {
+                      onClick={async () => {
+                        setErreurEnreg(null);
+                        const res = await onUpdateLivraisonBundles(selected.id, {
                           options: optionsProduit.filter((o) => o.nom.trim() && o.valeursTexte.trim()).map((o) => ({ nom: o.nom.trim(), valeurs: o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean) })),
                           variantes: variantesListe.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: v.stock === "" ? 0 : Number(v.stock) })),
                         });
-                        flash("variantes");
+                        if (res && !res.ok) setErreurEnreg({ zone: "variantes", echecs: res.echecs });
+                        else flash("variantes");
                       }}
                       style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                     >
                       Enregistrer les variantes
                     </button>
                     {savedFlash === "variantes" && <ConfirmationEnregistre inline />}
+                    {erreurEnreg && erreurEnreg.zone === "variantes" && (
+                      <div role="alert" style={{ marginTop: 10, background: "#FDECEA", border: "1px solid #F2B8B0", color: "#8A2A1E", borderRadius: 9, padding: "10px 12px", fontSize: 12.5 }}>
+                        ⚠️ Les variantes n'ont pas pu être enregistrées : {erreurEnreg.echecs.map((e) => e.message).join(" ; ")}
+                      </div>
+                    )}
                   </div>
                 </Carte>
 
@@ -13344,8 +13368,9 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
                   <div>
                     <button
-                      onClick={() => {
-                        onUpdateLivraisonBundles(selected.id, {
+                      onClick={async () => {
+                        setErreurEnreg(null);
+                        const res = await onUpdateLivraisonBundles(selected.id, {
                           livraison_gratuite: livraison.livraison_gratuite,
                           livraison_gratuite_qte_min: livraison.livraison_gratuite_qte_min === "" ? null : Number(livraison.livraison_gratuite_qte_min),
                           frais_livraison_produit: livraison.frais_livraison_produit === "" ? null : Number(livraison.frais_livraison_produit),
@@ -13357,13 +13382,21 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           produits_similaires_ids: livraison.produits_similaires_ids,
                           produits_similaires_collection_id: livraison.produits_similaires_collection_id || null,
                         });
-                        flash("livraison");
+                        if (res && !res.ok) setErreurEnreg({ zone: "livraison", echecs: res.echecs });
+                        else flash("livraison");
                       }}
                       style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                     >
                       Enregistrer la livraison & les bundles
                     </button>
                     {savedFlash === "livraison" && <ConfirmationEnregistre inline />}
+                    {erreurEnreg && erreurEnreg.zone === "livraison" && (
+                      <div role="alert" style={{ marginTop: 10, background: "#FDECEA", border: "1px solid #F2B8B0", color: "#8A2A1E", borderRadius: 9, padding: "10px 12px", fontSize: 12.5, lineHeight: 1.45 }}>
+                        <div style={{ fontWeight: 800, marginBottom: 4 }}>⚠️ Tout n'a pas pu être enregistré{erreurEnreg.echecs.some((e) => e.cle === "bundles") ? " — les bundles ne sont PAS sauvegardés" : ""}.</div>
+                        {erreurEnreg.echecs.map((e) => <div key={e.cle}>• <b>{e.cle}</b> : {e.message}</div>)}
+                        <div style={{ marginTop: 6 }}>Le reste de tes réglages a bien été enregistré. Envoie une capture de ce message pour qu'on corrige.</div>
+                      </div>
+                    )}
                   </div>
                 </Carte>
 

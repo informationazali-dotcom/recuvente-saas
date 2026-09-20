@@ -3,7 +3,7 @@ import { PanneauAmbiance } from "./PremiumAmbiance.jsx";
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass, Menu, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
-import CataloguePublic from "./CataloguePublic.jsx";
+import CataloguePublic, { GrilleCollections } from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
 import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
 import NetworkDashboard from "./network/NetworkDashboard.jsx";
@@ -2636,8 +2636,10 @@ function PanneauCollectionsBuilder({workspace,collections,setCollections,collect
     <div style={{fontSize:12.5,fontWeight:950,color:'#17241d',marginBottom:4}}>🗂️ Mes collections</div>
     <div style={{fontSize:10,color:'#647168',lineHeight:1.5,marginBottom:10}}>Renomme tes collections et choisis l'image de chacune. Le nouveau nom est pris en compte tout de suite ; l'image et le style demandent « Enregistrer et publier ».</div>
     <label style={{display:'block',fontSize:10.5,color:'#647168',fontWeight:750,marginBottom:10}}>Style des tuiles
-      <select style={champ} value={config.collectionTilesStyle||'photo'} onChange={e=>update('collectionTilesStyle',e.target.value)}>
-        <option value="photo">Photo (une grande image par collection)</option>
+      <select style={champ} value={config.collectionTilesStyle||'editorial'} onChange={e=>update('collectionTilesStyle',e.target.value)}>
+        <option value="editorial">Vitrine de marque (1 grande + petites tuiles)</option>
+        <option value="ronds">Cercles (catégories, défilement)</option>
+        <option value="photo">Cartes photo (grille régulière)</option>
         <option value="mosaique">Mosaïque (4 photos de produits)</option>
       </select>
     </label>
@@ -2676,7 +2678,7 @@ function PanneauCollectionsBuilder({workspace,collections,setCollections,collect
   </div>;
 }
 
-function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuvrirParametresAvances }) {
+function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuvrirParametresAvances, onEnregistre }) {
   const storageKey = `rv_store_builder_${workspace?.id || 'demo'}`;
   const [regenLienEnCours, setRegenLienEnCours] = useState(false);
   const [genererIAEnCours, setGenererIAEnCours] = useState(false);
@@ -2792,6 +2794,22 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     }
     try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');return saved?{...defaults,...saved,...champsToujoursFrais}:{...defaults,...champsToujoursFrais}}catch(_){return {...defaults,...champsToujoursFrais}}
   });
+  // Au moment d'ouvrir le Store Builder, on relit la version RÉELLEMENT enregistrée en base (et non
+  // celle chargée à la connexion, qui peut être ancienne) — tant que tu n'as encore rien modifié.
+  const configDepart=useRef(null);
+  if(configDepart.current===null)configDepart.current=JSON.stringify(config);
+  useEffect(()=>{let vivant=true;(async()=>{
+    if(!workspace?.id)return;
+    try{
+      const {data}=await supabase.from('workspaces').select('store_config,logo_url,banniere_url,couleur_marque,name,description_boutique').eq('id',workspace.id).maybeSingle();
+      if(!vivant||!data)return;
+      if(data.store_config&&typeof data.store_config==='object'){
+        const fraiche={...defaults,...data.store_config,logo:data.logo_url||'',banniere:data.banniere_url||'',couleur:data.couleur_marque||defaults.couleur,nom:data.name||defaults.nom,description:data.description_boutique||defaults.description};
+        // Rien n'a encore été modifié dans cette session d'édition → on prend la version enregistrée.
+        setConfig(actuelle=>{if(JSON.stringify(actuelle)!==configDepart.current)return actuelle;configDepart.current=JSON.stringify(fraiche);return fraiche;});
+      }
+    }catch(_){}
+  })();return()=>{vivant=false}},[workspace?.id]);
   const [selected,setSelected]=useState('hero'); const [device,setDevice]=useState('desktop'); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [published,setPublished]=useState(false); const [showAdd,setShowAdd]=useState(false); const [uploading,setUploading]=useState(null);
   const [publishedSnapshot,setPublishedSnapshot]=useState(()=>workspace?.store_config_published||null);
   const [collections,setCollections]=useState([]);
@@ -3054,6 +3072,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
       }
     }
     setPublishedSnapshot(config);
+    if(workspace?.id&&onEnregistre){try{onEnregistre({name:config.nom,couleur_marque:config.couleur,description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:config,store_config_published:config,store_is_published:true});}catch(_){}}
     setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
     return true;
   }
@@ -3143,19 +3162,8 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
   function CarteApercu({image,nom,prix}){
     return <div className="rv-pc"><div className="rv-pc-media"><div className="rv-pc-halo"/>{image?<img src={image} alt=""/>:'\uD83D\uDECD\uFE0F'}<span className="rv-pc-shine"/><span className="rv-pc-coins"><i/></span></div><div className="rv-pc-corps"><div className="rv-pc-nom">{nom}</div>{prix?<div className="rv-pc-prix">{prix}</div>:null}</div></div>;
   }
-  function TuileApercu({c}){
-    const photos=(collectionProduitsMap[c.id]||[]).map(p=>p.photo_url).filter(Boolean);
-    const dediee=(config.collectionsImages&&config.collectionsImages[c.id])||c.image_url||'';
-    const mos=!dediee&&config.collectionTilesStyle==='mosaique'&&photos.length>=2;
-    const img=dediee||photos[0]||'';
-    const nb=(collectionProduitsMap[c.id]||[]).length||c.count||0;
-    return <div style={{position:'relative',aspectRatio:'4/5',borderRadius:device==='mobile'?12:15,overflow:'hidden',background:`linear-gradient(145deg,${config.couleur},#0b1a12)`,boxShadow:'0 6px 16px rgba(16,31,26,.1)'}}>
-      {mos?<div style={{position:'absolute',inset:0,display:'grid',gridTemplateColumns:'1fr 1fr',gridTemplateRows:'1fr 1fr',gap:2,background:'#fff'}}>{photos.slice(0,4).map((u,i)=><img key={i} src={u} alt="" style={{width:'100%',height:'100%',objectFit:'cover',minHeight:0}}/>)}</div>
-      :img?<img src={img} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center 35%'}}/>
-      :<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:56,fontWeight:900,color:'rgba(255,255,255,.35)',paddingBottom:'26%'}}>{String(nomCollectionAffiche(c.nom||c.name)||'?').charAt(0).toUpperCase()}</div>}
-      <div style={{position:'absolute',left:0,right:0,bottom:0,padding:'34px 10px 10px',background:'linear-gradient(180deg,rgba(6,14,10,0),rgba(6,14,10,.85))',color:'#fff'}}><div style={{fontWeight:800,fontSize:device==='mobile'?11.5:13,lineHeight:1.2}}>{nomCollectionAffiche(c.nom||c.name)}</div><div style={{fontSize:9.5,opacity:.88,marginTop:2}}>{nb} article{nb>1?'s':''} →</div></div>
-    </div>;
-  }
+  // Aperçu des collections : EXACTEMENT le même composant que sur la boutique publique.
+  const collectionsApercu=(liste)=><GrilleCollections collections={liste.map(c=>({...c,nom:c.nom||c.name,image:c.image_url||''}))} produitsDe={c=>collectionProduitsMap[c.id]||[]} config={config} couleur={config.couleur} onOpen={()=>{}} max={8}/>;
   function PreviewSection({type}){
     const coul=config.sectionColors?.[type]||config.couleur;
     const common={padding:'28px 22px',borderBottom:'1px solid #edf1ee'};
@@ -3166,7 +3174,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(type==='stats')return <div style={{...common,textAlign:'center',background:'#FAFAF7'}}><div style={{fontSize:10,color:'#8A9089',fontWeight:800,marginBottom:16,letterSpacing:'.05em'}}>NOS CHIFFRES</div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:12}}>{(config.statsItems||[]).map((s,i)=><div key={i}><div style={{fontSize:device==='mobile'?18:24,fontWeight:950,color:coul}}>{s.valeur}</div><div style={{fontSize:10,color:'#6B7168',marginTop:4}}>{s.label}</div></div>)}</div></div>;
     if(type==='brands_cta')return <div style={{...common,textAlign:'center',background:'#16231F'}}><div style={{fontWeight:900,fontSize:device==='mobile'?15:18,color:'#fff',marginBottom:8}}>{config.brandsCtaTitre}</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.65)',maxWidth:420,margin:'0 auto 16px',lineHeight:1.6}}>{config.brandsCtaTexte}</div><button style={{border:0,borderRadius:10,padding:'11px 22px',background:'#25d366',color:'#fff',fontWeight:900,fontSize:12}}>💬 Écrire sur WhatsApp</button></div>;
     if(type==='payment_methods')return <div style={{...common,textAlign:'center'}}><div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:8}}>{(config.paymentMethodsListe||[]).map((m,i)=><div key={i} style={{background:'#FAFAF7',border:'1px solid #ECE8DC',borderRadius:8,padding:'8px 13px',fontSize:11,fontWeight:700,color:'#16231F'}}>{m}</div>)}</div></div>;
-    if(type==='category_tiles')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Faites vos achats par catégorie</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:device==='tablet'?3:4},1fr)`,gap:device==='mobile'?10:14}}>{derivedCollections.slice(0,8).map(c=><TuileApercu key={c.id} c={c}/>)}{!derivedCollections.length&&<div style={{gridColumn:'1/-1',padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Crée des collections dans « Produits → Collections » pour remplir cette grille.</div>}</div></div>;
+    if(type==='category_tiles')return <div style={common}><div style={{fontSize:10,fontWeight:800,letterSpacing:'.18em',textTransform:'uppercase',color:coul,marginBottom:6}}>Catégories</div><h3 style={{margin:'0 0 16px',fontSize:22,letterSpacing:'-.01em',color:'#14221b'}}>Faites vos achats par catégorie</h3>{derivedCollections.length?collectionsApercu(derivedCollections):<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Crée des collections dans « Produits → Collections » pour remplir cette grille.</div>}</div>;
     if(type==='featured_product'||baseSectionType(type)==='featured_product'){const suf=suffixeSection(type);const kId=`featuredProductId${suf}`,kLabel=`featuredProductLabel${suf}`,kPos=`featuredProductPosition${suf}`;const p=products.find(x=>x.id===config[kId])||null;const inverse=config[kPos]==='droite';return <div style={{...common,padding:0}}>{!p?<div style={{padding:24,textAlign:'center',background:'#f6f9f6',color:'#728078',fontSize:11}}>Choisis un produit dans le panneau de droite.</div>:<div style={{display:'flex',flexDirection:device==='mobile'?'column':(inverse?'row-reverse':'row')}}><div style={{flex:1,minHeight:device==='mobile'?180:260,background:p.image?`url(${p.image}) center/cover`:'#eef3ee',display:p.image?undefined:'flex',alignItems:'center',justifyContent:'center',fontSize:34}}>{!p.image&&'🛍️'}</div><div style={{flex:1,padding:'26px 24px',display:'flex',flexDirection:'column',justifyContent:'center'}}><div style={{fontSize:10,fontWeight:900,color:coul,letterSpacing:'.06em',marginBottom:6}}>{(config[kLabel]||'').toUpperCase()}</div><div style={{fontSize:device==='mobile'?18:23,fontWeight:900,color:'#132019',marginBottom:8}}>{p.name}</div><div style={{fontSize:12,color:'#68756d',lineHeight:1.65,marginBottom:12}}>{(p.description||'').slice(0,160)}{(p.description||'').length>160?'…':''}</div><div style={{fontSize:18,fontWeight:900,color:coul,marginBottom:12}}>{p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):''}</div><button style={{alignSelf:'flex-start',border:0,borderRadius:10,padding:'11px 20px',background:coul,color:'#fff',fontWeight:900,fontSize:11.5}}>{config.buttonText||'Découvrir'}</button></div></div>}</div>;}
     if(type==='rich_text'||baseSectionType(type)==='rich_text'){const suf=suffixeSection(type);return <div style={{...common,textAlign:'center'}}><div style={{fontSize:device==='mobile'?19:24,fontWeight:900,color:'#132019',marginBottom:10}}>{config[`richTextTitre${suf}`]}</div><div style={{fontSize:12.5,color:'#68756d',lineHeight:1.75,maxWidth:560,margin:'0 auto'}}>{config[`richTextTexte${suf}`]}</div></div>;}
     if(type==='video'||baseSectionType(type)==='video'){const suf=suffixeSection(type);return <div style={common}>{config[`videoTitre${suf}`]&&<div style={{fontSize:18,fontWeight:900,color:'#132019',marginBottom:12,textAlign:'center'}}>{config[`videoTitre${suf}`]}</div>}{config[`videoUrl${suf}`]?<div style={{position:'relative',paddingTop:'56.25%',borderRadius:12,overflow:'hidden',background:'#000'}}><iframe src={urlEmbedVideo(config[`videoUrl${suf}`])} style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}} allowFullScreen/></div>:<div style={{padding:40,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Colle un lien YouTube ou Vimeo dans le panneau de droite.</div>}</div>;}
@@ -3184,7 +3192,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(type==='scrolling_alert')return <div style={{padding:'9px 0',background:coul,overflow:'hidden',whiteSpace:'nowrap'}}><div style={{display:'inline-block',color:'#fff',fontSize:10.5,fontWeight:800}}>{(config.scrollingAlertTexte||'').repeat(4)}</div></div>;
     if(type==='two_images_text'||baseSectionType(type)==='two_images_text'){const suf=suffixeSection(type);return <div style={{...common,textAlign:'center'}}><div style={{fontSize:device==='mobile'?18:22,fontWeight:900,color:'#132019',marginBottom:8}}>{config[`twoImagesTextTitre${suf}`]}</div><div style={{fontSize:12,color:'#68756d',lineHeight:1.6,maxWidth:480,margin:'0 auto 16px'}}>{config[`twoImagesTextTexte${suf}`]}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,maxWidth:480,margin:'0 auto'}}>{[config[`twoImagesTextImage1${suf}`],config[`twoImagesTextImage2${suf}`]].map((img,i)=><div key={i} style={{height:device==='mobile'?90:140,borderRadius:12,background:img?`url(${img}) center/cover`:'#eef3ee',display:img?undefined:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>{!img&&'🖼️'}</div>)}</div></div>;}
     if(type==='wavy_banner'||baseSectionType(type)==='wavy_banner'){const suf=suffixeSection(type);return <div style={{...common,padding:0}}><div style={{background:coul,padding:'34px 20px',textAlign:'center',position:'relative',clipPath:'ellipse(60% 100% at 50% 0%)'}}><div style={{color:'#fff',fontWeight:900,fontSize:device==='mobile'?17:21,marginBottom:14,marginTop:10}}>{config[`wavyBannerTitre${suf}`]}</div><button style={{border:0,borderRadius:999,padding:'10px 22px',background:'#fff',color:coul,fontWeight:900,fontSize:11.5}}>{config[`wavyBannerBouton${suf}`]}</button></div></div>;}
-    if(type==='collections')return <div style={common}><h3 style={{margin:'0 0 15px',fontSize:20,color:'#14221b'}}>Explorer les collections</h3><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:device==='tablet'?3:4},1fr)`,gap:device==='mobile'?10:14}}>{derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id)).slice(0,8).map(c=><TuileApercu key={c.id} c={c}/>)}{!derivedCollections.length&&<div style={{gridColumn:'1/-1',padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Crée des collections dans « Produits → Collections ».</div>}</div></div>;
+    if(type==='collections')return <div style={common}><div style={{fontSize:10,fontWeight:800,letterSpacing:'.18em',textTransform:'uppercase',color:coul,marginBottom:6}}>Nos collections</div><h3 style={{margin:'0 0 16px',fontSize:22,letterSpacing:'-.01em',color:'#14221b'}}>Explorer les collections</h3>{derivedCollections.length?collectionsApercu(derivedCollections.filter(c=>!config.selectedCollectionIds?.length||config.selectedCollectionIds.includes(c.id))):<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Crée des collections dans « Produits → Collections ».</div>}</div>;
     if(type==='bestsellers'||type==='products')return <div style={common}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><h3 style={{margin:0,fontSize:20,color:'#14221b'}}>{type==='bestsellers'?'🔥 Meilleures ventes':'Nos produits'}</h3><span style={{fontSize:10.5,color:'#758078'}}>Voir tout →</span></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},minmax(0,1fr))`,gap:10}}>{(type==='bestsellers'?bestsellers:fallbackProducts).slice(0,8).map((p,i)=><CarteApercu key={p.id||i} image={p.image} nom={p.name} prix={p.price?p.price.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix sur demande'}/>)}</div>{!products.length&&<div style={{padding:16,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#728078',fontSize:11}}>Ton catalogue est vide. Utilise « Produits → Importer un catalogue CSV » pour ajouter tes produits.</div>}</div>;
     if(type==='bundles'){const base=bestsellers[0]?.price||products[0]?.price||0;return <div style={{...common,background:'#fffdf7'}}><div style={{textAlign:'center',marginBottom:15}}><div style={{fontSize:10,fontWeight:950,color:'#b16b00',letterSpacing:'.08em'}}>🔥 OFFRES QUANTITÉ</div><h3 style={{margin:'5px 0',fontSize:21,color:'#14221b'}}>Plus tu prends, plus tu économises</h3></div><div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?1:3},1fr)`,gap:9}}>{(config.bundles||[]).map((b,i)=>{const total=base*b.qty*(1-(Number(b.discount)||0)/100);return <div key={b.id||i} style={{position:'relative',border:i===2?'2px solid '+coul:'1px solid #e4e9e5',borderRadius:14,padding:14,background:'#fff'}}><div style={{fontSize:12,fontWeight:950,color:'#16231c'}}>{b.label}</div><div style={{fontSize:10.5,color:'#7b857e',marginTop:4}}>{b.qty} produit(s) · {b.discount||0}% de remise</div><div style={{fontSize:20,fontWeight:950,color:coul,marginTop:10}}>{base?total.toLocaleString('fr-FR')+' '+(workspace?.currency||'XOF'):'Prix calculé à la commande'}</div><button style={{marginTop:10,width:'100%',border:0,borderRadius:9,padding:'9px',background:coul,color:'#fff',fontWeight:900,fontSize:10}}>Choisir ce pack</button></div>})}</div></div>}
     if(type==='gallery')return <div style={common}><h3 style={{margin:'0 0 14px',fontSize:19,color:'#14221b'}}>Notre univers</h3>{config.gallery?.length?<div style={{display:'grid',gridTemplateColumns:`repeat(${device==='mobile'?2:4},1fr)`,gap:8}}>{config.gallery.map((u,i)=><img key={i} src={u} alt="" style={{width:'100%',height:device==='mobile'?100:130,objectFit:'cover',borderRadius:10}}/>)}</div>:<div style={{padding:30,textAlign:'center',background:'#f6f9f6',borderRadius:10,color:'#7a857e',fontSize:11}}>Ajoute tes images depuis le panneau de droite.</div>}</div>;
@@ -6538,6 +6546,13 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               produits={produits}
               onClose={() => setShowStoreBuilder(false)}
               onOuvrirParametresAvances={() => { setShowStoreBuilder(false); setShowIntegrations(true); }}
+              // Après chaque publication, on met à jour l'espace gardé en mémoire : sinon, en rouvrant le
+              // Store Builder, il repartait de l'ancienne version chargée à la connexion (et écrasait les
+              // modifications déjà publiées à la publication suivante).
+              onEnregistre={(patch) => {
+                setWorkspace((w) => (w && w.id === workspace.id ? { ...w, ...patch } : w));
+                setWorkspacesDisponibles((l) => (Array.isArray(l) ? l.map((x) => (x.id === workspace.id ? { ...x, ...patch } : x)) : l));
+              }}
             />
           </div>
         </div>

@@ -67,6 +67,8 @@ const CSS_PAGE = `
 .rvpp-root.rvpp-has-sticky{padding-bottom:88px}
 .rvpp-sec{padding:var(--pp-sec-y) 16px;position:relative}
 .rvpp-sec.rvpp-alt{background:var(--pp-alt)}
+.rvpp-root.rvpp-ambiance{background:transparent}
+.rvpp-ambiance .rvpp-sec.rvpp-alt{background:rgba(247,246,241,.62);background:color-mix(in srgb,var(--pp-alt) 60%,transparent);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 .rvpp-in{max-width:1120px;margin:0 auto}
 .rvpp-center{text-align:center}
 .rvpp-h1{font-family:var(--pp-font-title);font-size:clamp(24px,6.4vw,34px);line-height:1.15;font-weight:800;margin:0 0 6px;letter-spacing:-.015em;overflow-wrap:anywhere}
@@ -1041,6 +1043,7 @@ function useDonneesStructurees({ actif, produit, avis, faqItems, deviseCode, des
 
 export function PageProduitPublique({
   config,
+  ambiance = false,   // true : l'ambiance animée de la boutique (aurore, cristal…) doit rester visible derrière la page
   produit,
   produits = [],
   collectionsManuelles = [],
@@ -1175,7 +1178,7 @@ export function PageProduitPublique({
 
   let indexAffiche = 0;
   return (
-    <div className={`rvpp-root ${preview ? "rvpp-preview" : ""} ${stickyActif ? "rvpp-has-sticky" : ""}`} style={style} data-rvpp-template={cfg.template}>
+    <div className={`rvpp-root ${preview ? "rvpp-preview" : ""} ${stickyActif ? "rvpp-has-sticky" : ""} ${ambiance ? "rvpp-ambiance" : ""}`} style={style} data-rvpp-template={cfg.template}>
       <style>{CSS_PAGE}</style>
       <div className="rvpp-wrap">
         {blocsAffiches.map(({ bloc, vide, cs }) => {

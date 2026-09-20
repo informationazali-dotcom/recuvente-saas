@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { jsPDF } from "jspdf";
 import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
-import { AmbianceShop } from "./PremiumAmbiance.jsx";
+import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
@@ -1514,6 +1514,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   appliquerStyleCarte(entreprise?.storeConfig);
   definirBoutonsPerso(entreprise?.storeConfig);
   const t = creerTraducteur(entreprise?.langue);
+  // Ambiance animée choisie dans le Store Builder (aurore, cristal, or, futuriste, étoiles) : elle doit
+  // aussi se voir sur la fiche produit, pas seulement sur l'accueil.
+  const ambianceProduit = lireAmbiance(entreprise?.storeConfig).ambiance !== "aucune";
 
   // Enveloppe d'ambiance commune à TOUS les écrans de la boutique (accueil Store Builder,
   // fiche produit, collection…). Avant, seuls 2 écrans étaient enveloppés : l'accueil
@@ -2180,7 +2183,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     );
 
     return avecAmbiance(
-      <div style={{ minHeight: "100vh", background: "white", fontFamily: "sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: ambianceProduit ? "transparent" : "white", fontFamily: "sans-serif" }}>
         <EnteteBoutique entreprise={entreprise} couleur={couleur} recherche={recherche} setRecherche={setRecherche} onLogoClick={fermerProduit} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} collectionActive={null} nbArticlesPanier={totalArticlesPanier} onOuvrirPanier={() => setPanierOuvert(true)} headerConfig={{ liens: entreprise.storeConfig?.headerLinks, bgColor: entreprise.storeConfig?.headerBgColor, textColor: entreprise.storeConfig?.headerTextColor, barreTop: entreprise.storeConfig?.headerBarreTop, showSearch: entreprise.storeConfig?.headerShowSearch, showPanier: entreprise.storeConfig?.headerShowPanier }} biensLocation={biensLocation} onOuvrirCategorieBien={(cat) => { setFiltreCategorieBien(cat); fermerProduit(); setTimeout(() => document.getElementById("rv-vehicules")?.scrollIntoView({ behavior: "smooth" }), 100); }} onOuvrirPagePerso={setPagePersoOuverte} />
 
         <style>{`
@@ -2203,6 +2206,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button type="button" onClick={fermerProduit} style={{ background: "none", border: "none", color: "#6B7168", fontSize: 13, cursor: "pointer", padding: "6px 0" }}>{t("retourAccueil")}</button>
             </div>
             <PageProduitPublique
+              ambiance={ambianceProduit}
               config={pageConfig}
               produit={produitOuvert}
               produits={produits}
@@ -2675,7 +2679,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         )}
       </div>,
-      "white"
+      ambianceProduit ? "#FAFAF7" : "white"
     );
   }
 
@@ -4043,6 +4047,10 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
         @media (max-width: 680px) {
           .rv-shop-nav-desktop { display: none; }
           .rv-shop-nav-toggle { display: flex; }
+          /* Sur téléphone, le bouton WhatsApp ne garde que l'icône : burger + nom + contact + panier tiennent
+             sur UNE seule ligne (avant, le panier tombait seul sur une 2e ligne). */
+          .rv-shop-header-whatsapp-txt { display: none; }
+          .rv-shop-header-whatsapp { padding: 0 !important; width: 38px; height: 38px; justify-content: center; flex-shrink: 0; font-size: 16px !important; }
           /* Le nom de la boutique reste TOUJOURS lisible : la recherche passe
              sur une deuxième ligne pleine largeur au lieu d'écraser le nom. */
           .rv-shop-hdr-row { flex-wrap: wrap; row-gap: 8px; }
@@ -5478,62 +5486,126 @@ function imageCollection(c, config) {
   const v = String(perso || c.image || "").trim();
   return v && /^(https?:)?\/\/|^data:image\//i.test(v) ? v : "";
 }
-function CollectionTuile({ c, produitsCol, config, couleur, onOpen }) {
+function CollectionTuile({ c, produitsCol, config, couleur, onOpen, mode, classe = "", style }) {
   const [casse, setCasse] = useState(false);
   const photos = (produitsCol || []).map((p) => p.photo_url).filter(Boolean);
   const dediee = imageCollection(c, config);
-  const modeMosaique = !dediee && config?.collectionTilesStyle === "mosaique" && photos.length >= 2;
+  const modeMosaique = mode === "mosaique" && !dediee && photos.length >= 2;
   const une = dediee || photos[0] || "";
   const nb = (produitsCol || []).length;
   const nom = joliNomCollection(c.nom);
   const fond = `linear-gradient(145deg, ${couleur}, ${couleur}aa 55%, #0b1a12)`;
+  const image = modeMosaique && !casse ? (
+    <span className="rv-coll-mosaique">
+      {photos.slice(0, 4).map((u, i) => <img key={i} src={u} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />)}
+    </span>
+  ) : une && !casse ? (
+    <img className="rv-coll-img" src={une} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />
+  ) : (
+    <span className="rv-coll-initiale" aria-hidden="true">{(nom || "?").trim().charAt(0).toUpperCase()}</span>
+  );
+  if (mode === "ronds") {
+    return (
+      <button type="button" className="rv-coll-rond" onClick={onOpen} aria-label={`${nom} — ${nb} article${nb > 1 ? "s" : ""}`}>
+        <span className="rv-coll-rond-img" style={{ background: fond, boxShadow: `0 0 0 2px #fff, 0 0 0 4px ${couleur}` }}>{image}</span>
+        <span className="rv-coll-rond-nom">{nom}</span>
+      </button>
+    );
+  }
   return (
-    <button type="button" className="rv-coll-tuile" onClick={onOpen} aria-label={`${nom} — ${nb} article${nb > 1 ? "s" : ""}`}>
+    <button type="button" className={`rv-coll-tuile ${classe}`} style={style} onClick={onOpen} aria-label={`${nom} — ${nb} article${nb > 1 ? "s" : ""}`}>
       <span className="rv-coll-fond" style={{ background: fond }} />
-      {modeMosaique && !casse ? (
-        <span className="rv-coll-mosaique">
-          {photos.slice(0, 4).map((u, i) => <img key={i} src={u} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />)}
-        </span>
-      ) : une && !casse ? (
-        <img className="rv-coll-img" src={une} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />
-      ) : (
-        <span className="rv-coll-initiale" aria-hidden="true">{(nom || "?").trim().charAt(0).toUpperCase()}</span>
-      )}
+      {image}
       <span className="rv-coll-voile" />
       <span className="rv-coll-texte">
         <span className="rv-coll-nom">{nom}</span>
-        <span className="rv-coll-nb">{nb} article{nb > 1 ? "s" : ""} <b aria-hidden="true">→</b></span>
+        <span className="rv-coll-nb">{nb} article{nb > 1 ? "s" : ""}</span>
       </span>
+      <span className="rv-coll-fleche" aria-hidden="true">→</span>
     </button>
   );
 }
-function GrilleCollections({ collections, produitsDe, config, couleur, onOpen, max = 8 }) {
+// Mise en page « vitrine de marque » : une grande tuile mise en avant + des tuiles plus petites qui
+// remplissent la grille sans trou (comme sur les sites de mode et de beauté). Trois autres styles au
+// choix dans le Store Builder : cercles (catégories), cartes photo, mosaïque.
+export function GrilleCollections({ collections, produitsDe, config, couleur, onOpen, max = 8 }) {
+  const mode = ["editorial", "ronds", "photo", "mosaique"].includes(config?.collectionTilesStyle) ? config.collectionTilesStyle : "editorial";
+  const liste = (collections || []).slice(0, max);
+  const n = liste.length;
+  // Emplacement de chaque tuile en mode « vitrine » : [colonnes, lignes] sur grand écran, et si elle
+  // prend toute la largeur sur téléphone (2 colonnes).
+  const place = liste.map((_, i) => {
+    let c = 1, r = 1;
+    if (n === 1) { c = 4; r = 2; }
+    else if (n === 2) { c = 2; r = 2; }
+    else if (i === 0) { c = 2; r = 2; }
+    else {
+      const m = n - 1, k = i - 1;
+      if (m === 1) { c = 2; r = 2; }
+      else if (m === 2) { c = 2; r = 1; }
+      else if (m === 3) { c = k === 2 ? 2 : 1; }
+      else if (k >= 4) { const extra = m - 4, rangee = k - 4, reste = extra % 4; if (reste > 0 && rangee === extra - 1) c = 5 - reste; }
+    }
+    const large = i === 0 || ((n - 1) % 2 === 1 && i === n - 1);
+    return { c, r, large };
+  });
   return (
     <>
       <style>{`
+        .rv-coll{container-type:inline-size;width:100%}
+        .rv-coll button{font-family:inherit}
         .rv-coll-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-        @media(min-width:640px){.rv-coll-grille{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
-        @media(min-width:1000px){.rv-coll-grille{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}}
-        .rv-coll-tuile{position:relative;display:block;width:100%;aspect-ratio:4/5;border:0;padding:0;border-radius:16px;overflow:hidden;cursor:pointer;background:#e9efe9;text-align:left;isolation:isolate;-webkit-tap-highlight-color:transparent;touch-action:manipulation;box-shadow:0 6px 18px rgba(16,31,26,.10);transition:transform .35s cubic-bezier(.2,.8,.3,1),box-shadow .35s}
-        .rv-coll-tuile:focus-visible{outline:2px solid ${couleur};outline-offset:2px}
+        @container (min-width:640px){.rv-coll-grille{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
+        @container (min-width:960px){.rv-coll-grille{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}}
+        .rv-coll-grille .rv-coll-tuile{aspect-ratio:4/5}
+        .rv-coll-ed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        .rv-coll-ed .rv-coll-tuile{aspect-ratio:4/5}
+        .rv-coll-ed .rv-coll-tuile.rv-large{grid-column:span 2;aspect-ratio:16/10}
+        @container (min-width:700px){
+          .rv-coll-ed{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:clamp(150px,19cqw,250px);gap:14px}
+          .rv-coll-ed .rv-coll-tuile,.rv-coll-ed .rv-coll-tuile.rv-large{aspect-ratio:auto;grid-column:span var(--c,1);grid-row:span var(--r,1)}
+          .rv-coll-ed .rv-coll-tuile.rv-first .rv-coll-nom{font-size:clamp(20px,3cqw,30px)}
+        }
+        .rv-coll-tuile{position:relative;display:block;width:100%;border:0;padding:0;border-radius:16px;overflow:hidden;cursor:pointer;background:#e9efe9;text-align:left;isolation:isolate;-webkit-tap-highlight-color:transparent;touch-action:manipulation;box-shadow:0 6px 18px rgba(16,31,26,.10);transition:transform .35s cubic-bezier(.2,.8,.3,1),box-shadow .35s}
+        .rv-coll-tuile:focus-visible,.rv-coll-rond:focus-visible{outline:2px solid ${couleur};outline-offset:3px}
         .rv-coll-fond{position:absolute;inset:0}
         .rv-coll-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%;transition:transform .6s cubic-bezier(.2,.8,.3,1)}
         .rv-coll-mosaique{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;background:#fff}
         .rv-coll-mosaique img{width:100%;height:100%;object-fit:cover;display:block;min-height:0;min-width:0}
         .rv-coll-initiale{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:900;color:rgba(255,255,255,.35);padding-bottom:26%}
-        .rv-coll-voile{position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(180deg,rgba(6,14,10,0) 0%,rgba(6,14,10,.55) 55%,rgba(6,14,10,.86) 100%);pointer-events:none}
-        .rv-coll-texte{position:absolute;left:0;right:0;bottom:0;padding:12px 13px 13px;color:#fff;display:flex;flex-direction:column;gap:3px}
+        .rv-coll-voile{position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(180deg,rgba(6,14,10,0) 0%,rgba(6,14,10,.5) 55%,rgba(6,14,10,.82) 100%);pointer-events:none}
+        .rv-coll-texte{position:absolute;left:0;right:52px;bottom:0;padding:12px 13px 14px;color:#fff;display:flex;flex-direction:column;gap:3px}
         .rv-coll-nom{font-weight:800;font-size:15px;line-height:1.2;letter-spacing:-.01em;text-shadow:0 1px 10px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-        .rv-coll-nb{font-size:11.5px;opacity:.88;font-weight:600}
-        .rv-coll-nb b{display:inline-block;transition:transform .3s}
-        @media(max-width:480px){.rv-coll-nom{font-size:13.5px}.rv-coll-texte{padding:10px 11px 11px}.rv-coll-tuile{border-radius:14px}}
-        @media(hover:hover){.rv-coll-tuile:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(16,31,26,.2)}.rv-coll-tuile:hover .rv-coll-img{transform:scale(1.06)}.rv-coll-tuile:hover .rv-coll-nb b{transform:translateX(4px)}}
-        @media(prefers-reduced-motion:reduce){.rv-coll-tuile,.rv-coll-img,.rv-coll-nb b{transition:none !important}}
+        .rv-coll-nb{font-size:11.5px;opacity:.85;font-weight:600}
+        .rv-coll-fleche{position:absolute;right:11px;bottom:12px;width:32px;height:32px;border-radius:50%;background:#fff;color:#14221b;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .3s}
+        .rv-coll-ronds{display:flex;gap:16px;overflow-x:auto;padding:6px 4px 12px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+        .rv-coll-ronds::-webkit-scrollbar{height:0}
+        .rv-coll-rond{flex:0 0 auto;width:88px;border:0;background:none;padding:0;cursor:pointer;text-align:center;scroll-snap-align:start;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+        .rv-coll-rond-img{position:relative;display:block;width:78px;height:78px;margin:2px auto 0;border-radius:50%;overflow:hidden;isolation:isolate}
+        .rv-coll-rond-img .rv-coll-initiale{font-size:34px;padding-bottom:0}
+        .rv-coll-rond-nom{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:11px;font-size:12.5px;font-weight:700;color:#14221b;line-height:1.25}
+        @container (min-width:700px){.rv-coll-ronds{flex-wrap:wrap;justify-content:center;gap:26px 30px;overflow:visible}.rv-coll-rond{width:120px}.rv-coll-rond-img{width:108px;height:108px}.rv-coll-rond-nom{font-size:13.5px}}
+        @media(max-width:480px){.rv-coll-nom{font-size:13.5px}.rv-coll-texte{padding:10px 11px 12px}.rv-coll-tuile{border-radius:14px}.rv-coll-fleche{width:28px;height:28px;right:9px;bottom:10px}}
+        @media(hover:hover){.rv-coll-tuile:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(16,31,26,.2)}.rv-coll-tuile:hover .rv-coll-img{transform:scale(1.06)}.rv-coll-tuile:hover .rv-coll-fleche{transform:translateX(3px)}.rv-coll-rond:hover .rv-coll-rond-img{transform:scale(1.05)}.rv-coll-rond-img{transition:transform .3s}}
+        @media(prefers-reduced-motion:reduce){.rv-coll-tuile,.rv-coll-img,.rv-coll-fleche,.rv-coll-rond-img{transition:none !important}}
       `}</style>
-      <div className="rv-coll-grille">
-        {collections.slice(0, max).map((c) => (
-          <CollectionTuile key={c.id} c={c} produitsCol={produitsDe(c)} config={config} couleur={couleur} onOpen={() => onOpen(c)} />
-        ))}
+      <div className="rv-coll">
+        {mode === "ronds" ? (
+          <div className="rv-coll-ronds">
+            {liste.map((c) => <CollectionTuile key={c.id} c={c} produitsCol={produitsDe(c)} config={config} couleur={couleur} onOpen={() => onOpen(c)} mode="ronds" />)}
+          </div>
+        ) : mode === "editorial" ? (
+          <div className="rv-coll-ed">
+            {liste.map((c, i) => (
+              <CollectionTuile key={c.id} c={c} produitsCol={produitsDe(c)} config={config} couleur={couleur} onOpen={() => onOpen(c)} mode="editorial"
+                classe={`${i === 0 ? "rv-first " : ""}${place[i].large ? "rv-large" : ""}`} style={{ "--c": place[i].c, "--r": place[i].r }} />
+            ))}
+          </div>
+        ) : (
+          <div className="rv-coll-grille">
+            {liste.map((c) => <CollectionTuile key={c.id} c={c} produitsCol={produitsDe(c)} config={config} couleur={couleur} onOpen={() => onOpen(c)} mode={mode} />)}
+          </div>
+        )}
       </div>
     </>
   );
@@ -5658,7 +5730,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       if (!derivedCollections.length) return null;
       return (
         <div style={commonPad}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Faites vos achats par catégorie</h3>
+          <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".18em", textTransform: "uppercase", color: couleurTexteLisible(couleurSection), marginBottom: 6 }}>Catégories</div>
+          <h3 style={{ margin: "0 0 18px", fontSize: 24, letterSpacing: "-.01em", color: "#14221b" }}>Faites vos achats par catégorie</h3>
           <GrilleCollections collections={derivedCollections} produitsDe={produitsDeCollection} config={config} couleur={couleur} onOpen={(c) => setCollectionOuverte(`manuelle-${c.id}`)} />
         </div>
       );
@@ -6110,7 +6183,8 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       if (!derivedCollections.length) return null;
       return (
         <div style={commonPad}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
+          <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".18em", textTransform: "uppercase", color: couleurTexteLisible(couleurSection), marginBottom: 6 }}>Nos collections</div>
+          <h3 style={{ margin: "0 0 18px", fontSize: 24, letterSpacing: "-.01em", color: "#14221b" }}>Explorer les collections</h3>
           <GrilleCollections collections={derivedCollections} produitsDe={produitsDeCollection} config={config} couleur={couleur} onOpen={(c) => setCollectionOuverte(`manuelle-${c.id}`)} />
         </div>
       );
@@ -6181,7 +6255,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           <div style={{ fontSize: 10, fontWeight: 900, color: "#b16b00" }}>OFFRE LIMITÉE</div>
           <h3 style={{ fontSize: 25, margin: "8px 0", color: "#162119" }}>{config[`promoTitle${suf}`]}</h3>
           <p style={{ fontSize: 12.5, color: "#6f776f" }}>{config[`promoText${suf}`]}</p>
-          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: "#e8920a", color: "#fff", fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button>
+          <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ border: 0, borderRadius: 9, padding: "11px 19px", background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, cursor: "pointer" }}>Profiter de l'offre</button>
         </div>
       );
     }

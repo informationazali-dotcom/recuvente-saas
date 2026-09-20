@@ -5,9 +5,9 @@ import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
 import { AmbianceShop } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
-import { PageProduitPublique, PageProduitSquelette } from "./pagebuilder/PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs } from "./pagebuilder/blocs.js";
-import { creerSuiviPage } from "./pagebuilder/suivi.js";
+import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs } from "./blocs.js";
+import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,

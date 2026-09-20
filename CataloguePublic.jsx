@@ -1507,6 +1507,36 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     return () => clearTimeout(delai);
   }, [form.tel, form.client, produitOuvert?.produit_id, workspaceId, envoye]);
 
+  // Advanced Matching (Facebook) : dès que le client a tapé son téléphone (et nom / ville), on le
+  // transmet au Pixel. Facebook le hache lui-même avant l'envoi. Les événements suivants (achat,
+  // lead) partent alors avec ces informations : Facebook reconnaît mieux l'acheteur, donc
+  // optimise mieux les publicités. Rien n'est envoyé tant que le numéro n'est pas complet.
+  const dernierMatchFbRef = useRef("");
+  useEffect(() => {
+    const pixel = pixelFbRef.current;
+    const chiffres = (form.tel || "").replace(/\D/g, "");
+    if (!pixel || typeof window === "undefined" || typeof window.fbq !== "function" || chiffres.length < 8 || envoye) return undefined;
+    const delai = setTimeout(() => {
+      try {
+        // Numéro au format international (indicatif + numéro national), comme Facebook l'attend :
+        // en Côte d'Ivoire et au Bénin le « 0 » de tête fait partie du numéro (+225 07 …).
+        const national = normaliserTelephoneLocal(form.tel, entreprise?.country).replace(/\D/g, "");
+        const ud = { ph: (INDICATIFS_PAYS_TEL[entreprise?.country] || "") + national };
+        const mots = String(form.client || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+        if (mots[0]) ud.fn = mots[0];
+        if (mots.length > 1) ud.ln = mots.slice(1).join(" ");
+        const ville = String(form.zone || "").toLowerCase().replace(/[^a-zà-ÿ]/g, "");
+        if (ville) ud.ct = ville;
+        if (entreprise?.country) ud.country = String(entreprise.country).toLowerCase();
+        const cle = JSON.stringify(ud);
+        if (cle === dernierMatchFbRef.current) return;
+        dernierMatchFbRef.current = cle;
+        window.fbq("init", pixel, ud);
+      } catch (_) {}
+    }, 900);
+    return () => clearTimeout(delai);
+  }, [form.tel, form.client, form.zone, entreprise?.country, envoye]);
+
   // ===== PRODUCT PAGE BUILDER (couche additive) =====================================
   // 1) Au chargement de la boutique, on récupère (très léger) la LISTE des produits qui ont une page
   //    personnalisée publiée. 2) Quand un de ces produits est ouvert, on charge sa configuration.

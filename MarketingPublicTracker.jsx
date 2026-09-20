@@ -12,7 +12,7 @@ function readMetaCookie(name) {
   return match ? decodeURIComponent(match[2]) : null;
 }
 
-export default function MarketingPublicTracker({ workspaceId, domaine }) {
+export default function MarketingPublicTracker({ workspaceId, domaine, slug }) {
   useEffect(() => {
     let cancelled = false;
     async function start() {
@@ -20,6 +20,19 @@ export default function MarketingPublicTracker({ workspaceId, domaine }) {
       if (!resolvedWorkspaceId && domaine) {
         const { data } = await supabase.rpc("workspace_id_par_domaine", { p_domaine: domaine });
         resolvedWorkspaceId = data || null;
+      }
+      // Lien de boutique « ?boutique=mon-slug » (le format de lien le plus courant) : auparavant
+      // aucune session marketing n'y était enregistrée, donc le rapport Marketing COD restait vide
+      // pour ces boutiques. On réutilise le préchargement de index.html s'il existe (aucune requête en plus).
+      if (!resolvedWorkspaceId && slug) {
+        try {
+          const pre = window.__RV_PRE;
+          if (pre && pre.ws && pre.cle === slug && pre.fn === "slug") resolvedWorkspaceId = (await Promise.resolve(pre.ws)) || null;
+        } catch (_) {}
+        if (!resolvedWorkspaceId) {
+          const { data } = await supabase.rpc("workspace_id_par_slug", { p_slug: slug });
+          resolvedWorkspaceId = data || null;
+        }
       }
       if (!resolvedWorkspaceId || cancelled) return;
 
@@ -84,7 +97,7 @@ export default function MarketingPublicTracker({ workspaceId, domaine }) {
     }
     start().catch(() => {});
     return () => { cancelled = true; };
-  }, [workspaceId, domaine]);
+  }, [workspaceId, domaine, slug]);
 
   return null;
 }

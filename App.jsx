@@ -5125,22 +5125,30 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
   }, [confirmees, produits]);
 
+  // Rentabilité par campagne publicitaire. Compte TOUTES les commandes arrivées via un lien suivi
+  // (pas seulement les confirmées) : une campagne qui apporte beaucoup de commandes… refusées
+  // se voit enfin (taux de refus). Les montants (CA, coûts, bénéfice) ne portent que sur les
+  // commandes confirmées, comme le bénéfice réel global (produits + livraison).
   const rentabiliteParCampagne = useMemo(() => {
-    const avecSource = confirmees.filter((c) => c.source_campagne);
+    const avecSource = commandesInRange.filter((c) => c.source_campagne);
     if (avecSource.length === 0) return [];
     const map = {};
     avecSource.forEach((c) => {
       const source = c.source_campagne;
+      if (!map[source]) map[source] = { nom: source, ca: 0, cout: 0, livraison: 0, nbCommandes: 0, nbTotal: 0, nbEchouees: 0, nbEnCours: 0 };
+      const m = map[source];
+      m.nbTotal += 1;
+      if (c.statut === "echouee") { m.nbEchouees += 1; return; }
+      if (c.statut !== "confirmee") { m.nbEnCours += 1; return; }
       const { nom, quantite } = parseProduitTexte(c.produit);
       const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
-      const cout = trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      if (!map[source]) map[source] = { nom: source, ca: 0, cout: 0, nbCommandes: 0 };
-      map[source].ca += Number(c.montant);
-      map[source].cout += cout;
-      map[source].nbCommandes += 1;
+      m.ca += Number(c.montant);
+      m.cout += trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
+      m.livraison += workspace.activity_type === "retail" && !(c.mode_vente === "livraison" || c.mode_vente === "expedition") ? 0 : COUT_LIVRAISON;
+      m.nbCommandes += 1;
     });
-    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout })).sort((a, b) => b.benefice - a.benefice);
-  }, [confirmees, produits]);
+    return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout - x.livraison })).sort((a, b) => b.benefice - a.benefice || b.nbTotal - a.nbTotal);
+  }, [commandesInRange, produits, workspace.activity_type]);
 
   const depotsParLivreur = useMemo(() => {
     return livreurs
@@ -15873,6 +15881,8 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
         </div>
       )}
 
+      <AideSuiviCampagnes />
+
       {rentabiliteParCampagne.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>🎯 Rentabilité par campagne publicitaire</div>
@@ -15886,7 +15896,7 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: depensePub > 0 ? 10 : 0 }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nom}</div>
-                      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbCommandes} commande{r.nbCommandes > 1 ? "s" : ""} confirmée{r.nbCommandes > 1 ? "s" : ""}</div>
+                      <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>{r.nbTotal} commande{r.nbTotal > 1 ? "s" : ""} reçue{r.nbTotal > 1 ? "s" : ""} · {r.nbCommandes} confirmée{r.nbCommandes > 1 ? "s" : ""} · {r.nbEchouees} échouée{r.nbEchouees > 1 ? "s" : ""}{r.nbEnCours > 0 ? ` · ${r.nbEnCours} en cours` : ""}</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15, color: beneficeApresPub >= 0 ? "#1F9D6E" : "#D64933" }}>
@@ -15897,9 +15907,21 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
                   </div>
                   {depensePub > 0 && (
                     <div style={{ fontSize: 10.5, color: "#8A9089", borderTop: "1px solid #F0EEE6", paddingTop: 8, marginBottom: 8 }}>
-                      {r.benefice.toLocaleString("fr-FR")} {currency} de bénéfice avant pub − {depensePub.toLocaleString("fr-FR")} {currency} dépensés = ROAS {depensePub > 0 ? (r.ca / depensePub).toFixed(1) : "—"}x
+                      {r.benefice.toLocaleString("fr-FR")} {currency} de bénéfice (produits et livraison déjà déduits) − {depensePub.toLocaleString("fr-FR")} {currency} dépensés = ROAS {depensePub > 0 ? (r.ca / depensePub).toFixed(1) : "—"}x
                     </div>
                   )}
+                  {(() => {
+                    const traitees = r.nbCommandes + r.nbEchouees;
+                    const tauxRefus = traitees > 0 ? Math.round((r.nbEchouees / traitees) * 100) : null;
+                    const coutParCommande = depensePub > 0 && r.nbCommandes > 0 ? Math.round(depensePub / r.nbCommandes) : null;
+                    const marques = [];
+                    if (tauxRefus !== null) marques.push({ t: `Refus : ${tauxRefus}%`, c: tauxRefus >= 40 ? "#B33A2A" : tauxRefus >= 25 ? "#8A6412" : "#1a7a3c", bg: tauxRefus >= 40 ? "#FBEAE6" : tauxRefus >= 25 ? "#FBF3E3" : "#EAF3DE" });
+                    if (coutParCommande !== null) marques.push({ t: `Pub par commande livrée : ${coutParCommande.toLocaleString("fr-FR")} ${currency}`, c: "#435047", bg: "#F1F3EF" });
+                    if (depensePub > 0) marques.push(beneficeApresPub >= 0 ? { t: "✓ Rentable", c: "#1a7a3c", bg: "#EAF3DE" } : { t: "⚠️ Perd de l'argent", c: "#B33A2A", bg: "#FBEAE6" });
+                    if (tauxRefus !== null && tauxRefus >= 40 && traitees >= 5) marques.push({ t: "Beaucoup de refus : vérifie le ciblage ou confirme les commandes par appel", c: "#B33A2A", bg: "#FBEAE6" });
+                    if (marques.length === 0) return null;
+                    return <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>{marques.map((m, k) => <span key={k} style={{ fontSize: 10.5, fontWeight: 700, color: m.c, background: m.bg, borderRadius: 999, padding: "3px 9px" }}>{m.t}</span>)}</div>;
+                  })()}
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
                       type="number"
@@ -15920,6 +15942,32 @@ function ScoreBusinessView({ toutesCommandes, beneficeReel, caConfirme, currency
               );
             })}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Petite aide : la ligne à coller dans Facebook Ads (« Paramètres d'URL ») pour que chaque commande
+// porte le nom de la campagne et de la publicité — sans cela, tout apparaît sous « Facebook/Instagram Ads ».
+function AideSuiviCampagnes() {
+  const [ouvert, setOuvert] = useState(false);
+  const [copie, setCopie] = useState(false);
+  const parametres = "utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_content={{ad.name}}";
+  function copier() {
+    try { navigator.clipboard.writeText(parametres).then(() => { setCopie(true); setTimeout(() => setCopie(false), 1800); }).catch(() => {}); } catch (_) {}
+  }
+  return (
+    <div style={{ marginTop: 22, background: "#F4F8FF", border: "1px solid #CFE0F7", borderRadius: 12, padding: "12px 16px" }}>
+      <button type="button" onClick={() => setOuvert((o) => !o)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: 13, color: "#1E4B8C", textAlign: "left", width: "100%" }}>
+        {ouvert ? "▾" : "▸"} 📈 Voir quelle publicité rapporte vraiment (une seule ligne à coller dans Facebook Ads)
+      </button>
+      {ouvert && (
+        <div style={{ marginTop: 10, fontSize: 12.5, color: "#33475B", lineHeight: 1.55 }}>
+          <div>Dans Facebook Ads Manager, ouvre ta publicité → <b>Suivi</b> (ou « Paramètres d'URL ») et colle cette ligne. Facebook remplace lui-même les {"{{ }}"} par le vrai nom de ta campagne et de ta publicité :</div>
+          <div style={{ margin: "8px 0", background: "white", border: "1px solid #CFE0F7", borderRadius: 8, padding: "8px 10px", fontFamily: "monospace", fontSize: 11.5, wordBreak: "break-all" }}>{parametres}</div>
+          <button type="button" onClick={copier} style={{ background: "#1E4B8C", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{copie ? "✅ Copié" : "📋 Copier la ligne"}</button>
+          <div style={{ marginTop: 10 }}>Ensuite, chaque commande arrive avec le nom de sa campagne, et la carte « Rentabilité par campagne » ci-dessous te montre, pour chacune : commandes reçues, confirmées, refusées, bénéfice réel et coût de pub par commande. Le rapport complet (visiteurs, panier, checkout, ROAS) est ici : <a href="/?marketing=1" target="_blank" rel="noopener noreferrer" style={{ color: "#1E4B8C", fontWeight: 700 }}>ouvrir le rapport Marketing COD</a>.</div>
         </div>
       )}
     </div>

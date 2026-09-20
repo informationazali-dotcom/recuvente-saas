@@ -65,13 +65,13 @@ class ErreurBoundary extends React.Component {
   render() { return this.state.erreur ? <ErreurFallback /> : this.props.children; }
 }
 
-function PublicTracker({ workspaceId, domaine }) { return <MarketingPublicTracker workspaceId={workspaceId} domaine={domaine} />; }
+function PublicTracker({ workspaceId, domaine, slug }) { return <MarketingPublicTracker workspaceId={workspaceId} domaine={domaine} slug={slug} />; }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErreurBoundary>
       <Suspense fallback={<ChargementInitial />}>
-        {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <CataloguePublic slug={boutiqueSlug} /> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
+        {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
       </Suspense>
     </ErreurBoundary>
   </React.StrictMode>

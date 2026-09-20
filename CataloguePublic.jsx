@@ -939,7 +939,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     if (!workspaceId || !pixelFbRef.current) return;
     try {
       const meta = obtenirAttributionMeta();
-      fetch("/api/facebook-event", {
+      fetch("/api/facebook-capi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

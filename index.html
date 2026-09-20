@@ -43,6 +43,67 @@
         }
         window.__RV = { cle: cle, boutique: estBoutique, id: id };
 
+        // ----- Démarrage anticipé (boutique publique uniquement) -----
+        // Avant : téléchargement du code → 2 requêtes l'une après l'autre → seulement alors le
+        // Pixel Facebook. Sur un réseau mobile lent (ou dans le navigateur intégré de Facebook),
+        // beaucoup de visiteurs partaient avant le PageView : Facebook comptait des clics mais
+        // pas de visites. Ici, tout démarre dès l'ouverture de la page, EN PARALLÈLE du code.
+        // Tout est facultatif : au moindre problème, la boutique fait exactement comme avant.
+        if (estBoutique && !p.get("commander") && window.fetch) {
+          var demarrerFb = function (pid) {
+            if (!pid || window.fbq || !/^[0-9]{5,20}$/.test(String(pid))) return;
+            !function (f, b, e, v, n, t, s) {
+              if (f.fbq) return;
+              n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+              if (!f._fbq) f._fbq = n;
+              n.push = n; n.loaded = !0; n.version = "2.0"; n.queue = [];
+              t = b.createElement(e); t.async = !0; t.src = v;
+              s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+            }(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+            window.__RV_FB = String(pid);
+            window.fbq("init", String(pid));
+            window.fbq("track", "PageView");
+          };
+          try {
+            // Boutique déjà visitée : le Pixel est connu, il démarre tout de suite.
+            if (id && id.fb) {
+              lien({ rel: "preconnect", href: "https://connect.facebook.net" });
+              demarrerFb(id.fb);
+            }
+            var DB = "%VITE_SUPABASE_URL%", KEY = "%VITE_SUPABASE_ANON_KEY%";
+            if (DB.indexOf("%") === -1 && KEY.indexOf("%") === -1 && DB.length > 8 && KEY.length > 8) {
+              var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+              var pre = window.__RV_PRE = { cle: null, fn: null, ws: null, wsId: null, cat: null, tem: null, col: null };
+              var H = { "Content-Type": "application/json", apikey: KEY };
+              if (/^eyJ/.test(KEY)) H.Authorization = "Bearer " + KEY;
+              var rpc = function (fn, corps) {
+                return fetch(DB + "/rest/v1/rpc/" + fn, { method: "POST", headers: H, body: JSON.stringify(corps) })
+                  .then(function (r) { return r.ok ? r.json() : null; })
+                  .catch(function () { return null; });
+              };
+              var direct = p.get("catalogue"), slugUrl = p.get("boutique");
+              if (direct) {
+                if (UUID.test(direct)) { pre.wsId = direct; pre.ws = Promise.resolve(direct); }
+              } else if (slugUrl) {
+                pre.cle = slugUrl; pre.fn = "slug"; pre.ws = rpc("workspace_id_par_slug", { p_slug: slugUrl });
+              } else if (perso) {
+                pre.cle = h; pre.fn = "domaine"; pre.ws = rpc("workspace_id_par_domaine", { p_domaine: h });
+              }
+              if (pre.ws) {
+                pre.ws = pre.ws.then(function (v) {
+                  if (typeof v === "string" && UUID.test(v)) { pre.wsId = v; return v; }
+                  return null;
+                });
+                pre.cat = pre.ws.then(function (v) { return v ? rpc("catalogue_public", { p_workspace_id: v }) : null; });
+                pre.tem = pre.ws.then(function (v) { return v ? rpc("temoignages_publics", { p_workspace_id: v }) : null; });
+                pre.col = pre.ws.then(function (v) { return v ? rpc("collections_publiques", { p_workspace_id: v }) : null; });
+                // Première visite : le Pixel démarre dès que la boutique répond, sans attendre le code.
+                pre.cat.then(function (d) { try { if (d && d[0]) demarrerFb(d[0].facebook_pixel_id); } catch (e) {} });
+              }
+            }
+          } catch (e) {}
+        }
+
         if (estBoutique) {
           // ----- BOUTIQUE : jamais la marque RecuVente -----
           var nom = id && id.nom;

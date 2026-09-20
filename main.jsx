@@ -1,18 +1,28 @@
 import "./premium-landing-overrides.css";
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
-import * as Sentry from "@sentry/react";
 import { EcranAmorce, cleBoutiqueDepuisUrl, lireIdentiteCachee } from "./AmorceBoutique.jsx";
 
 const App = lazy(() => import("./App.jsx"));
 const SuiviPublic = lazy(() => import("./SuiviPublic.jsx"));
 const CommanderPublic = lazy(() => import("./CommanderPublic.jsx"));
-const CataloguePublic = lazy(() => import("./CataloguePublic.jsx"));
+const importerCatalogue = () => import("./CataloguePublic.jsx");
+const CataloguePublic = lazy(importerCatalogue);
 const MarketingPublicTracker = lazy(() => import("./MarketingPublicTracker.jsx"));
 const MarketingCODDashboard = lazy(() => import("./MarketingCODDashboard.jsx"));
 
-if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({ dsn: import.meta.env.VITE_SENTRY_DSN, environment: "production", tracesSampleRate: 0.2 });
+// Sentry (suivi d'erreurs) n'est plus dans le premier téléchargement : c'est une bibliothèque
+// lourde, inutile pour afficher la boutique. Il se charge juste après l'affichage (tout de suite
+// pour l'administrateur). Le comportement est le même, seul le moment du chargement change.
+let promesseSentry = null;
+function chargerSentry() {
+  if (!import.meta.env.VITE_SENTRY_DSN) return Promise.resolve(null);
+  if (!promesseSentry) {
+    promesseSentry = import("@sentry/react")
+      .then((S) => { S.init({ dsn: import.meta.env.VITE_SENTRY_DSN, environment: "production", tracesSampleRate: 0.2 }); return S; })
+      .catch(() => null);
+  }
+  return promesseSentry;
 }
 
 const params = new URLSearchParams(window.location.search);
@@ -29,6 +39,11 @@ const hostname = window.location.hostname;
 const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
 const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !estDomainePersonnalise;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
+// Boutique publique : on demande le code de la boutique tout de suite, sans attendre le premier affichage.
+if (catalogueId || boutiqueSlug || estDomainePersonnalise) importerCatalogue();
+// Sentry : immédiatement pour l'admin, un peu après le chargement pour les visiteurs.
+if (estVueAdmin) chargerSentry();
+else window.addEventListener("load", () => setTimeout(chargerSentry, 2000));
 
 // Boutique demandée par l'URL (null = admin / suivi / marketing) et son identité gardée en cache.
 const cleShop = cleBoutiqueDepuisUrl();
@@ -41,15 +56,24 @@ function ChargementInitial() {
   return <div style={{ minHeight: "100vh", background: "#FAFAF7" }} />;
 }
 
+class ErreurBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { erreur: false }; }
+  static getDerivedStateFromError() { return { erreur: true }; }
+  componentDidCatch(erreur, info) {
+    chargerSentry().then((S) => { if (S) S.captureException(erreur, { contexts: { react: { componentStack: info && info.componentStack } } }); }).catch(() => {});
+  }
+  render() { return this.state.erreur ? <ErreurFallback /> : this.props.children; }
+}
+
 function PublicTracker({ workspaceId, domaine }) { return <MarketingPublicTracker workspaceId={workspaceId} domaine={domaine} />; }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Sentry.ErrorBoundary fallback={<ErreurFallback />} showDialog={false}>
+    <ErreurBoundary>
       <Suspense fallback={<ChargementInitial />}>
         {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <CataloguePublic slug={boutiqueSlug} /> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
       </Suspense>
-    </Sentry.ErrorBoundary>
+    </ErreurBoundary>
   </React.StrictMode>
 );
 

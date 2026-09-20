@@ -24,6 +24,24 @@ export function idAleatoire(prefixe = "b") {
   return `${prefixe}_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`;
 }
 
+// Version allégée d'une photo pour l'affichage. Les produits importés depuis Shopify gardent
+// l'adresse d'origine (cdn.shopify.com) : ce sont des originaux de plusieurs Mo, alors qu'une
+// carte produit en affiche 200 px. Le CDN de Shopify fournit la bonne taille si on la lui
+// demande (`width=`), sans rien changer à la photo stockée. Toute autre adresse est renvoyée
+// telle quelle — aucun risque de casser une image.
+export function urlImageLegere(url, largeur = 600) {
+  if (!url || typeof url !== "string") return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname !== "cdn.shopify.com") return url;
+    if (u.searchParams.has("width") || u.searchParams.has("height")) return url;
+    u.searchParams.set("width", String(Math.round(largeur)));
+    return u.toString();
+  } catch (_) {
+    return url;
+  }
+}
+
 // Même règle d'affichage que CataloguePublic.formaterDevise : XOF/XAF → "F CFA".
 export function libelleDevise(code) {
   return code === "XOF" || code === "XAF" ? "F CFA" : code || "";

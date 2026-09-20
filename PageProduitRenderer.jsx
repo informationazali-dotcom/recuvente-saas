@@ -18,7 +18,7 @@ import { createPortal } from "react-dom";
 import {
   normaliserConfig, REGISTRE_BLOCS, blocEstVide, calculerOffresAffichees, analyserVideo,
   couleurTextePourFond, couleurValide, formaterMontant, produitsCrossSell, textePlat, CTA_TEXTE_DEFAUT,
-  structureDescriptionProduit,
+  structureDescriptionProduit, urlImageLegere,
 } from "./blocs.js";
 
 // ---------------------------------------------------------------------------
@@ -329,9 +329,10 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
         {!courant && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 64 }}>📦</div>}
         {courant?.type === "img" && (
           <img
-            src={courant.url}
+            src={urlImageLegere(courant.url, 1000)}
             alt={alt}
             loading={idx === 0 ? "eager" : "lazy"}
+            fetchPriority={idx === 0 ? "high" : "auto"}
             decoding="async"
             draggable={false}
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", transition: loupe ? "none" : "transform .2s", transform: loupe ? "scale(1.9)" : "none", transformOrigin: loupe ? `${loupe.x}% ${loupe.y}%` : "center" }}
@@ -374,7 +375,7 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
               aria-label={it.type === "video" ? "Voir la vidéo" : `Voir la photo ${k + 1}`}
               style={{ position: "relative", flex: "0 0 auto", width: 64, height: 64, borderRadius: 10, overflow: "hidden", padding: 0, background: "var(--pp-alt)", cursor: "pointer", border: k === idx ? `2px solid ${accent}` : "1px solid var(--pp-line)", opacity: k === idx ? 1 : 0.82 }}
             >
-              {it.url ? <img src={it.url} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <span style={{ fontSize: 22 }}>🎬</span>}
+              {it.url ? <img src={urlImageLegere(it.url, 200)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <span style={{ fontSize: 22 }}>🎬</span>}
               {it.type === "video" && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.28)", color: "#fff", fontSize: 18 }}>▶</span>}
             </button>
           ))}
@@ -780,7 +781,7 @@ function CarteComplement({ prod, prixSpecial, devise, actif, onClick, texte }) {
   return (
     <button type="button" className="rvpp-add" aria-pressed={actif} onClick={onClick}>
       <span className="bx" aria-hidden="true">{actif ? "✓" : ""}</span>
-      {prod.photo_url ? <img src={prod.photo_url} alt="" loading="lazy" decoding="async" /> : <span style={{ width: 52, height: 52, borderRadius: 10, background: "var(--pp-alt)", flex: "0 0 auto" }} />}
+      {prod.photo_url ? <img src={urlImageLegere(prod.photo_url, 200)} alt="" loading="lazy" decoding="async" /> : <span style={{ width: 52, height: 52, borderRadius: 10, background: "var(--pp-alt)", flex: "0 0 auto" }} />}
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontWeight: 700, fontSize: 14.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{prod.produit_nom}</span>
         {(texte || "").trim() && <span style={{ display: "block", fontSize: 12.5, color: "var(--pp-muted)" }}>{texte}</span>}
@@ -824,7 +825,7 @@ function BlocGroupee({ bloc, ctx }) {
             <React.Fragment key={x.produit_id || k}>
               {k === 1 && <span style={{ fontSize: 22, fontWeight: 800 }}>+</span>}
               <div style={{ textAlign: "center", width: 96 }}>
-                <div style={{ aspectRatio: "1/1", background: "var(--pp-alt)", borderRadius: 12, overflow: "hidden" }}>{x.photo_url && <img src={x.photo_url} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} />}</div>
+                <div style={{ aspectRatio: "1/1", background: "var(--pp-alt)", borderRadius: 12, overflow: "hidden" }}>{x.photo_url && <img src={urlImageLegere(x.photo_url, 400)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} />}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.produit_nom}</div>
               </div>
             </React.Fragment>
@@ -853,7 +854,7 @@ function BlocCrossSell({ bloc, ctx }) {
           const barre = Number(x.prix_barre);
           return (
             <button key={x.produit_id} type="button" onClick={() => ctx.actions.onOuvrirProduit(x)}>
-              <span className="ph" style={{ display: "block" }}>{x.photo_url ? <img src={x.photo_url} alt={x.produit_nom} loading="lazy" decoding="async" /> : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</span>}</span>
+              <span className="ph" style={{ display: "block" }}>{x.photo_url ? <img src={urlImageLegere(x.photo_url, 400)} alt={x.produit_nom} loading="lazy" decoding="async" /> : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</span>}</span>
               <span className="nm" style={{ display: "block" }}>{x.produit_nom}</span>
               <span className="pr" style={{ display: "block" }}>{formaterMontant(x.prix_vente, ctx.devise)}{Number.isFinite(barre) && barre > Number(x.prix_vente) && <s style={{ marginLeft: 6, color: "#8A9089", fontWeight: 500 }}>{formaterMontant(barre, ctx.devise)}</s>}</span>
             </button>

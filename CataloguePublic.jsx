@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { jsPDF } from "jspdf";
 import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
 import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -21,7 +20,10 @@ function formaterDevise(code) {
   return code === "XOF" || code === "XAF" ? "F CFA" : code;
 }
 
-function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, montantTotal, modeLivraison) {
+// jsPDF (~350 Ko) n'est téléchargé que si le client clique sur « Télécharger mon reçu » :
+// avant, il alourdissait le premier chargement de TOUTES les visites de la boutique.
+async function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, montantTotal, modeLivraison) {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const vert = [26, 122, 60];
   const gris = [107, 113, 104];
@@ -276,6 +278,27 @@ function obtenirSourceCampagnePersistante() {
     else valeur = ancienne || null;
   } catch (_) {}
   return valeur;
+}
+
+// Préchargement lancé par index.html dès l'ouverture de la page (voir window.__RV_PRE) : les
+// données de la boutique sont demandées PENDANT le téléchargement du code, pas après. Si le
+// préchargement n'existe pas ou a échoué, on retombe sur la requête normale — même résultat.
+function utiliserPrechargement(nom, workspaceId, secours) {
+  try {
+    const pre = typeof window !== "undefined" && window.__RV_PRE;
+    if (pre && pre[nom] && pre.wsId === workspaceId) {
+      const promesse = pre[nom];
+      pre[nom] = null; // usage unique : un rechargement ultérieur redemande des données fraîches
+      return Promise.resolve(promesse).then((r) => (r ? { data: r, error: null } : secours()));
+    }
+  } catch (_) {}
+  return secours();
+}
+
+// Identifiant partagé navigateur ↔ serveur : Meta l'utilise pour ne compter qu'une fois
+// un événement reçu par les deux canaux.
+function genererEventId(prefixe = "ev") {
+  return `${prefixe}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // Marketing de réseau : conserve le code du filleul (?ref=) tout au long du
@@ -644,6 +667,7 @@ function prixUnitairePourBundle(prixVente, bundle) {
 
 export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, domaine }) {
   const [workspaceId, setWorkspaceId] = useState(workspaceIdProp || null);
+  const pixelFbRef = useRef(null);
   const [entreprise, setEntreprise] = useState(undefined);
   // Identité "précoce" : nom, logo, couleur mis en cache localement lors d'une
   // précédente visite de CETTE boutique. Sert uniquement à afficher immédiatement
@@ -670,7 +694,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [collectionsManuelles, setCollectionsManuelles] = useState([]);
   const [triCollection, setTriCollection] = useState("defaut");
   const [avisBoutique, setAvisBoutique] = useState([]);
-  const [sourceCampagne] = useState(() => obtenirSourceCampagnePersistante());
+  // fbp / fbc (identifiants Meta) et campagne sont mémorisés dès l'arrivée, pas seulement au
+  // moment de la commande : le paramètre fbclid de l'adresse peut disparaître en naviguant.
+  const [sourceCampagne] = useState(() => { obtenirAttributionMeta(); return obtenirSourceCampagnePersistante(); });
   const [erreur, setErreur] = useState(null);
   const [panier, setPanier] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`rv_panier_${workspaceId}`) || "[]"); } catch (_) { return []; }
@@ -833,7 +859,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [produitBumpId, setProduitBumpId] = useState(null);
 
   function chargerPixelFacebook(pixelId) {
-    if (!pixelId || window.fbq) return;
+    if (!pixelId) return;
+    pixelFbRef.current = pixelId;
+    if (window.fbq) {
+      // Déjà démarré par index.html (identité en cache) — PageView déjà envoyé. Si le marchand
+      // a changé de Pixel depuis la dernière visite, on ajoute le nouveau sans doubler l'ancien.
+      if (window.__RV_FB && window.__RV_FB !== pixelId) {
+        window.fbq("init", pixelId);
+        window.fbq("trackSingle", pixelId, "PageView");
+        window.__RV_FB = pixelId;
+      }
+      return;
+    }
     !(function (f, b, e, v, n, t, s) {
       if (f.fbq) return;
       n = f.fbq = function () {
@@ -850,6 +887,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       s = b.getElementsByTagName(e)[0];
       s.parentNode.insertBefore(t, s);
     })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+    window.__RV_FB = pixelId;
     window.fbq("init", pixelId);
     window.fbq("track", "PageView");
   }
@@ -892,16 +930,56 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     })(window, document, "ttq");
   }
 
+  // Copie « serveur » (Conversions API) des événements d'entonnoir. Sur iPhone, dans le
+  // navigateur intégré de Facebook/Instagram ou avec un bloqueur de publicités, le Pixel du
+  // navigateur est souvent bloqué ou retardé : Facebook ne voit alors ni la vue produit ni
+  // l'ajout au panier et optimise mal. Le serveur, lui, ne peut pas être bloqué. Le même
+  // eventID est envoyé des deux côtés : Meta ne compte l'événement qu'une fois.
+  function envoyerEvenementServeur(nom, params, eventID) {
+    if (!workspaceId || !pixelFbRef.current) return;
+    try {
+      const meta = obtenirAttributionMeta();
+      fetch("/api/facebook-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          nom,
+          eventId: eventID,
+          fbp: meta.fbp,
+          fbc: meta.fbc,
+          url: window.location.href,
+          params: {
+            value: params?.value,
+            currency: params?.currency,
+            content_ids: params?.content_ids,
+            content_type: params?.content_type,
+            content_name: params?.content_name,
+            contents: params?.contents,
+            num_items: params?.num_items,
+          },
+        }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  const EVENEMENTS_DOUBLES = ["ViewContent", "AddToCart", "InitiateCheckout"];
+
   function trackEvenement(nom, params = {}, options = {}) {
     // eventID est indispensable lorsqu'un même événement est envoyé par le navigateur
     // ET par Conversions API. Pour Purchase, il doit être exactement le même des deux côtés.
+    let eventID = options.eventID;
+    const doubler = EVENEMENTS_DOUBLES.includes(nom);
+    if (doubler && !eventID) eventID = genererEventId(nom.toLowerCase());
     if (window.fbq) {
-      if (options.eventID) {
-        window.fbq("track", nom, params, { eventID: options.eventID });
+      if (eventID) {
+        window.fbq("track", nom, params, { eventID });
       } else {
         window.fbq("track", nom, params);
       }
     }
+    if (doubler) envoyerEvenementServeur(nom, params, eventID);
     if (window.ttq) {
       window.ttq.track(nom, {
         content_id: params?.content_ids?.[0],
@@ -942,7 +1020,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   useEffect(() => {
     if (workspaceIdProp || !slug) return;
-    supabase.rpc("workspace_id_par_slug", { p_slug: slug }).then(({ data, error }) => {
+    const pre = window.__RV_PRE;
+    const demande = pre && pre.ws && pre.cle === slug && pre.fn === "slug" ? Promise.resolve(pre.ws).then((r) => (r ? { data: r, error: null } : supabase.rpc("workspace_id_par_slug", { p_slug: slug }))) : supabase.rpc("workspace_id_par_slug", { p_slug: slug });
+    demande.then(({ data, error }) => {
       if (error || !data) {
         setErreur("Cette boutique est introuvable.");
         return;
@@ -953,7 +1033,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   useEffect(() => {
     if (workspaceIdProp || slug || !domaine) return;
-    supabase.rpc("workspace_id_par_domaine", { p_domaine: domaine }).then(({ data, error }) => {
+    const pre = window.__RV_PRE;
+    const demande = pre && pre.ws && pre.cle === domaine && pre.fn === "domaine" ? Promise.resolve(pre.ws).then((r) => (r ? { data: r, error: null } : supabase.rpc("workspace_id_par_domaine", { p_domaine: domaine }))) : supabase.rpc("workspace_id_par_domaine", { p_domaine: domaine });
+    demande.then(({ data, error }) => {
       if (error || !data) {
         setErreur("Cette boutique est introuvable.");
         return;
@@ -984,7 +1066,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       });
     }
 
-    supabase.rpc("catalogue_public", { p_workspace_id: workspaceId }).then(({ data, error }) => {
+    utiliserPrechargement("cat", workspaceId, () => supabase.rpc("catalogue_public", { p_workspace_id: workspaceId })).then(({ data, error }) => {
       if (error || !data || data.length === 0) {
         setErreur("Ce catalogue est introuvable ou vide.");
         return;
@@ -1033,6 +1115,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             nom: data[0].entreprise_nom,
             logo: data[0].logo_url,
             couleur: data[0].couleur_marque || "#1a7a3c",
+            // Pixel Facebook : gardé pour que la prochaine visite le démarre dès l'ouverture
+            // de la page (index.html), sans attendre le réseau.
+            fb: data[0].facebook_pixel_id || null,
           }));
         } catch (_) {}
       }
@@ -1054,6 +1139,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         if (trouve) {
           setProduitOuvert(trouve);
           setForm({ client: "", tel: "", zone: "" });
+          // Un lien de publicité pointe presque toujours directement sur un produit : sans
+          // cet événement, Facebook ne voyait AUCUNE vue produit pour ces visiteurs
+          // (ViewContent n'était envoyé qu'au clic sur une carte de la boutique).
+          trackEvenement("ViewContent", {
+            content_ids: [trouve.produit_id],
+            contents: [{ id: trouve.produit_id, quantity: 1, item_price: Number(trouve.prix_vente) || 0 }],
+            content_type: "product",
+            content_name: trouve.produit_nom,
+            value: Number(trouve.prix_vente) || 0,
+            currency: data[0].devise || "XOF",
+            num_items: 1,
+          });
         }
       }
 
@@ -1100,11 +1197,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   useEffect(() => {
     if (!workspaceId) return;
 
-    supabase.rpc("temoignages_publics", { p_workspace_id: workspaceId }).then(({ data: dataTemoignages }) => {
+    utiliserPrechargement("tem", workspaceId, () => supabase.rpc("temoignages_publics", { p_workspace_id: workspaceId })).then(({ data: dataTemoignages }) => {
       setAvisBoutique(dataTemoignages || []);
     });
 
-    supabase.rpc("collections_publiques", { p_workspace_id: workspaceId }).then(({ data: dataCollections }) => {
+    utiliserPrechargement("col", workspaceId, () => supabase.rpc("collections_publiques", { p_workspace_id: workspaceId })).then(({ data: dataCollections }) => {
       if (!dataCollections || dataCollections.length === 0) return;
       const parCollection = {};
       dataCollections.forEach((ligne) => {
@@ -4473,13 +4570,17 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
         {p.photo_url ? (
           <img
             ref={imgRef}
-            src={p.photo_url}
+            src={urlImageLegere(p.photo_url, 520)}
             alt={p.produit_nom}
             loading="lazy"
             decoding="async"
             className={ajuste ? "rv-fit-cover" : undefined}
             onLoad={(e) => evaluerPhoto(e.currentTarget)}
-            onError={(e) => { e.target.style.display = "none"; }}
+            onError={(e) => {
+              // La version allégée a échoué : on retente une fois avec la photo d'origine.
+              if (e.target.dataset.rvOrig !== "1" && e.target.src !== p.photo_url) { e.target.dataset.rvOrig = "1"; e.target.src = p.photo_url; }
+              else e.target.style.display = "none";
+            }}
           />
         ) : (
           <div className="rv-card-vide">📦</div>
@@ -5028,8 +5129,11 @@ function GaleriePhotosProduit({ photos, alt, couleur, index, setIndex, t }) {
       >
         {photo ? (
           <img
-            src={photo}
+            src={urlImageLegere(photo, 1000)}
             alt={alt}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
             style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }}
             onError={(e) => { e.target.style.display = "none"; }}
           />
@@ -5052,7 +5156,7 @@ function GaleriePhotosProduit({ photos, alt, couleur, index, setIndex, t }) {
               onClick={() => setIndex(k)}
               style={{ flexShrink: 0, width: 62, height: 62, borderRadius: 8, overflow: "hidden", padding: 0, border: k === i ? `2px solid ${couleur}` : "1px solid #ECE8DC", opacity: k === i ? 1 : 0.8, cursor: "pointer", background: "none" }}
             >
-              <img src={url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={urlImageLegere(url, 160)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </button>
           ))}
         </div>
@@ -5497,10 +5601,10 @@ function CollectionTuile({ c, produitsCol, config, couleur, onOpen, mode, classe
   const fond = `linear-gradient(145deg, ${couleur}, ${couleur}aa 55%, #0b1a12)`;
   const image = modeMosaique && !casse ? (
     <span className="rv-coll-mosaique">
-      {photos.slice(0, 4).map((u, i) => <img key={i} src={u} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />)}
+      {photos.slice(0, 4).map((u, i) => <img key={i} src={urlImageLegere(u, 320)} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />)}
     </span>
   ) : une && !casse ? (
-    <img className="rv-coll-img" src={une} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />
+    <img className="rv-coll-img" src={urlImageLegere(une, 700)} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />
   ) : (
     <span className="rv-coll-initiale" aria-hidden="true">{(nom || "?").trim().charAt(0).toUpperCase()}</span>
   );

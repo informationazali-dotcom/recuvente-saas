@@ -819,6 +819,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [verificationCodePromoEnCours, setVerificationCodePromoEnCours] = useState(false);
   const [lienCopie, setLienCopie] = useState(false);
   const [politiqueOuverte, setPolitiqueOuverte] = useState(null);
+  useEffect(() => {
+    const h = (e) => { if (e?.detail) setPolitiqueOuverte(e.detail); };
+    window.addEventListener("rv-ouvrir-politique", h);
+    return () => window.removeEventListener("rv-ouvrir-politique", h);
+  }, []);
   const [pagePersoOuverte, setPagePersoOuverte] = useState(null);
   const [recherche, setRecherche] = useState("");
   const [collectionOuverte, setCollectionOuverte] = useState(null);
@@ -1179,6 +1184,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   function fermerProduit() {
     setProduitOuvert(null);
+    setPagePersoOuverte(null);
+    setPolitiqueOuverte(null);
     const url = new URL(window.location.href);
     url.searchParams.delete("produit");
     window.history.pushState({}, "", url);
@@ -1186,6 +1193,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   function naviguerVersCollection(id) {
     setProduitOuvert(null);
+    setPagePersoOuverte(null);
+    setPolitiqueOuverte(null);
     const url = new URL(window.location.href);
     url.searchParams.delete("produit");
     window.history.pushState({}, "", url);
@@ -2702,7 +2711,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         </div>
 
-        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} />
+        <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} footerConfig={creerFooterConfig(entreprise.storeConfig)} />
         <BulleWhatsApp whatsapp={entreprise.whatsapp} codePays={entreprise.country} messageDefaut={`Bonjour, j'ai une question sur "${titreCollection}".`} />
         {panierOuvert && (
           <PanierDrawer
@@ -2967,7 +2976,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         )}
       </div>
 
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} biensLocation={biensLocation} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={produits.some((p) => p.nb_ventes > 0)} aDesNouveautes={produits.some((p) => p.est_nouveau)} onNaviguerVersCollection={naviguerVersCollection} biensLocation={biensLocation} footerConfig={creerFooterConfig(entreprise.storeConfig)} />
 
       {politiqueOuverte && (
         <div
@@ -3959,6 +3968,9 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   const bgHeader = headerConfig?.bgColor || couleur;
   const texteHeader = headerConfig?.textColor || "white";
   const afficherRecherche = headerConfig?.showSearch !== false;
+  const navMenu = { entreprise, onNaviguerVersCollection, onOuvrirPagePerso, accueil: onLogoClick };
+  const bgNav = couleurPersoValide(entreprise.storeConfig?.headerNavBgColor);
+  const texteNav = bgNav ? couleurTextePourFond(bgNav) : texteHeader;
   const afficherPanier = headerConfig?.showPanier !== false;
 
   return (
@@ -4061,7 +4073,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
           {afficherPanier && onOuvrirPanier && (
             <button
               onClick={onOuvrirPanier}
-              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.2)", border: "none", color: texteHeader, width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
+              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: couleurPersoValide(entreprise.storeConfig?.headerCartBgColor) || "rgba(255,255,255,0.2)", border: "none", color: couleurPersoValide(entreprise.storeConfig?.headerCartBgColor) ? couleurTextePourFond(entreprise.storeConfig.headerCartBgColor) : texteHeader, width: 38, height: 38, borderRadius: 10, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
             >
               🛒
               {nbArticlesPanier > 0 && (
@@ -4075,16 +4087,17 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
       </div>
 
       {aDesLiensNav && (
-        <div className="rv-shop-nav-desktop" style={{ borderTop: "1px solid rgba(0,0,0,0.08)", overflowX: "auto" }}>
+        <div className="rv-shop-nav-desktop" style={{ borderTop: "1px solid rgba(0,0,0,0.08)", overflowX: "auto", ...(bgNav ? { background: bgNav } : {}) }}>
           <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
             {aDesLiensPersonnalises ? (
               headerConfig.liens.map((lien) => (
                 <a
                   key={lien.id}
                   href={lien.href || "#"}
+                  onClick={(e) => gererLienBoutique(e, lien.href, navMenu)}
                   target={lien.href && lien.href.startsWith("http") ? "_blank" : undefined}
                   rel={lien.href && lien.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                  style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: texteHeader, opacity: 0.85, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
+                  style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: texteNav, opacity: 0.85, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
                 >
                   {lien.label}
                 </a>
@@ -4101,7 +4114,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                   <button
                     key={lien.label}
                     onClick={() => onNaviguerVersCollection(lien.id)}
-                    style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${texteHeader}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: texteHeader, opacity: actif ? 1 : 0.85, cursor: "pointer", whiteSpace: "nowrap" }}
+                    style={{ background: "none", border: "none", borderBottom: actif ? `2px solid ${texteNav}` : "2px solid transparent", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: actif ? 700 : 600, color: texteNav, opacity: actif ? 1 : 0.85, cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {lien.label}
                   </button>
@@ -4112,7 +4125,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
               <button
                 key={p.slug}
                 onClick={() => onOuvrirPagePerso?.(p)}
-                style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: texteHeader, opacity: 0.85, cursor: "pointer", whiteSpace: "nowrap" }}
+                style={{ background: "none", border: "none", padding: "9px 12px 7px", fontSize: 12.5, fontWeight: 600, color: texteNav, opacity: 0.85, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 {p.titre}
               </button>
@@ -4140,7 +4153,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
                 href={item.href}
                 target={item.href.startsWith("http") ? "_blank" : undefined}
                 rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                onClick={() => setMenuMobileOuvert(false)}
+                onClick={(e) => { gererLienBoutique(e, item.href, navMenu); setMenuMobileOuvert(false); }}
                 style={{ display: "block", padding: "13px 16px", fontSize: 14, fontWeight: 600, color: texteHeader, textDecoration: "none", borderBottom: "1px solid rgba(0,0,0,0.06)" }}
               >
                 {item.label}
@@ -4222,6 +4235,56 @@ function RevealOnScroll({ children, delai = 0 }) {
 
 // ===== STYLE DES CARTES PRODUITS (piloté depuis le Store Builder) =====
 // L'abonné choisit son ambiance dans Réglages → "Cartes produits" : aucun code à toucher.
+// Réglages du pied de page issus du Store Builder (couleurs, colonnes, newsletter…), utilisés sur
+// TOUS les écrans (accueil, collection, fiche produit) pour que le pied de page soit partout identique.
+function creerFooterConfig(config) {
+  if (!config || typeof config !== "object") return undefined;
+  return { bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop, boutiqueVisible: config.footerBoutiqueVisible, ambiance: config.footerAmbiance, colonnesMobile: config.footerColonnesMobile, accent: couleurPersoValide(config.footerAccentColor) || config.couleur };
+}
+
+// Clic sur un lien du menu / du pied de page (liens choisis dans le Store Builder) :
+// - « Accueil » (#) ramène VRAIMENT à l'accueil, même depuis une fiche produit ou une collection ;
+// - ?page= / ?collection= / ?politique= s'ouvrent sur place, sans perdre ?boutique= dans l'adresse ;
+// - #ancre défile vers la section (en revenant d'abord à l'accueil si elle n'est pas sur l'écran) ;
+// - liens externes (https://…) : comportement normal du navigateur.
+function gererLienBoutique(e, href, nav = {}) {
+  const h = String(href || "#").trim();
+  if (/^(https?:)?\/\//i.test(h) || /^(mailto|tel|https?):/i.test(h)) return;
+  e.preventDefault();
+  const versAccueil = () => { if (nav.onNaviguerVersCollection) nav.onNaviguerVersCollection(null); else if (nav.accueil) nav.accueil(); window.scrollTo(0, 0); };
+  if (h === "" || h === "#") { versAccueil(); return; }
+  if (h.startsWith("?")) {
+    const p = new URLSearchParams(h);
+    const page = p.get("page"), col = p.get("collection"), pol = p.get("politique");
+    if (page) {
+      const pg = (nav.entreprise?.pagesPersonnalisees || []).find((x) => x.slug === page);
+      if (pg && nav.onOuvrirPagePerso) { nav.onOuvrirPagePerso(pg); return; }
+    }
+    if (col && nav.onNaviguerVersCollection) { nav.onNaviguerVersCollection(`manuelle-${col}`); return; }
+    if (pol) {
+      if (nav.onNaviguerVersCollection) nav.onNaviguerVersCollection(null);
+      setTimeout(() => window.dispatchEvent(new CustomEvent("rv-ouvrir-politique", { detail: pol })), 60);
+      return;
+    }
+    // Produit précis (ou autre) : navigation complète, en gardant le reste de l'adresse (?boutique=…).
+    const u = new URL(window.location.href);
+    ["produit", "collection", "page", "politique", "bien"].forEach((k) => u.searchParams.delete(k));
+    p.forEach((v, k) => u.searchParams.set(k, v));
+    window.location.assign(u.toString());
+    return;
+  }
+  if (h.startsWith("#")) {
+    const id = h.slice(1);
+    const trouver = () => document.getElementById(id) || document.getElementById("rv-shop-" + id) || document.getElementById("rv-" + id);
+    const cible = trouver();
+    if (cible) { cible.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    versAccueil();
+    setTimeout(() => { const c = trouver(); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 350);
+    return;
+  }
+  window.location.assign(h);
+}
+
 // Couleurs des boutons « Ajouter au panier / Commander » choisies par le marchand dans le Store
 // Builder (storeConfig.boutonBgColor / boutonTextColor). Vide = couleur de la marque (comportement
 // historique). Variable de module, réglée à chaque rendu comme STYLE_CARTE.
@@ -4616,7 +4679,9 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
         .rv-ft-badge{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 13px;transition:background .3s,transform .3s,border-color .3s}
         .rv-ft-badge b{font-size:12.5px;font-weight:700;color:#fff;line-height:1.25}
         .rv-ft-badge span.ic{font-size:21px;flex-shrink:0;line-height:1}
-        .rv-ft-cols{display:grid;grid-template-columns:1.5fr repeat(auto-fit,minmax(160px,1fr));gap:30px;padding:30px 18px}
+        .rv-ft-cols{display:flex;flex-wrap:wrap;gap:30px 48px;padding:30px 18px;align-items:flex-start}
+        .rv-ft-cols>*{flex:1 1 170px;min-width:150px}
+        .rv-ft-cols>.rv-ft-marque{flex:1.7 1 300px}
         .rv-ft-titre{display:flex;flex-direction:column;gap:7px;font-weight:800;font-size:11.5px;color:#fff;text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px}
         .rv-ft-titre em{display:block;width:26px;height:2px;border-radius:2px;background:${accent};font-style:normal}
         .rv-ft-liens{display:flex;flex-direction:column}
@@ -4642,7 +4707,8 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
           .rv-ft-badge{padding:10px 11px;gap:9px;border-radius:12px}
           .rv-ft-badge b{font-size:11.5px}
           .rv-ft-badge span.ic{font-size:18px}
-          .rv-ft-cols{grid-template-columns:repeat(${colMobile},minmax(0,1fr));gap:20px 14px;padding:22px 14px}
+          .rv-ft-cols{display:grid;grid-template-columns:repeat(${colMobile},minmax(0,1fr));gap:20px 14px;padding:22px 14px}
+          .rv-ft-cols>*{min-width:0}
           .rv-ft-marque{grid-column:1/-1}
           .rv-ft-desc{font-size:12.5px;margin-bottom:13px;max-width:none}
           .rv-ft-titre{font-size:10.5px;margin-bottom:9px}
@@ -4725,6 +4791,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
                   key={i}
                   className="rv-ft-lien"
                   href={l.href || "#"}
+                  onClick={(e) => gererLienBoutique(e, l.href, { entreprise, onNaviguerVersCollection, onOuvrirPagePerso })}
                   target={l.href && l.href.startsWith("http") ? "_blank" : undefined}
                   rel={l.href && l.href.startsWith("http") ? "noopener noreferrer" : undefined}
                 >
@@ -6157,7 +6224,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
           </div>
         </div>
       )}
-      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop, boutiqueVisible: config.footerBoutiqueVisible, ambiance: config.footerAmbiance, colonnesMobile: config.footerColonnesMobile, accent: config.couleur }} />
+      <PiedDePage entreprise={entreprise} onOuvrirPolitique={setPolitiqueOuverte} onOuvrirPagePerso={setPagePersoOuverte} collectionsManuelles={collectionsManuelles} aDesBestSellers={meilleuresVentesToutes.length > 0} aDesNouveautes={nouveautesToutes.length > 0} onNaviguerVersCollection={naviguerVersCollection} footerConfig={{ bgColor: config.footerBgColor, textColor: config.footerTextColor, colonnes: config.footerColonnes, newsletterActif: config.footerNewsletterActif, newsletterTexte: config.footerNewsletterTexte, paiements: config.footerPaiements, backToTop: config.footerBackToTop, boutiqueVisible: config.footerBoutiqueVisible, ambiance: config.footerAmbiance, colonnesMobile: config.footerColonnesMobile, accent: couleurPersoValide(config.footerAccentColor) || config.couleur }} />
       {politiqueOuverte && (
         <div onClick={() => setPolitiqueOuverte(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px", maxHeight: "75vh", overflowY: "auto" }}>

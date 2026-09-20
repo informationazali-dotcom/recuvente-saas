@@ -9819,6 +9819,76 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
   const positionCurseurRef = useRef(null);
   const [modeHTML, setModeHTML] = useState(false);
   const [htmlBrut, setHtmlBrut] = useState("");
+  // Image / vidéo actuellement sélectionnée dans l'éditeur (pour la déplacer ou la supprimer)
+  const [blocSelectionne, setBlocSelectionne] = useState(null);
+
+  // HTML de l'éditeur SANS la marque de sélection (l'entourage vert n'est qu'un repère visuel,
+  // il ne doit jamais être enregistré dans la description).
+  function lireHtml() {
+    const el = editeurRef.current;
+    if (!el) return "";
+    return el.innerHTML.replace(/\sdata-rv-sel="1"/g, "");
+  }
+
+  // Trouve l'image / la vidéo (ou le cadre d'une vidéo YouTube/Vimeo) sur lequel on a touché.
+  function trouverBloc(cible) {
+    const racine = editeurRef.current;
+    if (!racine || !cible || cible === racine || !cible.closest) return null;
+    const media = cible.closest("img, video");
+    if (media && racine.contains(media)) return media;
+    const cadre = cible.closest("div");
+    if (cadre && cadre !== racine && racine.contains(cadre) && cadre.querySelector("iframe")) return cadre;
+    return null;
+  }
+
+  function selectionnerBloc(bloc) {
+    if (blocSelectionne && blocSelectionne !== bloc) blocSelectionne.removeAttribute("data-rv-sel");
+    if (bloc) bloc.setAttribute("data-rv-sel", "1");
+    setBlocSelectionne(bloc || null);
+  }
+
+  // Si l'image est seule dans son paragraphe/bloc, c'est ce bloc entier qu'on déplace ou retire
+  // (sinon il resterait un paragraphe vide).
+  function uniteDuBloc(bloc) {
+    const racine = editeurRef.current;
+    let unite = bloc;
+    while (unite.parentElement && unite.parentElement !== racine) {
+      const parent = unite.parentElement;
+      const seulEnfant = parent.children.length === 1 && (parent.textContent || "").trim() === "";
+      if (!seulEnfant) break;
+      unite = parent;
+    }
+    return unite;
+  }
+
+  function supprimerBloc() {
+    const bloc = blocSelectionne;
+    if (!bloc || !editeurRef.current) return;
+    const unite = uniteDuBloc(bloc);
+    unite.remove();
+    setBlocSelectionne(null);
+    onChange(lireHtml());
+  }
+
+  function deplacerBloc(sens) {
+    const bloc = blocSelectionne;
+    if (!bloc || !editeurRef.current) return;
+    const unite = uniteDuBloc(bloc);
+    const estVideTexte = (n) => n && n.nodeType === 3 && !(n.textContent || "").trim();
+    let voisin = sens < 0 ? unite.previousSibling : unite.nextSibling;
+    while (estVideTexte(voisin)) voisin = sens < 0 ? voisin.previousSibling : voisin.nextSibling;
+    if (!voisin) return;
+    if (sens < 0) unite.parentNode.insertBefore(unite, voisin);
+    else unite.parentNode.insertBefore(voisin, unite);
+    onChange(lireHtml());
+    if (bloc.scrollIntoView) bloc.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  // Bloc « Points forts » : sur la page produit, cette liste s'affiche en cases à cocher
+  // juste sous le titre (comme sur les pages Copyfy).
+  function insererPointsForts() {
+    appliquer("insertHTML", '<ul data-rv="points-forts"><li>Premier bénéfice concret pour le client</li><li>Deuxième bénéfice concret</li><li>Troisième bénéfice concret</li></ul><p><br></p>');
+  }
 
   useEffect(() => {
     if (editeurRef.current && !initialise) {
@@ -9856,7 +9926,7 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     restaurerPositionCurseur();
     document.execCommand(commande, false, arg);
     sauvegarderPositionCurseur();
-    onChange(editeurRef.current.innerHTML);
+    onChange(lireHtml());
   }
 
   async function inserer_image(fichier) {
@@ -9901,7 +9971,7 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     }
     editeur.focus();
     restaurerPositionCurseur();
-    onChange(editeur.innerHTML);
+    onChange(lireHtml());
     setEnvoiImage(false);
   }
 
@@ -9961,13 +10031,15 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     }
     editeur.focus();
     restaurerPositionCurseur();
-    onChange(editeur.innerHTML);
+    onChange(lireHtml());
     setEnvoiVideo(false);
   }
 
   function basculerModeHTML() {
     if (!modeHTML) {
-      setHtmlBrut(editeurRef.current ? editeurRef.current.innerHTML : valeur || "");
+      if (blocSelectionne) blocSelectionne.removeAttribute("data-rv-sel");
+      setBlocSelectionne(null);
+      setHtmlBrut(editeurRef.current ? lireHtml() : valeur || "");
       setModeHTML(true);
     } else {
       onChange(htmlBrut);
@@ -10009,6 +10081,7 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
         <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("italic")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><i>I</i></button>
         <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("underline")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}><u>S</u></button>
         <button type="button" disabled={modeHTML} onMouseDown={(e) => e.preventDefault()} onClick={() => appliquer("insertUnorderedList")} style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}>• Liste</button>
+        <button type="button" disabled={modeHTML} onMouseDown={sauvegarderPositionCurseur} onClick={insererPointsForts} title="Liste de bénéfices affichée en cases à cocher sous le titre du produit" style={{ ...boutonEditeurStyle, opacity: modeHTML ? 0.5 : 1 }}>⭐ Points forts</button>
         <label style={{ ...boutonEditeurStyle, cursor: modeHTML ? "default" : "pointer", opacity: modeHTML ? 0.5 : 1 }} onMouseDown={sauvegarderPositionCurseur}>
           {envoiImage ? "Envoi..." : "🖼️ Image"}
           <input type="file" accept="image/*" disabled={modeHTML} style={{ display: "none" }} onChange={(e) => inserer_image(e.target.files?.[0])} />
@@ -10022,6 +10095,17 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
           {modeHTML ? "✓ Terminer HTML" : "</> HTML"}
         </button>
       </div>
+      {blocSelectionne && !modeHTML && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "6px 8px", background: "#EAF3DE", borderBottom: "1px solid #C7DDA3", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#3B6D11", marginRight: 2 }}>
+            {blocSelectionne.tagName === "IMG" ? "🖼️ Image sélectionnée" : "🎥 Vidéo sélectionnée"}
+          </span>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => deplacerBloc(-1)} style={boutonEditeurStyle}>⬆ Monter</button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => deplacerBloc(1)} style={boutonEditeurStyle}>⬇ Descendre</button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={supprimerBloc} style={{ ...boutonEditeurStyle, background: "#D64933", borderColor: "#D64933", color: "white" }}>🗑️ Supprimer</button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => selectionnerBloc(null)} style={{ ...boutonEditeurStyle, marginLeft: "auto" }}>✕</button>
+        </div>
+      )}
       {modeHTML ? (
         <textarea
           value={htmlBrut}
@@ -10033,7 +10117,13 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
         <div
           ref={editeurRef}
           contentEditable
-          onInput={(e) => onChange(e.currentTarget.innerHTML)}
+          onInput={() => onChange(lireHtml())}
+          onClick={(e) => selectionnerBloc(trouverBloc(e.target))}
+          onKeyDown={(e) => {
+            if (!blocSelectionne) return;
+            if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); supprimerBloc(); }
+            else if (!e.metaKey && !e.ctrlKey && e.key.length === 1) selectionnerBloc(null);
+          }}
           onBlur={sauvegarderPositionCurseur}
           onKeyUp={sauvegarderPositionCurseur}
           onMouseUp={sauvegarderPositionCurseur}
@@ -10042,7 +10132,23 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
           className="rv-editeur-riche"
         />
       )}
-      <style>{`.rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; } .rv-editeur-riche h2 { font-size: 19px; font-weight: 700; margin: 14px 0 8px; } .rv-editeur-riche h3 { font-size: 16px; font-weight: 700; margin: 12px 0 6px; }`}</style>
+      {!modeHTML && (
+        <div style={{ fontSize: 11, color: "#8A9089", padding: "6px 12px 8px", borderTop: "1px solid #ECE8DC", background: "#FAFAF7", lineHeight: 1.5 }}>
+          💡 Touche une image ou une vidéo pour la déplacer ou la supprimer. Sur la boutique, les images s'affichent en pleine largeur (ici elles sont réduites pour rester faciles à manipuler).
+        </div>
+      )}
+      <style>{`
+        .rv-editeur-riche:empty:before { content: attr(data-placeholder); color: #8A9089; }
+        .rv-editeur-riche h2 { font-size: 19px; font-weight: 700; margin: 14px 0 8px; }
+        .rv-editeur-riche h3 { font-size: 16px; font-weight: 700; margin: 12px 0 6px; }
+        .rv-editeur-riche { overflow-wrap: anywhere; max-height: 70vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .rv-editeur-riche img { max-width: 100% !important; max-height: 200px !important; width: auto !important; height: auto !important; object-fit: contain; display: block !important; margin: 8px 0 !important; border-radius: 8px; background: #F3F2EE; cursor: pointer; }
+        .rv-editeur-riche video { max-width: 100% !important; max-height: 200px !important; width: auto !important; height: auto !important; display: block !important; margin: 8px 0 !important; border-radius: 8px; cursor: pointer; }
+        .rv-editeur-riche iframe { pointer-events: none; }
+        .rv-editeur-riche div:has(> iframe) { max-width: 320px; cursor: pointer; }
+        .rv-editeur-riche [data-rv-sel="1"] { outline: 3px solid #1a7a3c; outline-offset: 2px; }
+        .rv-editeur-riche ul[data-rv="points-forts"] { background: #F1F5F1; border-left: 3px solid #1a7a3c; border-radius: 6px; padding: 8px 8px 8px 28px; }
+      `}</style>
     </div>
   );
 }

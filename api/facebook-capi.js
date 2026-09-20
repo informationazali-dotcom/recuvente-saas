@@ -166,6 +166,24 @@ export default async function handler(req, res) {
     const code = String(req.headers["x-vercel-ip-country"] || "").toUpperCase();
     return res.status(200).json({ pays: /^[A-Z]{2}$/.test(code) ? code : null });
   }
+  // « GET ?taux=XOF » : taux de change du jour (base → autres monnaies), pour convertir automatiquement les prix
+  // quand le commerçant n'a saisi aucun taux. Mis en cache 12 h côté Vercel ; en cas de panne : rates = null.
+  if (req.method === "GET" && req.query && req.query.taux) {
+    const base = String(req.query.taux).toUpperCase();
+    if (!/^[A-Z]{3}$/.test(base)) return res.status(400).json({ error: "Devise invalide" });
+    try {
+      const r = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+      const j = r.ok ? await r.json() : null;
+      if (!j || j.result !== "success" || !j.rates) throw new Error("taux indisponibles");
+      const rates = {};
+      for (const d of ["XOF","XAF","GNF","CDF","MAD","DZD","TND","GHS","NGN","EUR","USD"]) if (Number(j.rates[d]) > 0) rates[d] = Number(j.rates[d]);
+      res.setHeader("Cache-Control", "public, s-maxage=43200, stale-while-revalidate=86400");
+      return res.status(200).json({ base, rates });
+    } catch (_) {
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ base, rates: null });
+    }
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
 
   // Événement d'entonnoir (vue produit, ajout au panier, début de commande) → traitement dédié.

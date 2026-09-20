@@ -17563,7 +17563,7 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
             <div style={{ background: "white", border: "1px solid #C3D4F0", borderRadius: 10, padding: 12, marginBottom: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1E4B8C", marginBottom: 4 }}>💱 Monnaie de chaque pays</div>
               <div style={{ fontSize: 11.5, color: "#1E4B8C", lineHeight: 1.5, marginBottom: 10 }}>
-                Tes prix restent enregistrés en <strong>{libelleDevise(devise)}</strong> (commandes, statistiques : rien ne change). Pour un client d'un autre pays, la boutique affiche les prix dans <strong>sa monnaie</strong>, calculés avec le taux du jour (ou le taux que tu saisis ici, qui a la priorité) — et le montant à encaisser est noté sur la commande. Le pays du client est deviné automatiquement, et il peut le changer en haut de la boutique.
+                Tes prix restent enregistrés en <strong>{libelleDevise(devise)}</strong> (commandes, statistiques : rien ne change). Pour un client d'un autre pays, la boutique affiche les prix dans <strong>sa monnaie</strong>, calculés avec le taux du jour (ou le taux que tu saisis ici, qui a la priorité) — et le montant à encaisser est noté sur la commande. Le pays du client est deviné automatiquement, et il peut le changer en haut de la boutique. Les prix convertis sont arrondis proprement (ex. 13,50 € au lieu de 13,72 €) et le total affiché est toujours la somme exacte des lignes.
               </div>
               {paysListe.map((code) => {
                 const r = devisesPays[code] || {};

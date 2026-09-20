@@ -5,7 +5,7 @@ import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, montantAffiche, DEVISE_PAR_DEFAUT_PAYS } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -2077,7 +2077,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const stockVarianteActive = varianteActive ? Number(varianteActive.stock ?? 0) : null;
     const varianteEnRupture = varianteActive && stockVarianteActive <= 0;
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
-    totalCommandeRef.current = Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0));
+    // Montants arrondis « propres » (boutique multi-monnaies) puis additionnés : prix + livraison = total affiché, et
+    // c'est ce total exact qui est noté « À encaisser ». Sans conversion, ces fonctions ne changent rien.
+    const bumpBase = (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0);
+    const totalAffiche = Math.max(0, arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisLivraisonActuel) + arrondiLocalBase(bumpBase) - arrondiLocalBase(codePromoApplique?.montant_remise || 0));
+    totalCommandeRef.current = totalAffiche;
 
     if (envoye) {
       return (
@@ -2098,7 +2102,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{quantite} × {produitOuvert.produit_nom}</div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{montantAffiche((prixUnitaireEffectif * quantite + fraisLivraisonActuel))} {formaterDevise(entreprise.devise)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisLivraisonActuel)))} {formaterDevise(entreprise.devise)}</div>
                   {(fraisLivraisonEffectif > 0 || fraisExpeditionEffectif > 0) && (
                     <div style={{ fontSize: 11, color: "#8A9089" }}>
                       dont {montantAffiche(fraisLivraisonActuel)} {formaterDevise(entreprise.devise)} de {typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}
@@ -2372,7 +2376,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
                   {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((prixUnitaireEffectif * quantite + fraisExpeditionEffectif))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((prixUnitaireEffectif * quantite + fraisExpeditionEffectif))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
                     </div>
                   )}
                 </div>
@@ -2440,7 +2444,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
                   <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: couleur }}>{montantAffiche(Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)))} {formaterDevise(entreprise.devise)}</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{montantAffiche(totalAffiche)} {formaterDevise(entreprise.devise)}</span>
                 </div>
               </div>
 
@@ -2508,7 +2512,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
                 style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
-                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${montantAffiche(Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)))} ${formaterDevise(entreprise.devise)}`}
+                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${montantAffiche(totalAffiche)} ${formaterDevise(entreprise.devise)}`}
               </button>
       </>
     );
@@ -3454,13 +3458,13 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
 
-  const total = panier.reduce((s, it) => s + Number(it.prix_unitaire) * it.quantite, 0);
+  const total = panier.reduce((s, it) => s + arrondiLocalBase(Number(it.prix_unitaire)) * it.quantite, 0); // prix arrondis « propres » puis additionnés
   const auMoinsUnPayant = panier.some((it) => !it.livraison_gratuite);
   const fraisLivraisonDefaut = Number(entreprise.fraisLivraison || 0);
   const fraisExpeditionDefaut = Number(entreprise.fraisExpedition || 0);
   const aChoixLivraison = auMoinsUnPayant && fraisExpeditionDefaut > 0;
   const fraisLivraisonActuel = !auMoinsUnPayant ? 0 : (aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionDefaut : fraisLivraisonDefaut) : fraisLivraisonDefaut);
-  const totalAvecLivraison = total + (typeLivraisonChoisi || !aChoixLivraison ? fraisLivraisonActuel : 0);
+  const totalAvecLivraison = total + (typeLivraisonChoisi || !aChoixLivraison ? arrondiLocalBase(fraisLivraisonActuel) : 0);
 
   async function envoyerCommandePanier() {
     if (form.champPiege) return; // Champ piège rempli = probablement un robot, on ignore silencieusement.

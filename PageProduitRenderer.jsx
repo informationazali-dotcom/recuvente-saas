@@ -17,7 +17,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   normaliserConfig, REGISTRE_BLOCS, blocEstVide, calculerOffresAffichees, analyserVideo,
-  couleurTextePourFond, couleurValide, formaterMontant, produitsCrossSell, textePlat, CTA_TEXTE_DEFAUT,
+  couleurTextePourFond, couleurValide, formaterMontant, arrondiLocalBase, monnaieAffichage, produitsCrossSell, textePlat, CTA_TEXTE_DEFAUT,
   structureDescriptionProduit, urlImageLegere,
 } from "./blocs.js";
 
@@ -438,6 +438,11 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
 // Offres & packs (cartes sélectionnables)
 // ---------------------------------------------------------------------------
 
+// Boutique multi-monnaies : économie = différence des prix arrondis affichés (sinon 14 € − 10 € pourrait s'afficher « 3,50 € »).
+function economieAffichee(ancien, total, brut) {
+  return monnaieAffichage() && Number(ancien) > 0 ? arrondiLocalBase(ancien) - arrondiLocalBase(total) : brut;
+}
+
 function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
   const { produit, devise, etat, actions } = ctx;
   const { source, liste } = useMemo(() => calculerOffresAffichees(produit, blocOffres), [produit, blocOffres]);
@@ -472,7 +477,7 @@ function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
                 {(o.qty || 1) > 3 && <em>×{o.qty}</em>}
               </span>
               <span className="rvpp-pack-l">{o.label}</span>
-              {afficherEconomie && o.economie > 0 && <span className="rvpp-pack-eco">{o.pctEco > 0 ? `−${o.pctEco}% · ` : ""}Économisez {formaterMontant(o.economie, devise)}</span>}
+              {afficherEconomie && o.economie > 0 && <span className="rvpp-pack-eco">{o.pctEco > 0 ? `−${o.pctEco}% · ` : ""}Économisez {formaterMontant(economieAffichee(o.ancienTotal, o.total, o.economie), devise)}</span>}
               {o.cadeau && <span className="rvpp-pack-gift">🎁 {o.cadeau}</span>}
               {o.texte && <span className="rvpp-pack-txt">{o.texte}</span>}
               <span className="rvpp-pack-p">
@@ -505,7 +510,7 @@ function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
             <span className="rvpp-radio" aria-hidden="true" />
             <span className="rvpp-offer-b">
               <span className="rvpp-offer-l">{o.label}</span>
-              {afficherEconomie && o.economie > 0 && <span className="rvpp-offer-eco" style={{ display: "block" }}>Économisez {formaterMontant(o.economie, devise)}</span>}
+              {afficherEconomie && o.economie > 0 && <span className="rvpp-offer-eco" style={{ display: "block" }}>Économisez {formaterMontant(economieAffichee(o.ancienTotal, o.total, o.economie), devise)}</span>}
               {o.cadeau && <span className="rvpp-offer-gift" style={{ display: "block" }}>🎁 {o.cadeau}</span>}
               {o.texte && <span className="rvpp-offer-txt" style={{ display: "block" }}>{o.texte}</span>}
             </span>
@@ -556,7 +561,7 @@ function InfoProduit({ p, ctx, blocOffres }) {
         <div className="rvpp-price-row">
           <span className="rvpp-price">{formaterMontant(prixVente, devise)}</span>
           {aBarre && <span className="rvpp-price-old">{formaterMontant(prixBarre, devise)}</span>}
-          {aBarre && p.afficher_economie !== false && pct > 0 && <span className="rvpp-save">-{pct}% · {lib("economisez", "Économisez")} {formaterMontant(prixBarre - prixVente, devise)}</span>}
+          {aBarre && p.afficher_economie !== false && pct > 0 && <span className="rvpp-save">-{pct}% · {lib("economisez", "Économisez")} {formaterMontant(economieAffichee(prixBarre, prixVente, prixBarre - prixVente), devise)}</span>}
         </div>
       )}
 
@@ -874,8 +879,8 @@ function BlocGroupee({ bloc, ctx }) {
   const actif = ctx.etat.produitBumpId === prod.produit_id;
   const special = p.prix_special === "" || p.prix_special == null || !Number.isFinite(Number(p.prix_special)) ? null : Number(p.prix_special);
   const compPrix = special != null ? special : Number(prod.prix_vente) || 0;
-  const total = ctx.etat.prixBase + compPrix;
-  const normal = ctx.etat.prixBase + (Number(prod.prix_vente) || 0);
+  const total = arrondiLocalBase(ctx.etat.prixBase) + arrondiLocalBase(compPrix);
+  const normal = arrondiLocalBase(ctx.etat.prixBase) + arrondiLocalBase(Number(prod.prix_vente) || 0);
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
       <TitreSection titre={p.titre} sous={p.texte} />
@@ -1277,7 +1282,7 @@ export function PageProduitPublique({
         <CtaCollant
           ctx={ctx}
           libelle={libelleCta}
-          total={Math.round(etatComplet.prixUnitaireEffectif * (Number(etatComplet.quantite) || 1))}
+          total={monnaieAffichage() ? arrondiLocalBase(etatComplet.prixUnitaireEffectif) * (Number(etatComplet.quantite) || 1) : Math.round(etatComplet.prixUnitaireEffectif * (Number(etatComplet.quantite) || 1))}
           devise={devise}
         />
       )}

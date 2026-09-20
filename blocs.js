@@ -90,13 +90,32 @@ export function monnaieDuPays(devisesPays, deviseBase, codePays, tauxAuto) {
   return { devise, libelle: libelleDevise(devise), taux, auto, decimales: DECIMALES_DEVISE[devise] ?? 0 };
 }
 
+// Arrondi « propre » des prix convertis (pas fixe par monnaie : 13,72 € → 13,50 €, 135 210 GNF → 135 000 GNF).
+// Le pas est FIXE pour une monnaie donnée : les montants arrondis s'additionnent donc exactement
+// (prix + livraison = total affiché), ce qui garde le montant à encaisser cohérent.
+const PAS_ARRONDI = { XOF: 1, XAF: 1, EUR: 0.5, USD: 0.5, GNF: 500, CDF: 100, MAD: 1, DZD: 10, TND: 0.5, GHS: 1, NGN: 50 };
+function arrondiLocal(local, devise) {
+  const pas = PAS_ARRONDI[devise] || 1;
+  if (!(local > 0)) return local > 0 ? local : 0;
+  const r = Math.round(local / pas) * pas;
+  return r > 0 ? r : pas;
+}
+// Valeur (en monnaie de la boutique) équivalente au prix local arrondi. Sert à additionner des montants déjà arrondis.
+export function arrondiLocalBase(n) {
+  const v = Number(n);
+  if (!MONNAIE || !Number.isFinite(v) || v <= 0) return Number.isFinite(v) ? v : 0;
+  return arrondiLocal(v * MONNAIE.taux, MONNAIE.devise) / MONNAIE.taux;
+}
+
 // Nombre déjà converti et arrondi, formaté à la française (utilisé à la place de .toLocaleString("fr-FR")).
 export function montantAffiche(n) {
   const v = Number(n);
   if (!MONNAIE) return v.toLocaleString("fr-FR");
   if (!Number.isFinite(v)) return String(v);
-  const f = 10 ** MONNAIE.decimales;
-  return (Math.round(v * MONNAIE.taux * f) / f).toLocaleString("fr-FR", { maximumFractionDigits: MONNAIE.decimales });
+  const local = arrondiLocal(Math.round(v * MONNAIE.taux * 1e6) / 1e6, MONNAIE.devise);
+  const entier = Math.abs(local - Math.round(local)) < 1e-9;
+  const d = entier ? 0 : MONNAIE.decimales;
+  return (Math.round(local * 10 ** d) / 10 ** d).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
 export function formaterMontant(n, devise) {

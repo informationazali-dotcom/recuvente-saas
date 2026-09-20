@@ -9512,7 +9512,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             <>
               {commande.statut !== "confirmee" ? (
                 <a
-                  href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]} 👋, suivez votre commande en direct ici : ${window.location.origin}/?suivi=${commande.id}`)}`}
+                  href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]} 👋, suivez votre commande en direct ici : ${window.location.origin}/?suivi=${commande.id}${(() => { const m = /À encaisser : (.+)$/.exec(String(commande.zone || "")); return m ? "&aff=" + encodeURIComponent(m[1].trim()) : ""; })()}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ display: "block", textAlign: "center", width: "100%", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12.5, cursor: "pointer", marginBottom: 8, textDecoration: "none", boxSizing: "border-box" }}

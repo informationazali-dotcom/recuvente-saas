@@ -15,6 +15,16 @@ const ETAPES = [
   { key: "confirmee", label: "Livrée" },
 ];
 
+// Boutique multi-pays : le lien de suivi peut porter le montant exact que le client a vu dans SA monnaie
+// (« &aff=150 000 GNF », recopié de la note « À encaisser » de la commande). Affichage seulement ; on n'accepte
+// qu'un format strict « nombre + code monnaie » pour ne jamais afficher autre chose.
+function montantAffichePropre() {
+  try {
+    const v = new URLSearchParams(window.location.search).get("aff") || "";
+    return /^[\d\s\u00a0\u202f.,]{1,20}\s[A-Za-zÀ-ÿ€ ]{1,12}$/.test(v) ? v : "";
+  } catch (_) { return ""; }
+}
+
 export default function SuiviPublic({ commandeId }) {
   const [commande, setCommande] = useState(undefined);
   const [erreur, setErreur] = useState(null);
@@ -55,7 +65,7 @@ export default function SuiviPublic({ commandeId }) {
             <div style={{ fontSize: 13, color: "#6B7168", marginTop: 6 }}>Bonjour {commande.client?.split(" ")[0]}</div>
             <div style={{ fontWeight: 700, fontSize: 18, marginTop: 4 }}>{commande.produit}</div>
             <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 22, color: "#1a7a3c", marginTop: 6 }}>
-              {Number(commande.montant).toLocaleString("fr-FR")} {formaterDevise(commande.devise)}
+              {montantAffichePropre() || `${Number(commande.montant).toLocaleString("fr-FR")} ${formaterDevise(commande.devise)}`}
             </div>
 
             {etapeActuelle === -1 ? (

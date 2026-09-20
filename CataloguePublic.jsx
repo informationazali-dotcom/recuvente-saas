@@ -381,6 +381,9 @@ const TRADUCTIONS = {
     pourTeContacter: "Pour qu'on puisse te contacter et te livrer.",
     tonNom: "Ton nom",
     tonTelephone: "Ton numéro de téléphone",
+    choisirPays: "Choisis ton pays",
+    choisirPaysErreur: "⚠️ Choisis ton pays pour que ton numéro soit bien reconnu.",
+    numeroAttendu: "Numéro attendu",
     taVille: "Ta ville et ton quartier",
     quantite: "Quantité",
     offresQuantite: "🔥 OFFRES QUANTITÉ",
@@ -486,6 +489,9 @@ const TRADUCTIONS = {
     pourTeContacter: "So we can contact you and deliver.",
     tonNom: "Your name",
     tonTelephone: "Your phone number",
+    choisirPays: "Select your country",
+    choisirPaysErreur: "⚠️ Please select your country so your number is recognised.",
+    numeroAttendu: "Expected number",
     taVille: "Your city and neighborhood",
     quantite: "Quantity",
     offresQuantite: "🔥 QUANTITY DEALS",
@@ -596,9 +602,88 @@ const REGLES_TELEPHONE_PAR_PAYS = {
   ML: { longueur: 8, exemple: "70 12 34 56" },
   BF: { longueur: 8, exemple: "70 12 34 56" },
   TG: { longueur: 8, exemple: "90 12 34 56" },
+  // Guinée et Cameroun : numéros à 9 chiffres sans « 0 » de tête (règle stable) — on ne contrôle que la longueur.
+  GN: { longueur: 9, exemple: "622 12 34 56" },
+  CM: { longueur: 9, exemple: "6 71 23 45 67" },
 };
 
-const INDICATIFS_PAYS_TEL = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
+const INDICATIFS_PAYS_TEL = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228", GN: "224", CM: "237", GA: "241", CD: "243", MA: "212", DZ: "213", TN: "216", GH: "233", NG: "234", FR: "33" };
+
+// ===== BOUTIQUE MULTI-PAYS =====
+// Une boutique peut vendre dans plusieurs pays (Réglages → Pays de livraison). Dès qu'il y en a
+// au moins 2, le client choisit SON pays sur le bon de commande : son numéro est alors contrôlé
+// avec les règles de CE pays, et enregistré avec le bon indicatif. Avec un seul pays : rien ne change.
+const PAYS_INFOS = {
+  CI: { nom: "Côte d'Ivoire", drapeau: "🇨🇮" }, SN: { nom: "Sénégal", drapeau: "🇸🇳" }, ML: { nom: "Mali", drapeau: "🇲🇱" },
+  BF: { nom: "Burkina Faso", drapeau: "🇧🇫" }, TG: { nom: "Togo", drapeau: "🇹🇬" }, BJ: { nom: "Bénin", drapeau: "🇧🇯" },
+  GN: { nom: "Guinée", drapeau: "🇬🇳" }, CM: { nom: "Cameroun", drapeau: "🇨🇲" }, GA: { nom: "Gabon", drapeau: "🇬🇦" },
+  CD: { nom: "RD Congo", drapeau: "🇨🇩" }, MA: { nom: "Maroc", drapeau: "🇲🇦" }, DZ: { nom: "Algérie", drapeau: "🇩🇿" },
+  TN: { nom: "Tunisie", drapeau: "🇹🇳" }, GH: { nom: "Ghana", drapeau: "🇬🇭" }, NG: { nom: "Nigeria", drapeau: "🇳🇬" }, FR: { nom: "France", drapeau: "🇫🇷" },
+};
+// Pays où le « 0 » de tête local disparaît en format international (+233 24…, pas +233 024…).
+const PAYS_SANS_ZERO_INTERNATIONAL = new Set(["GH", "NG", "MA", "DZ", "FR", "CD"]);
+
+// Pays proposés au client : ceux cochés par la boutique (ordre conservé), sinon le pays principal.
+function paysDeLaBoutique(entreprise) {
+  const liste = Array.isArray(entreprise?.countriesLivraison) ? entreprise.countriesLivraison : [];
+  const codes = [];
+  const listeConfig = Array.isArray(entreprise?.storeConfig?.paysLivraison) ? entreprise.storeConfig.paysLivraison : [];
+  [...liste, ...listeConfig, entreprise?.country].forEach((c) => { const code = String(c || "").toUpperCase(); if (PAYS_INFOS[code] && !codes.includes(code)) codes.push(code); });
+  return codes;
+}
+
+// Si le client tape son numéro avec l'indicatif (+224 6…, 00224 6…), on devine son pays.
+function detecterPaysParIndicatif(saisie, codes) {
+  const brut = String(saisie || "").trim();
+  if (!brut.startsWith("+") && !brut.startsWith("00")) return "";
+  const chiffres = brut.replace(/\D/g, "").replace(/^00/, "");
+  const tries = [...codes].sort((a, b) => INDICATIFS_PAYS_TEL[b].length - INDICATIFS_PAYS_TEL[a].length);
+  return tries.find((c) => chiffres.startsWith(INDICATIFS_PAYS_TEL[c])) || "";
+}
+
+// Numéro tel qu'il est ENREGISTRÉ. Pays principal (ou boutique à un seul pays) : format local,
+// exactement comme avant. Autre pays : format international « +indicatif… », sans ambiguïté —
+// ainsi WhatsApp, Facebook et les relances utilisent le bon indicatif pour chaque client.
+function telephoneEnregistre(saisie, codePays, codePrincipal) {
+  const local = normaliserTelephoneLocal(saisie, codePays);
+  if (!codePays || !codePrincipal || codePays === codePrincipal || !INDICATIFS_PAYS_TEL[codePays]) return local;
+  return "+" + INDICATIFS_PAYS_TEL[codePays] + (PAYS_SANS_ZERO_INTERNATIONAL.has(codePays) ? local.replace(/^0/, "") : local);
+}
+
+// Pays du client sur le bon de commande. Un seul pays vendu = ce pays, sans rien demander.
+// Plusieurs = le client choisit (choix mémorisé sur son téléphone pour la prochaine fois).
+function usePaysClient(entreprise) {
+  const codes = paysDeLaBoutique(entreprise);
+  const multi = codes.length >= 2;
+  const lireMemoire = () => { try { const v = window.localStorage.getItem("rv_pays_client"); return v && codes.includes(v) ? v : ""; } catch (_) { return ""; } };
+  const [choisiBrut, setChoisiBrut] = useState(lireMemoire);
+  const choisi = codes.includes(choisiBrut) ? choisiBrut : (multi ? lireMemoire() : "");
+  const choisir = (code) => { setChoisiBrut(code); try { if (code) window.localStorage.setItem("rv_pays_client", code); } catch (_) {} };
+  const detecter = (saisie) => { if (!multi) return; const d = detecterPaysParIndicatif(saisie, codes); if (d && d !== choisi) choisir(d); };
+  const principal = entreprise?.country || codes[0] || "";
+  return { codes, multi, principal, choisi, effectif: multi ? choisi : (entreprise?.country || ""), choisir, detecter };
+}
+
+// Liste déroulante « Choisis ton pays » (affichée seulement pour une boutique multi-pays).
+function SelecteurPays({ pays, langue, style }) {
+  if (!pays || !pays.multi) return null;
+  const t = creerTraducteur(langue);
+  const regle = REGLES_TELEPHONE_PAR_PAYS[pays.choisi];
+  return (
+    <div className="rv-selecteur-pays">
+      <select
+        value={pays.choisi}
+        onChange={(e) => pays.choisir(e.target.value)}
+        aria-label={t("choisirPays")}
+        style={{ ...(style || {}), background: "white", color: pays.choisi ? "#16231F" : "#8A9089", appearance: "auto" }}
+      >
+        <option value="">🌍 {t("choisirPays")}</option>
+        {pays.codes.map((c) => <option key={c} value={c}>{PAYS_INFOS[c].drapeau} {PAYS_INFOS[c].nom} (+{INDICATIFS_PAYS_TEL[c]})</option>)}
+      </select>
+      {pays.choisi && regle && <div style={{ fontSize: 11.5, color: "#6B7168", margin: "-4px 0 10px" }}>{t("numeroAttendu")} : {regle.longueur} · ex. {regle.exemple}</div>}
+    </div>
+  );
+}
 
 // Retire l'indicatif pays si le client l'a tapé lui-même (ex: +225 07 00 00 00 00), pour que
 // le numéro enregistré reste toujours au même format local, quel que soit ce que le client a
@@ -615,6 +700,14 @@ function normaliserTelephoneLocal(numero, codePays) {
     } else if (chiffres.startsWith(indicatif) && chiffres.length === indicatif.length + regle.longueur) {
       chiffres = chiffres.slice(indicatif.length);
     }
+  } else if (indicatif) {
+    // Pays sans règle de longueur vérifiée : on retire l'indicatif seulement s'il a été tapé
+    // explicitement avec « + » ou « 00 » (sinon un numéro local pourrait commencer par ces chiffres).
+    const brut = String(numero || "").trim();
+    if (brut.startsWith("+") || brut.startsWith("00")) {
+      const sans00 = brut.startsWith("00") ? chiffres.slice(2) : chiffres;
+      if (sans00.startsWith(indicatif)) chiffres = sans00.slice(indicatif.length);
+    }
   }
   return chiffres;
 }
@@ -625,7 +718,7 @@ function validerTelephone(numero, codePays) {
 
   if (regle) {
     if (chiffres.length !== regle.longueur) {
-      return { valide: false, message: `Un numéro ${codePays === "CI" ? "ivoirien" : codePays === "BJ" ? "béninois" : codePays === "SN" ? "sénégalais" : "valide pour ce pays"} doit comporter ${regle.longueur} chiffres (ex: ${regle.exemple}).` };
+      return { valide: false, message: `Un numéro ${codePays === "CI" ? "ivoirien" : codePays === "BJ" ? "béninois" : codePays === "SN" ? "sénégalais" : codePays === "GN" ? "guinéen" : codePays === "CM" ? "camerounais" : "valide pour ce pays"} doit comporter ${regle.longueur} chiffres (ex: ${regle.exemple}).` };
     }
     if (regle.regexPrefixe && !regle.regexPrefixe.test(chiffres)) {
       return { valide: false, message: `Ce numéro ne correspond pas à un préfixe valide (ex: ${regle.exemple}).` };
@@ -644,7 +737,7 @@ function validerTelephone(numero, codePays) {
 // (Côte d'Ivoire 2021, Bénin 2024), le zéro initial fait partie intégrante du numéro à
 // 10 chiffres — il ne faut JAMAIS le retirer, juste ajouter l'indicatif pays devant
 // (ex: 0509281403 → 2250509281403, pas 225509281403).
-const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
+const INDICATIFS_PAYS = INDICATIFS_PAYS_TEL;
 
 function formaterTelWhatsapp(numero, codePays) {
   const indicatif = INDICATIFS_PAYS[codePays] || "225";
@@ -826,6 +919,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "", champPiege: "" });
+  const paysClient = usePaysClient(entreprise); // boutique multi-pays : pays choisi par le client sur le bon de commande
   const momentOuvertureFormulaireRef = useRef(null);
   const [quantite, setQuantite] = useState(1);
   const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
@@ -1352,7 +1446,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setErreurEnvoi(t("telIncomplet"));
       return;
     }
-    const verifTel = validerTelephone(form.tel, entreprise.country);
+    if (paysClient.multi && !paysClient.effectif) {
+      setErreurEnvoi(t("choisirPaysErreur"));
+      return;
+    }
+    const verifTel = validerTelephone(form.tel, paysClient.effectif);
     if (!verifTel.valide) {
       setErreurEnvoi(verifTel.message);
       return;
@@ -1425,8 +1523,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const { data, error } = await supabase.rpc(referralActifCommande ? "creer_commande_multi_publique_v2" : "creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
-      p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
-      p_zone: composerZoneLivraison(form),
+      p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
+      p_zone: paysClient.multi && paysClient.effectif ? `${PAYS_INFOS[paysClient.effectif].nom} — ${composerZoneLivraison(form)}` : composerZoneLivraison(form),
       p_items: items,
       p_type_livraison: (() => {
         const livraisonGratuiteP = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
@@ -1484,7 +1582,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     if (codePromoApplique) {
       supabase.rpc("incrementer_utilisation_code_promo", { p_workspace_id: workspaceId, p_code: codePromoApplique.code }).then(() => {});
     }
-    supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: normaliserTelephoneLocal(form.tel, entreprise.country), p_produit_id: produitOuvert.produit_id }).then(() => {});
+    supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal), p_produit_id: produitOuvert.produit_id }).then(() => {});
     suivrePage("commande_creee", { commande_id: idCommandeCreee, offre_id: bundleChoisiId ?? "base", montant: valeurCommande });
     setEnvoye(true);
   }
@@ -1500,14 +1598,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       supabase.rpc("enregistrer_panier_abandonne", {
         p_workspace_id: workspaceId,
         p_client_nom: form.client || null,
-        p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
+        p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
         p_produit_id: produitOuvert.produit_id,
         p_produit_nom: produitOuvert.produit_nom,
         p_montant: Number(produitOuvert.prix_vente) || null,
       }).then(() => {});
     }, 5000);
     return () => clearTimeout(delai);
-  }, [form.tel, form.client, produitOuvert?.produit_id, workspaceId, envoye]);
+  }, [form.tel, form.client, produitOuvert?.produit_id, workspaceId, envoye, paysClient.effectif]);
 
   // Advanced Matching (Facebook) : dès que le client a tapé son téléphone (et nom / ville), on le
   // transmet au Pixel. Facebook le hache lui-même avant l'envoi. Les événements suivants (achat,
@@ -1522,14 +1620,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       try {
         // Numéro au format international (indicatif + numéro national), comme Facebook l'attend :
         // en Côte d'Ivoire et au Bénin le « 0 » de tête fait partie du numéro (+225 07 …).
-        const national = normaliserTelephoneLocal(form.tel, entreprise?.country).replace(/\D/g, "");
-        const ud = { ph: (INDICATIFS_PAYS_TEL[entreprise?.country] || "") + national };
+        const paysMatch = paysClient.effectif || entreprise?.country;
+        const national = normaliserTelephoneLocal(form.tel, paysMatch).replace(/\D/g, "");
+        const ud = { ph: (INDICATIFS_PAYS_TEL[paysMatch] || "") + national };
         const mots = String(form.client || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
         if (mots[0]) ud.fn = mots[0];
         if (mots.length > 1) ud.ln = mots.slice(1).join(" ");
         const ville = String(form.zone || "").toLowerCase().replace(/[^a-zà-ÿ]/g, "");
         if (ville) ud.ct = ville;
-        if (entreprise?.country) ud.country = String(entreprise.country).toLowerCase();
+        if (paysMatch) ud.country = String(paysMatch).toLowerCase();
         const cle = JSON.stringify(ud);
         if (cle === dernierMatchFbRef.current) return;
         dernierMatchFbRef.current = cle;
@@ -1537,7 +1636,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       } catch (_) {}
     }, 900);
     return () => clearTimeout(delai);
-  }, [form.tel, form.client, form.zone, entreprise?.country, envoye]);
+  }, [form.tel, form.client, form.zone, entreprise?.country, paysClient.effectif, envoye]);
 
   // ===== PRODUCT PAGE BUILDER (couche additive) =====================================
   // 1) Au chargement de la boutique, on récupère (très léger) la LISTE des produits qui ont une page
@@ -2017,10 +2116,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 autoComplete="name"
                 style={inputStyle}
               />
+              <SelecteurPays pays={paysClient} langue={entreprise.langue} style={inputStyle} />
               <input
                 placeholder={t("tonTelephone")}
                 value={form.tel}
-                onChange={(e) => setForm({ ...form, tel: e.target.value })}
+                onChange={(e) => { setForm({ ...form, tel: e.target.value }); paysClient.detecter(e.target.value); }}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -2794,6 +2894,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             onModifierQuantite={modifierQuantitePanier}
             onRetirer={retirerDuPanier}
             onViderPanier={viderPanier}
+            onTrack={trackEvenement}
+            onCapi={envoyerEvenementCapi}
           />
         )}
         {pagePersoOuverte && (
@@ -2903,6 +3005,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             onModifierQuantite={modifierQuantitePanier}
             onRetirer={retirerDuPanier}
             onViderPanier={viderPanier}
+            onTrack={trackEvenement}
+            onCapi={envoyerEvenementCapi}
           />
         )}
       </AmbianceShop>
@@ -2961,6 +3065,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             onModifierQuantite={modifierQuantitePanier}
             onRetirer={retirerDuPanier}
             onViderPanier={viderPanier}
+            onTrack={trackEvenement}
+            onCapi={envoyerEvenementCapi}
           />
         )}
       </>,
@@ -3224,15 +3330,23 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           onModifierQuantite={modifierQuantitePanier}
           onRetirer={retirerDuPanier}
           onViderPanier={viderPanier}
+          onTrack={trackEvenement}
+          onCapi={envoyerEvenementCapi}
         />
       )}
     </AmbianceShop>
   );
 }
 
-function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onModifierQuantite, onRetirer, onViderPanier }) {
+function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onModifierQuantite, onRetirer, onViderPanier, onTrack, onCapi }) {
+  // Le suivi Facebook (Pixel + serveur) vit dans le composant parent : on le reçoit en propriété.
+  // (Avant, il était appelé ici sans être défini → erreur JS juste après l'envoi de la commande du
+  // panier : le panier n'était pas vidé et la confirmation « Commande envoyée » ne s'affichait pas.)
+  const trackEvenement = (...args) => { try { if (onTrack) onTrack(...args); } catch (_) {} };
+  const envoyerEvenementCapi = (...args) => { try { if (onCapi) onCapi(...args); } catch (_) {} };
   const [etape, setEtape] = useState("liste"); // liste | form | envoye
   const [form, setForm] = useState({ client: "", tel: "", zone: "", champPiege: "" });
+  const paysClient = usePaysClient(entreprise);
   const momentOuvertureRef = useRef(Date.now());
   const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
   const [envoi, setEnvoi] = useState(false);
@@ -3261,7 +3375,11 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       setErreur("⚠️ Ce numéro de téléphone semble incomplet. Vérifie-le avant de continuer.");
       return;
     }
-    const verifTelPanier = validerTelephone(form.tel, entreprise.country);
+    if (paysClient.multi && !paysClient.effectif) {
+      setErreur(creerTraducteur(entreprise.langue)("choisirPaysErreur"));
+      return;
+    }
+    const verifTelPanier = validerTelephone(form.tel, paysClient.effectif);
     if (!verifTelPanier.valide) {
       setErreur(verifTelPanier.message);
       return;
@@ -3277,8 +3395,8 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     const { data, error } = await supabase.rpc(referralActifPanier ? "creer_commande_multi_publique_v2" : "creer_commande_multi_publique", {
       p_workspace_id: workspaceId,
       p_client: form.client,
-      p_tel: normaliserTelephoneLocal(form.tel, entreprise.country),
-      p_zone: form.zone,
+      p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
+      p_zone: paysClient.multi && paysClient.effectif ? `${PAYS_INFOS[paysClient.effectif].nom} — ${form.zone}` : form.zone,
       p_items: items,
       p_type_livraison: aChoixLivraison ? typeLivraisonChoisi : "livraison",
       p_fbp: obtenirAttributionMeta().fbp,
@@ -3385,7 +3503,8 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
               aria-hidden="true"
             />
             <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} autoComplete="name" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
-            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} type="tel" inputMode="tel" autoComplete="tel" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
+            <SelecteurPays pays={paysClient} langue={entreprise.langue} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+            <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => { setForm({ ...form, tel: e.target.value }); paysClient.detecter(e.target.value); }} type="tel" inputMode="tel" autoComplete="tel" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
             <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} autoComplete="address-level2" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 14, boxSizing: "border-box" }} />
 
             {aChoixLivraison && (

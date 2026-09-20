@@ -73,6 +73,8 @@ function compresserImage(file, maxWidth = 1280, quality = 0.82) {
 
 function cleanPhoneForWhatsApp(tel) {
   let digits = String(tel).replace(/\D/g, "");
+  // Numéro déjà international (« +224… », boutique multi-pays) : on le garde tel quel.
+  if (String(tel).trim().startsWith("+") && digits.length >= 9) return digits;
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.startsWith("225")) return digits;
   return "225" + digits;
@@ -16966,6 +16968,16 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
   async function sauvegarderPays() {
     setSavingPays(true);
     await supabase.from("workspaces").update({ countries_livraison: paysListe, country: paysListe[0] || workspace.country }).eq("id", workspace.id);
+    // Filet de sécurité (boutique multi-pays) : on recopie aussi la liste des pays dans la configuration
+    // de la boutique, pour que le bon de commande propose le choix du pays même si la vue publique
+    // du catalogue ne renvoie pas encore cette liste. Uniquement si une configuration existe déjà.
+    try {
+      const { data: w } = await supabase.from("workspaces").select("store_config, store_config_published").eq("id", workspace.id).maybeSingle();
+      const patchCfg = {};
+      if (w?.store_config && typeof w.store_config === "object") patchCfg.store_config = { ...w.store_config, paysLivraison: paysListe };
+      if (w?.store_config_published && typeof w.store_config_published === "object") patchCfg.store_config_published = { ...w.store_config_published, paysLivraison: paysListe };
+      if (Object.keys(patchCfg).length > 0) await supabase.from("workspaces").update(patchCfg).eq("id", workspace.id);
+    } catch (_) {}
     tracerAuditLocal("Pays de livraison modifiés", paysListe.join(", ") || "aucun");
     setSavingPays(false);
     setPaysSaved(true);
@@ -17502,7 +17514,7 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
             🌍 Pays où tu livres
           </div>
           <div style={{ fontSize: 12, color: "#1E4B8C", marginBottom: 10, lineHeight: 1.5 }}>
-            Coche un ou plusieurs pays. Le premier coché devient le pays principal de ta boutique.
+            Coche un ou plusieurs pays. Le premier coché devient le pays principal de ta boutique. Dès que tu coches 2 pays ou plus, ton client choisit son pays sur le bon de commande, et son numéro est reconnu automatiquement selon ce pays.
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6, marginBottom: 10 }}>
             {[["CI", "🇨🇮 Côte d'Ivoire"], ["SN", "🇸🇳 Sénégal"], ["ML", "🇲🇱 Mali"], ["BF", "🇧🇫 Burkina Faso"], ["TG", "🇹🇬 Togo"], ["BJ", "🇧🇯 Bénin"], ["GN", "🇬🇳 Guinée"], ["CM", "🇨🇲 Cameroun"], ["GA", "🇬🇦 Gabon"], ["CD", "🇨🇩 RD Congo"], ["MA", "🇲🇦 Maroc"], ["DZ", "🇩🇿 Algérie"], ["TN", "🇹🇳 Tunisie"], ["GH", "🇬🇭 Ghana"], ["NG", "🇳🇬 Nigeria"], ["FR", "🇫🇷 France"]].map(([code, label]) => {

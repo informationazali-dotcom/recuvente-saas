@@ -21,7 +21,7 @@ import { PageProduitPublique } from "./PageProduitRenderer.jsx";
 import {
   REGISTRE_BLOCS, CATEGORIES_BLOCS, TEMPLATES, IDS_TEMPLATES, creerConfig, creerBloc, dupliquerBloc, deplacerElement,
   appliquerTemplate, normaliserConfig, proposerStructure, appliquerProposition, CATEGORIES_PRODUIT, OBJECTIFS_PAGE,
-  MODES_VENTE, calculerOffresAffichees, idAleatoire, libelleDevise, formaterMontant,
+  MODES_VENTE, calculerOffresAffichees, idAleatoire, libelleDevise, formaterMontant, packsRapides, offreParDefaut,
   extrairePointsDescription, textePlat, CTA_TEXTE_DEFAUT,
 } from "./blocs.js";
 
@@ -261,6 +261,13 @@ function EditeurOffres({ props, onChange, produit, devise, aOptions }) {
     onChange({ ...props, offres: [...offres, nouvelle], offre_defaut_id: props.offre_defaut_id || nouvelle.id });
   }
 
+  // Trois packs prêts en un clic (1 / 2 / 3 produits) : le commerçant ajuste ensuite remises,
+  // badges et textes. Le pack « populaire » est présélectionné à l'ouverture de la page.
+  function creerPacks() {
+    const packs = packsRapides([0, 10, 15]);
+    onChange({ ...props, offres: packs, offre_defaut_id: packs[1].id, affichage: props.affichage || "cartes" });
+  }
+
   function importerBundles() {
     const base = { id: idAleatoire("o"), label: "1 produit", qty: 1, prix_total: prixBase, ancien_prix_total: "", reduction_pct: "", cadeau: "", badge: "", texte: "" };
     const importes = bundlesProduit.map((b) => {
@@ -278,6 +285,11 @@ function EditeurOffres({ props, onChange, produit, devise, aOptions }) {
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", color: "#8A6412", borderRadius: 8, padding: "8px 10px", fontSize: 12, marginBottom: 10, lineHeight: 1.45 }}>
           Ce produit a des variantes : les offres quantité ne sont pas proposées sur la page (règle existante de RecuVente, le prix dépend de la variante).
         </div>
+      )}
+      {offres.length === 0 && !aOptions && (
+        <button type="button" onClick={creerPacks} style={{ width: "100%", background: "#1a7a3c", color: "#fff", border: "none", borderRadius: 10, padding: "12px 14px", fontSize: 13.5, fontWeight: 800, cursor: "pointer", marginBottom: 10, minHeight: 44 }}>
+          ✨ Créer mes packs : 1 / 2 / 3 produits
+        </button>
       )}
       {offres.length === 0 && (
         <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 8, padding: "8px 10px", fontSize: 12, marginBottom: 10, lineHeight: 1.45 }}>
@@ -705,6 +717,15 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
       produits_similaires_ids: produit.produits_similaires_ids || [], produits_similaires_collection_id: produit.produits_similaires_collection_id || null,
     };
   }, [produit, avis]);
+
+  // L'aperçu reflète l'offre présélectionnée à l'ouverture de la page publique (même règle).
+  const offreDefautApercu = useMemo(() => { try { return offreParDefaut(produitPublic, config); } catch (_) { return null; } }, [produitPublic, config]);
+  const offreDefautId = offreDefautApercu ? offreDefautApercu.id : null;
+  useEffect(() => {
+    setBundleChoisiId(offreDefautApercu ? offreDefautApercu.id : null);
+    setQuantite(offreDefautApercu ? offreDefautApercu.qty : 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offreDefautId]);
   const produitsPublics = useMemo(() => produits.map((p) => ({
     produit_id: p.id, produit_nom: p.nom, prix_vente: Number(p.prix_vente) || 0, prix_barre: p.prix_barre != null ? Number(p.prix_barre) : null,
     photo_url: p.photo_url, nb_ventes: 0,
@@ -954,6 +975,19 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
         );
       })}
       <button type="button" onClick={() => setModale("ajout")} style={btnPlein({ width: "100%", padding: "11px 12px", marginTop: 6 })}>+ AJOUTER UN BLOC</button>
+      {/* Raccourci « packs / bundles » : plus besoin de chercher le bloc dans la liste. */}
+      {(() => {
+        const blocPacks = config.blocs.find((b) => b.type === "offres");
+        return (
+          <button
+            type="button"
+            onClick={() => { if (blocPacks) { setSelection(blocPacks.id); setOnglet("bloc"); if (!large) setPanneau("proprietes"); } else ajouterBloc("offres"); }}
+            style={{ width: "100%", marginTop: 8, minHeight: 44, borderRadius: 10, border: "1.5px dashed #1a7a3c", background: "#F3FAF1", color: "#14532d", fontWeight: 800, fontSize: 13, cursor: "pointer", padding: "10px 12px" }}
+          >
+            {blocPacks ? "🎁 Modifier mes packs / bundles" : "🎁 Ajouter mes packs / bundles (1 / 2 / 3 produits)"}
+          </button>
+        );
+      })()}
       <button type="button" onClick={() => setModale("ia")} style={btn({ width: "100%", padding: "11px 12px", marginTop: 8 })}>✨ Créer ma page avec l'IA</button>
     </div>
   );

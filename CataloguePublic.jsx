@@ -5632,6 +5632,48 @@ function CollectionTuile({ c, produitsCol, config, couleur, onOpen, mode, classe
 // Mise en page « vitrine de marque » : une grande tuile mise en avant + des tuiles plus petites qui
 // remplissent la grille sans trou (comme sur les sites de mode et de beauté). Trois autres styles au
 // choix dans le Store Builder : cercles (catégories), cartes photo, mosaïque.
+// En-tête « éditorial » d'une collection mise en avant : titre net, courte accroche et lien
+// « Voir tout », puis directement les produits. Remplace la grande bannière vide (titre + un
+// chiffre) : une vraie boutique de marque montre ses produits, pas un grand aplat de couleur.
+// Utilisé à l'identique par la boutique publique et par l'aperçu du Store Builder.
+const TEXTE_COLLECTION_DEFAUT = "Découvre notre sélection complète dans cette collection.";
+export function EnteteCollectionVedette({ titre, texte, label, nb, couleur, bouton, onOpen }) {
+  const lab = String(label || "").trim();
+  const labelUtile = lab && lab.toUpperCase() !== "COLLECTION" ? lab : "";
+  const txt = String(texte || "").trim();
+  const texteUtile = txt && txt !== TEXTE_COLLECTION_DEFAUT ? txt : "";
+  const accent = couleurTexteLisible(couleur);
+  return (
+    <div className="rv-fcx">
+      <style>{`
+        .rv-fcx{container-type:inline-size;padding:2px 0 clamp(14px,2.4vw,22px)}
+        .rv-fcx-in{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 20px;flex-wrap:wrap}
+        .rv-fcx-txt{min-width:0;flex:1 1 320px}
+        .rv-fcx-label{display:block;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px}
+        .rv-fcx-titre{margin:0;font-size:clamp(22px,4.4vw,34px);line-height:1.1;font-weight:850;letter-spacing:-.02em;color:#16231F;overflow-wrap:anywhere}
+        .rv-fcx-desc{margin:8px 0 0;font-size:clamp(13px,1.9vw,15px);line-height:1.55;color:#5c6a62;max-width:560px}
+        .rv-fcx-lien{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0;background:none;border:0;border-bottom:2px solid currentColor;font-size:13.5px;font-weight:800;cursor:pointer;touch-action:manipulation;font-family:inherit;line-height:1}
+        .rv-fcx-lien span{transition:transform .2s}
+        .rv-fcx-lien:hover span{transform:translateX(4px)}
+        .rv-fcx-lien:focus-visible{outline:3px solid currentColor;outline-offset:4px}
+        .rv-fcx-trait{display:block;width:44px;height:3px;border-radius:3px;margin-top:14px}
+        @media (prefers-reduced-motion:reduce){.rv-fcx-lien span{transition:none}}
+      `}</style>
+      <div className="rv-fcx-in">
+        <div className="rv-fcx-txt">
+          {labelUtile ? <span className="rv-fcx-label" style={{ color: accent }}>{labelUtile}</span> : null}
+          <h3 className="rv-fcx-titre">{titre}</h3>
+          {texteUtile ? <p className="rv-fcx-desc">{texteUtile}</p> : null}
+          <span className="rv-fcx-trait" style={{ background: accent }} />
+        </div>
+        <button type="button" className="rv-fcx-lien" style={{ color: accent }} onClick={onOpen}>
+          {bouton || "Voir tout"}{nb > 0 ? ` (${nb})` : ""} <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function GrilleCollections({ collections, produitsDe, config, couleur, onOpen, max = 8 }) {
   const mode = ["editorial", "ronds", "photo", "mosaique"].includes(config?.collectionTilesStyle) ? config.collectionTilesStyle : "editorial";
   const liste = (collections || []).slice(0, max);
@@ -6013,6 +6055,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       const labelBanniere = config[kLabel] !== undefined ? String(config[kLabel]).trim() : "COLLECTION";
       const titreBanniere = config[kTitre] || joliNomCollection(col.nom);
       const texteBouton = config[kBouton] || "Voir la collection";
+      const styleFc = config[`featuredCollectionStyle${suf}`] === "banniere" ? "banniere" : "editorial"; // editorial (défaut) | banniere
       const anim = config[kAnim] || "aurora"; // aurora | neon | zoom | sobre
       const animee = anim !== "sobre";
       const hauteur = config[kHauteur] || "moyenne"; // compacte | moyenne | plein
@@ -6063,6 +6106,12 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             @media (prefers-reduced-motion: reduce){.${uid}-wrap *,.${uid}-photo{animation:none !important}}
           `}</style>
 
+          {styleFc === "editorial" && (
+            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "clamp(24px,4vw,48px) 16px 0" }}>
+              <EnteteCollectionVedette titre={titreBanniere} texte={config[kTexte]} label={config[kLabel] !== undefined ? config[kLabel] : "COLLECTION"} nb={produitsCol.length} couleur={couleurSection} bouton={config[kBouton]} onOpen={() => setCollectionOuverte(`manuelle-${col.id}`)} />
+            </div>
+          )}
+          {styleFc === "banniere" && <>
           <div className={`${uid}-wrap`}>
             <div className={`${uid}-photo`} />
             <div className={`${uid}-voile`} />
@@ -6080,9 +6129,10 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             </div>
           </div>
           <div className={`${uid}-fil`} />
+          </>}
 
           {produitsCol.length > 0 && (
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "clamp(22px,4vw,40px) 16px" }}>
+            <div style={{ maxWidth: 1100, margin: "0 auto", padding: styleFc === "editorial" ? "0 16px clamp(24px,4vw,44px)" : "clamp(22px,4vw,40px) 16px" }}>
               <div className={classeGrille}>
                 {produitsCol.slice(0, nbAAfficher).map((p, i) => (
                   <div key={p.produit_id} className={`${uid}-card`} style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}>

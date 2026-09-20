@@ -126,6 +126,28 @@ const CSS_PAGE = `
 .rvpp-offer-p{text-align:right;flex:0 0 auto}
 .rvpp-offer-p b{display:block;font-size:17px;font-weight:800;color:var(--pp-accent-ink)}
 .rvpp-offer-p s{font-size:12.5px;color:#8A9089}
+.rvpp-packs{display:grid;gap:12px;margin:20px 0 16px;container-type:inline-size;grid-template-columns:repeat(var(--n,2),minmax(0,1fr))}
+.rvpp-packs.rvpp-n4{--n:2}
+.rvpp-pack{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:22px 10px 14px;border-radius:var(--pp-radius);border:2px solid var(--pp-line);background:#fff;cursor:pointer;touch-action:manipulation;min-width:0;font:inherit;color:inherit;transition:border-color .15s,box-shadow .15s,transform .15s}
+.rvpp-pack:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.08)}
+.rvpp-pack:focus-visible{outline:3px solid var(--pp-accent);outline-offset:2px}
+.rvpp-pack[aria-checked="true"]{border-color:var(--pp-accent);background:var(--pp-accent-soft);box-shadow:0 8px 24px var(--pp-accent-shadow)}
+.rvpp-pack-tick{position:absolute;top:14px;left:9px;width:20px;height:20px;border-radius:50%;border:2px solid var(--pp-line);background:#fff;display:grid;place-items:center;font-size:11px;font-weight:900;color:transparent;line-height:1}
+.rvpp-pack[aria-checked="true"] .rvpp-pack-tick{background:var(--pp-accent);border-color:var(--pp-accent);color:var(--pp-accent-txt)}
+.rvpp-pack-ribbon{position:absolute;top:-13px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 4px);white-space:normal;text-align:center;line-height:1.15;background:var(--pp-accent);color:var(--pp-accent-txt);font-size:10px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;padding:4px 9px;border-radius:12px;box-shadow:0 4px 12px var(--pp-accent-shadow)}
+.rvpp-pack-photos{display:flex;justify-content:center;align-items:center;height:56px;margin:4px 0 2px}
+.rvpp-pack-photos i{display:block;width:44px;height:44px;border-radius:10px;border:2px solid #fff;background:var(--pp-alt) center/cover no-repeat;box-shadow:0 2px 8px rgba(0,0,0,.16);margin-left:-14px}
+.rvpp-pack-photos i:first-child{margin-left:0}
+.rvpp-pack-photos em{font-style:normal;font-weight:800;font-size:12px;margin-left:6px;color:var(--pp-muted)}
+.rvpp-pack-l{font-weight:800;font-size:15px;line-height:1.2;overflow-wrap:anywhere}
+.rvpp-pack-eco{display:inline-block;font-size:11.5px;font-weight:800;line-height:1.3;color:#2F7A1D;background:#E7F3DF;padding:3px 9px;border-radius:10px}
+.rvpp-pack-gift{font-size:11.5px;font-weight:700;color:#8A6412}
+.rvpp-pack-txt{font-size:11.5px;color:var(--pp-muted);line-height:1.35}
+.rvpp-pack-p{display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:auto;padding-top:4px}
+.rvpp-pack-p b{font-size:18px;font-weight:900;color:var(--pp-accent-ink);line-height:1.15}
+.rvpp-pack-p s{font-size:12px;color:#8A9089}
+.rvpp-pack-p small{font-size:11.5px;color:var(--pp-muted)}
+@container (max-width:340px){.rvpp-pack-tick{display:none}.rvpp-pack{padding:20px 6px 12px}.rvpp-pack-l{font-size:13.5px}.rvpp-pack-p b{font-size:15.5px}.rvpp-pack-photos i{width:36px;height:36px;margin-left:-12px}.rvpp-pack-photos{height:46px}}
 .rvpp-offer-badge{position:absolute;top:-11px;right:12px;background:var(--pp-accent);color:var(--pp-accent-txt);font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:999px}
 .rvpp-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 .rvpp-ben{padding:18px;text-align:left}
@@ -424,9 +446,47 @@ function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
   // Source "produit" : les bundles existants n'incluent pas l'offre "1 produit" → on l'ajoute
   // (sélection = aucun bundle, quantité 1 : exactement le comportement historique).
   const cartes = source === "produit"
-    ? [{ id: null, label: "1 produit", qty: 1, total: prixBase, ancienTotal: null, economie: 0, cadeau: "", badge: "", texte: "" }, ...liste]
+    ? [{ id: null, label: "1 produit", qty: 1, total: prixBase, ancienTotal: null, economie: 0, pctEco: 0, parUnite: null, cadeau: "", badge: "", texte: "" }, ...liste]
     : liste;
   const choisi = etat.bundleChoisiId == null ? null : String(etat.bundleChoisiId);
+  const choisir = (o) => actions.onChoisirOffre(o.id == null ? null : { id: o.id, qty: o.qty, label: o.label, total: o.total });
+  // Présentation : cartes avec photos (2 à 4 packs), sinon liste. Les cartes sont la valeur par défaut.
+  const modeDemande = (blocOffres && blocOffres.props && blocOffres.props.affichage) || "cartes";
+  const enCartes = modeDemande === "cartes" && cartes.length >= 2 && cartes.length <= 4;
+
+  if (enCartes) {
+    const photo = urlImageLegere(produit.photo_url, 160);
+    return (
+      <div className={`rvpp-packs${cartes.length === 4 ? " rvpp-n4" : ""}`} style={{ "--n": cartes.length === 4 ? 2 : cartes.length }} role="radiogroup" aria-label="Choisissez votre offre">
+        {cartes.map((o) => {
+          const actif = (o.id == null ? null : String(o.id)) === choisi;
+          const nbPhotos = Math.min(3, Math.max(1, o.qty || 1));
+          return (
+            <button key={o.id ?? "base"} type="button" role="radio" aria-checked={actif} className="rvpp-pack" onClick={() => choisir(o)}>
+              {o.badge && <span className="rvpp-pack-ribbon">{o.badge}</span>}
+              <span className="rvpp-pack-tick" aria-hidden="true">✓</span>
+              <span className="rvpp-pack-photos" aria-hidden="true">
+                {Array.from({ length: nbPhotos }).map((_, k) => (
+                  <i key={k} style={photo ? { backgroundImage: `url(${photo})` } : undefined} />
+                ))}
+                {(o.qty || 1) > 3 && <em>×{o.qty}</em>}
+              </span>
+              <span className="rvpp-pack-l">{o.label}</span>
+              {afficherEconomie && o.economie > 0 && <span className="rvpp-pack-eco">{o.pctEco > 0 ? `−${o.pctEco}% · ` : ""}Économisez {formaterMontant(o.economie, devise)}</span>}
+              {o.cadeau && <span className="rvpp-pack-gift">🎁 {o.cadeau}</span>}
+              {o.texte && <span className="rvpp-pack-txt">{o.texte}</span>}
+              <span className="rvpp-pack-p">
+                <b>{formaterMontant(o.total, devise)}</b>
+                {o.ancienTotal && <s>{formaterMontant(o.ancienTotal, devise)}</s>}
+                {o.parUnite ? <small>soit {formaterMontant(o.parUnite, devise)} / unité</small> : null}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="rvpp-offers" role="radiogroup" aria-label="Choisissez votre offre">
       {cartes.map((o) => {
@@ -438,7 +498,7 @@ function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
             role="radio"
             aria-checked={actif}
             className="rvpp-offer"
-            onClick={() => actions.onChoisirOffre(o.id == null ? null : { id: o.id, qty: o.qty, label: o.label, total: o.total })}
+            onClick={() => choisir(o)}
             style={o.couleurFond && !actif ? { background: o.couleurFond } : undefined}
           >
             {o.badge && <span className="rvpp-offer-badge">{o.badge}</span>}

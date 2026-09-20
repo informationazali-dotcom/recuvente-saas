@@ -211,6 +211,8 @@ export function calculerOffresAffichees(produit, blocOffres) {
       label: bundle.label,
       qty,
       total: Math.round(total),
+      parUnite: qty > 1 ? Math.round(total / qty) : null,
+      pctEco: ancien > total && ancien > 0 ? Math.round((1 - total / ancien) * 100) : 0,
       ancienTotal: economie > 0 ? Math.round(ancien) : null,
       economie,
       cadeau: o.cadeau || "",
@@ -220,6 +222,18 @@ export function calculerOffresAffichees(produit, blocOffres) {
     };
   });
   return { source, liste };
+}
+
+// Packs prêts à l'emploi : 1 / 2 / 3 produits. Le commerçant choisit ses remises (modifiables
+// ensuite) ; l'économie affichée est calculée sur le vrai prix du produit, jamais inventée.
+export function packsRapides(pcts = [0, 10, 15]) {
+  const noms = ["1 produit", "2 produits", "3 produits"];
+  const badges = ["", "Le plus populaire", "Meilleur prix"];
+  return [1, 2, 3].map((qty, i) => ({
+    id: idAleatoire("o"), label: noms[i], qty, prix_total: "", ancien_prix_total: "",
+    reduction_pct: Math.max(0, Math.min(90, Number(pcts[i]) || 0)) || "",
+    cadeau: "", badge: badges[i], texte: "",
+  }));
 }
 
 // Applique la configuration du Builder sur l'objet produit utilisé par le tunnel de commande
@@ -385,10 +399,11 @@ export const REGISTRE_BLOCS = {
   offres: {
     label: "Offres & packs", icone: "🎁", categorie: "vente", unique: true,
     description: "« Choisissez votre offre » : 1 / 2 / 3 produits, prix, économie, cadeau, badge. Branché sur le moteur de bundles existant.",
-    defaut: () => ({ titre: "Choisissez votre offre", sous_titre: "", offres: [], offre_defaut_id: "", afficher_economie: true }),
+    defaut: () => ({ titre: "Choisissez votre offre", sous_titre: "", offres: [], offre_defaut_id: "", afficher_economie: true, affichage: "cartes" }),
     champs: [
       { cle: "titre", label: "Titre", type: "texte" },
       { cle: "sous_titre", label: "Sous-titre", type: "texte" },
+      { cle: "affichage", label: "Présentation des packs", type: "choix", options: [{ v: "cartes", l: "Cartes avec photos (recommandé)" }, { v: "liste", l: "Liste simple" }], aide: "Les cartes s'utilisent pour 2 à 4 packs ; au-delà, la liste s'affiche automatiquement." },
       { cle: "afficher_economie", label: "Afficher « Économisez X »", type: "oui_non", aide: "Calculé sur de vrais prix uniquement." },
       { cle: "offres", label: "Offres", type: "offres" },
     ],

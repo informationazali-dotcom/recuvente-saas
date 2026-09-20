@@ -158,6 +158,14 @@ async function traiterEvenementEntonnoir(req, res) {
 }
 
 export default async function handler(req, res) {
+  // Boutique multi-pays : « GET ?pays=1 » renvoie seulement le PAYS du visiteur (code à 2 lettres, fourni
+  // par Vercel), pour préchoisir sa monnaie. Rien n'est enregistré. Placé ici (et non dans un nouveau
+  // fichier) car l'offre gratuite de Vercel limite le nombre de fonctions serveur.
+  if (req.method === "GET" && req.query && req.query.pays) {
+    res.setHeader("Cache-Control", "private, no-store");
+    const code = String(req.headers["x-vercel-ip-country"] || "").toUpperCase();
+    return res.status(200).json({ pays: /^[A-Z]{2}$/.test(code) ? code : null });
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
 
   // Événement d'entonnoir (vue produit, ajout au panier, début de commande) → traitement dédié.

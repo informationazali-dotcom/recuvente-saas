@@ -71,16 +71,75 @@ export function textePlat(html) {
   return String(html || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// Petit extracteur de "points forts" (1re liste à puces de la description) pour l'aperçu de
-// l'éditeur. En ligne, CataloguePublic fournit sa propre version (extraireStructureDescription).
-export function extrairePointsDescription(html) {
-  if (!html || typeof document === "undefined") return [];
+// ---------------------------------------------------------------------------
+// Description du produit : UNE seule logique, partagée par l'éditeur (aperçu) et la page
+// publique, pour que ce que le marchand voit dans l'éditeur soit exactement ce que voit le client.
+// • nettoyerHtmlDescription : même assainissement que la fiche historique (CataloguePublic).
+// • structureDescriptionProduit : sépare les « points forts » (liste à puces courte, affichée en
+//   cases à cocher sous le titre) du reste de la description (texte, images, vidéo).
+// ---------------------------------------------------------------------------
+
+export function nettoyerHtmlDescription(html) {
+  if (!html || typeof document === "undefined") return "";
   const div = document.createElement("div");
   div.innerHTML = String(html);
-  const li = Array.from(div.querySelectorAll("ul > li, ol > li"))
-    .map((x) => (x.textContent || "").replace(/\s+/g, " ").replace(/^[\s✔✓✅☑️•·\-–]+/u, "").trim())
-    .filter((x) => x.length > 0 && x.length <= 160);
-  return li.slice(0, 8);
+  ["script", "iframe", "object", "embed", "link", "style", "meta", "base", "form"].forEach((tag) => {
+    div.querySelectorAll(tag).forEach((el) => el.remove());
+  });
+  div.querySelectorAll("*").forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      const nom = attr.name.toLowerCase();
+      const valeur = attr.value.trim().toLowerCase();
+      if (nom.startsWith("on")) el.removeAttribute(attr.name);
+      else if ((nom === "href" || nom === "src") && (valeur.startsWith("javascript:") || valeur.startsWith("data:text/html"))) el.removeAttribute(attr.name);
+    });
+  });
+  return div.innerHTML;
+}
+
+export function descriptionAUnContenu(html) {
+  if (!html) return false;
+  return /<(img|video)\b/i.test(html) || String(html).replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
+}
+
+export function structureDescriptionProduit(html) {
+  const propre = nettoyerHtmlDescription(html);
+  if (!propre) return { points: [], reste: "" };
+  const conteneur = document.createElement("div");
+  conteneur.innerHTML = propre;
+  const texteLi = (li) => (li.textContent || "").replace(/\s+/g, " ").trim();
+  const itemsDe = (l) => Array.from(l.children).filter((c) => c.tagName === "LI");
+  const listes = Array.from(conteneur.querySelectorAll("ul, ol"));
+  let choisie = listes.find((l) => l.getAttribute("data-rv") === "points-forts");
+  if (!choisie) {
+    choisie = listes.find((l) => {
+      if (l.parentElement && l.parentElement.closest("li")) return false; // pas de sous-liste
+      const items = itemsDe(l);
+      if (items.length < 2 || items.length > 8) return false;
+      return items.every((li) => { const tx = texteLi(li); return tx.length > 0 && tx.length <= 160; });
+    });
+  }
+  if (!choisie) return { points: [], reste: propre };
+  const points = itemsDe(choisie)
+    .map((li) => texteLi(li).replace(/^[\s✔✓✅☑️•·\-–]+/u, "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  if (points.length === 0) return { points: [], reste: propre };
+  // On retire la liste choisie, et le conteneur qui ne contiendrait plus qu'elle.
+  let parent = choisie.parentElement;
+  choisie.remove();
+  while (parent && parent !== conteneur && !parent.textContent.trim() && !parent.querySelector("img,video")) {
+    const suivant = parent.parentElement;
+    parent.remove();
+    parent = suivant;
+  }
+  return { points, reste: conteneur.innerHTML };
+}
+
+// Points forts pour l'aperçu de l'éditeur ET la page publique.
+export function extrairePointsDescription(html) {
+  if (!html || typeof document === "undefined") return [];
+  return structureDescriptionProduit(html).points;
 }
 
 // ---------------------------------------------------------------------------
@@ -439,6 +498,14 @@ export const REGISTRE_BLOCS = {
       { cle: "texte", label: "Texte libre", type: "zone" },
     ],
   },
+  description: {
+    label: "Description du produit", icone: "📄", categorie: "contenu",
+    description: "Affiche la description complète du produit (texte, images, vidéo) telle que saisie dans la fiche produit.",
+    defaut: () => ({ titre: "Description du produit" }),
+    champs: [
+      { cle: "titre", label: "Titre de la section", type: "texte", aide: "Le contenu vient de la description du produit : modifiez-la dans la fiche produit." },
+    ],
+  },
   texte: {
     label: "Texte personnalisé", icone: "📝", categorie: "contenu",
     description: "Un titre et un texte libre.",
@@ -534,10 +601,11 @@ export const TEMPLATES = {
     id: "cod_conversion",
     nom: "COD Conversion",
     pour: "La majorité des produits",
-    description: "Hero → vidéo → pourquoi → bénéfices → étapes → preuves → offres → réassurance → FAQ → compléments → formulaire.",
+    description: "Hero → description → vidéo → pourquoi → bénéfices → étapes → preuves → offres → réassurance → FAQ → compléments.",
     theme: { fond: "blanc", police_titres: "sans", rayon: "doux", espacement: "normal" },
     blocs: [
       ["hero"],
+      ["description"],
       ["video"],
       ["image_texte", { titre: "Pourquoi ce produit ?" }],
       ["benefices"],
@@ -559,6 +627,7 @@ export const TEMPLATES = {
     theme: { fond: "creme", police_titres: "serif", rayon: "net", espacement: "aere" },
     blocs: [
       ["hero", { afficher_reassurance: false }],
+      ["description"],
       ["image_texte", { titre: "L'esprit du produit", position: "droite" }],
       ["benefices", { titre: "Ce qui le distingue", colonnes: "3" }],
       ["galerie", { ratio_galerie: "portrait" }],
@@ -578,6 +647,7 @@ export const TEMPLATES = {
     theme: { fond: "blanc", police_titres: "sans", rayon: "doux", espacement: "aere" },
     blocs: [
       ["hero", { afficher_offres: false, afficher_reassurance: false }],
+      ["description"],
       ["texte", { titre: "Le problème", alignement: "centre" }],
       ["image_texte", { titre: "Notre histoire", position: "gauche" }],
       ["video"],
@@ -606,6 +676,7 @@ export function creerConfig(templateId = "cod_conversion") {
     sticky: { mobile: true, desktop: false },
     formulaire: { commune: false, instructions: false },
     seo: { titre: "", description: "" },
+    desc_migree: true,
     blocs: tpl.blocs.map(([type, surcharges]) => creerBloc(type, surcharges || {})).filter(Boolean),
   };
 }
@@ -678,9 +749,19 @@ export function normaliserConfig(brute) {
         props: { ...def.defaut(), ...(nettoyerValeur(b.props) || {}) },
       };
     });
+  // Pages créées avant l'existence du bloc « Description du produit » : on l'ajoute UNE fois,
+  // juste après l'en-tête (hero / galerie / infos), pour que la description déjà rédigée
+  // apparaisse. Le marchand peut ensuite le masquer ou le supprimer (le drapeau évite le retour).
+  const aDescription = blocs.some((b) => b.type === "description");
+  if (!aDescription && !brute.desc_migree && blocs.length > 0) {
+    let i = 0;
+    while (i < blocs.length && ["hero", "galerie", "info_produit"].includes(blocs[i].type)) i += 1;
+    blocs.splice(i, 0, { id: idAleatoire("b"), type: "description", visible: true, montrer: { desktop: true, mobile: true }, props: REGISTRE_BLOCS.description.defaut() });
+  }
   return {
     version: VERSION_CONFIG,
     template: base.template,
+    desc_migree: true,
     theme: { ...THEME_DEFAUT, ...(nettoyerValeur(brute.theme) || {}) },
     cta: { ...base.cta, ...(nettoyerValeur(brute.cta) || {}) },
     sticky: { ...base.sticky, ...(nettoyerValeur(brute.sticky) || {}) },
@@ -717,6 +798,7 @@ export function blocEstVide(bloc, ctx = {}) {
     case "comparaison": return !(p.lignes || []).some((l) => rempli(l.critere));
     case "faq": return !(p.items || []).some((i) => rempli(i.question) && rempli(i.reponse));
     case "cross_sell": return (ctx.produitsCrossSell || []).length === 0;
+    case "description": return !descriptionAUnContenu(ctx.descriptionReste);
     case "texte": return !rempli(p.texte);
     // Un titre seul (ex. « Pourquoi ce produit ? » pré-rempli par le template) ne suffit pas :
     // sans texte ni image, le bloc ne s'affiche pas publiquement.
@@ -776,6 +858,7 @@ const RAISONS = {
   upsell: "Ajoute un produit du catalogue en un clic.",
   bundles: "Produit principal + complément à prix spécial.",
   formulaire_cod: "Le formulaire crée directement la commande RecuVente.",
+  description: "Reprend la description déjà écrite dans la fiche produit (texte, images, vidéo).",
   texte: "Pose le problème ou le contexte avant la solution.",
   galerie: "Mise en valeur visuelle supplémentaire.",
   comparaison: "Tableau que VOUS renseignez (aucun critère inventé).",
@@ -789,6 +872,7 @@ const A_FOURNIR = {
   avis: (b) => (b.nbAvisReels > 0 ? `${b.nbAvisReels} avis réel(s) seront affichés automatiquement.` : "Aucun avis approuvé pour l'instant : bloc masqué tant qu'il n'y en a pas."),
   comparaison: () => "Ajoutez vos propres critères de comparaison (aucun n'est inventé).",
   image_texte: () => "Ajoutez une image et votre texte.",
+  description: () => "Automatique : repris de la description de la fiche produit (masqué si elle est vide).",
   texte: () => "Rédigez le texte.",
   cross_sell: (b) => (b.nbProduitsCatalogue > 1 ? "Automatique : les produits proviennent de votre catalogue." : "Ajoutez d'autres produits au catalogue pour activer ce bloc."),
   upsell: () => "Choisissez le produit à proposer dans le bloc.",
@@ -809,11 +893,11 @@ export function proposerStructure(brief = {}) {
   const ajouter = (type) => { if (!ordre.includes(type)) ordre.push(type); };
 
   if (template === "premium") {
-    ["hero", "image_texte", "benefices", "galerie", "avis", "ugc", "offres", "reassurance", "faq", "cross_sell", "formulaire_cod"].forEach(ajouter);
+    ["hero", "description", "image_texte", "benefices", "galerie", "avis", "ugc", "offres", "reassurance", "faq", "cross_sell"].forEach(ajouter);
   } else if (template === "storytelling") {
-    ["hero", "texte", "image_texte", "video", "comment_ca_marche", "benefices", "comparaison", "avis", "ugc", "offres", "reassurance", "faq", "cta", "formulaire_cod"].forEach(ajouter);
+    ["hero", "description", "texte", "image_texte", "video", "comment_ca_marche", "benefices", "comparaison", "avis", "ugc", "offres", "reassurance", "faq", "cta"].forEach(ajouter);
   } else {
-    ["hero", "video", "image_texte", "benefices", "comment_ca_marche", "avis", "ugc", "offres", "reassurance", "livraison", "faq", "cross_sell", "formulaire_cod"].forEach(ajouter);
+    ["hero", "description", "video", "image_texte", "benefices", "comment_ca_marche", "avis", "ugc", "offres", "reassurance", "livraison", "faq", "cross_sell"].forEach(ajouter);
   }
 
   // Ajustements selon l'objectif
@@ -894,7 +978,6 @@ export function assainirPropositionExterne(json) {
     .map((b) => (typeof b === "string" ? { type: b } : b))
     .filter((b) => b && REGISTRE_BLOCS[b.type] && !vus.has(b.type) && (vus.add(b.type), true))
     .map((b) => ({ type: b.type, label: REGISTRE_BLOCS[b.type].label, raison: String(b.raison || RAISONS[b.type] || "").slice(0, 200), aFournir: "" }));
-  if (!blocs.some((b) => b.type === "formulaire_cod")) blocs.push({ type: "formulaire_cod", label: REGISTRE_BLOCS.formulaire_cod.label, raison: RAISONS.formulaire_cod, aFournir: "" });
   return { template, templateNom: TEMPLATES[template].nom, blocs, avertissements: ["Proposition externe assainie : seuls les types de blocs ont été conservés."], resume: "" };
 }
 

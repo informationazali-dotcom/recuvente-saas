@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import {
   normaliserConfig, REGISTRE_BLOCS, blocEstVide, calculerOffresAffichees, analyserVideo,
   couleurTextePourFond, couleurValide, formaterMontant, produitsCrossSell, textePlat, CTA_TEXTE_DEFAUT,
+  structureDescriptionProduit,
 } from "./blocs.js";
 
 // ---------------------------------------------------------------------------
@@ -71,6 +72,18 @@ const CSS_PAGE = `
 .rvpp-h1{font-family:var(--pp-font-title);font-size:clamp(24px,6.4vw,34px);line-height:1.15;font-weight:800;margin:0 0 6px;letter-spacing:-.015em;overflow-wrap:anywhere}
 .rvpp-h2{font-family:var(--pp-font-title);font-size:clamp(22px,5.4vw,30px);line-height:1.2;font-weight:800;margin:0 0 8px;letter-spacing:-.01em;overflow-wrap:anywhere}
 .rvpp-sub{color:var(--pp-muted);font-size:15px;line-height:1.55;margin:0 0 22px}
+.rvpp-desc{max-width:760px;margin:0 auto;font-size:15px;color:var(--pp-ink);line-height:1.65;overflow-wrap:anywhere}
+.rvpp-desc img{max-width:100%!important;width:100%!important;height:auto!important;float:none!important;display:block!important;margin:14px auto!important;border-radius:8px!important;object-fit:contain!important}
+.rvpp-desc video{max-width:100%!important;height:auto!important;display:block;margin:14px auto;border-radius:8px}
+.rvpp-desc *{max-width:100%!important;box-sizing:border-box!important}
+.rvpp-desc table{display:block!important;overflow-x:auto!important}
+.rvpp-desc h1,.rvpp-desc h2,.rvpp-desc h3,.rvpp-desc h4{font-size:17px!important;font-weight:700!important;color:var(--pp-ink)!important;margin:22px 0 10px!important;line-height:1.4!important}
+.rvpp-desc>:first-child{margin-top:0!important}
+.rvpp-desc p{margin:0 0 12px!important;line-height:1.65!important}
+.rvpp-desc strong,.rvpp-desc b{font-weight:700!important}
+.rvpp-desc ul,.rvpp-desc ol{margin:0 0 14px!important;padding-left:20px!important}
+.rvpp-desc li{margin-bottom:7px!important;line-height:1.55!important}
+.rvpp-desc a{color:var(--pp-accent-ink)!important}
 .rvpp-lead{color:var(--pp-muted);font-size:16px;line-height:1.55;margin:0 0 14px}
 .rvpp-pill{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:4px 10px;border-radius:999px;background:var(--pp-accent-soft);color:var(--pp-accent-ink)}
 .rvpp-cta{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;min-height:56px;padding:13px 18px;border:none;border-radius:var(--pp-radius);background:var(--pp-cta,var(--pp-accent));color:var(--pp-cta-txt,var(--pp-accent-txt));cursor:pointer;touch-action:manipulation;box-shadow:0 6px 18px var(--pp-cta-shadow,var(--pp-accent-shadow));transition:transform .12s ease,box-shadow .12s ease,opacity .12s}
@@ -895,6 +908,16 @@ function BlocLivraison({ bloc, ctx }) {
   );
 }
 
+function BlocDescription({ bloc, ctx }) {
+  const p = bloc.props;
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      {(p.titre || "").trim() && <h2 className="rvpp-h2" style={{ marginBottom: 14 }}>{p.titre}</h2>}
+      <div className="rvpp-desc" dangerouslySetInnerHTML={{ __html: ctx.descriptionReste }} />
+    </div>
+  );
+}
+
 function BlocTexte({ bloc }) {
   const p = bloc.props;
   const centre = p.alignement === "centre";
@@ -936,7 +959,7 @@ const COMPOSANTS = {
   hero: BlocHero, galerie: BlocGalerie, info_produit: BlocInfo, benefices: BlocBenefices, video: BlocVideo,
   comment_ca_marche: BlocEtapes, offres: BlocOffres, bundles: BlocGroupee, avis: BlocAvis, ugc: BlocUGC,
   reassurance: BlocReassurance, comparaison: BlocComparaison, faq: BlocFAQ, upsell: BlocUpsell,
-  cross_sell: BlocCrossSell, formulaire_cod: BlocFormulaire, livraison: BlocLivraison, texte: BlocTexte,
+  cross_sell: BlocCrossSell, formulaire_cod: BlocFormulaire, livraison: BlocLivraison, texte: BlocTexte, description: BlocDescription,
   image_texte: BlocImageTexte, cta: BlocCta,
 };
 
@@ -1053,8 +1076,11 @@ export function PageProduitPublique({
   const blocOffres = cfg.blocs.find((b) => b.type === "offres" && b.visible !== false) || null;
   const aOptions = Array.isArray(produit?.options) && produit.options.length > 0;
 
+  // Même extraction que l'éditeur : points forts + reste de la description (texte, images, vidéo).
+  const structureDesc = useMemo(() => structureDescriptionProduit(produit?.produit_description), [produit?.produit_description]);
+  const pointsAffiches = structureDesc.points.length > 0 ? structureDesc.points : pointsForts;
   const ctxBase = {
-    produit, produits, entreprise, avis, pointsForts, hasOptions: aOptions, blocOffres,
+    produit, produits, entreprise, avis, pointsForts: pointsAffiches, descriptionReste: structureDesc.reste, hasOptions: aOptions, blocOffres,
     produitsCrossSell: [],
   };
   const blocsAffiches = cfg.blocs

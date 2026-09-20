@@ -1036,3 +1036,88 @@ export function produitsCrossSell(produit, produits, collectionsManuelles, props
   if (ids.length > 0) return ids.map((id) => autres.find((p) => p.produit_id === id)).filter(Boolean).slice(0, max);
   return autres.slice().sort((a, b) => (b.nb_ventes || 0) - (a.nb_ventes || 0)).slice(0, max);
 }
+
+// ============================================================================
+//  Couleurs saisies à la main
+//  Un champ couleur du Store Builder accepte du texte libre : « F7EEDF » (sans #) ou « #fff »
+//  n'est pas une couleur CSS valide sous cette forme (ou seulement en partie). Résultat côté
+//  boutique : fond ignoré, texte blanc sur fond blanc (pied de page « invisible »), boutons
+//  de l'éditeur gris. Ces fonctions réparent la saisie ; elles ne changent aucune couleur valide.
+// ============================================================================
+export function normaliserHex(v) {
+  const m = String(v ?? "").trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return "";
+  let h = m[1].toLowerCase();
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  return `#${h}`;
+}
+
+// Couleur utilisable en CSS : « #rrggbb » (réparé si besoin), rgb()/hsl() acceptés tels quels, sinon `secours`.
+export function couleurCssSure(v, secours = "") {
+  const h = normaliserHex(v);
+  if (h) return h;
+  const s = String(v ?? "").trim();
+  return /^(rgb|hsl)a?\([^)]*\)$/i.test(s) ? s : secours;
+}
+
+function canaux(v) {
+  const h = normaliserHex(v);
+  if (h) return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const m = String(v ?? "").match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+// Luminance relative WCAG (0 = noir, 1 = blanc) ; null si la couleur n'est pas lisible.
+export function luminanceCouleur(v) {
+  const c = canaux(v);
+  if (!c) return null;
+  const [r, g, b] = c.map((x) => { const s = x / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function ratioContraste(a, b) {
+  const la = luminanceCouleur(a), lb = luminanceCouleur(b);
+  if (la == null || lb == null) return null;
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+export function estClaire(v) {
+  const l = luminanceCouleur(v);
+  return l != null && l > 0.45;
+}
+
+// Couleur de texte lisible sur ce fond (blanc sur fond foncé, encre sur fond clair).
+export function texteSurFond(fond, clair = "#ffffff", fonce = "#16231F") {
+  return estClaire(fond) ? fonce : clair;
+}
+
+// Répare les couleurs saisies sans « # » dans une configuration de boutique (Store Builder).
+// Ne touche qu'aux champs de couleur ; rend une copie, l'original n'est pas modifié.
+export function reparerCouleurs(cfg) {
+  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return cfg;
+  const out = { ...cfg };
+  const reparer = (v) => { const h = normaliserHex(v); return h || v; };
+  Object.keys(out).forEach((k) => {
+    const v = out[k];
+    if (typeof v === "string" && /(color|couleur|fond)$/i.test(k)) out[k] = reparer(v);
+  });
+  if (out.sectionColors && typeof out.sectionColors === "object") {
+    out.sectionColors = Object.fromEntries(Object.entries(out.sectionColors).map(([k, v]) => [k, typeof v === "string" ? reparer(v) : v]));
+  }
+  if (out.sectionStyles && typeof out.sectionStyles === "object") {
+    out.sectionStyles = Object.fromEntries(Object.entries(out.sectionStyles).map(([k, st]) => {
+      if (!st || typeof st !== "object") return [k, st];
+      const s2 = { ...st };
+      ["fond", "bordureCouleur"].forEach((c) => { if (typeof s2[c] === "string") s2[c] = reparer(s2[c]); });
+      return [k, s2];
+    }));
+  }
+  return out;
+}
+
+// Pendant la frappe : « F7EEDF » devient « #F7EEDF » dès qu'on tape des chiffres/lettres hexadécimaux.
+// (On n'agrandit pas « #fff » en « #ffffff » ici, pour ne pas gêner celui qui tape encore.)
+export function completerDieze(v) {
+  const s = String(v ?? "");
+  return /^[0-9a-f]{3,8}$/i.test(s.trim()) ? `#${s.trim()}` : s;
+}

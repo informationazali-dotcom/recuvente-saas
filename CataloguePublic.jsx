@@ -5,7 +5,7 @@ import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -1076,7 +1076,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         devise: data[0].devise,
         logo: data[0].logo_url,
         banniere: data[0].banniere_url,
-        couleur: data[0].couleur_marque || "#1a7a3c",
+        couleur: couleurCssSure(data[0].couleur_marque, "#1a7a3c"),
         description: data[0].description_boutique,
         whatsapp: data[0].whatsapp_number,
         politiqueLivraison: data[0].politique_livraison,
@@ -1088,7 +1088,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         facebookUrl: data[0].facebook_url,
         instagramUrl: data[0].instagram_url,
         tiktokUrl: data[0].tiktok_url,
-        storeConfig: data[0].store_config_published || null,
+        storeConfig: reparerCouleurs(data[0].store_config_published) || null,
         country: data[0].country || null,
         countriesLivraison: Array.isArray(data[0].countries_livraison) ? data[0].countries_livraison : [],
         depotRequis: data[0].depot_requis || false,
@@ -1114,7 +1114,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           localStorage.setItem(`rv_identite_${cleIdentite}`, JSON.stringify({
             nom: data[0].entreprise_nom,
             logo: data[0].logo_url,
-            couleur: data[0].couleur_marque || "#1a7a3c",
+            couleur: couleurCssSure(data[0].couleur_marque, "#1a7a3c"),
             // Pixel Facebook : gardé pour que la prochaine visite le démarre dès l'ouverture
             // de la page (index.html), sans attendre le réseau.
             fb: data[0].facebook_pixel_id || null,
@@ -4113,8 +4113,11 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
     : [];
   const aDesLiensNav = aDesLiensPersonnalises || aDesBestSellers || aDesNouveautes || collectionsManuelles.length > 0 || pagesHeader.length > 0;
   const t = creerTraducteur(entreprise.langue);
-  const bgHeader = headerConfig?.bgColor || couleur;
-  const texteHeader = headerConfig?.textColor || "white";
+  // Couleurs de l'en-tête : saisie sans « # » réparée ; texte automatiquement lisible si fond et texte se confondent.
+  const bgHeader = couleurCssSure(headerConfig?.bgColor, "") || couleur;
+  let texteHeader = couleurCssSure(headerConfig?.textColor, "") || "white";
+  const contrasteHeader = ratioContraste(texteHeader === "white" ? "#ffffff" : texteHeader, bgHeader);
+  if (contrasteHeader != null && contrasteHeader < 2.2) texteHeader = texteSurFond(bgHeader);
   const afficherRecherche = headerConfig?.showSearch !== false;
   const navMenu = { entreprise, onNaviguerVersCollection, onOuvrirPagePerso, accueil: onLogoClick };
   const bgNav = couleurPersoValide(entreprise.storeConfig?.headerNavBgColor);
@@ -4838,8 +4841,13 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
     { url: entreprise.instagramUrl, icone: "📷", nom: "Instagram" },
     { url: entreprise.tiktokUrl, icone: "🎵", nom: "TikTok" },
   ].filter((r) => r.url);
-  const bgFooter = footerConfig?.bgColor || "#16231F";
-  const texteFooter = footerConfig?.textColor || "rgba(255,255,255,0.75)";
+  // Couleurs du pied de page : une couleur saisie sans « # » est réparée ; sur un fond CLAIR, le texte
+  // devient sombre (avant : texte blanc sur fond clair = pied de page invisible).
+  const bgFooter = couleurCssSure(footerConfig?.bgColor, "#16231F");
+  const fondClair = estClaire(bgFooter);
+  let texteFooter = couleurCssSure(footerConfig?.textColor, "") || (fondClair ? "#16231F" : "rgba(255,255,255,0.75)");
+  const contrasteFooter = ratioContraste(texteFooter, bgFooter);
+  if (contrasteFooter != null && contrasteFooter < 2.2) texteFooter = texteSurFond(bgFooter);
   const accent = footerConfig?.accent || "#1F9D6E";
   const ambiance = footerConfig?.ambiance || "degrade"; // sobre | degrade | neon
   const colMobile = Number(footerConfig?.colonnesMobile) === 1 ? 1 : 2;
@@ -4852,40 +4860,40 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
 
   const fondFooter = ambiance === "sobre"
     ? bgFooter
-    : `radial-gradient(1200px 400px at 15% -10%, ${accent}26, transparent 60%), linear-gradient(180deg, ${bgFooter} 0%, rgba(0,0,0,0.55) 100%), ${bgFooter}`;
+    : `radial-gradient(1200px 400px at 15% -10%, ${accent}26, transparent 60%), linear-gradient(180deg, ${bgFooter} 0%, rgba(0,0,0,${fondClair ? "0.05" : "0.55"}) 100%), ${bgFooter}`;
 
   return (
-    <div className={`rv-ft rv-ft-${ambiance}`} style={{ background: fondFooter, color: texteFooter, marginTop: 30, position: "relative", overflow: "hidden" }}>
+    <div className={`rv-ft rv-ft-${ambiance}`} style={{ background: fondFooter, color: texteFooter, marginTop: 30, position: "relative", overflow: "hidden", "--ft-fg": fondClair ? "#16231F" : "#fff", "--ft-ov": fondClair ? "0,0,0" : "255,255,255", "--ft-cta-bg": fondClair ? "#16231F" : "#fff", "--ft-cta-fg": fondClair ? "#fff" : "#0f1a15" }}>
       <style>{`
         @keyframes rvFtLine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
         .rv-ft{position:relative}
         .rv-ft-top{height:2px;background:linear-gradient(90deg,transparent,${accent},#7c5cff,${accent},transparent);background-size:200% 100%;animation:rvFtLine 5s linear infinite}
         .rv-ft-sobre .rv-ft-top{display:none}
-        .rv-ft-neon::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.10;background-image:linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 5%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 0%,#000 5%,transparent 70%)}
+        .rv-ft-neon::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.10;background-image:linear-gradient(rgba(var(--ft-ov),.4) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--ft-ov),.4) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 5%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 0%,#000 5%,transparent 70%)}
         .rv-ft-in{max-width:1100px;margin:0 auto;position:relative;z-index:2}
         .rv-ft-badges{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:24px 18px}
-        .rv-ft-badge{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 13px;transition:background .3s,transform .3s,border-color .3s}
-        .rv-ft-badge b{font-size:12.5px;font-weight:700;color:#fff;line-height:1.25}
+        .rv-ft-badge{display:flex;align-items:center;gap:11px;background:rgba(var(--ft-ov),.055);border:1px solid rgba(var(--ft-ov),.08);border-radius:14px;padding:12px 13px;transition:background .3s,transform .3s,border-color .3s}
+        .rv-ft-badge b{font-size:12.5px;font-weight:700;color:var(--ft-fg);line-height:1.25}
         .rv-ft-badge span.ic{font-size:21px;flex-shrink:0;line-height:1}
         .rv-ft-cols{display:flex;flex-wrap:wrap;gap:30px 48px;padding:30px 18px;align-items:flex-start}
         .rv-ft-cols>*{flex:1 1 170px;min-width:150px}
         .rv-ft-cols>.rv-ft-marque{flex:1.7 1 300px}
-        .rv-ft-titre{display:flex;flex-direction:column;gap:7px;font-weight:800;font-size:11.5px;color:#fff;text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px}
+        .rv-ft-titre{display:flex;flex-direction:column;gap:7px;font-weight:800;font-size:11.5px;color:var(--ft-fg);text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px}
         .rv-ft-titre em{display:block;width:26px;height:2px;border-radius:2px;background:${accent};font-style:normal}
         .rv-ft-liens{display:flex;flex-direction:column}
         .rv-ft-lien{background:none;border:none;color:inherit;opacity:.78;font-size:13px;text-align:left;cursor:pointer;padding:7px 0;text-decoration:none;display:block;line-height:1.35;transition:opacity .2s,transform .2s,color .2s}
-        .rv-ft-marque-nom{font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em}
+        .rv-ft-marque-nom{font-weight:800;font-size:17px;color:var(--ft-fg);letter-spacing:-.01em}
         .rv-ft-desc{font-size:13px;line-height:1.6;opacity:.8;margin-bottom:15px;max-width:340px}
         .rv-ft-soc{display:flex;gap:9px;flex-wrap:wrap}
-        .rv-ft-soc a{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none;transition:transform .25s,background .25s}
-        .rv-ft-news{padding:24px 18px;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);text-align:center}
-        .rv-ft-cta{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#0f1a15;border-radius:999px;padding:12px 26px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 12px 30px rgba(0,0,0,.3);transition:transform .25s,box-shadow .25s}
+        .rv-ft-soc a{width:38px;height:38px;border-radius:12px;background:rgba(var(--ft-ov),.08);border:1px solid rgba(var(--ft-ov),.1);display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none;transition:transform .25s,background .25s}
+        .rv-ft-news{padding:24px 18px;border-top:1px solid rgba(var(--ft-ov),.1);border-bottom:1px solid rgba(var(--ft-ov),.1);text-align:center}
+        .rv-ft-cta{display:inline-flex;align-items:center;gap:8px;background:var(--ft-cta-bg);color:var(--ft-cta-fg);border-radius:999px;padding:12px 26px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 12px 30px rgba(0,0,0,.3);transition:transform .25s,box-shadow .25s}
         .rv-ft-pay{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:18px 18px 0}
-        .rv-ft-pay span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 12px;font-size:11.5px;font-weight:600}
-        .rv-ft-bas{border-top:1px solid rgba(255,255,255,.1);padding:18px;text-align:center;font-size:11.5px;opacity:.5;line-height:1.5}
+        .rv-ft-pay span{background:rgba(var(--ft-ov),.08);border:1px solid rgba(var(--ft-ov),.08);border-radius:8px;padding:7px 12px;font-size:11.5px;font-weight:600}
+        .rv-ft-bas{border-top:1px solid rgba(var(--ft-ov),.1);padding:18px;text-align:center;font-size:11.5px;opacity:.5;line-height:1.5}
         @media (hover:hover){
-          .rv-ft-badge:hover{background:rgba(255,255,255,.1);border-color:${accent}66;transform:translateY(-2px)}
-          .rv-ft-lien:hover{opacity:1;color:#fff;transform:translateX(3px)}
+          .rv-ft-badge:hover{background:rgba(var(--ft-ov),.1);border-color:${accent}66;transform:translateY(-2px)}
+          .rv-ft-lien:hover{opacity:1;color:var(--ft-fg);transform:translateX(3px)}
           .rv-ft-soc a:hover{background:${accent};transform:translateY(-3px)}
           .rv-ft-cta:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(0,0,0,.4)}
         }
@@ -5009,7 +5017,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
 
       {footerConfig?.newsletterActif && (
         <div className="rv-ft-news">
-          <div style={{ fontWeight: 800, fontSize: 14.5, color: "white" }}>📩 {t("resteInforme")}</div>
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--ft-fg)" }}>📩 {t("resteInforme")}</div>
           {footerConfig.newsletterTexte && <div style={{ fontSize: 12.5, opacity: 0.75, margin: "7px auto 14px", maxWidth: 420, lineHeight: 1.5 }}>{footerConfig.newsletterTexte}</div>}
           {entreprise.whatsapp && (
             <a
@@ -5034,7 +5042,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
         <div style={{ textAlign: "center", padding: "18px 0 4px" }}>
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)", borderRadius: 999, padding: "10px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+            style={{ background: "rgba(var(--ft-ov),0.08)", border: "1px solid rgba(var(--ft-ov),0.15)", color: "inherit", borderRadius: 999, padding: "10px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
           >
             {t("retourEnHaut")}
           </button>

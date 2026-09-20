@@ -15,11 +15,21 @@ function hasher(valeur) {
 // Côte d'Ivoire en dur alors que RecuVente sert plusieurs pays d'Afrique de l'Ouest.
 const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228" };
 
+// Longueur du numéro national (sans indicatif) : en Côte d'Ivoire et au Bénin, depuis leur passage
+// à 10 chiffres, le « 0 » de tête FAIT PARTIE du numéro (+225 07 01 02 03 04). L'ancien code le
+// retirait toujours, ce qui donnait un numéro faux à Facebook (donc un achat moins bien reconnu).
+const LONGUEUR_NATIONALE = { CI: 10, BJ: 10, SN: 9, ML: 8, BF: 8, TG: 8 };
+
 function normaliserTelephone(tel, codePays) {
   let chiffres = String(tel || "").replace(/\D/g, "");
   if (chiffres.startsWith("00")) chiffres = chiffres.slice(2);
   const indicatif = INDICATIFS_PAYS[codePays] || "225";
-  if (!chiffres.startsWith(indicatif) && chiffres.length <= 10) chiffres = indicatif + chiffres.replace(/^0/, "");
+  const longueur = LONGUEUR_NATIONALE[codePays] || 10;
+  if (!chiffres.startsWith(indicatif) && chiffres.length <= 10) {
+    // On ne retire le « 0 » de tête que s'il est en trop (numéro plus long que la longueur nationale).
+    const national = chiffres.length > longueur ? chiffres.replace(/^0/, "") : chiffres;
+    chiffres = indicatif + national;
+  }
   return "+" + chiffres;
 }
 

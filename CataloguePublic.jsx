@@ -668,6 +668,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [erreurEnvoiBien, setErreurEnvoiBien] = useState("");
   const [bienEnvoye, setBienEnvoye] = useState(false);
   const [collectionsManuelles, setCollectionsManuelles] = useState([]);
+  const [triCollection, setTriCollection] = useState("defaut");
   const [avisBoutique, setAvisBoutique] = useState([]);
   const [sourceCampagne] = useState(() => obtenirSourceCampagnePersistante());
   const [erreur, setErreur] = useState(null);
@@ -1108,11 +1109,26 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       const parCollection = {};
       dataCollections.forEach((ligne) => {
         if (!parCollection[ligne.collection_id]) {
-          parCollection[ligne.collection_id] = { id: ligne.collection_id, nom: ligne.collection_nom, ordre: ligne.ordre, produitIds: [] };
+          // Le nom affiché est nettoyé (un « handle » Shopify brut comme "toges-avocat" devient
+          // "Toges Avocat") ; l'image et la description sont lues si la base les fournit.
+          parCollection[ligne.collection_id] = {
+            id: ligne.collection_id, nom: joliNomCollection(ligne.collection_nom), ordre: ligne.ordre, produitIds: [],
+            image: ligne.collection_image_url || ligne.image_url || ligne.collection_image || "",
+            description: ligne.collection_description || ligne.description || "",
+          };
         }
         parCollection[ligne.collection_id].produitIds.push(ligne.produit_id);
       });
       setCollectionsManuelles(Object.values(parCollection).sort((a, b) => a.ordre - b.ordre));
+      // Bonus discret : si la base autorise la lecture publique de l'image / description des
+      // collections, on les récupère (rien ne casse si ce n'est pas autorisé).
+      try {
+        Promise.resolve(supabase.from("collections").select("id,image_url,description").eq("workspace_id", workspaceId)).then((r) => {
+          const lignes = r && r.data;
+          if (!Array.isArray(lignes) || !lignes.length) return;
+          setCollectionsManuelles((prev) => prev.map((c) => { const l = lignes.find((x) => x.id === c.id); return l ? { ...c, image: c.image || l.image_url || "", description: c.description || l.description || "" } : c; }));
+        }).catch(() => {});
+      } catch (_) { /* silencieux */ }
     });
   }, [workspaceId]);
 
@@ -2675,8 +2691,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         : collectionOuverte === "nouveautes"
           ? produits.filter((p) => p.est_nouveau)
           : produits;
+    const listeTriee = triCollection === "prix_asc" ? [...listeCollection].sort((a, b) => Number(a.prix_vente) - Number(b.prix_vente))
+      : triCollection === "prix_desc" ? [...listeCollection].sort((a, b) => Number(b.prix_vente) - Number(a.prix_vente))
+      : triCollection === "nouveautes" ? [...listeCollection].sort((a, b) => (b.est_nouveau ? 1 : 0) - (a.est_nouveau ? 1 : 0))
+      : listeCollection;
+    const imageBandeau = collectionManuelleActive ? imageCollection(collectionManuelleActive, entreprise.storeConfig) : "";
     const titreCollection = collectionManuelleActive
-      ? `📁 ${collectionManuelleActive.nom}`
+      ? collectionManuelleActive.nom
       : collectionOuverte === "bestseller" ? t("meilleuresVentes") : collectionOuverte === "nouveautes" ? t("nouveautes") : t("tousLesProduits");
 
     return (
@@ -2685,6 +2706,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           .rv-shop-content { max-width: 480px; margin: 0 auto; padding: 0 16px; }
 
           @media (max-width: 680px) { .rv-shop-header-whatsapp-txt { display: none; } }
+          .rv-coll-entete{border-radius:16px;background-size:cover;background-position:center 35%;padding:8px 0 4px;margin-bottom:6px}
+          .rv-coll-entete[style*="background-image"]{padding:38px 18px;min-height:110px;display:flex;flex-direction:column;justify-content:flex-end;margin-bottom:12px}
+          .rv-coll-titre{margin:0;font-size:clamp(22px,5vw,32px);font-weight:900;letter-spacing:-.02em;color:#14221b;line-height:1.15}
+          .rv-coll-desc{margin:6px 0 0;font-size:13.5px;color:#68756d;line-height:1.55;max-width:640px}
+          .rv-coll-barre{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 14px;padding-bottom:10px;border-bottom:1px solid #ECE8DC}
+          .rv-coll-compte{font-size:13px;color:#68756d;font-weight:600}
+          .rv-coll-tri{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#68756d}
+          .rv-coll-tri select{min-height:40px;border:1px solid #DDD8CC;border-radius:10px;background:#fff;padding:0 10px;font-size:13px;color:#16231F;font-family:inherit}
           .rv-shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
           @media (min-width: 640px) { .rv-shop-content { max-width: 720px; padding: 0 24px; } .rv-shop-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
           @media (min-width: 960px) { .rv-shop-content { max-width: 1100px; padding: 0 32px; } .rv-shop-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
@@ -2696,14 +2725,32 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         <div className="rv-shop-content" style={{ paddingTop: 20 }}>
           <button
             onClick={() => setCollectionOuverte(null)}
-            style={{ background: "none", border: "none", color: "#6B7168", fontSize: 13, cursor: "pointer", marginBottom: 10, padding: 0 }}
+            style={{ background: "none", border: "none", color: "#6B7168", fontSize: 13.5, cursor: "pointer", marginBottom: 6, padding: "10px 0", minHeight: 44 }}
           >
             {t("retourAccueil")}
           </button>
-          <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 18 }}>{titreCollection} ({listeCollection.length})</div>
+          <div className="rv-coll-entete" style={imageBandeau ? { backgroundImage: `linear-gradient(180deg,rgba(6,14,10,.25),rgba(6,14,10,.75)),url(${imageBandeau})` } : undefined}>
+            <h1 className="rv-coll-titre" style={imageBandeau ? { color: "#fff" } : undefined}>{titreCollection}</h1>
+            {collectionManuelleActive?.description ? <p className="rv-coll-desc" style={imageBandeau ? { color: "rgba(255,255,255,.9)" } : undefined}>{collectionManuelleActive.description}</p> : null}
+          </div>
+          <div className="rv-coll-barre">
+            <span className="rv-coll-compte">{listeCollection.length} article{listeCollection.length > 1 ? "s" : ""}</span>
+            {listeCollection.length > 1 && (
+              <label className="rv-coll-tri">
+                <span>Trier :</span>
+                <select value={triCollection} onChange={(e) => setTriCollection(e.target.value)} aria-label="Trier les produits">
+                  <option value="defaut">Recommandés</option>
+                  <option value="nouveautes">Nouveautés d'abord</option>
+                  <option value="prix_asc">Prix croissant</option>
+                  <option value="prix_desc">Prix décroissant</option>
+                </select>
+              </label>
+            )}
+          </div>
+          {listeCollection.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13.5, padding: "30px 0 50px" }}>Aucun produit dans cette collection pour le moment.</div>}
 
           <div className="rv-shop-grid" style={{ paddingBottom: 40 }}>
-            {listeCollection.map((p, i) => (
+            {listeTriee.map((p, i) => (
               <RevealOnScroll key={p.produit_id} delai={(i % 6) * 50}>
                 <CarteProduit p={p} couleur={couleur} devise={formaterDevise(entreprise.devise)} onOpen={ouvrirProduit} langue={entreprise.langue} onAjouterAuPanier={ajouterAuPanier} estAzali={entreprise.slug === "azaliexpress"} />
               </RevealOnScroll>
@@ -4303,13 +4350,15 @@ function styleBouton(couleur, texteDefaut = "white") {
 }
 function couleurPersoValide(v) { return HEX6.test(String(v || "").trim()) ? String(v).trim() : ""; }
 
-let STYLE_CARTE = { style: "verre", anim: "lift", radius: "moyen", decor: true };
+let STYLE_CARTE = { style: "verre", anim: "lift", radius: "moyen", decor: true, ratio: "carre", fit: "auto" };
 function appliquerStyleCarte(sc) {
   STYLE_CARTE = {
     style: sc?.cardStyle || "verre",
     anim: sc?.cardAnim || "lift",
     radius: sc?.cardRadius || "moyen",
     decor: sc?.cardDecor !== false,
+    ratio: sc?.cardImageRatio === "portrait" ? "portrait" : "carre",
+    fit: sc?.cardImageFit === "cover" || sc?.cardImageFit === "contain" ? sc.cardImageFit : "auto",
   };
 }
 function cssCartesProduits(cfg, couleur) {
@@ -4318,8 +4367,15 @@ function cssCartesProduits(cfg, couleur) {
   const decorOpacite = cfg.decor ? 0.5 : 0;
   return `
   .rv-card{position:relative;display:block;width:100%;max-width:100%;box-sizing:border-box;border-radius:${rad}px;overflow:hidden;cursor:pointer;text-align:left;background:#fff;border:1px solid #ECE8DC;box-shadow:0 2px 8px rgba(22,35,31,.05);transition:transform .35s cubic-bezier(.2,.8,.3,1),box-shadow .35s,border-color .35s;transform-style:preserve-3d}
-  .rv-card-media{position:relative;width:100%;padding-top:100%;overflow:hidden;background:linear-gradient(160deg,#F7F9F6,#EDF1EC)}
+  .rv-card-media{position:relative;width:100%;padding-top:${cfg.ratio === "portrait" ? 125 : 100}%;overflow:hidden;background:linear-gradient(160deg,#F7F9F6,#EDF1EC)}
   .rv-card-media>img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;transition:transform .6s cubic-bezier(.2,.8,.3,1)}
+  .rv-card-media>img.rv-fit-cover{object-fit:cover}
+  .rv-card{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  .rv-card:focus-visible{outline:2px solid ${c};outline-offset:2px}
+  .rv-card-prix-ligne{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+  .rv-card-barre{font-size:.82em;font-weight:500;color:#9AA29C;text-decoration:line-through;letter-spacing:0}
+  .rv-card-pct{font-size:10.5px;font-weight:800;color:#fff;background:#D64933;border-radius:999px;padding:2px 7px;letter-spacing:0;align-self:center}
+  .rv-card-neon .rv-card-barre{color:#7f8f86}
   .rv-card-vide{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;z-index:0}
   .rv-card-halo{position:absolute;left:50%;top:54%;width:82%;height:82%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,${c}2e 0%,transparent 62%);z-index:0;pointer-events:none;transition:opacity .4s,transform .6s}
   .rv-card-shine{position:absolute;top:-10%;bottom:-10%;width:40%;left:-65%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-18deg);z-index:2;pointer-events:none;transition:left .8s ease}
@@ -4363,6 +4419,7 @@ function cssCartesProduits(cfg, couleur) {
     .rv-card-corps{padding:9px 10px 12px}
     .rv-card-nom{font-size:12.5px;margin-bottom:4px}
     .rv-card-prix{font-size:13.5px}
+    .rv-card-pct{font-size:9.5px;padding:2px 6px}
     .rv-card-coins::before,.rv-card-coins::after,.rv-card-coins i::before,.rv-card-coins i::after{width:11px;height:11px;top:auto;bottom:auto}
     .rv-card-coins::before{top:7px;left:7px}
     .rv-card-coins::after{top:7px;right:7px}
@@ -4385,15 +4442,35 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
   const aDesVraisAvis = p.note_moyenne != null && Number(p.nb_avis) > 0;
   useEffect(() => { injecterCssCartes(couleur); }, [couleur]);
   const classes = `rv-shop-card rv-card rv-card-${STYLE_CARTE.style} rv-anim-${STYLE_CARTE.anim}`;
+  // Cadrage intelligent de la photo : une photo proche du format de la carte remplit la carte
+  // (« cover », pas de bandes vides) ; une photo très allongée reste entière (« contain »)
+  // pour ne jamais couper le produit. Réglable dans le Store Builder (Cartes produits).
+  const [ajuste, setAjuste] = useState(STYLE_CARTE.fit === "cover");
+  const imgRef = useRef(null);
+  const evaluerPhoto = (el) => {
+    if (STYLE_CARTE.fit !== "auto" || !el || !el.naturalWidth || !el.naturalHeight) return;
+    const r = el.naturalWidth / el.naturalHeight;
+    const cible = STYLE_CARTE.ratio === "portrait" ? 0.8 : 1;
+    setAjuste(r >= cible * 0.72 && r <= cible * 1.4);
+  };
+  useEffect(() => { const el = imgRef.current; if (el && el.complete) evaluerPhoto(el); }, [p.photo_url]);
+  // Vrai prix barré (jamais inventé) : affiché seulement si le marchand a renseigné un prix barré
+  // supérieur au prix de vente.
+  const prixVenteNum = Number(p.prix_vente), prixBarreNum = Number(p.prix_barre);
+  const remisePct = prixBarreNum > prixVenteNum && prixVenteNum > 0 ? Math.round((1 - prixVenteNum / prixBarreNum) * 100) : 0;
   return (
-    <div onClick={() => onOpen(p)} className={classes} role="button" tabIndex={0}>
+    <div onClick={() => onOpen(p)} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); onOpen(p); } }} className={classes} role="button" tabIndex={0} aria-label={p.produit_nom}>
       <div className="rv-card-media">
         <div className="rv-card-halo" />
         {p.photo_url ? (
           <img
+            ref={imgRef}
             src={p.photo_url}
             alt={p.produit_nom}
             loading="lazy"
+            decoding="async"
+            className={ajuste ? "rv-fit-cover" : undefined}
+            onLoad={(e) => evaluerPhoto(e.currentTarget)}
             onError={(e) => { e.target.style.display = "none"; }}
           />
         ) : (
@@ -4429,7 +4506,7 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
             onClick={(e) => { e.stopPropagation(); onAjouterAuPanier(p); }}
             aria-label={t("ajouterPanier")}
             className="rv-card-badge"
-            style={{ position: "absolute", bottom: 7, right: 7, width: 34, height: 34, borderRadius: "50%", ...styleBouton(couleur), border: "2px solid rgba(255,255,255,0.9)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.28)" }}
+            style={{ position: "absolute", bottom: 7, right: 7, width: 38, height: 38, borderRadius: "50%", ...styleBouton(couleur), border: "2px solid rgba(255,255,255,0.9)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.28)" }}
           >
             🛒
           </button>
@@ -4444,8 +4521,10 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
             <span style={{ fontSize: 10.5, color: "#8A9089" }}>({aDesVraisAvis ? p.nb_avis : "4.7"})</span>
           </div>
         )}
-        <div className="rv-card-prix">
-          {Number(p.prix_vente).toLocaleString("fr-FR")} {devise}
+        <div className="rv-card-prix rv-card-prix-ligne">
+          <span>{Number(p.prix_vente).toLocaleString("fr-FR")} {devise}</span>
+          {remisePct >= 1 && <s className="rv-card-barre">{prixBarreNum.toLocaleString("fr-FR")}</s>}
+          {remisePct >= 1 && <span className="rv-card-pct">-{remisePct}%</span>}
         </div>
         {estAzali && <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>}
       </div>
@@ -5387,6 +5466,79 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
   );
 }
 
+// ===== TUILES DE COLLECTIONS =====
+// Une tuile = une grande image nette (format 4:5, jamais un bandeau écrasé), le nom de la collection
+// lisible par-dessus (dégradé sombre en bas) et le nombre d'articles. Ordre de choix de l'image :
+//   1. l'image choisie par le marchand pour cette collection (Store Builder → Réglages → Collections),
+//   2. l'image enregistrée sur la collection elle-même,
+//   3. la photo d'un produit de la collection (mode « Photo »), ou une mosaïque de 4 photos (mode « Mosaïque »),
+//   4. à défaut (ou si l'image ne charge pas) : un dégradé aux couleurs de la boutique avec l'initiale.
+function imageCollection(c, config) {
+  const perso = config && config.collectionsImages && config.collectionsImages[c.id];
+  const v = String(perso || c.image || "").trim();
+  return v && /^(https?:)?\/\/|^data:image\//i.test(v) ? v : "";
+}
+function CollectionTuile({ c, produitsCol, config, couleur, onOpen }) {
+  const [casse, setCasse] = useState(false);
+  const photos = (produitsCol || []).map((p) => p.photo_url).filter(Boolean);
+  const dediee = imageCollection(c, config);
+  const modeMosaique = !dediee && config?.collectionTilesStyle === "mosaique" && photos.length >= 2;
+  const une = dediee || photos[0] || "";
+  const nb = (produitsCol || []).length;
+  const nom = joliNomCollection(c.nom);
+  const fond = `linear-gradient(145deg, ${couleur}, ${couleur}aa 55%, #0b1a12)`;
+  return (
+    <button type="button" className="rv-coll-tuile" onClick={onOpen} aria-label={`${nom} — ${nb} article${nb > 1 ? "s" : ""}`}>
+      <span className="rv-coll-fond" style={{ background: fond }} />
+      {modeMosaique && !casse ? (
+        <span className="rv-coll-mosaique">
+          {photos.slice(0, 4).map((u, i) => <img key={i} src={u} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />)}
+        </span>
+      ) : une && !casse ? (
+        <img className="rv-coll-img" src={une} alt="" loading="lazy" decoding="async" onError={() => setCasse(true)} />
+      ) : (
+        <span className="rv-coll-initiale" aria-hidden="true">{(nom || "?").trim().charAt(0).toUpperCase()}</span>
+      )}
+      <span className="rv-coll-voile" />
+      <span className="rv-coll-texte">
+        <span className="rv-coll-nom">{nom}</span>
+        <span className="rv-coll-nb">{nb} article{nb > 1 ? "s" : ""} <b aria-hidden="true">→</b></span>
+      </span>
+    </button>
+  );
+}
+function GrilleCollections({ collections, produitsDe, config, couleur, onOpen, max = 8 }) {
+  return (
+    <>
+      <style>{`
+        .rv-coll-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        @media(min-width:640px){.rv-coll-grille{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
+        @media(min-width:1000px){.rv-coll-grille{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}}
+        .rv-coll-tuile{position:relative;display:block;width:100%;aspect-ratio:4/5;border:0;padding:0;border-radius:16px;overflow:hidden;cursor:pointer;background:#e9efe9;text-align:left;isolation:isolate;-webkit-tap-highlight-color:transparent;touch-action:manipulation;box-shadow:0 6px 18px rgba(16,31,26,.10);transition:transform .35s cubic-bezier(.2,.8,.3,1),box-shadow .35s}
+        .rv-coll-tuile:focus-visible{outline:2px solid ${couleur};outline-offset:2px}
+        .rv-coll-fond{position:absolute;inset:0}
+        .rv-coll-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%;transition:transform .6s cubic-bezier(.2,.8,.3,1)}
+        .rv-coll-mosaique{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;background:#fff}
+        .rv-coll-mosaique img{width:100%;height:100%;object-fit:cover;display:block;min-height:0;min-width:0}
+        .rv-coll-initiale{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:900;color:rgba(255,255,255,.35);padding-bottom:26%}
+        .rv-coll-voile{position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(180deg,rgba(6,14,10,0) 0%,rgba(6,14,10,.55) 55%,rgba(6,14,10,.86) 100%);pointer-events:none}
+        .rv-coll-texte{position:absolute;left:0;right:0;bottom:0;padding:12px 13px 13px;color:#fff;display:flex;flex-direction:column;gap:3px}
+        .rv-coll-nom{font-weight:800;font-size:15px;line-height:1.2;letter-spacing:-.01em;text-shadow:0 1px 10px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .rv-coll-nb{font-size:11.5px;opacity:.88;font-weight:600}
+        .rv-coll-nb b{display:inline-block;transition:transform .3s}
+        @media(max-width:480px){.rv-coll-nom{font-size:13.5px}.rv-coll-texte{padding:10px 11px 11px}.rv-coll-tuile{border-radius:14px}}
+        @media(hover:hover){.rv-coll-tuile:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(16,31,26,.2)}.rv-coll-tuile:hover .rv-coll-img{transform:scale(1.06)}.rv-coll-tuile:hover .rv-coll-nb b{transform:translateX(4px)}}
+        @media(prefers-reduced-motion:reduce){.rv-coll-tuile,.rv-coll-img,.rv-coll-nb b{transition:none !important}}
+      `}</style>
+      <div className="rv-coll-grille">
+        {collections.slice(0, max).map((c) => (
+          <CollectionTuile key={c.id} c={c} produitsCol={produitsDe(c)} config={config} couleur={couleur} onOpen={() => onOpen(c)} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 // Certaines collections importées héritent du "handle" Shopify brut ("toges-avocat") au lieu
 // du vrai titre. On le rend lisible à l'affichage : tirets → espaces, une majuscule par mot —
 // sans jamais toucher à la donnée réelle stockée (juste l'affichage).
@@ -5507,14 +5659,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Faites vos achats par catégorie</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
-            {derivedCollections.slice(0, 8).map((c) => (
-              <button key={c.id} onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: "16px 8px", borderRadius: 12, background: "#f5f8f5", textAlign: "center", cursor: "pointer" }}>
-                <div style={{ fontSize: 22 }}>🗂️</div>
-                <div style={{ fontWeight: 850, fontSize: 11, marginTop: 6 }}>{c.nom}</div>
-              </button>
-            ))}
-          </div>
+          <GrilleCollections collections={derivedCollections} produitsDe={produitsDeCollection} config={config} couleur={couleur} onOpen={(c) => setCollectionOuverte(`manuelle-${c.id}`)} />
         </div>
       );
     }
@@ -5684,7 +5829,10 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       // Fond de la bannière : la photo choisie manuellement dans le Store Builder en priorité,
       // sinon une vraie photo tirée de la collection (le premier produit avec image) plutôt
       // qu'un dégradé plat générique — bien plus premium, sans rien configurer.
-      const photoFond = config[kImg] || produitsCol.find((p) => p.photo_url)?.photo_url;
+      // (Avant : la photo d'un produit au hasard, agrandie et recadrée — donnait une image « bizarre »
+      // et différente de l'aperçu du builder. Maintenant : la photo choisie, sinon l'image de la
+      // collection, sinon un beau dégradé, exactement comme dans l'aperçu.)
+      const photoFond = config[kImg] || imageCollection(col, config) || "";
       const labelBanniere = config[kLabel] !== undefined ? String(config[kLabel]).trim() : "COLLECTION";
       const titreBanniere = config[kTitre] || joliNomCollection(col.nom);
       const texteBouton = config[kBouton] || "Voir la collection";
@@ -5963,18 +6111,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
       return (
         <div style={commonPad}>
           <h3 style={{ margin: "0 0 16px", fontSize: 21, color: "#14221b" }}>Explorer les collections</h3>
-          <div className="rv-collections-row">
-            {derivedCollections.slice(0, 8).map((c) => {
-              const cp = produitsDeCollection(c);
-              const cover = cp.find((p) => p.photo_url)?.photo_url;
-              return (
-                <button key={c.id} className="rv-collections-item" onClick={() => setCollectionOuverte(`manuelle-${c.id}`)} style={{ border: 0, padding: 0, borderRadius: 12, background: "#f5f8f5", textAlign: "center", overflow: "hidden", cursor: "pointer" }}>
-                  {cover ? <img src={cover} alt="" loading="lazy" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} /> : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: "#eef3ee" }}>🗂️</div>}
-                  <div style={{ padding: "10px 8px" }}><div style={{ fontWeight: 850, fontSize: 12 }}>{c.nom}</div><div style={{ fontSize: 10, color: "#7c877f", marginTop: 3 }}>{cp.length} article(s)</div></div>
-                </button>
-              );
-            })}
-          </div>
+          <GrilleCollections collections={derivedCollections} produitsDe={produitsDeCollection} config={config} couleur={couleur} onOpen={(c) => setCollectionOuverte(`manuelle-${c.id}`)} />
         </div>
       );
     }

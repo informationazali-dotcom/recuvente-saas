@@ -47,9 +47,48 @@ export function libelleDevise(code) {
   return code === "XOF" || code === "XAF" ? "F CFA" : code || "";
 }
 
+// ===== BOUTIQUE MULTI-PAYS : AFFICHAGE DANS LA MONNAIE DU CLIENT =====
+// Les prix restent enregistrés dans la devise de la boutique (base de données, commandes, statistiques :
+// rien ne change). Seul l'AFFICHAGE peut être converti pour un client d'un autre pays, avec le taux
+// saisi par le commerçant (Réglages → Pays de livraison). Une seule variable module « MONNAIE »
+// est réglée par la boutique publique ; hors boutique (tableau de bord, éditeurs) elle vaut null :
+// aucun changement de comportement.
+let MONNAIE = null; // { devise, libelle, taux, decimales } ou null
+
+export function definirMonnaieAffichage(m) { MONNAIE = m && m.taux > 0 ? m : null; }
+export function monnaieAffichage() { return MONNAIE; }
+
+// Devise habituelle de chaque pays (modifiable par le commerçant). XOF et XAF ont la même parité (1 = 1).
+export const DEVISE_PAR_DEFAUT_PAYS = { CI: "XOF", SN: "XOF", ML: "XOF", BF: "XOF", TG: "XOF", BJ: "XOF", GN: "GNF", CM: "XAF", GA: "XAF", CD: "CDF", MA: "MAD", DZ: "DZD", TN: "TND", GH: "GHS", NG: "NGN", FR: "EUR" };
+export const DEVISES_PROPOSEES = ["XOF", "XAF", "GNF", "CDF", "MAD", "DZD", "TND", "GHS", "NGN", "EUR", "USD"];
+const DECIMALES_DEVISE = { EUR: 2, USD: 2, GHS: 2, MAD: 2, TND: 2 };
+
+// Monnaie d'affichage pour un pays : null = on garde la devise de la boutique (aucune conversion).
+// `devisesPays` = { GN: { devise: "GNF", taux1000: 15000 } } où taux1000 = montant local pour 1 000 de la devise de base.
+export function monnaieDuPays(devisesPays, deviseBase, codePays) {
+  const base = String(deviseBase || "").toUpperCase();
+  const reglage = (devisesPays && devisesPays[codePays]) || {};
+  const devise = String(reglage.devise || DEVISE_PAR_DEFAUT_PAYS[codePays] || "").toUpperCase();
+  if (!devise || !base || devise === base) return null;
+  let taux = Number(reglage.taux1000) > 0 ? Number(reglage.taux1000) / 1000 : 0;
+  if (!taux && ((devise === "XOF" && base === "XAF") || (devise === "XAF" && base === "XOF"))) taux = 1; // parité fixe
+  if (!taux) return null; // pas de taux saisi : on n'invente rien, on affiche la devise de la boutique
+  return { devise, libelle: libelleDevise(devise), taux, decimales: DECIMALES_DEVISE[devise] ?? 0 };
+}
+
+// Nombre déjà converti et arrondi, formaté à la française (utilisé à la place de .toLocaleString("fr-FR")).
+export function montantAffiche(n) {
+  const v = Number(n);
+  if (!MONNAIE) return v.toLocaleString("fr-FR");
+  if (!Number.isFinite(v)) return String(v);
+  const f = 10 ** MONNAIE.decimales;
+  return (Math.round(v * MONNAIE.taux * f) / f).toLocaleString("fr-FR", { maximumFractionDigits: MONNAIE.decimales });
+}
+
 export function formaterMontant(n, devise) {
   const v = Number(n);
   if (!Number.isFinite(v)) return "";
+  if (MONNAIE) return `${montantAffiche(v)} ${MONNAIE.libelle}`.trim();
   return `${Math.round(v).toLocaleString("fr-FR")} ${devise || ""}`.trim();
 }
 

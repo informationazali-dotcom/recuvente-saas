@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic, { GrilleCollections, EnteteCollectionVedette } from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
-import { normaliserHex, couleurCssSure, reparerCouleurs, completerDieze, estClaire, texteSurFond } from "./blocs.js";
+import { normaliserHex, couleurCssSure, reparerCouleurs, completerDieze, estClaire, texteSurFond, DEVISE_PAR_DEFAUT_PAYS, DEVISES_PROPOSEES, libelleDevise } from "./blocs.js";
 import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
 import NetworkDashboard from "./network/NetworkDashboard.jsx";
 import { MarketingReseauLanding, TunnelRecrutementPublic, BoutiqueReferralPublic } from "./network/MarketingReseauPublic.jsx";
@@ -3077,11 +3077,23 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     if(kind==='hero') update('banniere',url); else if(kind==='heroMobile') update('bannerMobile',url); else if(kind==='logo') update('logo',url); else if(kind==='gallery') setConfig(c=>({...c,gallery:[...(c.gallery||[]),url]})); else if(kind==='trustLogo') setConfig(c=>({...c,trustLogos:[...(c.trustLogos||[]),url]})); else if(kind&&(kind.startsWith('beforeAfterAvant')||kind.startsWith('beforeAfterApres')||kind.startsWith('imageTextBubbleImage')||kind.startsWith('twoImagesTextImage1')||kind.startsWith('twoImagesTextImage2'))) update(kind,url); else if(kind&&kind.startsWith('diaporamaSlide_')){const slideId=kind.slice('diaporamaSlide_'.length);setConfig(c=>({...c,diaporamaSlides:c.diaporamaSlides.map(x=>x.id===slideId?{...x,image:url}:x)}));} else if(kind&&kind.startsWith('imageTexte')) update(`imageTexteImage${kind.slice('imageTexte'.length)}`,url); else if(kind&&kind.startsWith('featuredCollectionImage')) update(kind,url); else if(kind&&kind.startsWith('collImg_')){const idc=kind.slice('collImg_'.length);setConfig(c=>({...c,collectionsImages:{...(c.collectionsImages||{}),[idc]:url}}));}
     setUploading(null);
   }
+  // Les pays de livraison et les monnaies par pays se règlent dans Réglages, pas dans l'éditeur : on reprend la
+  // valeur enregistrée en base pour ne jamais l'écraser avec une ancienne copie chargée à l'ouverture de l'éditeur.
+  async function avecReglagesPays(cfg){
+    try{
+      const {data:cur}=await supabase.from('workspaces').select('store_config,store_config_published').eq('id',workspace.id).maybeSingle();
+      const report={};
+      ['paysLivraison','devisesPays'].forEach(k=>{const v=cur?.store_config_published?.[k]!==undefined?cur.store_config_published[k]:cur?.store_config?.[k]; if(v!==undefined) report[k]=v;});
+      if(Object.keys(report).length) return {...cfg,...report};
+    }catch(_){}
+    return cfg;
+  }
   async function save(){
     setSaving(true);setSaved(false);
     try{localStorage.setItem(storageKey,JSON.stringify(config));}catch(_){}
     if(workspace?.id){
-      const patch={name:config.nom,couleur_marque:couleurCssSure(config.couleur,'#1a7a3c'),description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:config,store_config_published:config,store_is_published:true,store_published_at:new Date().toISOString()};
+      const configEnvoi=await avecReglagesPays(config);
+      const patch={name:config.nom,couleur_marque:couleurCssSure(config.couleur,'#1a7a3c'),description_boutique:config.description,politique_livraison:config.livraison,logo_url:config.logo||null,banniere_url:config.banniere||null,frais_livraison:Number(config.fraisLivraison)||0,frais_expedition:Number(config.fraisExpedition)||0,store_config:configEnvoi,store_config_published:configEnvoi,store_is_published:true,store_published_at:new Date().toISOString()};
       const {data,error}=await supabase.from('workspaces').update(patch).eq('id',workspace.id).select('store_config_published');
       if(error){setSaving(false);alert('Enregistrement impossible : '+error.message);return false;}
       if(!data||data.length===0){setSaving(false);alert('⚠️ L\'enregistrement semble avoir échoué silencieusement (aucune ligne modifiée en base). Vérifie que tu es bien connecté avec le bon compte, propriétaire de cette boutique.');return false;}
@@ -3110,7 +3122,7 @@ function RVStoreBuilder({ workspace, produits = [], clients = [], onClose, onOuv
     const ok=await save();
     if(!ok)return;
     if(workspace?.id){
-      const {data,error}=await supabase.from('workspaces').update({store_config_published:config,store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id).select();
+      const {data,error}=await supabase.from('workspaces').update({store_config_published:await avecReglagesPays(config),store_published_at:new Date().toISOString(),store_is_published:true}).eq('id',workspace.id).select();
       if(error){alert('Publication impossible : '+error.message);return;}
       if(!data||data.length===0){alert('⚠️ La publication semble avoir échoué silencieusement (aucune ligne modifiée). Vérifie les droits sur la table "workspaces" dans Supabase.');return;}
       // Auto-vérification, utilisable par n'importe quel abonné sans accès à la base : on relit
@@ -16927,6 +16939,22 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
   const [savingDevise, setSavingDevise] = useState(false);
   const [deviseSaved, setDeviseSaved] = useState(false);
   const [paysListe, setPaysListe] = useState(workspace.countries_livraison || (workspace.country ? [workspace.country] : []));
+  // Monnaie par pays (boutique multi-pays) : { GN: { devise: "GNF", taux1000: 15000 } } — enregistré dans la configuration de la boutique.
+  const [devisesPays, setDevisesPays] = useState({});
+  useEffect(() => {
+    let annule = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("workspaces").select("store_config, store_config_published").eq("id", workspace.id).maybeSingle();
+        const d = data?.store_config_published?.devisesPays || data?.store_config?.devisesPays;
+        if (!annule && d && typeof d === "object") setDevisesPays(d);
+      } catch (_) {}
+    })();
+    return () => { annule = true; };
+  }, [workspace.id]);
+  function majDevisePays(code, patch) {
+    setDevisesPays((d) => ({ ...d, [code]: { ...(d[code] || {}), ...patch } }));
+  }
   const [savingPays, setSavingPays] = useState(false);
   const [paysSaved, setPaysSaved] = useState(false);
   const [langueBoutique, setLangueBoutique] = useState(workspace.langue || "fr");
@@ -16968,15 +16996,20 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
   async function sauvegarderPays() {
     setSavingPays(true);
     await supabase.from("workspaces").update({ countries_livraison: paysListe, country: paysListe[0] || workspace.country }).eq("id", workspace.id);
-    // Filet de sécurité (boutique multi-pays) : on recopie aussi la liste des pays dans la configuration
-    // de la boutique, pour que le bon de commande propose le choix du pays même si la vue publique
-    // du catalogue ne renvoie pas encore cette liste. Uniquement si une configuration existe déjà.
+    // Pays + monnaies par pays : recopiés dans la configuration de la boutique (c'est elle que lit la
+    // boutique publique pour préchoisir la monnaie du client). N'ajoute que deux clés, ne touche à rien d'autre.
     try {
+      const propres = {};
+      paysListe.forEach((code) => {
+        const r = devisesPays[code] || {};
+        const dev = String(r.devise || DEVISE_PAR_DEFAUT_PAYS[code] || "").toUpperCase();
+        const taux = Number(String(r.taux1000 ?? "").replace(/\s/g, "").replace(",", "."));
+        if (dev) propres[code] = { devise: dev, ...(taux > 0 ? { taux1000: taux } : {}) };
+      });
       const { data: w } = await supabase.from("workspaces").select("store_config, store_config_published").eq("id", workspace.id).maybeSingle();
-      const patchCfg = {};
-      if (w?.store_config && typeof w.store_config === "object") patchCfg.store_config = { ...w.store_config, paysLivraison: paysListe };
-      if (w?.store_config_published && typeof w.store_config_published === "object") patchCfg.store_config_published = { ...w.store_config_published, paysLivraison: paysListe };
-      if (Object.keys(patchCfg).length > 0) await supabase.from("workspaces").update(patchCfg).eq("id", workspace.id);
+      const patchCfg = { store_config_published: { ...(w?.store_config_published && typeof w.store_config_published === "object" ? w.store_config_published : {}), paysLivraison: paysListe, devisesPays: propres } };
+      if (w?.store_config && typeof w.store_config === "object") patchCfg.store_config = { ...w.store_config, paysLivraison: paysListe, devisesPays: propres };
+      await supabase.from("workspaces").update(patchCfg).eq("id", workspace.id);
     } catch (_) {}
     tracerAuditLocal("Pays de livraison modifiés", paysListe.join(", ") || "aucun");
     setSavingPays(false);
@@ -17526,6 +17559,45 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
               );
             })}
           </div>
+          {paysListe.length >= 2 && (
+            <div style={{ background: "white", border: "1px solid #C3D4F0", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1E4B8C", marginBottom: 4 }}>💱 Monnaie de chaque pays</div>
+              <div style={{ fontSize: 11.5, color: "#1E4B8C", lineHeight: 1.5, marginBottom: 10 }}>
+                Tes prix restent enregistrés en <strong>{libelleDevise(devise)}</strong> (commandes, statistiques : rien ne change). Pour un client d'un autre pays, la boutique affiche les prix dans <strong>sa monnaie</strong>, calculés avec le taux que tu saisis ici — et le montant à encaisser est noté sur la commande. Le pays du client est deviné automatiquement, et il peut le changer en haut de la boutique.
+              </div>
+              {paysListe.map((code) => {
+                const r = devisesPays[code] || {};
+                const dev = String(r.devise || DEVISE_PAR_DEFAUT_PAYS[code] || "").toUpperCase();
+                const base = String(devise).toUpperCase();
+                const memeDevise = dev === base;
+                const parite = (dev === "XOF" && base === "XAF") || (dev === "XAF" && base === "XOF");
+                const tauxSaisi = Number(String(r.taux1000 ?? "").replace(/\s/g, "").replace(",", ".")) > 0;
+                const nomPays = { CI: "🇨🇮 Côte d'Ivoire", SN: "🇸🇳 Sénégal", ML: "🇲🇱 Mali", BF: "🇧🇫 Burkina Faso", TG: "🇹🇬 Togo", BJ: "🇧🇯 Bénin", GN: "🇬🇳 Guinée", CM: "🇨🇲 Cameroun", GA: "🇬🇦 Gabon", CD: "🇨🇩 RD Congo", MA: "🇲🇦 Maroc", DZ: "🇩🇿 Algérie", TN: "🇹🇳 Tunisie", GH: "🇬🇭 Ghana", NG: "🇳🇬 Nigeria", FR: "🇫🇷 France" }[code] || code;
+                return (
+                  <div key={code} style={{ borderTop: "1px solid #E3ECF9", padding: "9px 0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ flex: "1 1 130px", fontSize: 12.5, fontWeight: 600 }}>{nomPays}</div>
+                      <select value={dev} onChange={(e) => majDevisePays(code, { devise: e.target.value })} style={{ padding: "7px 8px", borderRadius: 7, border: "1px solid #C3D4F0", fontSize: 12.5, background: "white" }}>
+                        {[...new Set([dev, ...DEVISES_PROPOSEES].filter(Boolean))].map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    {memeDevise && <div style={{ fontSize: 11.5, color: "#3B6D11", marginTop: 5 }}>✓ Même monnaie que la boutique : aucun taux à saisir.</div>}
+                    {!memeDevise && parite && <div style={{ fontSize: 11.5, color: "#3B6D11", marginTop: 5 }}>✓ Le F CFA (XOF) et le F CFA (XAF) ont la même valeur (1 pour 1) : aucun taux à saisir.</div>}
+                    {!memeDevise && !parite && (
+                      <div style={{ marginTop: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
+                          <span>Pour 1 000 {libelleDevise(devise)}, le client paie</span>
+                          <input inputMode="decimal" value={r.taux1000 ?? ""} onChange={(e) => majDevisePays(code, { taux1000: e.target.value })} placeholder="ex : 15 000" style={{ width: 96, padding: "6px 8px", borderRadius: 7, border: "1px solid " + (tauxSaisi ? "#C3D4F0" : "#E8B75C"), fontSize: 12.5 }} />
+                          <span>{dev}</span>
+                        </div>
+                        {!tauxSaisi && <div style={{ fontSize: 11.5, color: "#8A6412", marginTop: 4 }}>⚠️ Sans taux, les clients de ce pays voient les prix en {libelleDevise(devise)}. Cherche le taux du jour (ex. sur xe.com) et remets-le à jour de temps en temps.</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <button
             onClick={sauvegarderPays}
             disabled={savingPays}

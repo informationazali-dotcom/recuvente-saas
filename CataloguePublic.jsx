@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
 import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, montantAffiche, DEVISE_PAR_DEFAUT_PAYS } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -17,6 +17,9 @@ const supabase = createClient(
 // cette fonction ne change QUE ce qui s'affiche à l'écran/dans les documents, jamais la donnée
 // elle-même. C'est pour ça qu'elle est appelée au moment de l'affichage, pas à la source.
 function formaterDevise(code) {
+  // Client d'un autre pays avec un taux de change saisi par le commerçant : libellé de SA monnaie.
+  const m = monnaieAffichage();
+  if (m) return m.libelle;
   return code === "XOF" || code === "XAF" ? "F CFA" : code;
 }
 
@@ -61,7 +64,7 @@ async function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, m
   doc.setTextColor(...sombre);
   doc.setFont("helvetica", "bold");
   doc.text(`${quantite} × ${produitOuvert.produit_nom}`, 15, y);
-  doc.text(`${montantTotal.toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`, 195, y, { align: "right" });
+  doc.text(`${montantAffiche(montantTotal)} ${formaterDevise(entreprise.devise)}`, 195, y, { align: "right" });
   y += 10;
 
   doc.setDrawColor(220, 220, 220);
@@ -69,7 +72,7 @@ async function genererRecuClientPDF(entreprise, form, produitOuvert, quantite, m
   y += 8;
   doc.setFontSize(12);
   doc.text("Total", 15, y);
-  doc.text(`${montantTotal.toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`, 195, y, { align: "right" });
+  doc.text(`${montantAffiche(montantTotal)} ${formaterDevise(entreprise.devise)}`, 195, y, { align: "right" });
 
   y += 16;
   doc.setFont("helvetica", "italic");
@@ -650,18 +653,75 @@ function telephoneEnregistre(saisie, codePays, codePrincipal) {
   return "+" + INDICATIFS_PAYS_TEL[codePays] + (PAYS_SANS_ZERO_INTERNATIONAL.has(codePays) ? local.replace(/^0/, "") : local);
 }
 
-// Pays du client sur le bon de commande. Un seul pays vendu = ce pays, sans rien demander.
-// Plusieurs = le client choisit (choix mémorisé sur son téléphone pour la prochaine fois).
+// Pays du client. Un seul pays vendu = ce pays, sans rien demander. Plusieurs = le client choisit
+// (choix mémorisé sur son téléphone) ; à défaut, on devine son pays à partir de sa connexion
+// (pays seulement, jamais son adresse IP enregistrée) et il peut le changer d'un tap.
+// L'état est PARTAGÉ (en-tête, fiche produit, panier voient toujours le même pays et la même monnaie).
+const storePaysClient = { choix: undefined, auto: "", geoFait: false, ecouteurs: new Set() };
+function memoirePaysClient() { try { return window.localStorage.getItem("rv_pays_client") || ""; } catch (_) { return ""; } }
+function emettrePaysClient() { storePaysClient.ecouteurs.forEach((f) => f()); }
+function abonnerPaysClient(f) { storePaysClient.ecouteurs.add(f); return () => storePaysClient.ecouteurs.delete(f); }
+function instantanePaysClient() {
+  if (storePaysClient.choix === undefined) storePaysClient.choix = memoirePaysClient();
+  return `${storePaysClient.choix}|${storePaysClient.auto}`;
+}
+
 function usePaysClient(entreprise) {
   const codes = paysDeLaBoutique(entreprise);
   const multi = codes.length >= 2;
-  const lireMemoire = () => { try { const v = window.localStorage.getItem("rv_pays_client"); return v && codes.includes(v) ? v : ""; } catch (_) { return ""; } };
-  const [choisiBrut, setChoisiBrut] = useState(lireMemoire);
-  const choisi = codes.includes(choisiBrut) ? choisiBrut : (multi ? lireMemoire() : "");
-  const choisir = (code) => { setChoisiBrut(code); try { if (code) window.localStorage.setItem("rv_pays_client", code); } catch (_) {} };
+  const instantane = useSyncExternalStore(abonnerPaysClient, instantanePaysClient, () => "|");
+  const [choixBrut, autoBrut] = instantane.split("|");
+  const choixValide = codes.includes(choixBrut) ? choixBrut : "";
+  const autoValide = codes.includes(autoBrut) ? autoBrut : "";
+  const choisi = multi ? (choixValide || autoValide) : "";
+  const choisir = (code) => { storePaysClient.choix = code || ""; try { if (code) window.localStorage.setItem("rv_pays_client", code); else window.localStorage.removeItem("rv_pays_client"); } catch (_) {} emettrePaysClient(); };
   const detecter = (saisie) => { if (!multi) return; const d = detecterPaysParIndicatif(saisie, codes); if (d && d !== choisi) choisir(d); };
+  // Devinette du pays (une seule fois par visite, seulement si le client n'a encore rien choisi).
+  const cleCodes = codes.join(",");
+  useEffect(() => {
+    if (!multi || choixValide || storePaysClient.geoFait || typeof fetch !== "function") return;
+    storePaysClient.geoFait = true;
+    fetch("/api/facebook-capi?pays=1").then((r) => (r.ok ? r.json() : null)).then((j) => {
+      const c = String(j?.pays || "").toUpperCase();
+      if (c && storePaysClient.auto !== c) { storePaysClient.auto = c; emettrePaysClient(); }
+    }).catch(() => {});
+  }, [multi, cleCodes, choixValide]); // eslint-disable-line react-hooks/exhaustive-deps
   const principal = entreprise?.country || codes[0] || "";
-  return { codes, multi, principal, choisi, effectif: multi ? choisi : (entreprise?.country || ""), choisir, detecter };
+  const monnaie = multi && choisi ? monnaieDuPays(entreprise?.storeConfig?.devisesPays, entreprise?.devise, choisi) : null;
+  return { codes, multi, principal, choisi, effectif: multi ? choisi : (entreprise?.country || ""), choisir, detecter, monnaie };
+}
+
+// Texte de zone enregistré avec la commande : pays du client (boutique multi-pays) et, s'il paie dans une
+// autre monnaie que celle de la boutique, le montant EXACT affiché au client — pour que le livreur sache combien encaisser.
+function composerZoneMultiPays(zone, pays, totalBase) {
+  let z = String(zone || "");
+  if (pays && pays.multi && pays.effectif && PAYS_INFOS[pays.effectif]) z = `${PAYS_INFOS[pays.effectif].nom} — ${z}`;
+  const m = pays && pays.monnaie;
+  if (m && Number(totalBase) > 0) z += ` — À encaisser : ${montantAffiche(totalBase)} ${m.libelle}`;
+  return z;
+}
+
+// Petit sélecteur pays / monnaie dans l'en-tête (boutique multi-pays uniquement) : le client voit
+// dans quelle monnaie s'affichent les prix et peut changer de pays en un tap.
+function SelecteurPaysEntete({ pays, entreprise, couleurTexte = "white", fond = "rgba(255,255,255,0.2)", hauteur = 36 }) {
+  if (!pays || !pays.multi) return null;
+  const libelleDe = (c) => { const m = monnaieDuPays(entreprise?.storeConfig?.devisesPays, entreprise?.devise, c); return m ? m.libelle : libelleDevise(entreprise?.devise); };
+  const info = pays.choisi ? PAYS_INFOS[pays.choisi] : null;
+  return (
+    <label className="rv-pays-entete" title="Pays et monnaie" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: fond, color: couleurTexte, height: hauteur, padding: "0 9px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
+      <span aria-hidden="true">{info ? `${info.drapeau} ${libelleDe(pays.choisi)}` : "🌍 Pays"}</span>
+      <span aria-hidden="true" style={{ fontSize: 9, opacity: 0.8 }}>▾</span>
+      <select
+        value={pays.choisi}
+        onChange={(e) => pays.choisir(e.target.value)}
+        aria-label="Pays et monnaie"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", fontSize: 16 }}
+      >
+        <option value="">🌍 Choisis ton pays</option>
+        {pays.codes.map((c) => <option key={c} value={c}>{PAYS_INFOS[c].drapeau} {PAYS_INFOS[c].nom} — {libelleDe(c)}</option>)}
+      </select>
+    </label>
+  );
 }
 
 // Liste déroulante « Choisis ton pays » (affichée seulement pour une boutique multi-pays).
@@ -920,6 +980,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [form, setForm] = useState({ client: "", tel: "", zone: "", champPiege: "" });
   const paysClient = usePaysClient(entreprise); // boutique multi-pays : pays choisi par le client sur le bon de commande
+  const totalCommandeRef = useRef(0); // total affiché au client (devise de la boutique), mis à jour à chaque rendu de la fiche produit
+  // Monnaie d'affichage du client (null = devise de la boutique) : réglée AVANT le rendu des prix ci-dessous.
+  definirMonnaieAffichage(paysClient.monnaie);
+  useEffect(() => () => definirMonnaieAffichage(null), []);
   const momentOuvertureFormulaireRef = useRef(null);
   const [quantite, setQuantite] = useState(1);
   const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
@@ -1524,7 +1588,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
-      p_zone: paysClient.multi && paysClient.effectif ? `${PAYS_INFOS[paysClient.effectif].nom} — ${composerZoneLivraison(form)}` : composerZoneLivraison(form),
+      p_zone: composerZoneMultiPays(composerZoneLivraison(form), paysClient, totalCommandeRef.current),
       p_items: items,
       p_type_livraison: (() => {
         const livraisonGratuiteP = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
@@ -1906,7 +1970,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 18 }}>
               {modeChoisi === "location" && (
                 <>
-                  <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 10 }}>{Number(bienOuvert.prix_jour).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)} / jour{Number(bienOuvert.caution_suggeree) > 0 && ` · Caution : ${Number(bienOuvert.caution_suggeree).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}</div>
+                  <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 10 }}>{montantAffiche(Number(bienOuvert.prix_jour))} {formaterDevise(entreprise.devise)} / jour{Number(bienOuvert.caution_suggeree) > 0 && ` · Caution : ${montantAffiche(Number(bienOuvert.caution_suggeree))} ${formaterDevise(entreprise.devise)}`}</div>
                   <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 11, color: "#8A9089", marginBottom: 4 }}>Du</div>
@@ -1919,20 +1983,20 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   </div>
                   {nbJours > 0 && (
                     <div style={{ background: "#EAF3DE", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12.5, fontWeight: 700, color: "#3B6D11" }}>
-                      {nbJours} jour{nbJours > 1 ? "s" : ""} — Total : {montantEstime.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                      {nbJours} jour{nbJours > 1 ? "s" : ""} — Total : {montantAffiche(montantEstime)} {formaterDevise(entreprise.devise)}
                     </div>
                   )}
                 </>
               )}
               {modeChoisi === "commander" && (
                 <div style={{ background: "#EAF0FB", borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#1E4B8C", lineHeight: 1.5 }}>
-                  📦 Prix : <strong>{montantEstime.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</strong><br />
+                  📦 Prix : <strong>{montantAffiche(montantEstime)} {formaterDevise(entreprise.devise)}</strong><br />
                   Délai estimé : <strong>{bienOuvert.delai_commande_estime || "à confirmer avec toi"}</strong>
                 </div>
               )}
               {modeChoisi === "payer_maintenant" && (
                 <div style={{ background: "#FBF3E3", borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#8A6412" }}>
-                  💵 Prix : <strong>{montantEstime.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</strong> — déjà disponible, livraison rapide.
+                  💵 Prix : <strong>{montantAffiche(montantEstime)} {formaterDevise(entreprise.devise)}</strong> — déjà disponible, livraison rapide.
                 </div>
               )}
 
@@ -1976,6 +2040,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const stockVarianteActive = varianteActive ? Number(varianteActive.stock ?? 0) : null;
     const varianteEnRupture = varianteActive && stockVarianteActive <= 0;
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
+    totalCommandeRef.current = Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0));
 
     if (envoye) {
       return (
@@ -1996,10 +2061,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{quantite} × {produitOuvert.produit_nom}</div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{(prixUnitaireEffectif * quantite + fraisLivraisonActuel).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: couleur }}>{montantAffiche((prixUnitaireEffectif * quantite + fraisLivraisonActuel))} {formaterDevise(entreprise.devise)}</div>
                   {(fraisLivraisonEffectif > 0 || fraisExpeditionEffectif > 0) && (
                     <div style={{ fontSize: 11, color: "#8A9089" }}>
-                      dont {fraisLivraisonActuel.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)} de {typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}
+                      dont {montantAffiche(fraisLivraisonActuel)} {formaterDevise(entreprise.devise)} de {typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}
                     </div>
                   )}
                 </div>
@@ -2234,7 +2299,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                           {b.mode === "prix_fixe" && <div style={{ fontSize: 9.5, color: "#8A6412" }}>{t("prixFixe")}</div>}
                           {b.mode === "offert" && <div style={{ fontSize: 9.5, color: "#8A6412", fontWeight: 800 }}>🎁 {b.nb_offerts} offert{b.nb_offerts > 1 ? "s" : ""}</div>}
                           {(!b.mode || b.mode === "pourcentage") && b.discount > 0 && <div style={{ fontSize: 9.5, color: "#8A6412" }}>-{b.discount}%</div>}
-                          <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{totalBundle.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: couleur, marginTop: 2 }}>{montantAffiche(totalBundle)} {formaterDevise(entreprise.devise)}</div>
                         </button>
                       );
                     })}
@@ -2257,20 +2322,20 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ {entreprise.labelLivraisonLocale}</div>
-                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisLivraisonEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)}</div>
                     </button>
                     <button
                       onClick={() => setTypeLivraisonChoisi("expedition")}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 {entreprise.labelLivraisonExpedition}</div>
-                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {fraisExpeditionEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                      <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisExpeditionEffectif)} {formaterDevise(entreprise.devise)}</div>
                     </button>
                   </div>
                   {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
                   {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${(prixUnitaireEffectif * quantite + fraisExpeditionEffectif).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
+                      💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((prixUnitaireEffectif * quantite + fraisExpeditionEffectif))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((prixUnitaireEffectif * quantite + fraisExpeditionEffectif))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
                     </div>
                   )}
                 </div>
@@ -2299,9 +2364,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bumpProduit.produit_nom}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: couleur, flexShrink: 0 }}>
                         {produitOuvert.bump_prix_special != null && Number(produitOuvert.bump_prix_special) < Number(bumpProduit.prix_vente) && (
-                          <span style={{ textDecoration: "line-through", color: "#8A9089", fontWeight: 500, marginRight: 5 }}>{Number(bumpProduit.prix_vente).toLocaleString("fr-FR")}</span>
+                          <span style={{ textDecoration: "line-through", color: "#8A9089", fontWeight: 500, marginRight: 5 }}>{montantAffiche(Number(bumpProduit.prix_vente))}</span>
                         )}
-                        +{bumpPrix.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                        +{montantAffiche(bumpPrix)} {formaterDevise(entreprise.devise)}
                       </span>
                     </button>
                   </div>
@@ -2311,7 +2376,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "#6B7168" }}>{quantite} × {produitOuvert.produit_nom}</span>
-                  <span>{(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                  <span>{montantAffiche((prixUnitaireEffectif * quantite))} {formaterDevise(entreprise.devise)}</span>
                 </div>
                 {produitBumpId && (() => {
                   const bump = produits.find((p) => p.produit_id === produitBumpId);
@@ -2320,25 +2385,25 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   return (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ color: "#6B7168" }}>+ {bump.produit_nom}</span>
-                      <span>{prixBumpAffiche.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                      <span>{montantAffiche(prixBumpAffiche)} {formaterDevise(entreprise.devise)}</span>
                     </div>
                   );
                 })()}
                 {fraisLivraisonActuel > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
                     <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}</span>
-                    <span>+ {fraisLivraisonActuel.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                    <span>+ {montantAffiche(fraisLivraisonActuel)} {formaterDevise(entreprise.devise)}</span>
                   </div>
                 )}
                 {codePromoApplique && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>
                     <span>🏷️ Code {codePromoApplique.code}</span>
-                    <span>− {codePromoApplique.montant_remise.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                    <span>− {montantAffiche(codePromoApplique.montant_remise)} {formaterDevise(entreprise.devise)}</span>
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4, borderTop: "1px solid #ECE8DC", marginTop: 2 }}>
                   <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: couleur }}>{Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+                  <span style={{ fontWeight: 700, color: couleur }}>{montantAffiche(Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)))} {formaterDevise(entreprise.devise)}</span>
                 </div>
               </div>
 
@@ -2406,7 +2471,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
                 style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
-                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
+                {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${montantAffiche(Math.max(0, prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0) - (codePromoApplique?.montant_remise || 0)))} ${formaterDevise(entreprise.devise)}`}
               </button>
       </>
     );
@@ -2552,11 +2617,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               return (
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 10, marginBottom: 6 }}>
                   <span style={{ fontWeight: 800, fontSize: 26, color: couleur }}>
-                    {prixVenteNum.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                    {montantAffiche(prixVenteNum)} {formaterDevise(entreprise.devise)}
                   </span>
                   {aPrixBarre && (
                     <span style={{ textDecoration: "line-through", color: "#8A9089", fontSize: 15 }}>
-                      {prixBarreNum.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}
+                      {montantAffiche(prixBarreNum)} {formaterDevise(entreprise.devise)}
                     </span>
                   )}
                   {aPrixBarre && economie > 0 && (
@@ -2578,12 +2643,12 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               </div>
             ) : aChoixLivraison ? (
               <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
-                {t("fraisAChoisir")} ({entreprise.labelLivraisonLocale} : {fraisLivraisonEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)} — {entreprise.labelLivraisonExpedition} : {fraisExpeditionEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)})
+                {t("fraisAChoisir")} ({entreprise.labelLivraisonLocale} : {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)} — {entreprise.labelLivraisonExpedition} : {montantAffiche(fraisExpeditionEffectif)} {formaterDevise(entreprise.devise)})
               </div>
             ) : (
               fraisLivraisonEffectif > 0 && (
                 <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
-                  🚚 + {fraisLivraisonEffectif.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)} {t("deFraisLivraison")}
+                  🚚 + {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)} {t("deFraisLivraison")}
                 </div>
               )
             )}
@@ -2834,7 +2899,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                         </div>
                         <div style={{ padding: "8px 10px 10px" }}>
                           <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.produit_nom}</div>
-                          <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{montantAffiche(Number(p.prix_vente))} {formaterDevise(entreprise.devise)}</div>
                         </div>
                       </button>
                     ))}
@@ -2860,7 +2925,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       onClick={lancerCommande}
                       style={{ flex: 1, ...styleBouton(couleur), border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: "pointer", touchAction: "manipulation" }}
                     >
-                      {`${t("commander")} — ${(prixUnitaireEffectif * quantite).toLocaleString("fr-FR")} ${formaterDevise(entreprise.devise)}`}
+                      {`${t("commander")} — ${montantAffiche((prixUnitaireEffectif * quantite))} ${formaterDevise(entreprise.devise)}`}
                     </button>
                   </div>
                 </div>
@@ -3396,7 +3461,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
-      p_zone: paysClient.multi && paysClient.effectif ? `${PAYS_INFOS[paysClient.effectif].nom} — ${form.zone}` : form.zone,
+      p_zone: composerZoneMultiPays(form.zone, paysClient, totalAvecLivraison),
       p_items: items,
       p_type_livraison: aChoixLivraison ? typeLivraisonChoisi : "livraison",
       p_fbp: obtenirAttributionMeta().fbp,
@@ -3469,7 +3534,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.produit_nom}</div>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{Number(it.prix_unitaire).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: couleur, marginTop: 2 }}>{montantAffiche(Number(it.prix_unitaire))} {formaterDevise(entreprise.devise)}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
                       <button onClick={() => onModifierQuantite(it.produit_id, it.quantite - 1)} style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid #DDD8CC", background: "white", cursor: "pointer" }}>−</button>
                       <span style={{ fontSize: 13, fontWeight: 700, minWidth: 16, textAlign: "center" }}>{it.quantite}</span>
@@ -3481,7 +3546,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
               ))}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 14, paddingTop: 10, borderTop: "2px solid #ECE8DC" }}>
-              <span>Total</span><span style={{ color: couleur }}>{total.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span>
+              <span>Total</span><span style={{ color: couleur }}>{montantAffiche(total)} {formaterDevise(entreprise.devise)}</span>
             </div>
             <button onClick={() => setEtape("form")} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
               Passer la commande →
@@ -3513,20 +3578,20 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => setTypeLivraisonChoisi("livraison")} style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", cursor: "pointer" }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700 }}>🏍️ {entreprise.labelLivraisonLocale}</div>
-                    <div style={{ fontSize: 11, color: "#6B7168" }}>{fraisLivraisonDefaut.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                    <div style={{ fontSize: 11, color: "#6B7168" }}>{montantAffiche(fraisLivraisonDefaut)} {formaterDevise(entreprise.devise)}</div>
                   </button>
                   <button onClick={() => setTypeLivraisonChoisi("expedition")} style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `2px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", cursor: "pointer" }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700 }}>🚛 {entreprise.labelLivraisonExpedition}</div>
-                    <div style={{ fontSize: 11, color: "#6B7168" }}>{fraisExpeditionDefaut.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+                    <div style={{ fontSize: 11, color: "#6B7168" }}>{montantAffiche(fraisExpeditionDefaut)} {formaterDevise(entreprise.devise)}</div>
                   </button>
                 </div>
               </div>
             )}
 
             <div style={{ background: "#FAFAF7", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Articles</span><span>{total.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span></div>
-              {fraisLivraisonActuel > 0 && <div style={{ display: "flex", justifyContent: "space-between", color: "#6B7168" }}><span>Livraison</span><span>{fraisLivraisonActuel.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span></div>}
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 15, marginTop: 6, paddingTop: 6, borderTop: "1px solid #ECE8DC" }}><span>Total</span><span style={{ color: couleur }}>{totalAvecLivraison.toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Articles</span><span>{montantAffiche(total)} {formaterDevise(entreprise.devise)}</span></div>
+              {fraisLivraisonActuel > 0 && <div style={{ display: "flex", justifyContent: "space-between", color: "#6B7168" }}><span>Livraison</span><span>{montantAffiche(fraisLivraisonActuel)} {formaterDevise(entreprise.devise)}</span></div>}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 15, marginTop: 6, paddingTop: 6, borderTop: "1px solid #ECE8DC" }}><span>Total</span><span style={{ color: couleur }}>{montantAffiche(totalAvecLivraison)} {formaterDevise(entreprise.devise)}</span></div>
             </div>
 
             {erreur && <div style={{ background: "#FBEAE6", color: "#D64933", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12.5 }}>{erreur}</div>}
@@ -4025,6 +4090,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
   const topbarFermeeManuellement = useRef(false);
   const [estFixe, setEstFixe] = useState(false);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+  const paysEntete = usePaysClient(entreprise);
   const messagesAnnonce = (entreprise.azaliConfig?.messagesAnnonce && entreprise.azaliConfig.messagesAnnonce.length > 0) ? entreprise.azaliConfig.messagesAnnonce : [
     { icone: "🚚", texte: "Livraison gratuite à Abidjan dès 50 000 FCFA" },
     { icone: "💸", texte: "Wave · Orange Money · MTN MoMo acceptés" },
@@ -4134,6 +4200,8 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
               </a>
             )}
 
+            <SelecteurPaysEntete pays={paysEntete} entreprise={entreprise} couleurTexte={persoPrincipal ? txtPrincipal : "white"} fond="rgba(255,255,255,0.18)" hauteur={estFixe ? 32 : 40} />
+
             <button
               onClick={onOuvrirPanier}
               style={{ position: "relative", background: bgPanierHeader, color: txtPanierHeader, border: "none", borderRadius: 8, padding: estFixe ? "6px 11px" : "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
@@ -4228,6 +4296,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
   // Déclaré tout en haut, avant les "return" conditionnels ci-dessous, pour respecter les
   // règles des Hooks React (un Hook ne doit jamais dépendre d'un chemin de retour anticipé).
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+  const paysEntete = usePaysClient(entreprise);
   // L'en-tête reste épinglé en haut (position: sticky) pendant tout le défilement ;
   // "replie" ne fait que le rendre plus compact passé un petit seuil de scroll, pour
   // qu'il libère de la place sans jamais disparaître. Un seul booleen à changer, lu
@@ -4409,6 +4478,8 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
               🔍
             </button>
           )}
+
+          <SelecteurPaysEntete pays={paysEntete} entreprise={entreprise} couleurTexte={texteHeader} />
 
           {entreprise.whatsapp && (
             <a
@@ -4887,8 +4958,8 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
           </div>
         )}
         <div className="rv-card-prix rv-card-prix-ligne">
-          <span>{Number(p.prix_vente).toLocaleString("fr-FR")} {devise}</span>
-          {remisePct >= 1 && <s className="rv-card-barre">{prixBarreNum.toLocaleString("fr-FR")}</s>}
+          <span>{montantAffiche(Number(p.prix_vente))} {devise}</span>
+          {remisePct >= 1 && <s className="rv-card-barre">{montantAffiche(prixBarreNum)}</s>}
           {remisePct >= 1 && <span className="rv-card-pct">-{remisePct}%</span>}
         </div>
         {estAzali && <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>}
@@ -5560,7 +5631,7 @@ function CarteProduitAzali({ p, devise, couleur, ouvrirProduit, onAjouterAuPanie
           <span style={{ color: "#e8920a", fontSize: 11, letterSpacing: "-1px" }}>★★★★★</span>
           <span style={{ fontSize: 10, color: "#8A9089" }}>(4.7)</span>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: couleur, marginTop: 5 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {devise}</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: couleur, marginTop: 5 }}>{montantAffiche(Number(p.prix_vente))} {devise}</div>
         <div style={{ fontSize: 9.5, color: "#D64933", fontWeight: 700, marginTop: 3 }}>⚡ Stock limité</div>
         {onAjouterAuPanier && (
           <button
@@ -5664,7 +5735,7 @@ function HeroAzaliExpress({ slides, sideCards, onOuvrirCollection, devise }) {
               {s.prix != null && (
                 <div className="rv-az-sticker" style={{ position: "absolute", zIndex: 4, top: "12%", right: "6%", background: "white", color: "#1a1a1a", borderRadius: 14, padding: "9px 15px", textAlign: "center", boxShadow: "0 14px 30px rgba(0,0,0,.25)" }}>
                   <div style={{ fontSize: 9.5, fontWeight: 700, color: "#888", textTransform: "uppercase" }}>Dès</div>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: "#1a7a3c" }}>{Number(s.prix).toLocaleString("fr-FR")} {devise}</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#1a7a3c" }}>{montantAffiche(Number(s.prix))} {devise}</div>
                 </div>
               )}
             </div>
@@ -6160,7 +6231,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
             {config[kLabel] && <div style={{ fontSize: 10.5, fontWeight: 900, color: couleurTexteLisible(couleurSection), letterSpacing: "0.06em", marginBottom: 8 }}>{config[kLabel].toUpperCase()}</div>}
             <div style={{ fontSize: 23, fontWeight: 900, color: "#132019", marginBottom: 10 }}>{p.produit_nom}</div>
             <div style={{ fontSize: 13, color: "#68756d", lineHeight: 1.7, marginBottom: 14 }}>{descriptionExtrait}{descriptionExtrait.length >= 160 ? "…" : ""}</div>
-            <div style={{ fontSize: 19, fontWeight: 900, color: couleurTexteLisible(couleurSection), marginBottom: 14 }}>{Number(p.prix_vente).toLocaleString("fr-FR")} {formaterDevise(entreprise.devise)}</div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: couleurTexteLisible(couleurSection), marginBottom: 14 }}>{montantAffiche(Number(p.prix_vente))} {formaterDevise(entreprise.devise)}</div>
             <button onClick={() => ouvrirProduit(p)} style={{ alignSelf: "flex-start", border: 0, borderRadius: 10, padding: "12px 22px", background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 12.5, cursor: "pointer" }}>
               {config.buttonText || "Découvrir"}
             </button>
@@ -6643,7 +6714,7 @@ function PageAccueilPersonnalisee({ config, entreprise, couleur, produits, meill
                 <div key={b.id || i} style={{ border: i === 2 ? "2px solid " + couleurLisible : "1px solid #e4e9e5", borderRadius: 14, padding: 15, background: "#fff" }}>
                   <div style={{ fontSize: 13, fontWeight: 950, color: "#16231c" }}>{b.label}</div>
                   <div style={{ fontSize: 11, color: "#7b857e", marginTop: 4 }}>{b.qty} produit(s) · {b.discount || 0}% de remise</div>
-                  <div style={{ fontSize: 21, fontWeight: 950, color: couleurLisible, marginTop: 10 }}>{base ? total.toLocaleString("fr-FR") + " " + devise : "Prix sur demande"}</div>
+                  <div style={{ fontSize: 21, fontWeight: 950, color: couleurLisible, marginTop: 10 }}>{base ? montantAffiche(total) + " " + devise : "Prix sur demande"}</div>
                   <button onClick={() => document.getElementById("rv-shop-produits")?.scrollIntoView({ behavior: "smooth" })} style={{ marginTop: 10, width: "100%", border: 0, borderRadius: 9, padding: 10, background: couleurSection, color: couleurTextePourFond(couleurSection), fontWeight: 900, fontSize: 11, cursor: "pointer" }}>
                     Choisir un produit →
                   </button>

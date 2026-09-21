@@ -597,6 +597,58 @@ export default function App() {
   );
 }
 
+// ============================================================================
+//  SON DE VENTE (« ka-ching ») — jouable même quand l'app est en arrière-plan.
+//  Les navigateurs refusent de jouer un son tant que la personne n'a pas touché l'écran au moins
+//  une fois : avant, l'ancien bip (généré à la volée) restait donc souvent MUET. Ici le son est un
+//  vrai fichier, « débloqué » dès le premier toucher/clic dans l'app.
+// ============================================================================
+const CLE_SON_VENTES = "rv_son_ventes";
+let audioVenteEl = null;
+function sonVentesActif() {
+  try { return localStorage.getItem(CLE_SON_VENTES) !== "off"; } catch (_) { return true; }
+}
+function definirSonVentes(actif) {
+  try { localStorage.setItem(CLE_SON_VENTES, actif ? "on" : "off"); } catch (_) {}
+}
+function audioVente() {
+  if (!audioVenteEl && typeof Audio !== "undefined") {
+    audioVenteEl = new Audio("/sons/vente.mp3");
+    audioVenteEl.preload = "auto";
+    audioVenteEl.volume = 1;
+  }
+  return audioVenteEl;
+}
+function debloquerSonVente() {
+  const a = audioVente();
+  if (!a) return;
+  try {
+    a.muted = true;
+    const p = a.play();
+    const fin = () => { try { a.pause(); a.currentTime = 0; } catch (_) {} a.muted = false; };
+    if (p && p.then) p.then(fin).catch(() => { a.muted = false; }); else fin();
+  } catch (_) {}
+}
+// Joue le son (2 fois d'affilée : impossible à rater). Renvoie une promesse qui échoue si le
+// navigateur refuse (l'appelant retombe alors sur l'ancien bip).
+function jouerSonVente(fois = 2) {
+  const a = audioVente();
+  if (!a) return Promise.reject(new Error("audio indisponible"));
+  a.muted = false;
+  a.currentTime = 0;
+  const premiere = a.play();
+  if (fois > 1) {
+    let restant = fois - 1;
+    const rejouer = () => {
+      if (restant <= 0) { a.removeEventListener("ended", rejouer); return; }
+      restant -= 1;
+      setTimeout(() => { try { a.currentTime = 0; a.play().catch(() => {}); } catch (_) {} }, 250);
+    };
+    a.addEventListener("ended", rejouer);
+  }
+  return premiere && premiere.then ? premiere : Promise.resolve();
+}
+
 function Centered({ children }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
@@ -4326,8 +4378,53 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   const [statutNotifDebug, setStatutNotifDebug] = useState("");
+  // Alertes de vente : cet appareil est-il réellement abonné ? (null = on vérifie)
+  const [pushAbonne, setPushAbonne] = useState(null);
+  const [testNotifMessage, setTestNotifMessage] = useState("");
+  const [sonVentesOn, setSonVentesOn] = useState(sonVentesActif());
+  const [carteAlertesMasquee, setCarteAlertesMasquee] = useState(() => { try { return localStorage.getItem("rv_carte_alertes_masquee") === "1"; } catch (_) { return false; } });
+  useEffect(() => {
+    let annule = false;
+    (async () => {
+      try {
+        if (notifPermission !== "granted" || !("serviceWorker" in navigator) || !("PushManager" in window)) { if (!annule) setPushAbonne(false); return; }
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (annule) return;
+        setPushAbonne(!!sub);
+        if (sub) {
+          // Ré-enregistre l'appareil pour cette boutique (au cas où la ligne aurait disparu) — sans doublon.
+          const raw = sub.toJSON();
+          supabase.from("push_subscriptions").upsert(
+            [{ workspace_id: workspace.id, user_email: session.user.email, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }],
+            { onConflict: "endpoint" }
+          ).then(() => {});
+        }
+      } catch (_) { if (!annule) setPushAbonne(false); }
+    })();
+    return () => { annule = true; };
+  }, [notifPermission, statutNotifDebug]);
+
+  async function envoyerNotificationTest() {
+    setTestNotifMessage("⏳ Envoi de la notification test…");
+    try {
+      const { data: sd } = await supabase.auth.getSession();
+      const r = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sd.session?.access_token}` },
+        body: JSON.stringify({ type: "test", workspaceId: workspace.id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) setTestNotifMessage("❌ " + (j.error || "Échec de l'envoi."));
+      else if (!j.envoyes) setTestNotifMessage(j.total ? "❌ L'envoi a échoué. Réactive les alertes puis réessaie." : "❌ Aucun appareil enregistré. Clique d'abord sur « Activer les alertes ».");
+      else setTestNotifMessage(`✅ Notification test envoyée sur ${j.envoyes} appareil${j.envoyes > 1 ? "s" : ""}. Elle doit arriver dans quelques secondes.`);
+    } catch (e) {
+      setTestNotifMessage("❌ Erreur : " + e.message);
+    }
+  }
 
   async function activerNotificationsPush() {
+    debloquerSonVente(); // geste de l'utilisateur : on en profite pour autoriser le son de vente
     setStatutNotifDebug("⏳ Démarrage...");
     try {
       const permission = await Notification.requestPermission();
@@ -4376,6 +4473,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   }
 
   function playNotifSound() {
+    if (!sonVentesActif()) return;
+    jouerSonVente(2).catch(() => playNotifSoundSecours());
+  }
+
+  function playNotifSoundSecours() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       function jouerChaChing(decalage) {
@@ -4417,12 +4519,24 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         const nouvelles = list.filter((c) => !knownOrderIds.current.has(c.id));
         if (nouvelles.length > 0) {
           playNotifSound();
+          const montantNouvelle = Number(nouvelles[0].montant) > 0 ? ` · ${Number(nouvelles[0].montant).toLocaleString("fr-FR")} ${workspace.currency || ""}` : "";
           setToastNouvellesCommandes(
             nouvelles.length === 1
-              ? `🔔 Nouvelle commande — ${nouvelles[0].client}`
-              : `🔔 ${nouvelles.length} nouvelles commandes sont arrivées`
+              ? `💰 Nouvelle commande — ${nouvelles[0].client}${montantNouvelle}`
+              : `💰 ${nouvelles.length} nouvelles commandes sont arrivées`
           );
-          setTimeout(() => setToastNouvellesCommandes(null), 4000);
+          setTimeout(() => setToastNouvellesCommandes(null), 9000);
+          // Onglet en arrière-plan : le titre clignote et l'icône reçoit une pastille, jusqu'au retour.
+          try {
+            if (document.visibilityState !== "visible") {
+              const titreOrigine = document.title;
+              let alt = false;
+              const clignote = setInterval(() => { document.title = alt ? titreOrigine : `💰 (${nouvelles.length}) Nouvelle commande !`; alt = !alt; }, 900);
+              const retour = () => { if (document.visibilityState === "visible") { clearInterval(clignote); document.title = titreOrigine; try { navigator.clearAppBadge && navigator.clearAppBadge(); } catch (_) {} document.removeEventListener("visibilitychange", retour); } };
+              document.addEventListener("visibilitychange", retour);
+              try { navigator.setAppBadge && navigator.setAppBadge(nouvelles.length); } catch (_) {}
+            }
+          } catch (_) {}
         }
       }
       knownOrderIds.current = new Set(list.map((c) => c.id));
@@ -4523,13 +4637,35 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           // Regroupe les commandes arrivant en rafale (ex: après une pub qui performe bien)
           // au lieu de recharger et notifier une fois par commande individuelle
           clearTimeout(debounceNouvellesCommandes.current);
-          debounceNouvellesCommandes.current = setTimeout(() => loadCommandes(), 2000);
+          debounceNouvellesCommandes.current = setTimeout(() => loadCommandes(), 700);
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Alerte de vente : (1) le premier toucher dans l'app « débloque » le son ; (2) quand une notification
+  // push arrive alors que l'app est ouverte (même en arrière-plan), le service worker nous prévient :
+  // on recharge les commandes tout de suite (le son et le bandeau partent alors comme d'habitude).
+  useEffect(() => {
+    const debloquer = () => debloquerSonVente();
+    ["pointerdown", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, debloquer, { once: true, passive: true }));
+    let ecouteur = null;
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      ecouteur = (e) => {
+        if (e && e.data && e.data.type === "rv-nouvelle-commande") {
+          clearTimeout(debounceNouvellesCommandes.current);
+          loadCommandes();
+        }
+      };
+      navigator.serviceWorker.addEventListener("message", ecouteur);
+    }
+    return () => {
+      ["pointerdown", "touchstart", "keydown"].forEach((ev) => document.removeEventListener(ev, debloquer));
+      if (ecouteur) navigator.serviceWorker.removeEventListener("message", ecouteur);
     };
   }, []);
 
@@ -5811,6 +5947,34 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       <SubscriptionBanner subscription={subscription} />
+
+      {notifPermission !== "default" && !carteAlertesMasquee && (
+        <div style={{ background: pushAbonne ? "#EAF3DE" : "#FBF3E3", border: `1px solid ${pushAbonne ? "#C7DDA3" : "#F0DDA8"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: pushAbonne ? "#3B6D11" : "#8A6412" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600 }}>
+              {notifPermission === "granted" && pushAbonne === true && "🔔 Alertes de vente actives sur cet appareil : une notification forte + le son « ka-ching » à chaque commande."}
+              {notifPermission === "granted" && pushAbonne !== true && "🔕 Les alertes ne sont pas encore reliées à cet appareil. Clique sur « Activer les alertes »."}
+              {notifPermission === "denied" && "🚫 Les notifications sont bloquées pour ce site. Ouvre les réglages du navigateur (icône cadenas à côté de l'adresse), autorise « Notifications », puis recharge la page."}
+              {notifPermission === "unsupported" && "ℹ️ Ce navigateur ne permet pas les notifications quand l'app est fermée. Sur iPhone : ouvre RecuVente dans Safari, touche Partager, « Sur l'écran d'accueil », puis rouvre l'app depuis l'icône et active les alertes."}
+            </span>
+            <span style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {notifPermission === "granted" && pushAbonne !== true && (
+                <button onClick={activerNotificationsPush} style={{ background: "#e8920a", color: "white", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Activer les alertes</button>
+              )}
+              <button onClick={() => { debloquerSonVente(); jouerSonVente(1).catch(() => playNotifSoundSecours()); }} style={{ background: "white", color: "#16231F", border: "1px solid #d9dfd6", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🔊 Tester le son</button>
+              {notifPermission === "granted" && pushAbonne === true && (
+                <button onClick={envoyerNotificationTest} style={{ background: "white", color: "#16231F", border: "1px solid #d9dfd6", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📲 Notification test</button>
+              )}
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer" }}>
+                <input type="checkbox" checked={sonVentesOn} onChange={(e) => { setSonVentesOn(e.target.checked); definirSonVentes(e.target.checked); }} /> Son dans l'app
+              </label>
+              <button onClick={() => { setCarteAlertesMasquee(true); try { localStorage.setItem("rv_carte_alertes_masquee", "1"); } catch (_) {} }} aria-label="Masquer" style={{ background: "transparent", border: "none", fontSize: 15, cursor: "pointer", color: "inherit" }}>✕</button>
+            </span>
+          </div>
+          {(testNotifMessage || statutNotifDebug) && <div style={{ marginTop: 6, fontSize: 12 }}>{testNotifMessage || statutNotifDebug}</div>}
+          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.8 }}>Quand l'app est fermée, le son est celui de notification de ton téléphone (réglé dans ses paramètres). Le « ka-ching » retentit quand l'app est ouverte.</div>
+        </div>
+      )}
 
       {notifPermission === "default" && (
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

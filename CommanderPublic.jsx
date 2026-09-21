@@ -174,6 +174,11 @@ export default function CommanderPublic({ workspaceId }) {
     if (error || !data?.[0]?.succes) {
       setMessageErreur(data?.[0]?.message || "Une erreur est survenue, réessaie.");
     } else {
+    // Alerte de vente forte sur le téléphone du commerçant (sans effet si personne n'a activé les alertes).
+    try {
+      const idNouvelleCommande = data[0].commande_id || data[0].id;
+      if (idNouvelleCommande) fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "nouvelle_commande", commandeId: idNouvelleCommande }), keepalive: true }).catch(() => {});
+    } catch (_) {}
       setEnvoye(true);
     }
     setEnvoiEnCours(false);

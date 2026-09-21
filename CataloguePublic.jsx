@@ -1835,6 +1835,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setErreurEnvoiBien(resultat?.message || "Erreur, réessaie.");
       return;
     }
+    // Alerte de vente forte sur le téléphone du commerçant (sans effet si personne n'a activé les alertes).
+    try {
+      const idNouvelleCommande = resultat.commande_id || resultat.id;
+      if (idNouvelleCommande) fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "nouvelle_commande", commandeId: idNouvelleCommande }), keepalive: true }).catch(() => {});
+    } catch (_) {}
     setBienEnvoye(true);
   }
 

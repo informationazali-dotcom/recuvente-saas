@@ -72,7 +72,7 @@ async function verifierMembreWorkspace(req, res) {
 async function gererGET(req, res) {
   const { data: workspaces, error: wsError } = await supabaseAdmin
     .from("workspaces")
-    .select("id, name, country, currency, owner_id, created_at, whatsapp_number")
+    .select("id, name, slug, country, currency, owner_id, created_at, whatsapp_number, store_is_published, activity_type")
     .order("created_at", { ascending: false });
   if (wsError) return res.status(400).json({ error: wsError.message });
 
@@ -83,17 +83,50 @@ async function gererGET(req, res) {
     .from("workspace_members")
     .select("workspace_id");
 
+  // Détails « à plat » pour l'admin : parrain, options activées. Tout est facultatif : si une table manque, on ignore.
+  const parrains = {};
+  try {
+    const { data: par } = await supabaseAdmin.from("ambassadeur_parrainages").select("workspace_id, ambassadeur_id");
+    const { data: ambs } = await supabaseAdmin.from("ambassadeurs").select("id, nom, code");
+    (par || []).forEach((p) => { const a = (ambs || []).find((x) => x.id === p.ambassadeur_id); if (a) parrains[p.workspace_id] = a.nom || a.code || "Ambassadeur"; });
+  } catch (_) { /* tables pas encore créées */ }
+  const options = {};
+  try {
+    const { data: opts } = await supabaseAdmin.from("workspace_options").select("workspace_id, cle, valeur").in("cle", ["annuaire", "paiement_en_ligne", "reseau_anti_refus"]);
+    (opts || []).forEach((o) => {
+      const cible = (options[o.workspace_id] = options[o.workspace_id] || {});
+      if (o.cle === "annuaire") cible.annuaire = !!o.valeur?.actif;
+      if (o.cle === "paiement_en_ligne") cible.paiementEnLigne = !!o.valeur?.actif;
+      if (o.cle === "reseau_anti_refus") cible.reseau = o.valeur?.actif !== false;
+    });
+  } catch (_) { /* idem */ }
+
+  const depuis30j = new Date(Date.now() - 30 * 86400000).toISOString();
   const enrichis = await Promise.all(
     workspaces.map(async (ws) => {
       const sub = subscriptions?.find((s) => s.workspace_id === ws.id) || null;
       const nbMembres = allMembers?.filter((m) => m.workspace_id === ws.id).length || 0;
       const { data: owner } = await supabaseAdmin.auth.admin.getUserById(ws.owner_id);
+      // Activité de la boutique : un abonné qui ne vend plus est un abonné qui va partir.
+      let activite = { commandes: 0, commandes30j: 0, derniereCommande: null };
+      try {
+        const [tot, r30, dern] = await Promise.all([
+          supabaseAdmin.from("commandes").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id),
+          supabaseAdmin.from("commandes").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("created_at", depuis30j),
+          supabaseAdmin.from("commandes").select("created_at").eq("workspace_id", ws.id).order("created_at", { ascending: false }).limit(1),
+        ]);
+        activite = { commandes: tot.count || 0, commandes30j: r30.count || 0, derniereCommande: dern.data?.[0]?.created_at || null };
+      } catch (_) { /* ignoré */ }
       return {
         ...ws,
         ownerEmail: owner?.user?.email || "?",
+        derniereConnexion: owner?.user?.last_sign_in_at || null,
         whatsappNumber: ws.whatsapp_number || null,
         subscription: sub,
         nbMembres,
+        activite,
+        parrain: parrains[ws.id] || null,
+        options: options[ws.id] || {},
       };
     })
   );

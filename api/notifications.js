@@ -58,6 +58,50 @@ async function envoyerAuxAbonnements(abonnements, payload) {
   return { envoyes, total: (abonnements || []).length, erreurs };
 }
 
+// Appareils à prévenir pour une boutique : ceux de l'espace ET ceux de ses membres (un propriétaire de
+// plusieurs boutiques n'a qu'un appareil enregistré, rattaché à la dernière boutique où il a activé les alertes).
+async function abonnementsWorkspace(workspaceId) {
+  let abonnements = [];
+  try {
+    const { data: membres } = await supabaseAdmin.from("workspace_members").select("user_id").eq("workspace_id", workspaceId).limit(50);
+    const emails = (
+      await Promise.all((membres || []).map(async (m) => {
+        try { const { data } = await supabaseAdmin.auth.admin.getUserById(m.user_id); return data?.user?.email || null; } catch (_) { return null; }
+      }))
+    ).filter((e) => e && !/["\\,()]/.test(e));
+    const filtre = [`workspace_id.eq.${workspaceId}`, ...(emails.length ? [`user_email.in.(${emails.map((e) => `"${e}"`).join(",")})`] : [])].join(",");
+    const { data } = await supabaseAdmin.from("push_subscriptions").select("*").or(filtre);
+    abonnements = data || [];
+  } catch (_) {}
+  if (abonnements.length === 0) {
+    const { data } = await supabaseAdmin.from("push_subscriptions").select("*").eq("workspace_id", workspaceId);
+    abonnements = data || [];
+  }
+  return abonnements;
+}
+
+// Alerte « paiement reçu » : un client vient de payer sa commande en ligne (Mobile Money / carte).
+export async function pousserPaiementRecu({ commande, montant, devise }) {
+  try {
+    if (!commande?.workspace_id) return { envoyes: 0 };
+    const abonnements = await abonnementsWorkspace(commande.workspace_id);
+    if (abonnements.length === 0) return { envoyes: 0, raison: "personne n'a activé les notifications" };
+    const { data: ws } = await supabaseAdmin.from("workspaces").select("name, currency").eq("id", commande.workspace_id).maybeSingle();
+    const somme = `${Number(montant).toLocaleString("fr-FR")} ${libelleDevise(devise || ws?.currency)}`;
+    return await envoyerAuxAbonnements(abonnements, {
+      title: `💳 Paiement reçu${ws?.name ? " — " + ws.name : ""} !`,
+      body: [String(commande.client || "Un client").slice(0, 60), somme, "payé en ligne"].join(" • "),
+      url: "/admin/",
+      tag: `paiement-${commande.id}`,
+      commandeId: commande.id,
+      sound: true,
+      ts: Date.now(),
+    });
+  } catch (e) {
+    return { envoyes: 0, erreur: e.message };
+  }
+}
+
 export async function pousserNouvelleCommande(commandeOuId) {
   try {
     let cmd = commandeOuId && typeof commandeOuId === "object" ? commandeOuId : null;
@@ -74,25 +118,7 @@ export async function pousserNouvelleCommande(commandeOuId) {
     }
     if (!cmd) { dejaNotifiees.delete(id); return { envoyes: 0, raison: "commande introuvable" }; }
 
-    // Un appareil ne peut être rattaché qu'à UNE boutique dans la table (clé = adresse de l'appareil).
-    // Un propriétaire de plusieurs boutiques ne recevrait donc que celles de la dernière où il a activé
-    // les alertes. On prend donc les appareils de l'espace ET ceux des membres de cet espace.
-    let abonnements = [];
-    try {
-      const { data: membres } = await supabaseAdmin.from("workspace_members").select("user_id").eq("workspace_id", cmd.workspace_id).limit(50);
-      const emails = (
-        await Promise.all((membres || []).map(async (m) => {
-          try { const { data } = await supabaseAdmin.auth.admin.getUserById(m.user_id); return data?.user?.email || null; } catch (_) { return null; }
-        }))
-      ).filter((e) => e && !/["\\,()]/.test(e));
-      const filtre = [`workspace_id.eq.${cmd.workspace_id}`, ...(emails.length ? [`user_email.in.(${emails.map((e) => `"${e}"`).join(",")})`] : [])].join(",");
-      const { data } = await supabaseAdmin.from("push_subscriptions").select("*").or(filtre);
-      abonnements = data || [];
-    } catch (_) {}
-    if (abonnements.length === 0) {
-      const { data } = await supabaseAdmin.from("push_subscriptions").select("*").eq("workspace_id", cmd.workspace_id);
-      abonnements = data || [];
-    }
+    const abonnements = await abonnementsWorkspace(cmd.workspace_id);
     if (abonnements.length === 0) return { envoyes: 0, raison: "personne n'a activé les notifications" };
 
     const { data: ws } = await supabaseAdmin.from("workspaces").select("name, currency").eq("id", cmd.workspace_id).maybeSingle();

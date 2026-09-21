@@ -493,6 +493,9 @@ export default async function handler(req, res) {
   const resultatEssais = await verifierEssaisEtRappels();
   const resultatStock = await verifierStockBas();
   const resultatRetryCAPI = await retenterEnvoisCAPIEnAttente();
+  // Filet de sécurité du paiement en ligne : vérifie les paiements restés « en attente » (notification jamais reçue).
+  let resultatPaiements = null;
+  try { resultatPaiements = await (await import("../lib/paiements.js")).rattraperPaiementsEnAttente(); } catch (_) {}
 
   return res.status(200).json({
     prospection: resultatProspection,
@@ -501,5 +504,6 @@ export default async function handler(req, res) {
     ...resultatEssais,
     ...resultatStock,
     retryCAPI: resultatRetryCAPI,
+    paiementsEnLigne: resultatPaiements,
   });
 }

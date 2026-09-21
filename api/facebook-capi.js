@@ -184,8 +184,25 @@ export default async function handler(req, res) {
       return res.status(200).json({ base, rates: null });
     }
   }
+  // ----- Paiement en ligne optionnel / annuaire / paramètres du programme (logique dans lib/, chargée à la demande) -----
+  // Placé ici car l'offre gratuite de Vercel limite le nombre de fonctions serveur.
+  if (req.method === "GET" && req.query && (req.query.paiement || req.query.paiement_statut || req.query.annuaire || req.query.croissance)) {
+    try {
+      if (req.query.paiement) return await (await import("../lib/paiements.js")).repondreDisponibilite(req, res);
+      if (req.query.paiement_statut) return await (await import("../lib/paiements.js")).statutPublic(req, res);
+      if (req.query.annuaire) return await (await import("../lib/croissance.js")).repondreAnnuaire(req, res);
+      return await (await import("../lib/croissance.js")).repondreCroissance(req, res);
+    } catch (e) {
+      return res.status(200).json({ actif: false, boutiques: [], plans: [], erreur: true });
+    }
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
 
+  // Le client clique sur « Payer maintenant » (Mobile Money / carte) après sa commande.
+  if (req.body && typeof req.body === "object" && req.body.action === "payer_en_ligne") {
+    try { return await (await import("../lib/paiements.js")).creerPaiementPublic(req, res); }
+    catch (e) { return res.status(500).json({ error: "Paiement en ligne indisponible pour l'instant." }); }
+  }
   // Événement d'entonnoir (vue produit, ajout au panier, début de commande) → traitement dédié.
   if (req.body && typeof req.body === "object" && typeof req.body.nom === "string") return traiterEvenementEntonnoir(req, res);
 

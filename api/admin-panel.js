@@ -6,6 +6,13 @@ const supabaseAdmin = createClient(
 );
 const RECUVENTE_ADMIN_EMAIL = process.env.RECUVENTE_ADMIN_EMAIL;
 
+const ACTIONS_CROISSANCE = new Set([
+  "paiement_config_lire", "paiement_config_enregistrer", "paiement_config_tester",
+  "options_lire", "options_enregistrer", "reseau_verifier",
+  "amb_moi", "amb_infos", "amb_lier",
+  "amb_admin_liste", "amb_admin_payer", "annuaire_admin_liste", "annuaire_une",
+]);
+
 async function verifierAdmin(req, res) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.replace("Bearer ", "");
@@ -1562,47 +1569,84 @@ async function gererCreerCompteFilleul(req, res) {
 // (ou un compte gratuit) pourrait vider ce crédit. Règles : abonnement actif ou essai en cours, et un nombre de
 // « crédits IA » par mois (une fiche produit = 1, une boutique complète = 3…). Le propriétaire n'est pas limité.
 // Limites réglables sans toucher au code : variables Vercel IA_LIMITE_ESSAI (défaut 20) et IA_LIMITE_ABONNE (défaut 100).
+// Packs de crédits achetables (Chariow) : variable Vercel CHARIOW_PACKS_IA = [{"id":"<id produit Chariow>","credits":100,"prix":2000,"devise":"XOF","nom":"Pack 100 crédits"}]
+// Comptage dans la table ia_usage : lignes d'usage (type = l'action), « achat:… » (crédits achetés) et « pack_conso » (crédits de pack dépensés).
 const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1 };
 const memoireUsageIA = new Map(); // repli si la table ia_usage n'existe pas encore (compte par instance serveur)
 function limiteIA(nom, defaut) { const n = Number(process.env[nom]); return Number.isFinite(n) && n >= 0 ? n : defaut; }
+function packsIA() {
+  try {
+    const l = JSON.parse(process.env.CHARIOW_PACKS_IA || "[]");
+    return Array.isArray(l) ? l.filter((p) => p && p.id && Number(p.credits) > 0).map((p) => ({ id: String(p.id), credits: Number(p.credits), prix: Number(p.prix) || 0, devise: p.devise || "XOF", nom: p.nom || `Pack ${p.credits} crédits` })) : [];
+  } catch (_) { return []; }
+}
+const estAdminRecuVente = (user) => { const e = String(user?.email || "").trim().toLowerCase(); return !!(RECUVENTE_ADMIN_EMAIL && e && e === RECUVENTE_ADMIN_EMAIL.trim().toLowerCase()); };
+const estLignePack = (t) => String(t || "").startsWith("achat");
+
+// Situation d'un espace : statut d'abonnement, crédits du mois et crédits de pack restants.
+async function situationCreditsIA(workspaceId) {
+  const { data: sub } = await supabaseAdmin.from("subscriptions").select("status, trial_ends_at").eq("workspace_id", workspaceId).maybeSingle();
+  const statut = sub?.status || "trial"; // pas encore de ligne d'abonnement = essai (jamais bloquer l'inscription)
+  const essaiFini = statut === "trial" && !!sub?.trial_ends_at && new Date(sub.trial_ends_at).getTime() < Date.now();
+  const limite = statut === "active" ? limiteIA("IA_LIMITE_ABONNE", 100) : limiteIA("IA_LIMITE_ESSAI", 20);
+  const debutMois = new Date(); debutMois.setUTCDate(1); debutMois.setUTCHours(0, 0, 0, 0);
+  const cleMem = `${workspaceId}:${debutMois.toISOString().slice(0, 7)}`;
+  let utilisesMois = 0, packAchete = 0, packDepense = 0, tableOk = true;
+  try {
+    const { data, error } = await supabaseAdmin.from("ia_usage").select("type, poids, created_at").eq("workspace_id", workspaceId);
+    if (error) tableOk = false;
+    else for (const r of data || []) {
+      const w = Number(r.poids) || 0;
+      if (estLignePack(r.type)) packAchete += w;
+      else if (r.type === "pack_conso") packDepense += w;
+      else if (String(r.created_at) >= debutMois.toISOString()) utilisesMois += w;
+    }
+  } catch (_) { tableOk = false; }
+  if (!tableOk) { utilisesMois = memoireUsageIA.get(cleMem) || 0; packAchete = 0; packDepense = 0; }
+  const restantMois = Math.max(0, limite - utilisesMois);
+  const restantPack = Math.max(0, packAchete - packDepense);
+  return { statut, essaiFini, limite, utilisesMois, restantMois, restantPack, restant: restantMois + restantPack, tableOk, cleMem };
+}
 
 async function autoriserUsageIA(req, res, user, type, { exigerAbonnement = true } = {}) {
   const workspaceId = req.body?.workspace_id;
-  const email = String(user?.email || "").trim().toLowerCase();
-  if (RECUVENTE_ADMIN_EMAIL && email && email === RECUVENTE_ADMIN_EMAIL.trim().toLowerCase()) return true;
-
-  const { data: sub } = await supabaseAdmin.from("subscriptions").select("status, trial_ends_at").eq("workspace_id", workspaceId).maybeSingle();
-  const statut = sub?.status || "trial"; // pas encore de ligne d'abonnement = essai (jamais bloquer l'inscription)
-  const essaiFini = statut === "trial" && sub?.trial_ends_at && new Date(sub.trial_ends_at).getTime() < Date.now();
-  if (exigerAbonnement && ((statut !== "trial" && statut !== "active") || essaiFini)) {
-    res.status(403).json({ error: essaiFini ? "Ton essai gratuit est terminé : abonne-toi pour continuer à utiliser l'IA." : "L'IA est réservée aux abonnements actifs. Réactive ton abonnement pour l'utiliser." });
+  if (estAdminRecuVente(user)) return true;
+  const st = await situationCreditsIA(workspaceId);
+  if (exigerAbonnement && ((st.statut !== "trial" && st.statut !== "active") || st.essaiFini)) {
+    res.status(403).json({ error: st.essaiFini ? "Ton essai gratuit est terminé : abonne-toi pour continuer à utiliser l'IA." : "L'IA est réservée aux abonnements actifs. Réactive ton abonnement pour l'utiliser." });
     return false;
   }
-  const limite = statut === "active" ? limiteIA("IA_LIMITE_ABONNE", 100) : limiteIA("IA_LIMITE_ESSAI", 20);
   const poids = POIDS_IA[type] || 1;
-  const debutMois = new Date(); debutMois.setUTCDate(1); debutMois.setUTCHours(0, 0, 0, 0);
-
-  let utilises = null;
-  let tableOk = true;
-  try {
-    const { data, error } = await supabaseAdmin.from("ia_usage").select("poids").eq("workspace_id", workspaceId).gte("created_at", debutMois.toISOString());
-    if (error) tableOk = false; else utilises = (data || []).reduce((t, r) => t + (Number(r.poids) || 1), 0);
-  } catch (_) { tableOk = false; }
-  const cleMem = `${workspaceId}:${debutMois.toISOString().slice(0, 7)}`;
-  if (!tableOk) utilises = memoireUsageIA.get(cleMem) || 0;
-
-  if (utilises + poids > limite) {
-    res.status(429).json({ error: `Tu as utilisé tous tes crédits IA de ce mois (${Math.min(utilises, limite)}/${limite}). Ils reviennent le 1er du mois prochain.` });
+  if (st.restant < poids) {
+    const suite = packsIA().length ? " Tu peux acheter un pack de crédits dans « Mon abonnement »." : " Ils reviennent le 1er du mois prochain.";
+    res.status(429).json({ error: `Tu as utilisé tous tes crédits IA de ce mois (${Math.min(st.utilisesMois, st.limite)}/${st.limite}).${suite}`, credits_restants: st.restant });
     return false;
   }
-  if (tableOk) {
-    const { error } = await supabaseAdmin.from("ia_usage").insert([{ workspace_id: workspaceId, type, poids }]);
-    if (error) memoireUsageIA.set(cleMem, utilises + poids);
+  const duMois = Math.min(st.restantMois, poids);
+  const duPack = poids - duMois;
+  if (st.tableOk) {
+    const lignes = [];
+    if (duMois > 0) lignes.push({ workspace_id: workspaceId, type, poids: duMois });
+    if (duPack > 0) lignes.push({ workspace_id: workspaceId, type: "pack_conso", poids: duPack });
+    const { error } = await supabaseAdmin.from("ia_usage").insert(lignes);
+    if (error) memoireUsageIA.set(st.cleMem, st.utilisesMois + duMois);
   } else {
-    memoireUsageIA.set(cleMem, utilises + poids);
+    memoireUsageIA.set(st.cleMem, st.utilisesMois + duMois);
   }
-  res.setHeader?.("X-IA-Credits-Restants", String(Math.max(0, limite - utilises - poids)));
+  res.setHeader?.("X-IA-Credits-Restants", String(Math.max(0, st.restant - poids)));
   return true;
+}
+
+// Action « ia_credits » : ce que l'abonné voit dans « Mon abonnement » (crédits restants + packs à acheter).
+async function gererCreditsIA(req, res, user) {
+  const workspaceId = req.body?.workspace_id;
+  if (estAdminRecuVente(user)) return res.status(200).json({ illimite: true, packs: [] });
+  const st = await situationCreditsIA(workspaceId);
+  return res.status(200).json({
+    illimite: false, statut: st.statut, limite: st.limite, utilises: Math.min(st.utilisesMois, st.limite),
+    restant_mois: st.restantMois, restant_pack: st.restantPack, restant: st.restant,
+    packs: packsIA().map((p) => ({ id: p.id, nom: p.nom, credits: p.credits, prix: p.prix, devise: p.devise })),
+  });
 }
 
 export default async function handler(req, res) {
@@ -1612,8 +1656,20 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "creer_compte_filleul") {
     return gererCreerCompteFilleul(req, res);
   }
+  // Paiement en ligne optionnel, réseau anti-refus, ambassadeurs, annuaire : logique dans lib/croissance.js
+  // (chargée à la demande ; elle vérifie elle-même la session et l'appartenance à la boutique).
+  if (req.method === "POST" && typeof req.body?.action === "string" && ACTIONS_CROISSANCE.has(req.body.action)) {
+    let module_croissance;
+    try { module_croissance = await import("../lib/croissance.js"); } catch (e) { return res.status(500).json({ error: "Module indisponible : " + e.message }); }
+    return module_croissance.traiterAction(req, res);
+  }
   // Ces 3 actions servent à tous les abonnés RecuVente (pas seulement le compte propriétaire) —
   // vérifiées différemment, avant le contrôle admin qui, lui, reste réservé à l'AI Company OS.
+  if (req.method === "POST" && req.body?.action === "ia_credits") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererCreditsIA(req, res, userMembre);
+  }
   if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;

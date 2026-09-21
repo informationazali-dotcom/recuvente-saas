@@ -1286,6 +1286,24 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     });
   }, [domaine, slug, workspaceIdProp]);
 
+  // « Visiteurs en ligne » : un petit signal de vie toutes les 30 secondes tant que la page est affichée à l'écran.
+  // Aucun compte, aucune donnée personnelle : seulement un identifiant aléatoire de l'onglet et le nom de la page regardée.
+  const pageVueRef = useRef("Accueil");
+  pageVueRef.current = produitOuvert?.produit_nom ? `Produit : ${produitOuvert.produit_nom}` : "Accueil";
+  useEffect(() => {
+    if (!workspaceId) return;
+    let sid = "";
+    try { sid = sessionStorage.getItem("rv_sid") || ""; if (!sid) { sid = (window.crypto?.randomUUID ? window.crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, ""); sessionStorage.setItem("rv_sid", sid); } } catch (_) { sid = String(Math.random()).slice(2) + Date.now(); }
+    const ping = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      try { supabase.rpc("ping_visiteur_boutique", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current }).then(() => {}, () => {}); } catch (_) {}
+    };
+    ping();
+    const minuteur = setInterval(ping, 30000);
+    document.addEventListener("visibilitychange", ping);
+    return () => { clearInterval(minuteur); document.removeEventListener("visibilitychange", ping); };
+  }, [workspaceId]);
+
   useEffect(() => {
     if (!workspaceId) return;
 

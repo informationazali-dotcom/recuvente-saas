@@ -3918,6 +3918,23 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showAzaliDesign, setShowAzaliDesign] = useState(false);
   const [showTraficBoutique, setShowTraficBoutique] = useState(false);
   const [showVisiteursEnLigne, setShowVisiteursEnLigne] = useState(false);
+  // Administration RecuVente : le bouton n'apparaît que pour le compte administrateur (vérifié par le serveur).
+  const [estAdminRecuvente, setEstAdminRecuvente] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  useEffect(() => {
+    let vivant = true;
+    (async () => {
+      try {
+        const { data: sd } = await supabase.auth.getSession();
+        const jeton = sd?.session?.access_token;
+        if (!jeton) return;
+        const r = await fetch("/api/admin-panel", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` }, body: JSON.stringify({ action: "est_admin" }) });
+        const j = await r.json().catch(() => ({}));
+        if (vivant && j.admin === true) setEstAdminRecuvente(true);
+      } catch (_) { /* pas d'admin : aucun bouton */ }
+    })();
+    return () => { vivant = false; };
+  }, [session?.user?.id]);
   const [showAide, setShowAide] = useState(false);
   const [showBienvenue, setShowBienvenue] = useState(false);
   useEffect(() => {
@@ -5875,6 +5892,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             >
               ⚙️ Paramètres avancés
             </button>
+            {estAdminRecuvente && (
+              <button
+                onClick={() => setShowAdminPanel(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "1px solid rgba(232,146,10,0.45)", background: "rgba(232,146,10,0.16)", color: "#f5b942", fontSize: 14, fontWeight: 700, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🛡️ Administration RecuVente
+              </button>
+            )}
             <button
               onClick={() => setShowCroissance(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -5957,32 +5982,24 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
 
           {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0" }}>
-              <button
-                onClick={() => setShowStoreBuilder(true)}
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "#e8920a", border: "none", color: "#16231F", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
-              >
-                🛍️ {workspace.store_is_published ? "Personnaliser ma boutique" : "Créer ma boutique"}
-              </button>
-              {workspace.id && (
+            <>
+              <CarteBoutiqueTableauDeBord
+                workspace={workspace}
+                onPersonnaliser={() => setShowStoreBuilder(true)}
+                onVoirEnLigne={() => setShowVisiteursEnLigne(true)}
+                onVoirTrafic={() => setShowTraficBoutique(true)}
+              />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 10px" }}>
                 <a
-                  href={workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}&_t=${Date.now()}` : `${window.location.origin}/?catalogue=${workspace.id}&_t=${Date.now()}`}
+                  href={`${window.location.origin}/?theme-studio=1`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.25)", color: "white", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(139,92,246,0.18)", border: "1px solid rgba(139,92,246,0.35)", color: "#c4b5fd", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
                 >
-                  👁️ Voir ma boutique
+                  🎨 Theme Studio (Beta)
                 </a>
-              )}
-              <a
-                href={`${window.location.origin}/?theme-studio=1`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(139,92,246,0.18)", border: "1px solid rgba(139,92,246,0.35)", color: "#c4b5fd", padding: "9px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}
-              >
-                🎨 Theme Studio (Beta)
-              </a>
-            </div>
+              </div>
+            </>
           )}
 
           {(workspace.role === "owner" || workspace.role === "admin") && (
@@ -6003,6 +6020,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 <button onClick={() => setVue("validations")} aria-label="Validations" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
                 {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowIntegrations(true)} aria-label="Réglages" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>}
+                {estAdminRecuvente && <button onClick={() => setShowAdminPanel(true)} aria-label="Administration RecuVente" style={{ flexShrink: 0, background: "rgba(232,146,10,0.3)", border: "1px solid rgba(232,146,10,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🛡️</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowCroissance(true)} aria-label="Paiement en ligne et croissance" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🚀</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
@@ -6989,6 +7007,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
       {showVisiteursEnLigne && !accesBloque && <VisiteursEnLigneModal workspaceId={workspace.id} onClose={() => setShowVisiteursEnLigne(false)} />}
       {showTraficBoutique && !accesBloque && <TraficBoutiqueModal workspaceId={workspace.id} onClose={() => setShowTraficBoutique(false)} />}
+      {estAdminRecuvente && showAdminPanel && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 400, overflowY: "auto", background: "#FAFAF7", WebkitOverflowScrolling: "touch" }}>
+          <AdminPanel session={session} onClose={() => setShowAdminPanel(false)} onOuvrirCroissance={() => { setShowAdminPanel(false); setShowCroissance(true); }} />
+        </div>
+      )}
       {showCodesPromo && !accesBloque && <CodesPromoModal workspaceId={workspace.id} currency={formaterDevise(workspace.currency)} onClose={() => setShowCodesPromo(false)} />}
       {showPaniersAbandonnes && !accesBloque && <PaniersAbandonnesModal workspaceId={workspace.id} currency={formaterDevise(workspace.currency)} onClose={() => setShowPaniersAbandonnes(false)} />}
     </div>
@@ -7712,7 +7735,7 @@ function SubscriptionBanner({ subscription }) {
   return null;
 }
 
-function AdminPanel({ session }) {
+function AdminPanel({ session, onClose, onOuvrirCroissance }) {
   const [data, setData] = useState(undefined);
   const [error, setError] = useState("");
   const [debug, setDebug] = useState("");
@@ -7800,7 +7823,9 @@ function AdminPanel({ session }) {
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22 }}>Admin RecuVente</div>
-        <a href="?" style={{ fontSize: 12.5, color: "#1a7a3c", textDecoration: "underline" }}>← Mon espace</a>
+        {onClose
+          ? <button onClick={onClose} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>← Retour à mon espace</button>
+          : <a href="?" style={{ fontSize: 12.5, color: "#1a7a3c", textDecoration: "underline" }}>← Mon espace</a>}
       </div>
       <div style={{ fontSize: 13, color: "#6B7168", marginBottom: 12 }}>Connecté en tant que {session.user.email}</div>
 
@@ -7811,8 +7836,13 @@ function AdminPanel({ session }) {
       >
         {exportEnCours ? "Export en cours..." : "💾 Télécharger une sauvegarde complète"}
       </button>
+      {onOuvrirCroissance && (
+        <button onClick={onOuvrirCroissance} style={{ background: "#e8920a", color: "#16231F", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginBottom: 20, marginLeft: 8 }}>
+          🤝 Ambassadeurs, annuaire & commissions
+        </button>
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 20 }}>
         <div style={{ background: "#16231F", color: "white", borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 11, opacity: 0.7, textTransform: "uppercase" }}>MRR estimé</div>
           <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "#e8920a" }}>{data.mrr.toLocaleString("fr-FR")} XOF</div>
@@ -9032,19 +9062,7 @@ function DashboardBusinessModal({ email, onClose, onOuvrirProspects, onOuvrirFac
 }
 
 function VisiteursEnLigneModal({ workspaceId, onClose }) {
-  const [visiteurs, setVisiteurs] = useState([]);
-
-  useEffect(() => {
-    const canal = supabase.channel(`presence-boutique-${workspaceId}`);
-    canal
-      .on("presence", { event: "sync" }, () => {
-        const etat = canal.presenceState();
-        const liste = Object.values(etat).map((entrees) => entrees[0]).sort((a, b) => (b.present_depuis || 0) - (a.present_depuis || 0));
-        setVisiteurs(liste);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(canal); };
-  }, [workspaceId]);
+  const visiteurs = useVisiteursEnLigne(workspaceId);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onClose}>
@@ -9079,6 +9097,75 @@ function VisiteursEnLigneModal({ workspaceId, onClose }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Visiteurs actuellement sur la boutique publique : la boutique envoie un signal de vie toutes les 30 s (voir CataloguePublic),
+// et le tableau de bord relit la liste toutes les 15 s tant que l'écran est visible. Pas de connexion temps réel permanente
+// (le plan gratuit de Supabase la limite à 200 connexions en même temps : une pub qui marche la saturerait).
+function useVisiteursEnLigne(workspaceId) {
+  const [liste, setListe] = useState([]);
+  useEffect(() => {
+    let vivant = true;
+    const lire = () => {
+      if (document.visibilityState === "hidden") return;
+      supabase.rpc("visiteurs_en_ligne", { p_workspace: workspaceId }).then(({ data, error }) => {
+        if (vivant && !error && Array.isArray(data)) setListe(data.map((v) => ({ page: v.page, present_depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now() })));
+      }, () => {});
+    };
+    lire();
+    const minuteur = setInterval(lire, 15000);
+    return () => { vivant = false; clearInterval(minuteur); };
+  }, [workspaceId]);
+  return liste;
+}
+
+// Carte « Ma boutique en ligne » du tableau de bord : lien, visiteurs en direct et trafic, au même endroit (plus besoin d'ouvrir d'autres menus).
+function CarteBoutiqueTableauDeBord({ workspace, onPersonnaliser, onVoirEnLigne, onVoirTrafic }) {
+  const enLigne = useVisiteursEnLigne(workspace.id).length;
+  const [stats, setStats] = useState(null);
+  const [copie, setCopie] = useState(false);
+  const lien = workspace.slug ? `${window.location.origin}/?boutique=${workspace.slug}` : `${window.location.origin}/?catalogue=${workspace.id}`;
+
+  useEffect(() => {
+    let vivant = true;
+    supabase.rpc("statistiques_visites", { p_workspace_id: workspace.id }).then(({ data }) => {
+      if (vivant) setStats(data?.[0] || { aujourd_hui: 0, sept_jours: 0, trente_jours: 0 });
+    });
+    return () => { vivant = false; };
+  }, [workspace.id]);
+
+  async function copier() {
+    try { await navigator.clipboard.writeText(lien); setCopie(true); setTimeout(() => setCopie(false), 1800); } catch (_) { window.prompt("Copie le lien de ta boutique :", lien); }
+  }
+  const tuile = (icone, valeur, label, onClick, accent) => (
+    <button key={label} onClick={onClick} style={{ background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 11, padding: "10px 6px", cursor: "pointer", color: "white", textAlign: "center" }}>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 800, fontSize: 20, color: accent }}>{valeur}</div>
+      <div style={{ fontSize: 10.5, opacity: 0.75, marginTop: 2 }}>{icone} {label}</div>
+    </button>
+  );
+  const lienBtn = { display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none", border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.14)", color: "white" };
+  return (
+    <div style={{ margin: "12px 0", padding: 14, borderRadius: 14, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.16)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ fontWeight: 800, fontSize: 14 }}>🛍️ Ma boutique en ligne</div>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: workspace.store_is_published ? "rgba(127,214,163,0.22)" : "rgba(232,146,10,0.25)", color: workspace.store_is_published ? "#9be3b8" : "#f5b942" }}>
+          {workspace.store_is_published ? "✅ En ligne" : "⏸ Pas encore publiée"}
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <a href={`${lien}&_t=${Date.now()}`} target="_blank" rel="noopener noreferrer" style={{ ...lienBtn, background: "#e8920a", border: "none", color: "#16231F" }}>👁️ Voir ma boutique</a>
+        <button onClick={copier} style={lienBtn}>{copie ? "✅ Lien copié" : "📋 Copier le lien"}</button>
+        {onPersonnaliser && <button onClick={onPersonnaliser} style={lienBtn}>🎨 {workspace.store_is_published ? "Personnaliser" : "Créer ma boutique"}</button>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(76px, 1fr))", gap: 8 }}>
+        {tuile("🟢", enLigne, "en ce moment", onVoirEnLigne, "#7fd6a3")}
+        {tuile("👀", stats ? stats.aujourd_hui : "…", "aujourd'hui", onVoirTrafic, "white")}
+        {tuile("📅", stats ? stats.sept_jours : "…", "7 jours", onVoirTrafic, "white")}
+        {tuile("📈", stats ? stats.trente_jours : "…", "30 jours", onVoirTrafic, "white")}
+      </div>
+      <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 8 }}>Visites de ta boutique publique. Touche un chiffre pour voir le détail (sources, pages regardées).</div>
     </div>
   );
 }

@@ -1689,6 +1689,17 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "creer_compte_filleul") {
     return gererCreerCompteFilleul(req, res);
   }
+  // Simple question « suis-je l'administrateur RecuVente ? » pour afficher (ou non) le bouton Administration dans l'application.
+  // Répond toujours 200 avec vrai/faux et ne révèle rien d'autre (ni e-mail attendu, ni détail).
+  if (req.method === "POST" && req.body?.action === "est_admin") {
+    try {
+      const token = (req.headers.authorization || "").replace("Bearer ", "");
+      if (!token || !RECUVENTE_ADMIN_EMAIL) return res.status(200).json({ admin: false });
+      const { data: u } = await supabaseAdmin.auth.getUser(token);
+      const email = u?.user?.email ? u.user.email.trim().toLowerCase() : "";
+      return res.status(200).json({ admin: !!email && email === RECUVENTE_ADMIN_EMAIL.trim().toLowerCase() });
+    } catch (_) { return res.status(200).json({ admin: false }); }
+  }
   // Paiement en ligne optionnel, réseau anti-refus, ambassadeurs, annuaire : logique dans lib/croissance.js
   // (chargée à la demande ; elle vérifie elle-même la session et l'appartenance à la boutique).
   if (req.method === "POST" && typeof req.body?.action === "string" && ACTIONS_CROISSANCE.has(req.body.action)) {

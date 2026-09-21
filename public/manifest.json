@@ -1,8 +1,10 @@
 {
+  "id": "/admin/",
   "name": "RecuVente",
   "short_name": "RecuVente",
   "description": "Gestion de commandes, livreurs, closers et comptabilité",
-  "start_url": "/",
+  "start_url": "/admin/",
+  "scope": "/admin/",
   "display": "standalone",
   "background_color": "#FAFAF7",
   "theme_color": "#1a7a3c",

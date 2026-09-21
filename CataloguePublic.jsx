@@ -300,6 +300,50 @@ function utiliserPrechargement(nom, workspaceId, secours) {
 
 // Identifiant partagé navigateur ↔ serveur : Meta l'utilise pour ne compter qu'une fois
 // un événement reçu par les deux canaux.
+// ============================================================================
+//  « Payer maintenant » (OPTIONNEL) — n'apparaît QUE si le commerçant a branché CinetPay ou PayDunya.
+//  Le client peut toujours ignorer ce bloc et payer à la livraison : rien ne change pour lui.
+// ============================================================================
+function BoutonPayerEnLigne({ commandeId, couleur, devise }) {
+  const [etat, setEtat] = useState(null); // null = chargement / indisponible
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  useEffect(() => {
+    if (!commandeId) return undefined;
+    let vivant = true;
+    fetch(`/api/facebook-capi?paiement_statut=${encodeURIComponent(commandeId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (vivant && j && j.paiement_possible) setEtat(j); })
+      .catch(() => {});
+    return () => { vivant = false; };
+  }, [commandeId]);
+  if (!etat) return null;
+  async function payer() {
+    setEnCours(true); setErreur("");
+    try {
+      const r = await fetch("/api/facebook-capi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "payer_en_ligne", commandeId }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.url) { window.location.href = j.url; return; }
+      setErreur(j.error || "Paiement en ligne indisponible pour l'instant. Tu peux payer à la livraison.");
+    } catch (_) {
+      setErreur("Connexion impossible. Tu peux payer à la livraison.");
+    }
+    setEnCours(false);
+  }
+  return (
+    <div style={{ background: "white", border: `1.5px solid ${couleur}`, borderRadius: 14, padding: 14, textAlign: "left", marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>💳 Payer maintenant <span style={{ fontWeight: 500, color: "#6B7168" }}>(facultatif)</span></div>
+      <div style={{ fontSize: 12.5, color: "#6B7168", margin: "4px 0 10px", lineHeight: 1.5 }}>
+        Réglez tout de suite par Mobile Money ou carte, en toute sécurité : {Number(etat.reste).toLocaleString("fr-FR")} {devise}. Vous pouvez aussi simplement payer à la livraison.
+      </div>
+      <button onClick={payer} disabled={enCours} style={{ width: "100%", background: couleur, color: couleurTexteLisible(couleur), border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.7 : 1 }}>
+        {enCours ? "Ouverture du paiement…" : "Payer maintenant"}
+      </button>
+      {erreur && <div style={{ fontSize: 12, color: "#B23A26", marginTop: 8 }}>{erreur}</div>}
+    </div>
+  );
+}
+
 function genererEventId(prefixe = "ev") {
   return `${prefixe}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -1035,6 +1079,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [avisEnvoye, setAvisEnvoye] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
+  const [idCommandeEnvoyee, setIdCommandeEnvoyee] = useState(null);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
   const [engagementCoche, setEngagementCoche] = useState(false);
   const [codePromoInput, setCodePromoInput] = useState("");
@@ -1446,6 +1491,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setTypeLivraisonChoisi(entreprise?.fraisExpedition > 0 ? null : "livraison");
     setPhotoActive(0);
     setEnvoye(false);
+    setIdCommandeEnvoyee(null);
     setErreurEnvoi("");
     setAvisListe([]);
     setAfficherFormAvis(false);
@@ -1685,6 +1731,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     }
     supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal), p_produit_id: produitOuvert.produit_id }).then(() => {});
     suivrePage("commande_creee", { commande_id: idCommandeCreee, offre_id: bundleChoisiId ?? "base", montant: valeurCommande });
+    setIdCommandeEnvoyee(idCommandeCreee || null);
     setEnvoye(true);
   }
 
@@ -2120,6 +2167,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 <div><strong style={{ color: "#16231F" }}>{t("telephone")}</strong> {form.tel}</div>
               </div>
             </div>
+
+            <BoutonPayerEnLigne commandeId={idCommandeEnvoyee} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
 
             <button
               onClick={() => genererRecuClientPDF(
@@ -3456,6 +3505,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
   const trackEvenement = (...args) => { try { if (onTrack) onTrack(...args); } catch (_) {} };
   const envoyerEvenementCapi = (...args) => { try { if (onCapi) onCapi(...args); } catch (_) {} };
   const [etape, setEtape] = useState("liste"); // liste | form | envoye
+  const [idCommandePayer, setIdCommandePayer] = useState(null);
   const [form, setForm] = useState({ client: "", tel: "", zone: "", champPiege: "" });
   const paysClient = usePaysClient(entreprise);
   const momentOuvertureRef = useRef(Date.now());
@@ -3540,6 +3590,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       envoyerEvenementCapi(idCommandePanier);
     }
     onViderPanier();
+    setIdCommandePayer(idCommandePanier || null);
     setEtape("envoye");
   }
 
@@ -3558,6 +3609,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
             <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.6, marginBottom: 20 }}>
               Ta commande est bien enregistrée. Un conseiller va t'appeler au <strong>{form.tel}</strong> très bientôt — merci de répondre, c'est indispensable pour valider ta livraison.
             </div>
+            <BoutonPayerEnLigne commandeId={idCommandePayer} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
             <button onClick={onFermer} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
               Continuer mes achats
             </button>

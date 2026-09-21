@@ -10,6 +10,8 @@ const importerCatalogue = () => import("./CataloguePublic.jsx");
 const CataloguePublic = lazy(importerCatalogue);
 const MarketingPublicTracker = lazy(() => import("./MarketingPublicTracker.jsx"));
 const MarketingCODDashboard = lazy(() => import("./MarketingCODDashboard.jsx"));
+const AnnuairePublic = lazy(() => import("./AnnuairePublic.jsx"));
+const OutilsPublic = lazy(() => import("./OutilsPublic.jsx"));
 
 // Sentry (suivi d'erreurs) n'est plus dans le premier téléchargement : c'est une bibliothèque
 // lourde, inutile pour afficher la boutique. Il se charge juste après l'affichage (tout de suite
@@ -26,6 +28,11 @@ function chargerSentry() {
 }
 
 const params = new URLSearchParams(window.location.search);
+// Programme ambassadeur : « ?amb=CODE » — on garde le code 60 jours pour rattacher la boutique créée plus tard.
+try {
+  const codeAmb = (params.get("amb") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
+  if (codeAmb) localStorage.setItem("rv_amb", JSON.stringify({ code: codeAmb, t: Date.now() }));
+} catch (_) {}
 const suiviId = params.get("suivi");
 const commanderId = params.get("commander");
 const catalogueId = params.get("catalogue");
@@ -34,10 +41,12 @@ const catalogueId = params.get("catalogue");
 // de bord (plus lourd) avant de rediriger en interne vers la boutique. Fini.
 const boutiqueSlug = params.get("boutique");
 const marketingId = params.get("marketing");
+const pageAnnuaire = params.get("annuaire") === "1";
+const pageOutils = params.get("outils") === "1";
 const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
 const hostname = window.location.hostname;
 const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
-const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !estDomainePersonnalise;
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !estDomainePersonnalise;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
 // Boutique publique : on demande le code de la boutique tout de suite, sans attendre le premier affichage.
 if (catalogueId || boutiqueSlug || estDomainePersonnalise) importerCatalogue();
@@ -71,7 +80,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErreurBoundary>
       <Suspense fallback={<ChargementInitial />}>
-        {marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
+        {pageAnnuaire ? <AnnuairePublic /> : pageOutils ? <OutilsPublic /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
       </Suspense>
     </ErreurBoundary>
   </React.StrictMode>

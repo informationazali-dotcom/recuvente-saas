@@ -17,6 +17,101 @@ import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import * as XLSX from "xlsx";
 // Product Page Builder : éditeur chargé À LA DEMANDE (n'alourdit ni la boutique publique ni le tableau de bord).
 const PageProduitBuilder = React.lazy(() => import("./PageProduitBuilder.jsx"));
+// Croissance (paiement en ligne optionnel, réseau anti-refus, annuaire, ambassadeur) : chargée à la demande.
+const CroissanceModal = React.lazy(() => import("./Croissance.jsx"));
+
+
+// ============================================================================
+//  PAIEMENT EN LIGNE / RÉSEAU ANTI-REFUS — petits magasins partagés (une seule requête pour tous les écrans)
+// ============================================================================
+// 1) Montants déjà payés EN LIGNE par commande (table paiements_en_ligne). Sert à afficher « 💳 Payé en ligne » et à
+//    ne pas compter comme « cash à rendre » ce que le livreur n'a pas encaissé. Si la table n'existe pas encore : rien ne change.
+const rvPE = { ws: null, map: {}, ecout: new Set(), timer: null, dernier: 0 };
+async function rvChargerPE() {
+  const wsId = rvPE.ws;
+  if (!wsId) return;
+  rvPE.dernier = Date.now();
+  try {
+    const { data, error } = await supabase.from("paiements_en_ligne").select("commande_id, montant_paye").eq("workspace_id", wsId).eq("statut", "paye").limit(3000);
+    if (error || !data || rvPE.ws !== wsId) return;
+    const m = {};
+    data.forEach((p) => { m[p.commande_id] = (m[p.commande_id] || 0) + Number(p.montant_paye || 0); });
+    rvPE.map = m;
+    rvPE.ecout.forEach((f) => f());
+  } catch (_) {}
+}
+function rvUsePaiementsEnLigne(wsId) {
+  const [, forcer] = useState(0);
+  useEffect(() => {
+    if (!wsId) return undefined;
+    const f = () => forcer((n) => n + 1);
+    rvPE.ecout.add(f);
+    if (rvPE.ws !== wsId) { rvPE.ws = wsId; rvPE.map = {}; rvPE.dernier = 0; }
+    if (Date.now() - rvPE.dernier > 20000) rvChargerPE();
+    if (!rvPE.timer) rvPE.timer = setInterval(() => { if (document.visibilityState === "visible") rvChargerPE(); }, 45000);
+    return () => {
+      rvPE.ecout.delete(f);
+      if (rvPE.ecout.size === 0 && rvPE.timer) { clearInterval(rvPE.timer); rvPE.timer = null; }
+    };
+  }, [wsId]);
+  return rvPE.ws === wsId ? rvPE.map : {};
+}
+// Part de la commande réellement à encaisser en main propre (le reste a déjà été payé en ligne).
+const rvAEncaisser = (c, pe) => Math.max(0, Number(c.montant) - Math.min(Number(c.montant), Number((pe || {})[c.id]) || 0));
+
+// 2) Ce numéro a-t-il déjà refusé des colis dans d'autres boutiques ? (chiffres seulement, voir Croissance → Réseau)
+const rvRisque = { ws: null, map: {}, attente: new Set(), connus: new Set(), timer: null, ecout: new Set(), pauseJusqua: 0 };
+const rvCleTel = (t) => String(t || "").replace(/\D/g, "").slice(-8);
+async function rvEnvoyerRisque() {
+  rvRisque.timer = null;
+  const wsId = rvRisque.ws;
+  const cles = [...rvRisque.attente].slice(0, 300);
+  rvRisque.attente = new Set([...rvRisque.attente].slice(300));
+  if (!wsId || cles.length === 0 || Date.now() < rvRisque.pauseJusqua) return;
+  try {
+    const { data: sd } = await supabase.auth.getSession();
+    const r = await fetch("/api/admin-panel", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sd.session?.access_token}` }, body: JSON.stringify({ action: "reseau_verifier", workspace_id: wsId, telephones: cles }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.indisponible) { rvRisque.pauseJusqua = Date.now() + 5 * 60 * 1000; return; }
+    if (j.actif === false) { rvRisque.pauseJusqua = Date.now() + 30 * 60 * 1000; return; }
+    cles.forEach((k) => rvRisque.connus.add(k));
+    Object.assign(rvRisque.map, j.resultats || {});
+    rvRisque.ecout.forEach((f) => f());
+  } catch (_) { rvRisque.pauseJusqua = Date.now() + 2 * 60 * 1000; }
+}
+function rvUseRisqueReseau(wsId, tel) {
+  const [, forcer] = useState(0);
+  const cle = rvCleTel(tel);
+  useEffect(() => {
+    if (!wsId || cle.length !== 8) return undefined;
+    const f = () => forcer((n) => n + 1);
+    rvRisque.ecout.add(f);
+    if (rvRisque.ws !== wsId) { rvRisque.ws = wsId; rvRisque.map = {}; rvRisque.connus = new Set(); rvRisque.attente = new Set(); }
+    if (!rvRisque.connus.has(cle) && !rvRisque.attente.has(cle)) {
+      rvRisque.attente.add(cle);
+      if (!rvRisque.timer) rvRisque.timer = setTimeout(rvEnvoyerRisque, 500);
+    }
+    return () => { rvRisque.ecout.delete(f); };
+  }, [wsId, cle]);
+  return wsId && rvRisque.ws === wsId && cle.length === 8 ? rvRisque.map[cle] || null : null;
+}
+
+// 3) Le paiement en ligne est-il activé sur cette boutique ? (public : aucune clé n'est jamais renvoyée)
+const rvDispo = { par: {}, ecout: new Set() };
+function rvUseDispoPaiement(wsId) {
+  const [, forcer] = useState(0);
+  useEffect(() => {
+    if (!wsId) return undefined;
+    const f = () => forcer((n) => n + 1);
+    rvDispo.ecout.add(f);
+    if (rvDispo.par[wsId] === undefined) {
+      rvDispo.par[wsId] = null;
+      fetch(`/api/facebook-capi?paiement=${encodeURIComponent(wsId)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { rvDispo.par[wsId] = !!(j && j.actif); rvDispo.ecout.forEach((g) => g()); }).catch(() => {});
+    }
+    return () => { rvDispo.ecout.delete(f); };
+  }, [wsId]);
+  return !!(wsId && rvDispo.par[wsId]);
+}
 
 const RV_CLE_FILE_ATTENTE = "rv_file_attente_hors_ligne";
 
@@ -484,6 +579,14 @@ export default function App() {
     if (erreurAbonnement) {
       console.error("Erreur création abonnement d'essai:", erreurAbonnement.message);
     }
+    // Programme ambassadeur : si la personne est arrivée par le lien d'un ambassadeur (?amb=CODE, gardé 60 jours), on rattache sa boutique.
+    try {
+      const brut = JSON.parse(localStorage.getItem("rv_amb") || "null");
+      if (brut?.code && Date.now() - Number(brut.t || 0) < 60 * 24 * 3600 * 1000) {
+        const { data: sessionAmb } = await supabase.auth.getSession();
+        fetch("/api/admin-panel", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionAmb.session?.access_token}` }, body: JSON.stringify({ action: "amb_lier", workspace_id: ws.id, code: brut.code }) }).catch(() => {});
+      }
+    } catch {}
     fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1806,6 +1909,11 @@ function LandingPage() {
         <section id="faq" className="rva-section"><div className="wrap"><div className="rva-center"><div className="rva-label">FAQ</div><h2 className="rva-title">Les dernières objections.<br/><span>Les réponses clairement.</span></h2></div><div className="rva-faq">{faqs.map((f,i)=><div className="rva-faqrow" key={f[0]}><button onClick={()=>setOpenFaq(openFaq===i?null:i)}><span>{f[0]}</span><span className="rva-plus">{openFaq===i?'−':'+'}</span></button>{openFaq===i&&<div className="rva-answer">{f[1]}</div>}</div>)}</div></div></section>
 
         <section className="rva-final"><div className="wrap"><div className="rva-label">LE PROCHAIN NIVEAU COMMENCE PAR UNE DÉCISION</div><h2>Votre activité a grandi.<br/><span>Votre système doit suivre.</span></h2><p>Arrêtez de piloter une entreprise qui grandit avec des outils qui restent petits. Centralisez ce qui compte, structurez votre équipe et choisissez le plan qui correspond à votre réalité.</p><div className="rva-actions" style={{justifyContent:'center'}}><a className="rva-btn primary rva-orangeGlow" href="?auth=1&signup=1" onClick={()=>trackLead('Lead')}>Choisir mon abonnement →</a><a className="rva-btn ghost" href="#tarifs">Comparer les plans</a></div></div></section>
+        <section className="rva-section" style={{padding:"60px 0"}}><div className="wrap" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:14}}>
+          <a href="/?outils=1" style={{textDecoration:"none",color:"inherit",border:"1px solid rgba(0,0,0,.09)",borderRadius:18,padding:22,background:"#fff"}}><div style={{fontSize:26}}>🧮</div><strong style={{display:"block",fontSize:16,margin:"8px 0 4px"}}>Calculateur gratuit</strong><span style={{fontSize:13,color:"#5b6b63",lineHeight:1.5}}>Votre vente à la livraison est-elle vraiment rentable ? Vérifiez en 30 secondes.</span></a>
+          <a href="/?annuaire=1" style={{textDecoration:"none",color:"inherit",border:"1px solid rgba(0,0,0,.09)",borderRadius:18,padding:22,background:"#fff"}}><div style={{fontSize:26}}>📒</div><strong style={{display:"block",fontSize:16,margin:"8px 0 4px"}}>Annuaire des boutiques</strong><span style={{fontSize:13,color:"#5b6b63",lineHeight:1.5}}>Découvrez les boutiques RecuVente, ou faites apparaître la vôtre gratuitement.</span></a>
+          <a href="/?outils=1" style={{textDecoration:"none",color:"inherit",border:"1px solid rgba(0,0,0,.09)",borderRadius:18,padding:22,background:"#fff"}}><div style={{fontSize:26}}>🤝</div><strong style={{display:"block",fontSize:16,margin:"8px 0 4px"}}>Programme ambassadeur</strong><span style={{fontSize:13,color:"#5b6b63",lineHeight:1.5}}>Recommandez RecuVente et gagnez une commission sur chaque abonnement.</span></a>
+        </div></section>
       </main>
       <div className="rva-sticky"><a href="#tarifs" onClick={()=>trackLead('ViewPricing')}>Choisir mon abonnement →</a></div>
     </div>
@@ -3748,6 +3856,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showClosers, setShowClosers] = useState(false);
   const [showCampagne, setShowCampagne] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
+  const [showCroissance, setShowCroissance] = useState(false);
   const [showStoreBuilder, setShowStoreBuilder] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
@@ -5300,17 +5409,19 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout - x.livraison })).sort((a, b) => b.benefice - a.benefice || b.nbTotal - a.nbTotal);
   }, [commandesInRange, produits, workspace.activity_type]);
 
+  const paiementsEnLigne = rvUsePaiementsEnLigne(workspace?.id);
   const depotsParLivreur = useMemo(() => {
     return livreurs
       .map((l) => {
         const mesLivrees = confirmees.filter((c) => c.livreur === l.nom);
-        const montantRecupere = mesLivrees.reduce((s, c) => s + Number(c.montant), 0);
+        // Ce qui a déjà été payé en ligne n'a pas été encaissé par le livreur : on ne le lui réclame pas.
+        const montantRecupere = mesLivrees.reduce((s, c) => s + rvAEncaisser(c, paiementsEnLigne), 0);
         const commission = mesLivrees.length * COUT_LIVRAISON;
         return { nom: l.nom, livrees: mesLivrees.length, montantRecupere, commission, aDeposer: montantRecupere - commission };
       })
       .filter((l) => l.livrees > 0)
       .sort((a, b) => b.aDeposer - a.aDeposer);
-  }, [livreurs, confirmees]);
+  }, [livreurs, confirmees, paiementsEnLigne]);
 
   const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
   const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
@@ -5764,6 +5875,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             >
               ⚙️ Paramètres avancés
             </button>
+            <button
+              onClick={() => setShowCroissance(true)}
+              style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+            >
+              🚀 Paiement en ligne & croissance
+            </button>
             {estEcommerce && (
               <button
                 onClick={() => setShowStoreBuilder(true)}
@@ -5886,6 +6003,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 <button onClick={() => setVue("validations")} aria-label="Validations" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
                 {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowIntegrations(true)} aria-label="Réglages" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>}
+                {workspace.role === "owner" && <button onClick={() => setShowCroissance(true)} aria-label="Paiement en ligne et croissance" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🚀</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
                 {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowProspectsIA(true)} aria-label="Prospects IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤖</button>}
@@ -6782,6 +6900,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={formaterDevise(workspace.currency)} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
+      {showCroissance && <React.Suspense fallback={null}><CroissanceModal workspace={workspace} onClose={() => setShowCroissance(false)} /></React.Suspense>}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} onSupprimerBoutique={onSupprimerBoutique} />}
       {showStoreBuilder && !accesBloque && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
@@ -9221,6 +9340,11 @@ const STATUTS = {
 
 function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution, produits = [] }) {
   const [open, setOpen] = useState(false);
+  // Paiement en ligne (optionnel) + réseau anti-refus : de simples informations en plus sur la carte.
+  const paiementsEnLigne = rvUsePaiementsEnLigne(workspace?.id);
+  const payeEnLigne = Math.min(Number(commande.montant) || 0, Number(paiementsEnLigne[commande.id]) || 0);
+  const paiementEnLigneDispo = rvUseDispoPaiement(workspace?.id);
+  const risqueReseau = rvUseRisqueReseau(workspace?.id, commande.statut === "en_cours" ? commande.tel : null);
 
   // Bénéfice de CETTE commande précise — même logique que le calcul global du tableau de
   // bord (CA − coût produit − coût livraison), appliquée à une seule commande.
@@ -9483,6 +9607,16 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
               const l = labels[dernierAppel.motif] || { texte: dernierAppel.motif, couleur: "#6B7168", bg: "#F0EEE6" };
               return <span style={{ fontSize: 10.5, fontWeight: 600, color: l.couleur, background: l.bg, padding: "2px 8px", borderRadius: 999 }}>{l.texte}</span>;
             })()}
+            {payeEnLigne > 0 && (
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#3B6D11", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>
+                💳 {payeEnLigne >= Number(commande.montant) ? "Payé en ligne" : `Payé en ligne : ${payeEnLigne.toLocaleString("fr-FR")} ${currency}`}
+              </span>
+            )}
+            {risqueReseau && (
+              <span title={`Ce numéro a eu ${risqueReseau.refus} refus/retour(s) dans ${risqueReseau.boutiques} autre(s) boutique(s) RecuVente (et ${risqueReseau.livrees} livraison(s) réussie(s)). Appelle avant d'expédier, ou demande un acompte.`} style={{ fontSize: 10.5, fontWeight: 700, color: risqueReseau.niveau === "eleve" ? "#B23A22" : "#8A6412", background: risqueReseau.niveau === "eleve" ? "#FBEAE6" : "#FBF3E3", padding: "2px 8px", borderRadius: 999 }}>
+                ⚠️ Numéro signalé : {risqueReseau.boutiques} boutique{risqueReseau.boutiques > 1 ? "s" : ""} · {risqueReseau.refus} refus
+              </span>
+            )}
             {workspace?.activity_type === "retail" && commande.statut === "en_cours" && Number(commande.montant_paye || 0) < Number(commande.montant) && (
               <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B23A22", background: "#FBEAE6", padding: "2px 8px", borderRadius: 999 }}>
                 💰 Solde : {(Number(commande.montant) - Number(commande.montant_paye || 0)).toLocaleString("fr-FR")} {currency}
@@ -9801,6 +9935,17 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             </>
           )}
 
+          {paiementEnLigneDispo && commande.statut === "en_cours" && Number(commande.montant_paye || 0) < Number(commande.montant) && (
+            <a
+              href={`https://wa.me/${cleanPhoneForWhatsApp(commande.tel)}?text=${encodeURIComponent(`Bonjour ${(commande.client || "").split(" ")[0]} 👋, vous pouvez régler votre commande dès maintenant par Mobile Money ou carte, en toute sécurité : ${window.location.origin}/?suivi=${commande.id}${(() => { const m = /À encaisser : (.+)$/.exec(String(commande.zone || "")); return m ? "&aff=" + encodeURIComponent(m[1].trim()) : ""; })()}\n(Vous pouvez aussi payer à la livraison.)`)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", background: "#F1F8EC", border: "1px solid #C7DDA3", color: "#1a7a3c", padding: "9px 0", borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
+            >
+              💳 Envoyer le lien de paiement (WhatsApp)
+            </a>
+          )}
+
           <button
             onClick={() => setShowAppel(true)}
             style={{ width: "100%", background: "#EAF0FB", border: "1px solid #C3D4F0", color: "#1E4B8C", padding: "9px 0", borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}
@@ -10036,7 +10181,7 @@ function HistoriqueCreances({ commande, currency }) {
 
   if (!paiements || paiements.length === 0) return null;
 
-  const labelsModePaiement = { cash: "Cash", orange_money: "Orange Money", wave: "Wave", mtn_money: "MTN Money", moov_money: "Moov Money" };
+  const labelsModePaiement = { en_ligne: "💳 Payé en ligne", cash: "Cash", orange_money: "Orange Money", wave: "Wave", mtn_money: "MTN Money", moov_money: "Moov Money" };
 
   return (
     <div style={{ marginBottom: 10 }}>
@@ -13791,6 +13936,7 @@ const champStyle = { width: "100%", padding: "9px 10px", borderRadius: 8, border
 
 function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);
+  const paiementsEnLigne = rvUsePaiementsEnLigne(livreur.workspace_id);
   const [commandeAConfirmer, setCommandeAConfirmer] = useState(null);
   const [gpsErreur, setGpsErreur] = useState(null);
   const watchIdRef = React.useRef(null);
@@ -14067,6 +14213,11 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
                 <div style={{ fontSize: 13, color: "#6B7168", marginTop: 2 }}>📍 {c.zone}</div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 17, marginTop: 8, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                {(paiementsEnLigne[c.id] || 0) > 0 && (
+                  <div style={{ marginTop: 6, background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 600 }}>
+                    💳 Déjà payé en ligne ({Math.min(Number(c.montant), paiementsEnLigne[c.id]).toLocaleString("fr-FR")} {currency}) — à encaisser : <b>{rvAEncaisser(c, paiementsEnLigne).toLocaleString("fr-FR")} {currency}</b>
+                  </div>
+                )}
                 <a href={`tel:${c.tel}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 0", borderRadius: 9, fontWeight: 600, fontSize: 13, textDecoration: "none", marginTop: 12 }}>
                   📞 {c.tel}
                 </a>
@@ -14098,6 +14249,11 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
                   <div style={{ fontSize: 13, color: "#6B7168", marginTop: 3 }}>{c.produit}</div>
                   <div style={{ fontSize: 13, color: "#2452E8", marginTop: 2, fontWeight: 600 }}>📦 Destination : {c.ville_expedition || "non précisée"}</div>
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 17, marginTop: 8, color: "#1a7a3c" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</div>
+                {(paiementsEnLigne[c.id] || 0) > 0 && (
+                  <div style={{ marginTop: 6, background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 600 }}>
+                    💳 Déjà payé en ligne ({Math.min(Number(c.montant), paiementsEnLigne[c.id]).toLocaleString("fr-FR")} {currency}) — à encaisser : <b>{rvAEncaisser(c, paiementsEnLigne).toLocaleString("fr-FR")} {currency}</b>
+                  </div>
+                )}
 
                   {!c.depot_recu_closer && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "8px 10px", marginTop: 10, fontSize: 11.5, color: "#8A6412" }}>
@@ -14165,7 +14321,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
       {showDeclarationDepot && (
         <DeclarationDepotModal
           livreur={livreur}
-          montantEncaisse={confirmees.reduce((s, c) => s + Number(c.montant), 0)}
+          montantEncaisse={confirmees.reduce((s, c) => s + rvAEncaisser(c, paiementsEnLigne), 0)}
           commission={confirmees.length * 1500}
           currency={currency}
           onClose={() => setShowDeclarationDepot(false)}
@@ -14313,17 +14469,19 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
 
   const beneficeReel = caConfirme - coutLivraisons - coutProduitsInfo.coutTotal;
 
+  const paiementsEnLigne = rvUsePaiementsEnLigne(workspace?.id);
   const depotsParLivreur = useMemo(() => {
     return livreurs
       .map((l) => {
         const mesLivrees = confirmees.filter((c) => c.livreur === l.nom);
-        const montantRecupere = mesLivrees.reduce((s, c) => s + Number(c.montant), 0);
+        // Ce qui a déjà été payé en ligne n'a pas été encaissé par le livreur : on ne le lui réclame pas.
+        const montantRecupere = mesLivrees.reduce((s, c) => s + rvAEncaisser(c, paiementsEnLigne), 0);
         const commission = mesLivrees.length * COUT_LIVRAISON;
         return { nom: l.nom, livrees: mesLivrees.length, montantRecupere, commission, aDeposer: montantRecupere - commission };
       })
       .filter((l) => l.livrees > 0)
       .sort((a, b) => b.aDeposer - a.aDeposer);
-  }, [livreurs, confirmees]);
+  }, [livreurs, confirmees, paiementsEnLigne]);
 
   const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
   const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);

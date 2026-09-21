@@ -30,6 +30,11 @@ export default function SuiviPublic({ commandeId }) {
   const [erreur, setErreur] = useState(null);
   const [confirme, setConfirme] = useState(false);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  // Paiement en ligne (facultatif, seulement si le commerçant l'a branché)
+  const [paiement, setPaiement] = useState(null);
+  const [paiementEnCours, setPaiementEnCours] = useState(false);
+  const [erreurPaiement, setErreurPaiement] = useState("");
+  const retourDePaiement = (() => { try { return new URLSearchParams(window.location.search).get("paye") === "1"; } catch (_) { return false; } })();
 
   async function confirmerReception() {
     setEnvoiEnCours(true);
@@ -44,6 +49,33 @@ export default function SuiviPublic({ commandeId }) {
       else setCommande(data[0]);
     });
   }, [commandeId]);
+
+  // État du paiement en ligne. Au retour de la page de paiement, on revérifie quelques secondes le temps que la banque confirme.
+  useEffect(() => {
+    let vivant = true; let essais = 0; let minuteur = null;
+    const charger = () => fetch(`/api/facebook-capi?paiement_statut=${encodeURIComponent(commandeId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!vivant || !j) return;
+        setPaiement(j);
+        essais += 1;
+        if (retourDePaiement && !j.paye_en_ligne && j.reste > 0 && essais < 12) minuteur = setTimeout(charger, 4000);
+      })
+      .catch(() => {});
+    charger();
+    return () => { vivant = false; if (minuteur) clearTimeout(minuteur); };
+  }, [commandeId]);
+
+  async function payerMaintenant() {
+    setPaiementEnCours(true); setErreurPaiement("");
+    try {
+      const r = await fetch("/api/facebook-capi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "payer_en_ligne", commandeId }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.url) { window.location.href = j.url; return; }
+      setErreurPaiement(j.error || "Paiement en ligne indisponible pour l'instant.");
+    } catch (_) { setErreurPaiement("Connexion impossible, réessayez."); }
+    setPaiementEnCours(false);
+  }
 
   const etapeActuelle = commande?.statut === "confirmee" ? 1 : commande?.statut === "echouee" ? -1 : 0;
 
@@ -93,6 +125,26 @@ export default function SuiviPublic({ commandeId }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {paiement && paiement.paye_en_ligne && (
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 12, padding: "12px 14px", marginTop: 16, textAlign: "center", fontSize: 13.5, color: "#3B6D11", fontWeight: 700 }}>
+                ✅ Paiement en ligne reçu{paiement.reste > 0 ? ` — reste ${Number(paiement.reste).toLocaleString("fr-FR")} ${formaterDevise(commande.devise)} à régler` : " — merci !"}
+              </div>
+            )}
+            {retourDePaiement && paiement && !paiement.paye_en_ligne && paiement.reste > 0 && (
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDB0", borderRadius: 12, padding: "12px 14px", marginTop: 16, textAlign: "center", fontSize: 13, color: "#8A6412", fontWeight: 600 }}>
+                ⏳ Nous vérifions votre paiement… Cela peut prendre quelques instants.
+              </div>
+            )}
+            {paiement && paiement.paiement_possible && etapeActuelle !== -1 && !(retourDePaiement && paiement.en_attente) && (
+              <div style={{ marginTop: 16 }}>
+                <button onClick={payerMaintenant} disabled={paiementEnCours} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", padding: "13px 0", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: paiementEnCours ? 0.7 : 1 }}>
+                  {paiementEnCours ? "Ouverture du paiement…" : `💳 Payer maintenant (${Number(paiement.reste).toLocaleString("fr-FR")} ${formaterDevise(commande.devise)})`}
+                </button>
+                <div style={{ fontSize: 11.5, color: "#8A9089", textAlign: "center", marginTop: 6 }}>Mobile Money ou carte. Facultatif : vous pouvez aussi payer à la livraison.</div>
+                {erreurPaiement && <div style={{ fontSize: 12, color: "#B23A26", textAlign: "center", marginTop: 6 }}>{erreurPaiement}</div>}
               </div>
             )}
 

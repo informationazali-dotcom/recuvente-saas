@@ -229,6 +229,17 @@ export default async function handler(req, res) {
   } else {
     const ageMinutes = (Date.now() - new Date(commande.created_at).getTime()) / 60000;
     if (ageMinutes > 10) return res.status(403).json({ error: "Commande trop ancienne pour un envoi non authentifié" });
+    // Appel public juste après une vraie commande : c'est le bon moment pour faire sonner le
+    // téléphone du commerçant (notification push forte). Chargé à la demande et protégé : au moindre
+    // souci, l'envoi à Facebook ci-dessous continue exactement comme avant. Le second paramètre
+    // ne sert qu'à ne jamais attendre plus de 5 s.
+    try {
+      const module_notifs = await import("./notifications.js");
+      await Promise.race([
+        module_notifs.pousserNouvelleCommande({ ...commande, produit: undefined }),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    } catch (_) {}
   }
 
   // Jamais deux fois le même achat envoyé à Facebook, peu importe combien de fois cette

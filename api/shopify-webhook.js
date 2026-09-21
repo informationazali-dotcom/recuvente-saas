@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       closerAssigne = closersList.reduce((min, c) => (charge[c.nom] < charge[min.nom] ? c : min), closersList[0]).nom;
     }
 
-    const { error } = await supabaseAdmin.from("commandes").insert([
+    const { data: commandeCreee, error } = await supabaseAdmin.from("commandes").insert([
       {
         workspace_id: workspace.id,
         client: client || "Client Shopify",
@@ -74,9 +74,17 @@ export default async function handler(req, res) {
         statut: "en_cours",
         closer: closerAssigne,
       },
-    ]);
+    ]).select("id, workspace_id, client, produit, montant, created_at").maybeSingle();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Notification push forte pour cette vente aussi (protégée : ne casse jamais le webhook).
+    try {
+      if (commandeCreee) {
+        const module_notifs = await import("./notifications.js");
+        await Promise.race([module_notifs.pousserNouvelleCommande(commandeCreee), new Promise((r) => setTimeout(r, 5000))]);
+      }
+    } catch (_) {}
 
     return res.status(200).json({ success: true });
   } catch (err) {

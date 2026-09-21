@@ -8755,6 +8755,19 @@ function AbonnementModal({ workspace, subscription, onClose }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  // Crédits IA (compteur du mois + packs à acheter). null = pas encore chargé / indisponible : on n'affiche rien.
+  const [creditsIA, setCreditsIA] = useState(null);
+  useEffect(() => {
+    let annule = false;
+    (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const r = await fetch("/api/admin-panel", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` }, body: JSON.stringify({ action: "ia_credits", workspace_id: workspace.id }) });
+        if (r.ok) { const j = await r.json(); if (!annule) setCreditsIA(j); }
+      } catch (_) { /* l'affichage des crédits est un plus */ }
+    })();
+    return () => { annule = true; };
+  }, [workspace?.id]);
 
   async function exporterMesDonnees() {
     setExportEnCours(true);
@@ -8814,6 +8827,7 @@ function AbonnementModal({ workspace, subscription, onClose }) {
       return;
     }
     const planId = planEnAttenteInfos;
+    const estPack = String(planId).startsWith("pack:"); // achat d'un pack de crédits IA (et non d'un abonnement)
     setLoading(planId);
     setMessage("");
     try {
@@ -8821,7 +8835,7 @@ function AbonnementModal({ workspace, subscription, onClose }) {
       const res = await fetch("/api/chariow", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ planId, firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim() }),
+        body: JSON.stringify({ ...(estPack ? { packId: String(planId).slice(5) } : { planId }), firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim() }),
       });
 
       const texteBrut = await res.text();
@@ -8839,6 +8853,12 @@ function AbonnementModal({ workspace, subscription, onClose }) {
 
       const detailErreur = json?.error || texteBrut.slice(0, 200) || "aucun détail";
       console.error("Erreur paiement Chariow — statut:", res.status, "contenu:", texteBrut);
+      if (estPack) { // pas de système manuel pour les packs : on prévient simplement
+        setMessage(`⚠️ Le paiement du pack n'a pas pu démarrer (${detailErreur}). Réessaie ou contacte le support.`);
+        setPlanEnAttenteInfos(null);
+        setLoading(null);
+        return;
+      }
       setMessage(`⚠️ Échec (code ${res.status}) : ${detailErreur}. Bascule sur le système manuel.`);
 
       await supabase.from("upgrade_requests").update({ statut: "annule" }).eq("workspace_id", workspace.id).eq("statut", "en_attente");
@@ -8897,6 +8917,31 @@ function AbonnementModal({ workspace, subscription, onClose }) {
         {message && (
           <div style={{ background: "#EAF3DE", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12.5, color: "#3B6D11" }}>
             {message}
+          </div>
+        )}
+
+        {creditsIA && !creditsIA.illimite && (
+          <div data-testid="credits-ia" style={{ border: "1px solid #E3ECF9", background: "#F5F9FF", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>✨ Crédits IA</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 13, color: creditsIA.restant > 0 ? "#1E4B8C" : "#B23A22" }}>{creditsIA.restant} restants</div>
+            </div>
+            <div style={{ height: 7, background: "#DCE7F7", borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
+              <div style={{ width: `${creditsIA.limite > 0 ? Math.min(100, Math.round((creditsIA.restant_mois / creditsIA.limite) * 100)) : 0}%`, height: "100%", background: creditsIA.restant_mois > 0 ? "#3B7DD8" : "#D64933" }} />
+            </div>
+            <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 6, lineHeight: 1.5 }}>
+              {creditsIA.restant_mois}/{creditsIA.limite} crédits du mois (renouvelés le 1er){creditsIA.restant_pack > 0 ? ` + ${creditsIA.restant_pack} crédits de pack (sans expiration)` : ""}. Fiche produit : 1 crédit · boutique complète : 3 · analyse d'un lien ou d'une photo : 2.
+            </div>
+            {Array.isArray(creditsIA.packs) && creditsIA.packs.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+                {creditsIA.packs.map((pk) => (
+                  <button key={pk.id} onClick={() => setPlanEnAttenteInfos("pack:" + pk.id)} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid #3B7DD8", background: "white", color: "#1E4B8C", fontWeight: 700, fontSize: 12.5, cursor: "pointer", display: "flex", justifyContent: "space-between" }}>
+                    <span>+ {pk.credits} crédits</span>
+                    <span>{pk.prix > 0 ? `${Number(pk.prix).toLocaleString("fr-FR")} ${libelleDevise(pk.devise)}` : "Acheter"}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -12612,6 +12657,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
           const { description_html } = resultatIA.fiche;
           if (description_html) { await onUpdateDescription(resultat.id, description_html); uneFicheAEteGeneree = true; }
         }
+        else if (!reponseIA.ok && (reponseIA.status === 429 || reponseIA.status === 403) && resultatIA?.error) setCreationErreur("Produit ajouté, mais la fiche IA n'a pas été générée : " + resultatIA.error);
       } catch (e) { /* la génération IA est un plus, pas bloquant si elle échoue */ }
       setIaEnCours(false);
     }

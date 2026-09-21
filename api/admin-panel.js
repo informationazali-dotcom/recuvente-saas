@@ -1557,6 +1557,54 @@ async function gererCreerCompteFilleul(req, res) {
   return res.status(200).json({ success: true });
 }
 
+// ===== Garde-fou des coûts IA =====
+// Chaque appel IA est payé avec la clé Anthropic du propriétaire de RecuVente. Sans limite, un seul abonné
+// (ou un compte gratuit) pourrait vider ce crédit. Règles : abonnement actif ou essai en cours, et un nombre de
+// « crédits IA » par mois (une fiche produit = 1, une boutique complète = 3…). Le propriétaire n'est pas limité.
+// Limites réglables sans toucher au code : variables Vercel IA_LIMITE_ESSAI (défaut 20) et IA_LIMITE_ABONNE (défaut 100).
+const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1 };
+const memoireUsageIA = new Map(); // repli si la table ia_usage n'existe pas encore (compte par instance serveur)
+function limiteIA(nom, defaut) { const n = Number(process.env[nom]); return Number.isFinite(n) && n >= 0 ? n : defaut; }
+
+async function autoriserUsageIA(req, res, user, type, { exigerAbonnement = true } = {}) {
+  const workspaceId = req.body?.workspace_id;
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (RECUVENTE_ADMIN_EMAIL && email && email === RECUVENTE_ADMIN_EMAIL.trim().toLowerCase()) return true;
+
+  const { data: sub } = await supabaseAdmin.from("subscriptions").select("status, trial_ends_at").eq("workspace_id", workspaceId).maybeSingle();
+  const statut = sub?.status || "trial"; // pas encore de ligne d'abonnement = essai (jamais bloquer l'inscription)
+  const essaiFini = statut === "trial" && sub?.trial_ends_at && new Date(sub.trial_ends_at).getTime() < Date.now();
+  if (exigerAbonnement && ((statut !== "trial" && statut !== "active") || essaiFini)) {
+    res.status(403).json({ error: essaiFini ? "Ton essai gratuit est terminé : abonne-toi pour continuer à utiliser l'IA." : "L'IA est réservée aux abonnements actifs. Réactive ton abonnement pour l'utiliser." });
+    return false;
+  }
+  const limite = statut === "active" ? limiteIA("IA_LIMITE_ABONNE", 100) : limiteIA("IA_LIMITE_ESSAI", 20);
+  const poids = POIDS_IA[type] || 1;
+  const debutMois = new Date(); debutMois.setUTCDate(1); debutMois.setUTCHours(0, 0, 0, 0);
+
+  let utilises = null;
+  let tableOk = true;
+  try {
+    const { data, error } = await supabaseAdmin.from("ia_usage").select("poids").eq("workspace_id", workspaceId).gte("created_at", debutMois.toISOString());
+    if (error) tableOk = false; else utilises = (data || []).reduce((t, r) => t + (Number(r.poids) || 1), 0);
+  } catch (_) { tableOk = false; }
+  const cleMem = `${workspaceId}:${debutMois.toISOString().slice(0, 7)}`;
+  if (!tableOk) utilises = memoireUsageIA.get(cleMem) || 0;
+
+  if (utilises + poids > limite) {
+    res.status(429).json({ error: `Tu as utilisé tous tes crédits IA de ce mois (${Math.min(utilises, limite)}/${limite}). Ils reviennent le 1er du mois prochain.` });
+    return false;
+  }
+  if (tableOk) {
+    const { error } = await supabaseAdmin.from("ia_usage").insert([{ workspace_id: workspaceId, type, poids }]);
+    if (error) memoireUsageIA.set(cleMem, utilises + poids);
+  } else {
+    memoireUsageIA.set(cleMem, utilises + poids);
+  }
+  res.setHeader?.("X-IA-Credits-Restants", String(Math.max(0, limite - utilises - poids)));
+  return true;
+}
+
 export default async function handler(req, res) {
   // Action publique — la personne n'a justement pas encore de compte, donc pas de
   // token à vérifier ici. Toute la sécurité repose sur le token à usage unique
@@ -1569,26 +1617,31 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "generer_fiche_produit_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "fiche"))) return;
     return gererGenererFicheProduitIA(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "generer_configuration_boutique_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "config"))) return;
     return gererGenererConfigurationBoutiqueIA(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "generer_boutique_complete_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "boutique_complete"))) return;
     return gererGenererBoutiqueCompleteIA(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "extraire_produit_depuis_lien") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "extraire_lien"))) return;
     return gererExtraireProduitDepuisLien(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "identifier_produit_depuis_photo") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "photo"))) return;
     return gererIdentifierProduitDepuisPhoto(req, res, userMembre);
   }
   // École (§29) : réponse libre corrigée par l'IA. L'évaluation ET l'écriture du
@@ -1597,6 +1650,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "evaluer_reponse_ecole") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "ecole", { exigerAbonnement: false }))) return;
     return gererEvaluerReponseEcole(req, res, userMembre);
   }
   // Suggestion de coaching (§46) : l'IA synthétise des DONNÉES RÉELLES déjà
@@ -1605,6 +1659,7 @@ export default async function handler(req, res) {
   if (req.method === "POST" && req.body?.action === "suggerer_coaching_filleul") {
     const userMembre = await verifierMembreWorkspace(req, res);
     if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "coaching", { exigerAbonnement: false }))) return;
     return gererSuggererCoachingFilleul(req, res, userMembre);
   }
   // Pièce d'identité de candidature (§41) : URL signée temporaire, jamais

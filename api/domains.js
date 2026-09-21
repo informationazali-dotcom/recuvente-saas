@@ -127,6 +127,16 @@ Limite-toi à 4-5 recherches web au total pour toute cette tâche, pas plus — 
   // Fusionné ici pour ne pas dépasser la limite de fonctions du plan Vercel Hobby.
   // Appel : POST /api/domains { action: "prospection", secteur, ville }
   if (req.method === "POST" && req.body?.action === "prospection") {
+    // Réservé au propriétaire de RecuVente : cette recherche web IA est payée avec sa clé Anthropic,
+    // elle ne doit jamais pouvoir être déclenchée par n'importe qui.
+    {
+      const token = (req.headers.authorization || "").replace("Bearer ", "");
+      if (!token) return res.status(401).json({ error: "Non authentifié" });
+      const { data: u, error: eu } = await supabaseAdmin.auth.getUser(token);
+      const adminEmail = String(process.env.RECUVENTE_ADMIN_EMAIL || "").trim().toLowerCase();
+      if (eu || !u?.user) return res.status(401).json({ error: "Session invalide" });
+      if (!adminEmail || String(u.user.email || "").trim().toLowerCase() !== adminEmail) return res.status(403).json({ error: "Accès réservé à l'administrateur RecuVente" });
+    }
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY manquante côté serveur" });
 

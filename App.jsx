@@ -7717,6 +7717,10 @@ function AdminPanel({ session }) {
   const [error, setError] = useState("");
   const [debug, setDebug] = useState("");
   const [recherche, setRecherche] = useState("");
+  const [filtreStatut, setFiltreStatut] = useState("tous");
+  const [filtreOffre, setFiltreOffre] = useState("toutes");
+  const [filtrePays, setFiltrePays] = useState("tous");
+  const [tri, setTri] = useState("recents");
   const [actionEnCours, setActionEnCours] = useState(null);
   const [exportEnCours, setExportEnCours] = useState(false);
 
@@ -7834,19 +7838,107 @@ function AdminPanel({ session }) {
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>Toutes les entreprises</div>
-        <input
-          type="text"
-          placeholder="Rechercher..."
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, width: 160 }}
-        />
-      </div>
+      {(() => {
+        const compter = (cle, val) => data.workspaces.filter((w) => val(w) === cle).length;
+        const paysListe = [...new Set(data.workspaces.map((w) => (w.country || "").trim()).filter(Boolean))].sort();
+        const offresListe = [...new Set(data.workspaces.map((w) => w.subscription?.subscription_plans?.nom).filter(Boolean))];
+        const finiEssai = (w) => w.subscription?.status === "trial" && w.subscription?.trial_ends_at && new Date(w.subscription.trial_ends_at) < new Date();
+        const statutDe = (w) => (finiEssai(w) ? "essai_termine" : w.subscription?.status || "aucun");
+        const carteStat = { background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14 };
+        const petit = { fontSize: 11, color: "#8A9089", textTransform: "uppercase", marginBottom: 6 };
+        const ligneStat = { display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "2px 0" };
+        const parPays = paysListe.map((p) => [p, data.workspaces.filter((w) => (w.country || "").trim() === p).length]).sort((a, b) => b[1] - a[1]);
+        const parOffre = offresListe.map((o) => {
+          const liste = data.workspaces.filter((w) => w.subscription?.subscription_plans?.nom === o);
+          const actifsOffre = liste.filter((w) => w.subscription?.status === "active");
+          const pl = liste[0].subscription.subscription_plans;
+          return { nom: o, total: liste.length, actifs: actifsOffre.length, revenu: actifsOffre.length * Number(pl.prix || 0), devise: pl.devise };
+        });
+        const sansActivite = data.workspaces.filter((w) => w.subscription?.status === "active" && (w.activite?.commandes30j || 0) === 0);
+        const chipsStatut = [
+          ["tous", "Tous", data.workspaces.length],
+          ["active", "✅ Actifs", compter("active", statutDe)],
+          ["trial", "🎁 En essai", compter("trial", statutDe)],
+          ["essai_termine", "⏰ Essai terminé", compter("essai_termine", statutDe)],
+          ["suspended", "🔴 Suspendus", compter("suspended", statutDe)],
+        ];
+        return (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10, marginBottom: 12 }}>
+              <div style={carteStat}>
+                <div style={petit}>🌍 Par pays</div>
+                {parPays.length === 0 ? <div style={{ fontSize: 12, color: "#8A9089" }}>—</div> : parPays.map(([p, n]) => <div key={p} style={ligneStat}><span>{p}</span><b>{n}</b></div>)}
+              </div>
+              <div style={carteStat}>
+                <div style={petit}>📦 Par offre</div>
+                {parOffre.length === 0 ? <div style={{ fontSize: 12, color: "#8A9089" }}>Aucun abonnement payant pour l'instant.</div> : parOffre.map((o) => (
+                  <div key={o.nom} style={ligneStat}><span>{o.nom} <span style={{ color: "#8A9089" }}>({o.actifs} actif{o.actifs > 1 ? "s" : ""})</span></span><b>{o.revenu.toLocaleString("fr-FR")} {o.devise === "XOF" ? "F" : o.devise}</b></div>
+                ))}
+              </div>
+              <div style={carteStat}>
+                <div style={petit}>💤 À relancer</div>
+                <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                  {sansActivite.length === 0 ? "Tous vos abonnés actifs ont reçu des commandes ces 30 derniers jours." : <><b>{sansActivite.length}</b> abonné{sansActivite.length > 1 ? "s" : ""} actif{sansActivite.length > 1 ? "s" : ""} sans aucune commande depuis 30 jours : {sansActivite.slice(0, 4).map((w) => w.name).join(", ")}{sansActivite.length > 4 ? "…" : ""}. Ils risquent de se désabonner.</>}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>Toutes les entreprises</div>
+              <input
+                type="text"
+                placeholder="Rechercher (nom, email, pays…)"
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, width: 210 }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {chipsStatut.map(([cle, label, n]) => (
+                <button key={cle} onClick={() => setFiltreStatut(cle)} style={{ padding: "5px 11px", borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: "pointer", border: filtreStatut === cle ? "1px solid #1a7a3c" : "1px solid #DDD8CC", background: filtreStatut === cle ? "#1a7a3c" : "white", color: filtreStatut === cle ? "white" : "#16231F" }}>{label} ({n})</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+              <select value={filtreOffre} onChange={(e) => setFiltreOffre(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white" }}>
+                <option value="toutes">Toutes les offres</option>
+                {offresListe.map((o) => <option key={o} value={o}>{o}</option>)}
+                <option value="__aucune">Sans offre (essai / aucune)</option>
+              </select>
+              <select value={filtrePays} onChange={(e) => setFiltrePays(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white" }}>
+                <option value="tous">Tous les pays</option>
+                {paysListe.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <select value={tri} onChange={(e) => setTri(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white" }}>
+                <option value="recents">Tri : inscrits récemment</option>
+                <option value="commandes30j">Tri : plus de commandes (30 j)</option>
+                <option value="inactifs">Tri : les plus inactifs d'abord</option>
+                <option value="essai">Tri : fin d'essai la plus proche</option>
+                <option value="nom">Tri : nom A → Z</option>
+              </select>
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {data.workspaces
-          .filter((ws) => !recherche.trim() || ws.name.toLowerCase().includes(recherche.toLowerCase()) || ws.ownerEmail.toLowerCase().includes(recherche.toLowerCase()))
+        {[...data.workspaces]
+          .filter((ws) => {
+            const q = recherche.trim().toLowerCase();
+            if (q && !`${ws.name} ${ws.ownerEmail} ${ws.country || ""} ${ws.subscription?.subscription_plans?.nom || ""} ${ws.parrain || ""}`.toLowerCase().includes(q)) return false;
+            const essaiFini = ws.subscription?.status === "trial" && ws.subscription?.trial_ends_at && new Date(ws.subscription.trial_ends_at) < new Date();
+            const st = essaiFini ? "essai_termine" : ws.subscription?.status || "aucun";
+            if (filtreStatut !== "tous" && st !== filtreStatut) return false;
+            const offre = ws.subscription?.subscription_plans?.nom;
+            if (filtreOffre === "__aucune" ? !!offre : filtreOffre !== "toutes" && offre !== filtreOffre) return false;
+            if (filtrePays !== "tous" && (ws.country || "").trim() !== filtrePays) return false;
+            return true;
+          })
+          .sort((a, b) => {
+            if (tri === "commandes30j") return (b.activite?.commandes30j || 0) - (a.activite?.commandes30j || 0);
+            if (tri === "inactifs") return new Date(a.activite?.derniereCommande || 0) - new Date(b.activite?.derniereCommande || 0);
+            if (tri === "essai") return new Date(a.subscription?.trial_ends_at || "9999-01-01") - new Date(b.subscription?.trial_ends_at || "9999-01-01");
+            if (tri === "nom") return String(a.name).localeCompare(String(b.name));
+            return new Date(b.created_at) - new Date(a.created_at);
+          })
           .map((ws) => {
             const suspendu = ws.subscription?.status === "suspended";
             const enEssai = ws.subscription?.status === "trial";
@@ -7857,12 +7949,23 @@ function AdminPanel({ session }) {
               joursRestants = Math.floor((finEssai - new Date()) / 86400000);
               essaiExpire = joursRestants < 0;
             }
+            const plan = ws.subscription?.subscription_plans;
+            const dateCourte = (d) => (d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+            const ilYA = (d) => {
+              if (!d) return "jamais";
+              const j = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+              return j <= 0 ? "aujourd'hui" : j === 1 ? "hier" : `il y a ${j} j`;
+            };
+            const act = ws.activite || { commandes: 0, commandes30j: 0, derniereCommande: null };
+            const inactif = ws.subscription?.status === "active" && act.commandes30j === 0;
+            const pastille = (txt, fond = "#F4F1E8", couleur = "#4B524B") => <span key={txt} style={{ background: fond, color: couleur, borderRadius: 99, padding: "3px 9px", fontSize: 11, fontWeight: 600 }}>{txt}</span>;
             return (
               <div key={ws.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px" }}>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{ws.name}</div>
-                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>{ws.ownerEmail} · {ws.nbMembres} membre{ws.nbMembres > 1 ? "s" : ""} · {ws.country}</div>
+                    <div style={{ fontSize: 11.5, color: "#6B7168" }}>{ws.ownerEmail} · {ws.nbMembres} membre{ws.nbMembres > 1 ? "s" : ""}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>
@@ -7874,6 +7977,24 @@ function AdminPanel({ session }) {
                       </div>
                     )}
                   </div>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  {pastille(`🌍 ${ws.country || "Pays non renseigné"}${ws.currency ? ` · ${ws.currency}` : ""}`)}
+                  {plan
+                    ? pastille(`📦 ${plan.nom} · ${Number(plan.prix).toLocaleString("fr-FR")} ${plan.devise === "XOF" ? "F" : plan.devise}/mois`, ws.subscription?.status === "active" ? "#EAF3DE" : "#F4F1E8", ws.subscription?.status === "active" ? "#3B6D11" : "#4B524B")
+                    : pastille(enEssai ? "📦 Essai gratuit (aucune offre choisie)" : "📦 Aucune offre", "#FBF3E3", "#8A6412")}
+                  {pastille(`📅 Inscrit le ${dateCourte(ws.created_at)}`)}
+                  {ws.parrain && pastille(`🤝 Parrainé par ${ws.parrain}`, "#FFF8E7", "#8A6412")}
+                  {(data.demandes || []).filter((d) => d.workspace_id === ws.id).map((d) => pastille(`⏳ Demande d'abonnement « ${d.subscription_plans?.nom || "?"} » en attente`, "#FBF3E3", "#8A6412"))}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                  {pastille(`🛒 ${act.commandes30j} commande${act.commandes30j > 1 ? "s" : ""} en 30 j · ${act.commandes} au total`, inactif ? "#FBEAE6" : "#F4F1E8", inactif ? "#B23A26" : "#4B524B")}
+                  {pastille(`Dernière commande : ${act.derniereCommande ? ilYA(act.derniereCommande) : "aucune"}`)}
+                  {pastille(`🔑 Dernière connexion : ${ws.derniereConnexion ? ilYA(ws.derniereConnexion) : "—"}`)}
+                  {inactif && pastille("💤 Abonné inactif : à relancer", "#FBEAE6", "#B23A26")}
+                  {ws.store_is_published && pastille("🏪 Boutique publiée", "#EAF3DE", "#3B6D11")}
+                  {ws.options?.annuaire && pastille("📖 Dans l'annuaire", "#EAF3DE", "#3B6D11")}
+                  {ws.options?.paiementEnLigne && pastille("💳 Paiement en ligne actif", "#EAF3DE", "#3B6D11")}
                 </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                   {ws.whatsappNumber && (

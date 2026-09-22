@@ -5350,7 +5350,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
 
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
+  // Le coût de livraison ne s'applique que là où une livraison a réellement lieu :
+  // systématiquement pour la vente à la livraison (cod_ecommerce), au cas par cas pour la
+  // boutique physique (retail, selon mode_vente), et jamais pour restaurant, location de
+  // maison, location de véhicule ou réseau de vente — ces activités n'ont pas de livreur.
+  const nbLivraisonsFacturees = workspace.activity_type === "retail"
+    ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length
+    : workspace.activity_type === "cod_ecommerce"
+      ? confirmees.length
+      : 0;
+  const coutLivraisons = nbLivraisonsFacturees * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0;
@@ -5420,7 +5429,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
       m.ca += Number(c.montant);
       m.cout += trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      m.livraison += workspace.activity_type === "retail" && !(c.mode_vente === "livraison" || c.mode_vente === "expedition") ? 0 : COUT_LIVRAISON;
+      m.livraison += workspace.activity_type === "retail"
+        ? ((c.mode_vente === "livraison" || c.mode_vente === "expedition") ? COUT_LIVRAISON : 0)
+        : workspace.activity_type === "cod_ecommerce"
+          ? COUT_LIVRAISON
+          : 0;
       m.nbCommandes += 1;
     });
     return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout - x.livraison })).sort((a, b) => b.benefice - a.benefice || b.nbTotal - a.nbTotal);
@@ -6721,7 +6734,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
               {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({confirmees.length} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
+              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({nbLivraisonsFacturees} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
             </div>
           </div>
 
@@ -9567,7 +9580,9 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     const coutProduit = (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite;
     const coutLivraison = workspace?.activity_type === "retail"
       ? (commande.mode_vente === "livraison" || commande.mode_vente === "expedition" ? COUT_LIVRAISON_UNITAIRE : 0)
-      : COUT_LIVRAISON_UNITAIRE;
+      : workspace?.activity_type === "cod_ecommerce"
+        ? COUT_LIVRAISON_UNITAIRE
+        : 0;
     return { connu: true, montant: Number(commande.montant) - coutProduit - coutLivraison };
   }, [commande.statut, commande.produit, commande.montant, commande.mode_vente, produits, workspace?.activity_type]);
   const [dernierAppel, setDernierAppel] = useState(null);
@@ -14658,7 +14673,14 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
   const COUT_LIVRAISON = 1500;
-  const coutLivraisons = workspace.activity_type === "retail" ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length * COUT_LIVRAISON : confirmees.length * COUT_LIVRAISON;
+  // Même correction que sur le tableau de bord : pas de coût de livraison pour restaurant,
+  // location de maison, location de véhicule ou réseau de vente.
+  const nbLivraisonsFacturees = workspace.activity_type === "retail"
+    ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length
+    : workspace.activity_type === "cod_ecommerce"
+      ? confirmees.length
+      : 0;
+  const coutLivraisons = nbLivraisonsFacturees * COUT_LIVRAISON;
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0, nbInconnu = 0, montantInconnu = 0;
@@ -14785,7 +14807,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
           {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-          CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({confirmees.length} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
+          CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({nbLivraisonsFacturees} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
         </div>
       </div>
 

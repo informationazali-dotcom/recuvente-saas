@@ -278,7 +278,8 @@ async function genererFacturePDF(commande, workspace) {
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("FACTURE", 195, 18, { align: "right" });
+  const libelleDocument = workspace.activity_type === "location_immobiliere" ? "QUITTANCE DE LOYER" : "FACTURE";
+  doc.text(libelleDocument, 195, 18, { align: "right" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(numeroReel, 195, 25, { align: "right" });
@@ -4026,6 +4027,15 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadLogements();
   }
 
+  // Fiche locataire : assigner/mettre à jour le nom, le téléphone et les dates de bail d'un
+  // logement. On marque aussi automatiquement le logement comme "loué" (disponible = false)
+  // dès qu'un locataire est assigné, et "disponible" à nouveau quand on le libère.
+  async function updateLocataireLogement(id, infosLocataire) {
+    const libere = !infosLocataire.nom_locataire;
+    await supabase.from("logements").update({ ...infosLocataire, disponible: libere }).eq("id", id);
+    await loadLogements();
+  }
+
   async function deleteLogement(id) {
     await supabase.from("logements").delete().eq("id", id);
     await loadLogements();
@@ -4465,6 +4475,32 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       loadLogements();
     }
   }, []);
+
+  // Génération automatique du loyer du mois : dès que les logements et les commandes sont
+  // chargés, on crée le loyer du mois en cours pour chaque logement occupé (locataire assigné)
+  // qui n'a pas encore de loyer enregistré pour ce mois — évite d'avoir à cliquer chaque mois.
+  useEffect(() => {
+    if (workspace.activity_type !== "location_immobiliere" || !loaded || logements.length === 0) return;
+    const moisCourant = new Date().toISOString().slice(0, 7);
+    const occupesSansLoyerCeMois = logements.filter(
+      (l) => l.nom_locataire && l.tel_locataire && !commandes.some((c) => c.logement_id === l.id && c.mois_loyer === moisCourant)
+    );
+    if (occupesSansLoyerCeMois.length === 0) return;
+    const lignes = occupesSansLoyerCeMois.map((l) => ({
+      workspace_id: workspace.id,
+      client: l.nom_locataire,
+      tel: l.tel_locataire,
+      produit: l.nom,
+      montant: Number(l.loyer_mensuel) || 0,
+      montant_paye: 0,
+      zone: l.adresse || "",
+      mode_vente: "sur_place",
+      logement_id: l.id,
+      mois_loyer: moisCourant,
+      statut: "en_cours",
+    }));
+    supabase.from("commandes").insert(lignes).then(({ error }) => { if (!error) loadCommandes(); });
+  }, [loaded, logements, workspace.activity_type]);
 
   const accesBloque = (() => {
     if (subscription === undefined) return false; // encore en cours de chargement, ne pas bloquer par erreur
@@ -6279,18 +6315,30 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                       >
                         📞
                       </a>
+                      {workspace.activity_type === "location_immobiliere" && (
+                        <a
+                          href={`https://wa.me/${cleanPhoneForWhatsApp(c.tel)}?text=${encodeURIComponent(`Bonjour ${(c.client || "").split(" ")[0]} 👋, petit rappel : le loyer de ${c.produit} (${Number(c.montant).toLocaleString("fr-FR")} ${workspace.currency}) n'a pas encore été réglé. Merci de régulariser dès que possible 🙏`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#25d366", color: "white", borderRadius: 7, padding: "9px 14px", fontSize: 15, textDecoration: "none" }}
+                        >
+                          💬
+                        </a>
+                      )}
                       <button
                         onClick={() => setCommandeAConfirmerRapide(c)}
                         style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
                       >
-                        ✅ Confirmer
+                        {workspace.activity_type === "location_immobiliere" ? "✅ Loyer payé" : "✅ Confirmer"}
                       </button>
-                      <button
-                        onClick={() => changerStatutRapide(c.id, "echouee")}
-                        style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
-                      >
-                        ❌ Échoué
-                      </button>
+                      {workspace.activity_type !== "location_immobiliere" && (
+                        <button
+                          onClick={() => changerStatutRapide(c.id, "echouee")}
+                          style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                        >
+                          ❌ Échoué
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -6530,6 +6578,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onAdd={addLogement}
           onToggleDisponibilite={toggleDisponibiliteLogement}
           onDelete={deleteLogement}
+          onUpdateLocataire={updateLocataireLogement}
         />
       )}
 
@@ -7308,8 +7357,19 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   function selectionnerLogement(id) {
     setLogementId(id);
     const l = logements.find((x) => x.id === id);
-    if (l) setForm((f) => ({ ...f, produit: l.nom, zone: l.adresse || "", montant: String(l.loyer_mensuel), caution: l.caution_suggeree ? String(l.caution_suggeree) : f.caution }));
+    if (l) setForm((f) => ({
+      ...f,
+      produit: l.nom,
+      zone: l.adresse || "",
+      montant: String(l.loyer_mensuel),
+      caution: l.caution_suggeree ? String(l.caution_suggeree) : f.caution,
+      client: l.nom_locataire || f.client,
+      tel: l.tel_locataire || f.tel,
+    }));
   }
+  // Pour la location immobilière : on rattache la commande au logement et au mois concerné
+  // (mois en cours), ce qui permet à la génération automatique du loyer d'éviter les doublons.
+  const donneesLocation = estLocation ? { logement_id: logementId || null, mois_loyer: new Date().toISOString().slice(0, 7) } : {};
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
   const montantPayeValide = form.montant_paye === "" || Number(form.montant_paye) <= Number(form.montant || 0);
@@ -7370,7 +7430,7 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             {form.montant && !montantValide && (
               <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
             )}
-            <button onClick={() => canSubmit && onAdd({ ...form, mode_vente: "sur_place", montant_paye: "" })} disabled={!canSubmit} style={btnStyle}>
+            <button onClick={() => canSubmit && onAdd({ ...form, ...donneesLocation, mode_vente: "sur_place", montant_paye: "" })} disabled={!canSubmit} style={btnStyle}>
               ⚡ Enregistrer
             </button>
           </>
@@ -7516,7 +7576,7 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
           onClick={() => {
             if (!canSubmit || !montantPayeValide) return;
             const fraisExp = form.mode_vente === "expedition" ? (Number(form.frais_expedition_saisi) || 0) : 0;
-            onAdd({ ...form, montant: (Number(form.montant) || 0) + fraisExp });
+            onAdd({ ...form, ...donneesLocation, montant: (Number(form.montant) || 0) + fraisExp });
           }}
           disabled={!canSubmit || !montantPayeValide}
           style={btnStyle}
@@ -10122,6 +10182,13 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                 <button
                   onClick={async () => {
                     if (!window.confirm(`Créer le loyer du mois prochain pour ${commande.client} (${commande.produit}) — même montant, même infos ?`)) return;
+                    // On avance d'un mois par rapport au mois déjà couvert par CE loyer (ou par
+                    // rapport à aujourd'hui si l'info n'est pas connue), et on garde le lien vers
+                    // le logement : la génération automatique du loyer du mois ne recréera pas
+                    // ce même loyer en double.
+                    const base = commande.mois_loyer ? new Date(commande.mois_loyer + "-01") : new Date();
+                    base.setMonth(base.getMonth() + 1);
+                    const moisSuivant = base.toISOString().slice(0, 7);
                     await supabase.from("commandes").insert([{
                       workspace_id: workspace.id,
                       client: commande.client,
@@ -10129,6 +10196,8 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                       produit: commande.produit,
                       montant: commande.montant,
                       zone: commande.zone,
+                      logement_id: commande.logement_id || null,
+                      mois_loyer: moisSuivant,
                       statut: "en_cours",
                     }]);
                     await onStatusChanged();
@@ -15684,11 +15753,33 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
   );
 }
 
-function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDelete }) {
+function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDelete, onUpdateLocataire }) {
   const [form, setForm] = useState({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "" });
+  const [editionLocataireId, setEditionLocataireId] = useState(null);
+  const [locataireForm, setLocataireForm] = useState({ nom_locataire: "", tel_locataire: "", date_debut_bail: "", date_fin_bail: "" });
 
   const nbDisponibles = logements.filter((l) => l.disponible).length;
   const nbLoues = logements.length - nbDisponibles;
+
+  function ouvrirEditionLocataire(l) {
+    setEditionLocataireId(l.id);
+    setLocataireForm({
+      nom_locataire: l.nom_locataire || "",
+      tel_locataire: l.tel_locataire || "",
+      date_debut_bail: l.date_debut_bail || "",
+      date_fin_bail: l.date_fin_bail || "",
+    });
+  }
+
+  function enregistrerLocataire(id) {
+    onUpdateLocataire(id, locataireForm);
+    setEditionLocataireId(null);
+  }
+
+  function libererLogement(id) {
+    onUpdateLocataire(id, { nom_locataire: "", tel_locataire: "", date_debut_bail: "", date_fin_bail: "" });
+    setEditionLocataireId(null);
+  }
 
   return (
     <div style={{ padding: "20px 20px 8px" }}>
@@ -15730,6 +15821,45 @@ function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDe
             >
               {l.disponible ? "✅ Disponible" : "🚫 Actuellement loué"}
             </button>
+
+            {l.nom_locataire && editionLocataireId !== l.id ? (
+              <div style={{ marginTop: 10, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>🧑 {l.nom_locataire}{l.tel_locataire ? ` — ${l.tel_locataire}` : ""}</div>
+                {(l.date_debut_bail || l.date_fin_bail) && (
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 3 }}>
+                    Bail : {l.date_debut_bail ? new Date(l.date_debut_bail).toLocaleDateString("fr-FR") : "—"} → {l.date_fin_bail ? new Date(l.date_fin_bail).toLocaleDateString("fr-FR") : "durée indéterminée"}
+                  </div>
+                )}
+                <button onClick={() => ouvrirEditionLocataire(l)} style={{ marginTop: 6, background: "none", border: "none", color: "#1a7a3c", fontWeight: 700, fontSize: 11.5, cursor: "pointer", padding: 0 }}>
+                  ✏️ Modifier la fiche locataire
+                </button>
+              </div>
+            ) : editionLocataireId === l.id ? (
+              <div style={{ marginTop: 10, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: 12 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 8 }}>Fiche locataire</div>
+                <input placeholder="Nom du locataire" value={locataireForm.nom_locataire} onChange={(e) => setLocataireForm({ ...locataireForm, nom_locataire: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 6, boxSizing: "border-box" }} />
+                <input placeholder="Téléphone (WhatsApp)" value={locataireForm.tel_locataire} onChange={(e) => setLocataireForm({ ...locataireForm, tel_locataire: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 6, boxSizing: "border-box" }} />
+                <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "#8A9089", marginBottom: 3 }}>Début du bail</div>
+                    <input type="date" value={locataireForm.date_debut_bail} onChange={(e) => setLocataireForm({ ...locataireForm, date_debut_bail: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "#8A9089", marginBottom: 3 }}>Fin du bail (optionnel)</div>
+                    <input type="date" value={locataireForm.date_fin_bail} onChange={(e) => setLocataireForm({ ...locataireForm, date_fin_bail: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => enregistrerLocataire(l.id)} disabled={!locataireForm.nom_locataire.trim()} style={{ flex: 1, background: locataireForm.nom_locataire.trim() ? "#1a7a3c" : "#DDD8CC", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: locataireForm.nom_locataire.trim() ? "pointer" : "default" }}>Enregistrer</button>
+                  {l.nom_locataire && <button onClick={() => libererLogement(l.id)} style={{ flex: 1, background: "white", border: "1px solid #D64933", color: "#D64933", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Libérer</button>}
+                  <button onClick={() => setEditionLocataireId(null)} style={{ background: "none", border: "none", color: "#8A9089", fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => ouvrirEditionLocataire(l)} style={{ width: "100%", marginTop: 8, background: "white", border: "1px dashed #DDD8CC", color: "#6B7168", borderRadius: 8, padding: "7px 0", fontWeight: 600, fontSize: 11.5, cursor: "pointer" }}>
+                + Assigner un locataire
+              </button>
+            )}
           </div>
         ))}
         {logements.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun logement pour l'instant.</div>}

@@ -1436,18 +1436,17 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         });
       }
 
-      // Charge les véhicules/machines/bennes/maisons à 3 modes d'acquisition — réservé à cette
-      // boutique précise (Luxury Car), aucune autre boutique n'est concernée par cette fonctionnalité.
-      if ((data[0].slug || "") === "luxury-car") {
-        supabase.rpc("biens_location_public", { p_workspace_id: workspaceId }).then(({ data: dataBiens }) => {
-          setBiensLocation(dataBiens || []);
-          const idBienDansUrl = new URLSearchParams(window.location.search).get("bien");
-          if (idBienDansUrl && dataBiens) {
-            const trouve = dataBiens.find((b) => b.id === idBienDansUrl || b.id.slice(0, 8) === idBienDansUrl.slice(-8));
-            if (trouve) setBienOuvert(trouve);
-          }
-        });
-      }
+      // Charge les véhicules/machines/bennes/maisons à 3 modes d'acquisition, pour toute
+      // boutique qui en a enregistré (plus seulement Luxury Car). Si la boutique n'a aucun
+      // bien de location, la fonction renvoie simplement un tableau vide.
+      supabase.rpc("biens_location_public", { p_workspace_id: workspaceId }).then(({ data: dataBiens }) => {
+        setBiensLocation(dataBiens || []);
+        const idBienDansUrl = new URLSearchParams(window.location.search).get("bien");
+        if (idBienDansUrl && dataBiens) {
+          const trouve = dataBiens.find((b) => b.id === idBienDansUrl || b.id.slice(0, 8) === idBienDansUrl.slice(-8));
+          if (trouve) setBienOuvert(trouve);
+        }
+      });
     });
   }, [workspaceId]);
 
@@ -3359,6 +3358,45 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 </RevealOnScroll>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {entreprise.slug !== "luxury-car" && biensLocation.length > 0 && (
+        <div id="rv-vehicules" style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ fontWeight: 800, fontSize: 19, color: "#16231F" }}>
+              {filtreCategorieBien ? filtreCategorieBien : "🚗 Véhicules & Matériel"}
+            </div>
+            {filtreCategorieBien && (
+              <button onClick={() => setFiltreCategorieBien(null)} style={{ background: "none", border: `1px solid ${couleur}`, color: couleur, borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+                ✕ Voir tout
+              </button>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
+            {biensLocation.filter((b) => !filtreCategorieBien || b.categorie === filtreCategorieBien).map((b) => (
+              <button
+                key={b.id}
+                onClick={() => setBienOuvert(b)}
+                style={{ textAlign: "left", background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 0, cursor: "pointer", overflow: "hidden" }}
+              >
+                {b.photo_url ? (
+                  <img src={b.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 130, objectFit: "cover", display: "block" }} />
+                ) : (
+                  <div style={{ width: "100%", height: 130, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>🚗</div>
+                )}
+                <div style={{ padding: 12 }}>
+                  <div style={{ fontSize: 10.5, color: couleur, fontWeight: 700, textTransform: "uppercase" }}>{b.categorie}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.nom}</div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+                    {b.mode_location && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#3B6D11", background: "#EAF3DE", padding: "2px 6px", borderRadius: 999 }}>🔑 Louer</span>}
+                    {b.mode_commander && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1E4B8C", background: "#EAF0FB", padding: "2px 6px", borderRadius: 999 }}>📦 Commander</span>}
+                    {b.mode_payer_maintenant && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#8A6412", background: "#FBF3E3", padding: "2px 6px", borderRadius: 999 }}>💵 Direct</span>}
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}

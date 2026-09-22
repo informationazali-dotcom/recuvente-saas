@@ -3806,7 +3806,7 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
 }
 
 function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace, onSupprimerBoutique }) {
-  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || workspace.activity_type === "network_marketing" || (workspace.activity_type === "location_vehicule" && workspace.slug === "luxury-car");
+  const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || workspace.activity_type === "network_marketing" || workspace.activity_type === "location_vehicule";
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
   const [livreurs, setLivreurs] = useState([]);
@@ -6917,7 +6917,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={formaterDevise(workspace.currency)} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={formaterDevise(workspace.currency)} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={formaterDevise(workspace.currency)} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} commandes={commandes} />}
       {showTeam && !accesBloque && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showRapportSemaine && (
         <RapportSemaineModal
@@ -7080,7 +7080,7 @@ function BoutonMicro({ onResultat, langue = "fr-FR" }) {
   );
 }
 
-function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [], logements = [] }) {
+function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [], logements = [], commandes = [] }) {
   const estRetail = activityType === "retail";
   const estLocation = activityType === "location_immobiliere";
   const estRestaurant = activityType === "restaurant";
@@ -7097,7 +7097,18 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
     const bienChoisi = biensLocation.find((b) => b.id === bienId);
     const nbJours = dateDebut && dateFin ? Math.max(1, Math.round((new Date(dateFin) - new Date(dateDebut)) / (1000 * 60 * 60 * 24)) + 1) : 0;
     const montantTotal = bienChoisi ? nbJours * Number(bienChoisi.prix_jour) : 0;
-    const formValide = bienId && nomLocataire.trim() && telLocataire.trim() && dateDebut && dateFin && nbJours > 0;
+
+    // Anti-double-réservation : deux clients ne doivent jamais pouvoir réserver le même
+    // véhicule sur des dates qui se chevauchent. On regarde les locations déjà enregistrées
+    // pour ce bien (hors réservations échouées/annulées) et on compare les périodes.
+    const chevauchent = (aDebut, aFin, bDebut, bFin) => aDebut <= bFin && bDebut <= aFin;
+    const reservationsActives = commandes.filter((c) => c.bien_location_id && c.statut !== "echouee" && c.date_debut_location && c.date_fin_location);
+    function bienLibrePourPeriode(id, debut, fin) {
+      if (!id || !debut || !fin) return true;
+      return !reservationsActives.some((c) => c.bien_location_id === id && chevauchent(debut, fin, c.date_debut_location, c.date_fin_location));
+    }
+    const bienChoisiLibre = bienLibrePourPeriode(bienId, dateDebut, dateFin);
+    const formValide = bienId && nomLocataire.trim() && telLocataire.trim() && dateDebut && dateFin && nbJours > 0 && bienChoisiLibre;
 
     function validerLocation() {
       if (!formValide) return;
@@ -7134,9 +7145,14 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }}
           >
             <option value="">Choisir un véhicule / matériel...</option>
-            {biensLocation.filter((b) => b.disponible).map((b) => (
-              <option key={b.id} value={b.id}>{b.nom} — {Number(b.prix_jour).toLocaleString("fr-FR")} {currency}/jour</option>
-            ))}
+            {biensLocation.filter((b) => b.disponible).map((b) => {
+              const libre = bienLibrePourPeriode(b.id, dateDebut, dateFin);
+              return (
+                <option key={b.id} value={b.id} disabled={!libre}>
+                  {b.nom} — {Number(b.prix_jour).toLocaleString("fr-FR")} {currency}/jour{!libre ? " — déjà réservé sur ces dates" : ""}
+                </option>
+              );
+            })}
           </select>
 
           <input placeholder="Nom du client" value={nomLocataire} onChange={(e) => setNomLocataire(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
@@ -7154,6 +7170,12 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
           </div>
 
           <input placeholder={`Caution (${currency}, optionnel)`} type="number" value={caution} onChange={(e) => setCaution(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }} />
+
+          {bienId && dateDebut && dateFin && !bienChoisiLibre && (
+            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12.5, color: "#B23A26", fontWeight: 600 }}>
+              ⚠️ Ce véhicule est déjà réservé sur une partie de cette période. Choisis d'autres dates ou un autre véhicule.
+            </div>
+          )}
 
           {bienChoisi && nbJours > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #ECE8DC", marginBottom: 14 }}>

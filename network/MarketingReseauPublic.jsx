@@ -98,6 +98,48 @@ export function TunnelRecrutementPublic({ code }) {
   const [fichierIdentite,setFichierIdentite]=useState(null);
   const [photoProfil,setPhotoProfil]=useState(null);
   const [uploadEnCours,setUploadEnCours]=useState(false);
+  // Déclaration de paiement (§ trou comblé) — accessible juste après la
+  // soumission (si un pack a été choisi) ET plus tard via le suivi de
+  // candidature, tant que statut_paiement reste 'non_declare'.
+  const [paiementRef,setPaiementRef]=useState("");
+  const [paiementMoyen,setPaiementMoyen]=useState("");
+  const [preuvePaiement,setPreuvePaiement]=useState(null);
+  const [paiementLoading,setPaiementLoading]=useState(false);
+  const [paiementError,setPaiementError]=useState("");
+  const [paiementDeclareFait,setPaiementDeclareFait]=useState(false);
+  async function declarerPaiement(commandeId){
+    setPaiementError("");
+    if(!paiementRef.trim()&&!paiementMoyen.trim()&&!preuvePaiement){
+      setPaiementError("Merci de renseigner au moins une référence, un moyen de paiement ou une preuve.");
+      return;
+    }
+    setPaiementLoading(true);
+    let preuvePaiementPath=null;
+    if(preuvePaiement){
+      const chemin=`${config.workspace_id}/paiement-${crypto.randomUUID()}-${preuvePaiement.name}`;
+      const {error:erreurUpload}=await supabase.storage.from("candidatures-documents").upload(chemin,preuvePaiement);
+      if(erreurUpload){setPaiementLoading(false);setPaiementError("Échec de l'envoi de la preuve — réessaie ou continue sans.");return;}
+      preuvePaiementPath=chemin;
+    }
+    const {error:err}=await supabase.rpc("declarer_paiement_pack_public",{p_commande_id:commandeId,p_reference:paiementRef.trim()||null,p_moyen:paiementMoyen.trim()||null,p_preuve_path:preuvePaiementPath});
+    setPaiementLoading(false);
+    if(err){setPaiementError(err.message||"Impossible d'enregistrer la déclaration de paiement.");return;}
+    setPaiementDeclareFait(true);
+    setSuiviResultat(r=>r?{...r,statut_paiement:'declare'}:r);
+  }
+  function renduFormulairePaiement(commandeId){
+    if(paiementDeclareFait){
+      return <div style={{marginTop:14,fontSize:11,color:'#9fffc9',background:'rgba(16,223,134,.1)',border:'1px solid rgba(16,223,134,.25)',borderRadius:12,padding:'12px 14px'}}>✅ Paiement déclaré — le responsable du réseau va maintenant le vérifier.</div>;
+    }
+    return <div style={{marginTop:14,padding:14,borderRadius:14,background:'rgba(255,255,255,.045)',border:'1px solid rgba(255,255,255,.08)'}}>
+      <div style={{fontSize:11,fontWeight:800,color:'#fff',marginBottom:8}}>💳 Déclarer mon paiement</div>
+      <input className="rvnpinput" value={paiementRef} onChange={e=>setPaiementRef(e.target.value)} placeholder="Référence de paiement (optionnel)" style={{marginBottom:8}}/>
+      <input className="rvnpinput" value={paiementMoyen} onChange={e=>setPaiementMoyen(e.target.value)} placeholder="Moyen de paiement (ex: Mobile Money, virement...)" style={{marginBottom:8}}/>
+      <label style={{display:'block',fontSize:9,color:'#8ea79b',marginBottom:6}}>Preuve de paiement (optionnel, restera privée — visible uniquement par le responsable du réseau)<input type="file" accept="image/*,.pdf" onChange={e=>setPreuvePaiement(e.target.files?.[0]||null)} style={{display:'block',marginTop:6,fontSize:11,color:'#cfe6db'}}/></label>
+      {paiementError&&<div className="rvnperror" style={{marginBottom:8}}>{paiementError}</div>}
+      <button type="button" onClick={()=>declarerPaiement(commandeId)} disabled={paiementLoading} className="rvnpbtn primary" style={{width:'100%'}}>{paiementLoading?'Envoi…':'Déclarer mon paiement →'}</button>
+    </div>;
+  }
   async function submit(evt){evt.preventDefault();setError("");if(!form.prenom.trim()||!form.nom.trim()||!form.telephone.trim())return setError("Le prénom, le nom et le téléphone sont obligatoires.");if(!form.consent)return setError("Merci d'accepter d'être recontacté pour le traitement de votre candidature.");setLoading(true);
     let preuveIdentitePath=null,photoProfilPath=null;
     if(fichierIdentite||photoProfil){
@@ -146,7 +188,7 @@ export function TunnelRecrutementPublic({ code }) {
   // Rendu du contenu de l'étape courante uniquement (jamais tout d'un coup)
   function renduEtape(){
     if(success){
-      return <div className="rvnpsuccess"><div style={{fontSize:38}}>✅</div><h2>Candidature enregistrée</h2><p>Votre demande a bien été transmise. Conservez votre référence <strong style={{color:'#ffd06b'}}>{success.candidature_id}</strong>. {success.commande_id?'Votre choix de pack est également enregistré. Le responsable du réseau va maintenant vérifier votre paiement puis activer votre compte.':'Le responsable du réseau pourra maintenant étudier votre candidature et vous indiquer la suite.'}</p><p style={{fontSize:10.5,color:'#8ea79b',marginTop:14}}>Vous pouvez fermer cette page — {config.recruteur_nom} vous recontactera, ou revenez ici avec le lien "Suivre ma candidature" plus haut pour connaître l'avancement.</p></div>;
+      return <div className="rvnpsuccess"><div style={{fontSize:38}}>✅</div><h2>Candidature enregistrée</h2><p>Votre demande a bien été transmise. Conservez votre référence <strong style={{color:'#ffd06b'}}>{success.candidature_id}</strong>. {success.commande_id?'Votre choix de pack est également enregistré. Le responsable du réseau va maintenant vérifier votre paiement puis activer votre compte.':'Le responsable du réseau pourra maintenant étudier votre candidature et vous indiquer la suite.'}</p>{success.commande_id&&renduFormulairePaiement(success.commande_id)}<p style={{fontSize:10.5,color:'#8ea79b',marginTop:14}}>Vous pouvez fermer cette page — {config.recruteur_nom} vous recontactera, ou revenez ici avec le lien "Suivre ma candidature" plus haut pour connaître l'avancement.</p></div>;
     }
 
     // Étape 0 — Accueil
@@ -266,7 +308,10 @@ export function TunnelRecrutementPublic({ code }) {
         <input className="rvnpinput" value={suiviTel} onChange={e=>setSuiviTel(e.target.value)} placeholder="Votre téléphone" style={{marginBottom:8}}/>
         <button type="button" onClick={verifierSuivi} disabled={suiviChargement} className="rvnpbtn secondary" style={{width:'100%',minHeight:40}}>{suiviChargement?'...':'Vérifier'}</button>
         {suiviResultat&&(suiviResultat.trouve?
-          <div style={{marginTop:10,fontSize:11,color:'#caffdf'}}>Statut : <strong>{libelleStatutSuivi[suiviResultat.statut_parcours]||suiviResultat.statut_parcours}</strong></div>
+          <>
+            <div style={{marginTop:10,fontSize:11,color:'#caffdf'}}>Statut : <strong>{libelleStatutSuivi[suiviResultat.statut_parcours]||suiviResultat.statut_parcours}</strong></div>
+            {suiviResultat.commande_id&&suiviResultat.statut_paiement==='non_declare'&&renduFormulairePaiement(suiviResultat.commande_id)}
+          </>
           :<div style={{marginTop:10,fontSize:11,color:'#ffc0b9'}}>Aucune candidature trouvée avec ce numéro.</div>
         )}
       </div>}

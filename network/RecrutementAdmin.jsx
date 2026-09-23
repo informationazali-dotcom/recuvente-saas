@@ -253,7 +253,7 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
       const reponse = await fetch("/api/admin-panel", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
-        body: JSON.stringify({ action: "obtenir_url_document_candidature", candidature_id: candidat.id, workspace_id: workspace.id, type }),
+        body: JSON.stringify({ action: "obtenir_url_document_candidature", candidature_id: candidat.id, commande_id: type === "paiement" ? commande.id : undefined, workspace_id: workspace.id, type }),
       });
       const json = await reponse.json();
       if (!reponse.ok) { setErreurDoc(json?.error || "Échec de la récupération."); setChargementDoc(false); return; }
@@ -311,6 +311,21 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
     });
     setEnCours(false);
     if (error) { setErreur(error.message || "Échec de l'enregistrement."); return; }
+    await rafraichirCommande(); await onChange();
+  }
+
+  const [modifCodeOuvert, setModifCodeOuvert] = useState(false);
+  const [nouveauCode, setNouveauCode] = useState("");
+
+  async function corrigerCodePartenaireExterne() {
+    if (!nouveauCode.trim()) { setErreur("Indique le nouveau code partenaire."); return; }
+    setEnCours(true); setErreur("");
+    const { error } = await supabase.rpc("modifier_code_partenaire_externe_recrutement", {
+      p_commande_id: commande.id, p_nouveau_code: nouveauCode.trim(),
+    });
+    setEnCours(false);
+    if (error) { setErreur(error.message || "Échec de la correction."); return; }
+    setModifCodeOuvert(false); setNouveauCode("");
     await rafraichirCommande(); await onChange();
   }
 
@@ -414,7 +429,18 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
         {/* Étape 1 : paiement */}
         {commande.id !== null && candidat?.statut_admin !== "refusee" && commande.statut_paiement !== "confirme" && commande.statut_paiement !== "refuse" && (
           <div style={{ border: "1px solid #ECE8DC", borderRadius: 10, padding: 12, marginBottom: 14 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>💳 Paiement (déclaré hors plateforme)</div>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>💳 Paiement{commande.statut_paiement === "declare" ? " — déclaré par le candidat" : " (déclaré hors plateforme)"}</div>
+            {commande.statut_paiement === "declare" && (commande.reference_paiement || commande.moyen_paiement || commande.preuve_paiement_path) && (
+              <div style={{ fontSize: 11, color: "#6B7168", background: "#F7FAF7", borderRadius: 8, padding: "8px 10px", marginBottom: 8, lineHeight: 1.6 }}>
+                {commande.reference_paiement && <div>Référence : <strong style={{ color: "#16231F" }}>{commande.reference_paiement}</strong></div>}
+                {commande.moyen_paiement && <div>Moyen : <strong style={{ color: "#16231F" }}>{commande.moyen_paiement}</strong></div>}
+                {commande.preuve_paiement_path && (
+                  <button onClick={() => consulterDocument("paiement")} disabled={chargementDoc} style={{ marginTop: 6, background: "#F3F1EA", color: "#16231F", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+                    🧾 Voir la preuve de paiement
+                  </button>
+                )}
+              </div>
+            )}
             <input placeholder="Référence de paiement" value={reference} onChange={(e) => setReference(e.target.value)} style={champ} />
             <select value={moyen} onChange={(e) => setMoyen(e.target.value)} style={champ}>
               <option value="mobile_money">Mobile Money</option>
@@ -449,6 +475,24 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
             <button onClick={enregistrerPartenaireExterne} disabled={enCours} style={{ width: "100%", background: "#6b3fd4", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
               Enregistrer
             </button>
+          </div>
+        )}
+
+        {commande.statut_partenaire === "cree" && (
+          <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 10, lineHeight: 1.6 }}>
+            🏢 Partenaire externe ({commande.systeme_externe_nom || "système externe"})
+            {commande.partenaire_externe_code ? <> — code <strong style={{ color: "#16231F" }}>{commande.partenaire_externe_code}</strong></> : ""}
+            {!modifCodeOuvert ? (
+              <button onClick={() => { setNouveauCode(commande.partenaire_externe_code || ""); setModifCodeOuvert(true); }} style={{ marginLeft: 8, background: "none", border: "none", color: "#6b3fd4", fontSize: 10.5, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>
+                Corriger le code
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <input placeholder="Nouveau code partenaire" value={nouveauCode} onChange={(e) => setNouveauCode(e.target.value)} style={{ ...champ, marginBottom: 0, flex: 1 }} />
+                <button onClick={corrigerCodePartenaireExterne} disabled={enCours} style={{ background: "#6b3fd4", color: "white", border: "none", borderRadius: 8, padding: "0 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>OK</button>
+                <button onClick={() => setModifCodeOuvert(false)} style={{ background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "0 10px", fontSize: 11, cursor: "pointer" }}>Annuler</button>
+              </div>
+            )}
           </div>
         )}
 

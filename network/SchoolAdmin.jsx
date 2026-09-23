@@ -288,6 +288,8 @@ function FicheCoursModal({ cours, onClose, onChange }) {
   const [enCours, setEnCours] = useState(false);
   const [tentativesReponseLibre, setTentativesReponseLibre] = useState([]);
   const [filleulsParId, setFilleulsParId] = useState({});
+  const [tentativeEnRevision, setTentativeEnRevision] = useState(null);
+  const [erreurRevision, setErreurRevision] = useState("");
 
   async function charger() {
     if (cours.type === "quiz") {
@@ -296,7 +298,7 @@ function FicheCoursModal({ cours, onClose, onChange }) {
     }
     if (cours.type === "reponse_libre") {
       const [{ data: tentatives }, { data: f }] = await Promise.all([
-        supabase.from("ecole_quiz_tentatives").select("id, filleul_id, reussi, feedback_ia, created_at").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("ecole_quiz_tentatives").select("id, filleul_id, reussi, feedback_ia, created_at, statut_revision, note_revision").eq("cours_id", cours.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("filleuls").select("id, nom").eq("workspace_id", cours.workspace_id),
       ]);
       setTentativesReponseLibre(tentatives || []);
@@ -317,6 +319,26 @@ function FicheCoursModal({ cours, onClose, onChange }) {
     setEnCours(false);
     setEdition(false);
     await onChange();
+  }
+
+  async function validerTentative(t) {
+    setErreurRevision("");
+    setTentativeEnRevision(t.id);
+    const { error } = await supabase.rpc("valider_tentative_quiz_ecole", { p_tentative_id: t.id });
+    setTentativeEnRevision(null);
+    if (error) { setErreurRevision(error.message || "Échec de la validation."); return; }
+    await charger();
+  }
+
+  async function invaliderTentative(t) {
+    const note = window.prompt("Note de révision (optionnel) — pourquoi l'IA s'est trompée :", "");
+    if (note === null) return;
+    setErreurRevision("");
+    setTentativeEnRevision(t.id);
+    const { error } = await supabase.rpc("invalider_tentative_quiz_ecole", { p_tentative_id: t.id, p_note: note.trim() || null });
+    setTentativeEnRevision(null);
+    if (error) { setErreurRevision(error.message || "Échec de l'invalidation."); return; }
+    await charger();
   }
 
   async function supprimerQuestion(id) {
@@ -386,6 +408,7 @@ function FicheCoursModal({ cours, onClose, onChange }) {
         {cours.type === "reponse_libre" && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "#16231F", marginBottom: 8 }}>Réponses soumises (supervision qualité)</div>
+            {erreurRevision && <div style={{ fontSize: 11, color: "#D64933", marginBottom: 8 }}>{erreurRevision}</div>}
             {tentativesReponseLibre.length === 0 && !chargement && <div style={{ fontSize: 11.5, color: "#8A9089" }}>Aucune réponse soumise pour l'instant.</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {tentativesReponseLibre.map((t) => (
@@ -395,7 +418,36 @@ function FicheCoursModal({ cours, onClose, onChange }) {
                     <span style={{ color: t.reussi ? "#1a7a3c" : "#D64933" }}>{t.reussi ? "✅ Réussi" : "❌ Non réussi"}</span>
                   </div>
                   <div style={{ color: "#6B7168" }}>{t.feedback_ia}</div>
-                  <div style={{ fontSize: 9.5, color: "#8A9089", marginTop: 4 }}>{new Date(t.created_at).toLocaleDateString("fr-FR")}</div>
+                  {t.statut_revision === "invalidee" && t.note_revision && (
+                    <div style={{ color: "#D64933", marginTop: 4, fontStyle: "italic" }}>Note admin : {t.note_revision}</div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700,
+                      color: t.statut_revision === "validee" ? "#1a7a3c" : t.statut_revision === "invalidee" ? "#D64933" : "#8A9089",
+                    }}>
+                      {t.statut_revision === "validee" ? "✅ Validée" : t.statut_revision === "invalidee" ? "❌ Invalidée" : "🕓 Non revue"}
+                    </span>
+                    <span style={{ fontSize: 9.5, color: "#8A9089" }}>{new Date(t.created_at).toLocaleDateString("fr-FR")}</span>
+                  </div>
+                  {(!t.statut_revision || t.statut_revision === "non_revue") && (
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      <button
+                        onClick={() => validerTentative(t)}
+                        disabled={tentativeEnRevision === t.id}
+                        style={{ flex: 1, background: "#e8f5ec", color: "#1a7a3c", border: "none", borderRadius: 6, padding: "6px 0", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        Valider
+                      </button>
+                      <button
+                        onClick={() => invaliderTentative(t)}
+                        disabled={tentativeEnRevision === t.id}
+                        style={{ flex: 1, background: "#FBEAEA", color: "#D64933", border: "none", borderRadius: 6, padding: "6px 0", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        Invalider
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

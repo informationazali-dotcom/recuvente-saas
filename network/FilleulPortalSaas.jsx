@@ -18,6 +18,7 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
   const [prospects, setProspects] = useState([]);
   const [coachings, setCoachings] = useState([]);
   const [monEquipe, setMonEquipe] = useState([]);
+  const [commissionsLeader, setCommissionsLeader] = useState([]);
 
   async function chargerStock() {
     const { data } = await supabase.from("filleuls_stock").select("*, produits(nom)").eq("filleul_id", filleul.id).gt("quantite_restante", 0);
@@ -35,14 +36,19 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       // Fixe définitivement filleuls.user_id à la première connexion (voir le
       // correctif RLS) — sans effet si déjà lié, donc sûr à rappeler à chaque fois.
       await supabase.rpc("lier_mon_profil_filleul", { p_workspace_id: workspace.id }).catch(() => {});
-      const [{ data: liens }, { data: comm }, { data: attrib }] = await Promise.all([
+      const [{ data: liens }, { data: comm }, { data: attrib }, { data: commLeader }] = await Promise.all([
         supabase.from("filleuls_liens").select("*").eq("filleul_id", filleul.id).eq("actif", true).limit(1),
         supabase.from("filleuls_commissions").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false }),
         supabase.from("filleuls_attributions").select("*").eq("filleul_id", filleul.id).order("created_at", { ascending: false }),
+        // Commissions gagnées en tant que leader/parrain d'un autre filleul (protégé par la
+        // policy RLS dédiée "filleuls_comm_leader_read") — distinct des commissions ci-dessus,
+        // où filleul.id est le VENDEUR, pas le leader.
+        supabase.from("filleuls_commissions").select("*").eq("leader_id", filleul.id).order("created_at", { ascending: false }),
       ]);
       setLien((liens && liens[0]) || null);
       setCommissions(comm || []);
       setVentes(attrib || []);
+      setCommissionsLeader(commLeader || []);
       if (filleul.mode_vente === "revendeur") await chargerStock();
       await chargerProspects();
       const { data: equipeData } = await supabase.from("filleuls").select("id, nom, statut").eq("parrain_id", filleul.id);
@@ -68,6 +74,9 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
   const totalPending = commissions.filter((c) => c.statut === "pending").reduce((s, c) => s + Number(c.montant_commission), 0);
   const totalValidated = commissions.filter((c) => c.statut === "validated" || c.statut === "available").reduce((s, c) => s + Number(c.montant_commission), 0);
   const totalPaid = commissions.filter((c) => c.statut === "paid").reduce((s, c) => s + Number(c.montant_commission), 0);
+  const totalLeaderPending = commissionsLeader.filter((c) => c.statut_leader === "pending").reduce((s, c) => s + Number(c.montant_commission_leader || 0), 0);
+  const totalLeaderValidated = commissionsLeader.filter((c) => c.statut_leader === "validated" || c.statut_leader === "available").reduce((s, c) => s + Number(c.montant_commission_leader || 0), 0);
+  const totalLeaderPaid = commissionsLeader.filter((c) => c.statut_leader === "paid").reduce((s, c) => s + Number(c.montant_commission_leader || 0), 0);
   // Une vente peut venir du lien (filleuls_attributions) ou du stock personnel en mode
   // revendeur (filleuls_commissions.source = 'vente_stock', sans ligne d'attribution).
   const ventesAttribuees = ventes.filter((v) => v.filleul_id).length + commissions.filter((c) => c.source === "vente_stock").length;
@@ -147,6 +156,17 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
                 <span style={{ color: m.statut === "actif" ? "#1a7a3c" : "#8A9089" }}>{m.statut === "actif" ? "✅ Actif" : "⏸️ Suspendu"}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {commissionsLeader.length > 0 && (
+        <div style={{ ...carte, marginBottom: 16 }}>
+          <div style={label}>👑 Mes gains en tant que leader (commissions de mon équipe)</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 8 }}>
+            <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>En attente</div><div style={{ fontSize: 16, fontWeight: 800, color: "#16231F" }}>{totalLeaderPending.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#8A9089" }}>{currency}</span></div></div>
+            <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Disponible</div><div style={{ fontSize: 16, fontWeight: 800, color: "#1a7a3c" }}>{totalLeaderValidated.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#8A9089" }}>{currency}</span></div></div>
+            <div><div style={{ fontSize: 10.5, color: "#8A9089" }}>Déjà payé</div><div style={{ fontSize: 16, fontWeight: 800, color: "#16231F" }}>{totalLeaderPaid.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#8A9089" }}>{currency}</span></div></div>
           </div>
         </div>
       )}

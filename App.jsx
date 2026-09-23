@@ -4953,6 +4953,17 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     return { aRelivrer, jamaisContactees, sansNouvelles, total, argentARisque, argentRecuperable };
   }, [commandes, relanceCountByOrder]);
 
+  // Les 6 dernières commandes, tous statuts confondus — affichées sur "Accueil" quand il n'y a
+  // rien d'urgent à traiter aujourd'hui (todoAujourdhui.total === 0), pour que la page ne paraisse
+  // jamais vide/cassée : sans ça, un vendeur dont les commandes sont déjà toutes traitées ne voyait
+  // qu'un message "🎉 Aucune commande urgente", ce qui donnait l'impression que "Accueil" ne menait
+  // nulle part (il fallait cliquer sur "Commandes" pour voir quoi que ce soit).
+  const commandesRecentes = useMemo(() => {
+    return [...commandes]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 6);
+  }, [commandes]);
+
   const produitsEnProgression = useMemo(() => {
     const maintenant = Date.now();
     const il7j = maintenant - 7 * 86400000;
@@ -6378,9 +6389,39 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           )}
 
           {todoAujourdhui.total === 0 && (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9089" }}>
+            <div style={{ textAlign: "center", padding: "24px 20px 10px", color: "#8A9089" }}>
               <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
               <div style={{ fontSize: 14 }}>Aucune commande urgente pour le moment.</div>
+            </div>
+          )}
+
+          {todoAujourdhui.total === 0 && commandesRecentes.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#16231F" }}>🕓 Commandes récentes</div>
+                <button onClick={() => setVue("commandes")} style={{ background: "none", border: "none", color: "#1F9D6E", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0 }}>
+                  Voir tout →
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {commandesRecentes.map((c) => {
+                  const info = STATUTS[c.statut] || { label: c.statut, color: "#8A9089", bg: "#F2F0E8" };
+                  return (
+                    <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setVue("commandes")}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.client}</div>
+                        <div style={{ fontSize: 12, color: "#6B7168", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {c.produit} · {new Date(c.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 14 }}>{Number(c.montant).toLocaleString("fr-FR")} {workspace.currency}</div>
+                        <div style={{ display: "inline-block", marginTop: 3, fontSize: 10, fontWeight: 700, color: info.color, background: info.bg, borderRadius: 6, padding: "2px 7px" }}>{info.label}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

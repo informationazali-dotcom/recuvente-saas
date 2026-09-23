@@ -281,12 +281,22 @@ function OngletAmbassadeur() {
 function OngletAdmin({ donnees, recharger }) {
   const [boutiques, setBoutiques] = useState([]);
   const [msg, setMsg] = useState(null);
+  const [stripe, setStripe] = useState({ boutiques: [], taux: 5 });
+  const [msgStripe, setMsgStripe] = useState(null);
   useEffect(() => { appeler("annuaire_admin_liste", {}).then(({ status, data }) => status === 200 && setBoutiques(data.boutiques || [])); }, []);
+  const chargerStripe = () => appeler("stripe_reversements_admin_liste", {}).then(({ status, data }) => status === 200 && setStripe(data));
+  useEffect(() => { chargerStripe(); }, []);
   async function payer(a) {
     if (!window.confirm(`Confirmer que tu as payé ${somme(a.totaux.due)} à ${a.nom || a.email} ?`)) return;
     const { status, data } = await appeler("amb_admin_payer", { ambassadeur_id: a.id });
     setMsg(status === 200 ? { ok: true, texte: `${data.commissions_payees} commission(s) marquée(s) payée(s).` } : { ok: false, texte: data.error || "Erreur" });
     recharger();
+  }
+  async function marquerReverse(b) {
+    if (!window.confirm(`Confirmer que tu as reversé ${somme(b.totaux.du)} à ${b.nom} (${b.contact_paiement || "aucun contact renseigné"}) ?`)) return;
+    const { status, data } = await appeler("stripe_reversements_admin_marquer", { workspace_id: b.id });
+    setMsgStripe(status === 200 ? { ok: true, texte: `${data.reversements_marques} paiement(s) marqué(s) reversé(s).` } : { ok: false, texte: data.error || "Erreur" });
+    chargerStripe();
   }
   async function une(b, jours) {
     await appeler("annuaire_une", { cible_id: b.id, jours });
@@ -309,6 +319,21 @@ function OngletAdmin({ donnees, recharger }) {
           </div>
         ))}
         <Message m={msg} />
+      </div>
+      <div style={S.carte}>
+        <div style={S.titre}>💳 Vendeurs Europe (Stripe) — ce que tu leur dois</div>
+        <div style={S.aide}>Paiements par carte encaissés sur ton compte Stripe unique (pas Stripe Connect). Commission plateforme : {stripe.taux} % (réglable avec STRIPE_COMMISSION_TAUX dans Vercel). Tu reverses toi-même (virement, PayPal...) puis tu marques ici.</div>
+        {stripe.boutiques.length === 0 && <div style={{ ...S.aide, marginTop: 8 }}>Aucun paiement Stripe pour l'instant.</div>}
+        {stripe.boutiques.map((b) => (
+          <div key={b.id} style={{ borderTop: "1px solid #F1EFE8", padding: "10px 0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <div><div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>{b.contact_paiement && <div style={{ ...S.aide, color: "#16231F" }}>💸 {b.contact_paiement}</div>}{!b.contact_paiement && <div style={S.aide}>Aucun contact de paiement renseigné (le marchand le saisit dans Intégrations).</div>}</div>
+              <div style={{ textAlign: "right" }}><div style={{ fontWeight: 800, color: "#1a7a3c" }}>{somme(b.totaux.du)}</div><div style={S.aide}>déjà reversé : {somme(b.totaux.reverse)}</div>
+                {Object.values(b.totaux.du).some((v) => v > 0) && <button style={{ ...S.bouton, padding: "6px 10px", fontSize: 12.5, marginTop: 6 }} onClick={() => marquerReverse(b)}>Marquer reversé</button>}</div>
+            </div>
+          </div>
+        ))}
+        <Message m={msgStripe} />
       </div>
       <div style={S.carte}>
         <div style={S.titre}>⭐ Annuaire — « à la une » (offre payante possible)</div>

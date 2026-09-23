@@ -581,7 +581,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, slug, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id, azali_config, marche, filleul_abonnement_actif, filleul_abonnement_seuil_commandes, filleul_abonnement_jours_grace)")
+      .select("workspace_id, role, workspaces(id, name, slug, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id, azali_config, marche, filleul_abonnement_actif, filleul_abonnement_seuil_commandes, filleul_abonnement_jours_grace, stripe_contact_paiement)")
       .eq("user_id", userId);
     if (error) {
       const estErreurAuth = /jwt|token|expired|unauthorized|401|invalid refresh/i.test(error.message || "") || error.code === "PGRST301";
@@ -17953,6 +17953,38 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
   const [erreurDomainePerso, setErreurDomainePerso] = useState("");
   const [instructionsDomaine, setInstructionsDomaine] = useState(null);
 
+  // Reversement des paiements par carte (Stripe, marché Europe) : RecuVente encaisse avec un
+  // compte unique (voir lib/stripe.js) puis reverse le commerçant manuellement, comme pour les
+  // commissions ambassadeur. Où envoyer l'argent + ce qui est dû jusqu'ici.
+  const [stripeContact, setStripeContact] = useState(workspace.stripe_contact_paiement || "");
+  const [savingStripeContact, setSavingStripeContact] = useState(false);
+  const [stripeContactSaved, setStripeContactSaved] = useState(false);
+  const [reversementsStripe, setReversementsStripe] = useState(null);
+
+  useEffect(() => {
+    if ((workspace.marche || "afrique") !== "europe") return;
+    let vivant = true;
+    supabase.from("reversements_stripe").select("montant_du, devise, statut").eq("workspace_id", workspace.id).limit(2000).then(({ data }) => {
+      if (!vivant) return;
+      const t = { du: {}, reverse: {} };
+      for (const r of data || []) {
+        const cle = r.statut === "reverse" ? "reverse" : "du";
+        const d = r.devise || "EUR";
+        t[cle][d] = (t[cle][d] || 0) + Number(r.montant_du || 0);
+      }
+      setReversementsStripe(t);
+    });
+    return () => { vivant = false; };
+  }, [workspace.id, workspace.marche]);
+
+  async function sauvegarderStripeContact() {
+    setSavingStripeContact(true);
+    await supabase.from("workspaces").update({ stripe_contact_paiement: stripeContact.trim().slice(0, 200) || null }).eq("id", workspace.id);
+    setSavingStripeContact(false);
+    setStripeContactSaved(true);
+    setTimeout(() => setStripeContactSaved(false), 2000);
+  }
+
   async function sauvegarderDomainePerso() {
     setSavingDomainePerso(true);
     setErreurDomainePerso("");
@@ -18848,6 +18880,48 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
             </div>
           )}
         </div>
+
+        {(workspace.marche || "afrique") === "europe" && (
+          <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+              💳 Reversement des paiements par carte
+            </div>
+            <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 12, lineHeight: 1.5 }}>
+              Les paiements par carte de tes clients arrivent d'abord sur le compte Stripe de RecuVente, puis te sont reversés (comme un versement classique), après déduction de la commission de la plateforme. Indique ici où tu veux les recevoir (IBAN, PayPal...).
+            </div>
+            {reversementsStripe && (
+              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                <div style={{ flex: 1, background: "#EAF3DE", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 10.5, color: "#3B6D11", textTransform: "uppercase", fontWeight: 600 }}>À recevoir</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: "#1a7a3c" }}>
+                    {Object.entries(reversementsStripe.du).filter(([, v]) => v > 0).map(([d, v]) => `${v.toLocaleString("fr-FR")} ${d}`).join(" + ") || "0"}
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: "#F4F1E8", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 10.5, color: "#6B7168", textTransform: "uppercase", fontWeight: 600 }}>Déjà reversé</div>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>
+                    {Object.entries(reversementsStripe.reverse).filter(([, v]) => v > 0).map(([d, v]) => `${v.toLocaleString("fr-FR")} ${d}`).join(" + ") || "0"}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={stripeContact}
+                onChange={(e) => setStripeContact(e.target.value)}
+                placeholder="IBAN, PayPal, Wise..."
+                style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13 }}
+              />
+              <button
+                onClick={sauvegarderStripeContact}
+                disabled={savingStripeContact}
+                style={{ background: stripeContactSaved ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+              >
+                {stripeContactSaved ? "✅" : savingStripeContact ? "..." : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>

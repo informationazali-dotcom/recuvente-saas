@@ -35,6 +35,12 @@ export default function SuiviPublic({ commandeId }) {
   const [paiementEnCours, setPaiementEnCours] = useState(false);
   const [erreurPaiement, setErreurPaiement] = useState("");
   const retourDePaiement = (() => { try { return new URLSearchParams(window.location.search).get("paye") === "1"; } catch (_) { return false; } })();
+  // Retour d'une session Stripe (marché Europe uniquement — voir CataloguePublic.jsx BoutonPayerStripe).
+  // Stripe n'a pas de webhook dans ce lot (voir lib/stripe.js) : c'est CETTE page, au retour du client,
+  // qui déclenche la vérification + le crédit du paiement. N'affecte en rien le suivi COD/CinetPay/PayDunya
+  // existant ci-dessous : ce n'est qu'un appel supplémentaire, silencieux s'il échoue (le filet de sécurité
+  // du cron quotidien rattrape les paiements dont le client ne reviendrait jamais confirmer).
+  const sessionIdStripe = (() => { try { return new URLSearchParams(window.location.search).get("session_id") || null; } catch (_) { return null; } })();
 
   async function confirmerReception() {
     setEnvoiEnCours(true);
@@ -49,6 +55,17 @@ export default function SuiviPublic({ commandeId }) {
       else setCommande(data[0]);
     });
   }, [commandeId]);
+
+  // Stripe (marché Europe) : demande la vérification + le crédit une seule fois au montage de la page,
+  // avant le polling de statut générique ci-dessous, qui affichera alors le bon résultat.
+  useEffect(() => {
+    if (!sessionIdStripe) return;
+    fetch("/api/admin-panel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verifier_paiement_stripe", sessionId: sessionIdStripe }),
+    }).catch(() => {});
+  }, [sessionIdStripe]);
 
   // État du paiement en ligne. Au retour de la page de paiement, on revérifie quelques secondes le temps que la banque confirme.
   useEffect(() => {

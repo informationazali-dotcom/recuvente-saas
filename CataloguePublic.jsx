@@ -344,6 +344,69 @@ function BoutonPayerEnLigne({ commandeId, couleur, devise }) {
   );
 }
 
+// ============================================================================
+//  « Payer par carte » (Stripe, marché EUROPE UNIQUEMENT) — n'apparaît QUE si
+//  entreprise.marche === 'europe' (réglage boutique, chemin additif — voir App.jsx). La commande a
+//  déjà été créée normalement (même RPC, même logique COD que pour l'Afrique) avant que ce bloc ne
+//  s'affiche : ce bouton ne fait que proposer, EN PLUS, de régler tout de suite par carte via Stripe
+//  (compte plateforme unique, voir lib/stripe.js). Le client peut toujours ignorer ce bloc.
+// ============================================================================
+function BoutonPayerStripe({ commandeId, workspaceId, couleur, devise }) {
+  const [etat, setEtat] = useState(null); // null = chargement / rien à payer
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  useEffect(() => {
+    if (!commandeId) return undefined;
+    let vivant = true;
+    // Réutilise le même point de statut générique que "payer maintenant" (CinetPay/PayDunya) —
+    // il calcule juste le reste à payer à partir de la commande, sans dépendre du fournisseur.
+    fetch(`/api/facebook-capi?paiement_statut=${encodeURIComponent(commandeId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (vivant && j && Number(j.reste) > 0) setEtat(j); })
+      .catch(() => {});
+    return () => { vivant = false; };
+  }, [commandeId]);
+  if (!etat) return null;
+  async function payerParCarte() {
+    setEnCours(true); setErreur("");
+    try {
+      const retour = `${window.location.origin}${window.location.pathname}?suivi=${encodeURIComponent(commandeId)}&paye=1`;
+      const r = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "creer_session_paiement_stripe",
+          commandeId,
+          devise: "EUR",
+          workspace_id: workspaceId,
+          // Stripe remplace lui-même {CHECKOUT_SESSION_ID} par l'identifiant réel de la session au
+          // retour du client — la page de suivi appelle alors verifier_paiement_stripe avec cet id.
+          successUrl: `${retour}&session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: retour,
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.url) { window.location.href = j.url; return; }
+      setErreur(j.error || "Paiement par carte indisponible pour l'instant.");
+    } catch (_) {
+      setErreur("Connexion impossible. Réessaie dans un instant.");
+    }
+    setEnCours(false);
+  }
+  return (
+    <div style={{ background: "white", border: `1.5px solid ${couleur}`, borderRadius: 14, padding: 14, textAlign: "left", marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>💳 Payer par carte</div>
+      <div style={{ fontSize: 12.5, color: "#6B7168", margin: "4px 0 10px", lineHeight: 1.5 }}>
+        Réglez en toute sécurité par carte bancaire : {Number(etat.reste).toLocaleString("fr-FR")} {devise}.
+      </div>
+      <button onClick={payerParCarte} disabled={enCours} style={{ width: "100%", background: couleur, color: couleurTexteLisible(couleur), border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enCours ? 0.7 : 1 }}>
+        {enCours ? "Ouverture du paiement…" : "Payer par carte"}
+      </button>
+      {erreur && <div style={{ fontSize: 12, color: "#B23A26", marginTop: 8 }}>{erreur}</div>}
+    </div>
+  );
+}
+
 function genererEventId(prefixe = "ev") {
   return `${prefixe}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -1365,6 +1428,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         // ⚠️ Nécessite que la fonction Supabase `catalogue_public` renvoie aussi la colonne
         // `pages_personnalisees` de `workspaces` — sinon ce tableau reste vide en silence.
         pagesPersonnalisees: Array.isArray(data[0].pages_personnalisees) ? data[0].pages_personnalisees : [],
+        // Marché de la boutique ('afrique' par défaut, 'europe' si le vendeur l'a activé dans ses
+        // réglages) : n'affecte QUE l'apparition du bouton "Payer par carte" (Stripe) ci-dessous.
+        // Le parcours COD existant est strictement identique quelle que soit cette valeur.
+        marche: data[0].marche || "afrique",
       });
       // Identité mise en cache pour la prochaine visite de cette boutique : la fois
       // suivante, le bon logo/couleur/nom s'affichent dès l'ouverture de la page,
@@ -2186,6 +2253,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             </div>
 
             <BoutonPayerEnLigne commandeId={idCommandeEnvoyee} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
+            {entreprise.marche === "europe" && (
+              <BoutonPayerStripe commandeId={idCommandeEnvoyee} workspaceId={workspaceId} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
+            )}
 
             <button
               onClick={() => genererRecuClientPDF(
@@ -3666,6 +3736,9 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
               Ta commande est bien enregistrée. Un conseiller va t'appeler au <strong>{form.tel}</strong> très bientôt — merci de répondre, c'est indispensable pour valider ta livraison.
             </div>
             <BoutonPayerEnLigne commandeId={idCommandePayer} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
+            {entreprise.marche === "europe" && (
+              <BoutonPayerStripe commandeId={idCommandePayer} workspaceId={workspaceId} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
+            )}
             <button onClick={onFermer} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "12px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
               Continuer mes achats
             </button>

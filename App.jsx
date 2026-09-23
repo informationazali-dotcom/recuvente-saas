@@ -581,7 +581,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, workspaces(id, name, slug, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id, azali_config)")
+      .select("workspace_id, role, workspaces(id, name, slug, country, currency, created_at, webhook_secret, activity_type, whatsapp_number, logo_url, banniere_url, couleur_marque, description_boutique, politique_livraison, politique_retours, politique_confidentialite, facebook_pixel_id, facebook_capi_token, facebook_url, instagram_url, tiktok_url, marque_blanche, frais_livraison, frais_expedition, store_config, store_config_published, store_is_published, domaine_personnalise, facebook_domain_verification, label_livraison_locale, label_livraison_expedition, langue, countries_livraison, temoignages_manuels, tiktok_pixel_id, azali_config, marche)")
       .eq("user_id", userId);
     if (error) {
       const estErreurAuth = /jwt|token|expired|unauthorized|401|invalid refresh/i.test(error.message || "") || error.code === "PGRST301";
@@ -18757,6 +18757,46 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
             </span>
             {workspace.marque_blanche ? "Activée — mention masquée" : "Désactivée — mention affichée"}
           </button>
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>
+            🌐 Marché de la boutique
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6B7168", marginBottom: 14, lineHeight: 1.5 }}>
+            Détermine le mode de paiement proposé aux clients sur ta boutique publique. « Afrique » (par défaut) garde le paiement à la livraison habituel. « Europe » ajoute le paiement par carte bancaire (Stripe) sur le formulaire de commande.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {[{ v: "afrique", l: "🌍 Afrique — paiement à la livraison" }, { v: "europe", l: "🇪🇺 Europe — paiement par carte" }].map((opt) => (
+              <button
+                key={opt.v}
+                onClick={async () => {
+                  if (opt.v === (workspace.marche || "afrique")) return;
+                  if (opt.v === "europe" && !window.confirm("Passer au marché Europe ajoute le paiement par carte (Stripe) sur ton formulaire de commande public. Tes réglages actuels (paiement à la livraison) restent disponibles. Continuer ?")) return;
+                  await supabase.from("workspaces").update({ marche: opt.v }).eq("id", workspace.id);
+                  window.location.reload();
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px 8px",
+                  borderRadius: 9,
+                  border: `2px solid ${(workspace.marche || "afrique") === opt.v ? "#1a7a3c" : "#DDD8CC"}`,
+                  background: (workspace.marche || "afrique") === opt.v ? "#EAF3DE" : "white",
+                  color: "#16231F",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {opt.l}
+              </button>
+            ))}
+          </div>
+          {(workspace.marche || "afrique") === "europe" && (
+            <div style={{ background: "#FBF3E3", border: "1px solid #F0DDB0", borderRadius: 8, padding: "9px 12px", fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+              ⚠️ Le formulaire de commande public de ta boutique propose maintenant le paiement par carte en plus du paiement à la livraison.
+            </div>
+          )}
         </div>
 
         <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginBottom: 20 }}>

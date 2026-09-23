@@ -5387,10 +5387,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
 
   const COUT_LIVRAISON = 1500;
   // Le coût de livraison ne s'applique que là où une livraison a réellement lieu :
-  // systématiquement pour la vente à la livraison (cod_ecommerce), au cas par cas pour la
-  // boutique physique (retail, selon mode_vente), et jamais pour restaurant, location de
-  // maison, location de véhicule ou réseau de vente — ces activités n'ont pas de livreur.
-  const nbLivraisonsFacturees = workspace.activity_type === "retail"
+  // systématiquement pour la vente à la livraison (cod_ecommerce), au cas par cas selon le
+  // mode de vente pour la boutique physique (retail) et le restaurant (une commande "livraison"
+  // a un vrai livreur, une commande "sur place"/"emporter" n'en a pas), et jamais pour la
+  // location de maison, la location de véhicule ou le réseau de vente.
+  const nbLivraisonsFacturees = workspace.activity_type === "retail" || workspace.activity_type === "restaurant"
     ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length
     : workspace.activity_type === "cod_ecommerce"
       ? confirmees.length
@@ -5465,7 +5466,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
       m.ca += Number(c.montant);
       m.cout += trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      m.livraison += workspace.activity_type === "retail"
+      m.livraison += workspace.activity_type === "retail" || workspace.activity_type === "restaurant"
         ? ((c.mode_vente === "livraison" || c.mode_vente === "expedition") ? COUT_LIVRAISON : 0)
         : workspace.activity_type === "cod_ecommerce"
           ? COUT_LIVRAISON
@@ -6585,6 +6586,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {vue === "menu_restaurant" && !accesBloque && (
         <MenuRestaurantView
           plats={plats}
+          workspaceSlug={workspace.slug}
           currency={formaterDevise(workspace.currency)}
           onAdd={addPlat}
           onToggleDisponibilite={toggleDisponibilitePlat}
@@ -6592,6 +6594,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           tablesRestaurant={tablesRestaurant}
           onAddTable={addTableRestaurant}
           onToggleStatutTable={toggleStatutTable}
+          commandes={commandes}
         />
       )}
 
@@ -7250,9 +7253,13 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   const [quantitesPlats, setQuantitesPlats] = useState({});
   const [nomClient, setNomClient] = useState("");
   const [telClient, setTelClient] = useState("");
+  const [adresseLivraisonRestaurant, setAdresseLivraisonRestaurant] = useState("");
+  const [fraisLivraisonRestaurant, setFraisLivraisonRestaurant] = useState("");
 
   if (estRestaurant) {
-    const totalRestaurant = plats.reduce((s, p) => s + (quantitesPlats[p.id] || 0) * Number(p.prix), 0);
+    const totalPlats = plats.reduce((s, p) => s + (quantitesPlats[p.id] || 0) * Number(p.prix), 0);
+    const fraisLivraisonNum = typeCommande === "livraison" ? (Number(fraisLivraisonRestaurant) || 0) : 0;
+    const totalRestaurant = totalPlats + fraisLivraisonNum;
     const platsChoisis = plats.filter((p) => (quantitesPlats[p.id] || 0) > 0);
     const resumePlats = platsChoisis.map((p) => `${p.nom} x${quantitesPlats[p.id]}`).join(", ");
     const tableChoisie = tablesRestaurant.find((t) => t.id === tableId);
@@ -7264,13 +7271,14 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
     function validerCommandeRestaurant() {
       if (platsChoisis.length === 0) return;
       if (typeCommande !== "sur_place" && !telClient.trim()) return;
+      if (typeCommande === "livraison" && !adresseLivraisonRestaurant.trim()) return;
       onAdd({
         client: typeCommande === "sur_place" ? (tableChoisie ? `Table ${tableChoisie.numero}` : "Client") : (nomClient.trim() || (typeCommande === "emporter" ? "À emporter" : "Livraison")),
         tel: telClient.trim(),
         produit: resumePlats,
         montant: String(totalRestaurant),
-        zone: "",
-        mode_vente: "sur_place",
+        zone: typeCommande === "livraison" ? adresseLivraisonRestaurant.trim() : "",
+        mode_vente: typeCommande === "livraison" ? "livraison" : "sur_place",
         montant_paye: "",
         table_id: tableId || null,
         type_commande: typeCommande,
@@ -9660,7 +9668,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     const trouve = produits.find((p) => p.nom?.toLowerCase() === nomProduit.toLowerCase());
     if (!trouve) return { connu: false };
     const coutProduit = (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite;
-    const coutLivraison = workspace?.activity_type === "retail"
+    const coutLivraison = workspace?.activity_type === "retail" || workspace?.activity_type === "restaurant"
       ? (commande.mode_vente === "livraison" || commande.mode_vente === "expedition" ? COUT_LIVRAISON_UNITAIRE : 0)
       : workspace?.activity_type === "cod_ecommerce"
         ? COUT_LIVRAISON_UNITAIRE
@@ -14764,9 +14772,10 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
   const COUT_LIVRAISON = 1500;
-  // Même correction que sur le tableau de bord : pas de coût de livraison pour restaurant,
-  // location de maison, location de véhicule ou réseau de vente.
-  const nbLivraisonsFacturees = workspace.activity_type === "retail"
+  // Même règle que sur le tableau de bord : coût de livraison selon le mode de vente pour
+  // retail et restaurant, systématique pour cod_ecommerce, jamais pour location de maison,
+  // location de véhicule ou réseau de vente.
+  const nbLivraisonsFacturees = workspace.activity_type === "retail" || workspace.activity_type === "restaurant"
     ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length
     : workspace.activity_type === "cod_ecommerce"
       ? confirmees.length
@@ -15868,10 +15877,21 @@ function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDe
   );
 }
 
-function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable, onToggleStatutTable }) {
+function MenuRestaurantView({ plats, workspaceSlug, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable, onToggleStatutTable, commandes = [] }) {
   const [form, setForm] = useState({ nom: "", categorie: "Plats", prix: "", description: "" });
   const [nouvelleTable, setNouvelleTable] = useState("");
   const [ongletActif, setOngletActif] = useState("menu");
+  const [tableQrOuverte, setTableQrOuverte] = useState(null);
+  const [additionTable, setAdditionTable] = useState(null);
+
+  function commandesDeLaTable(tableId) {
+    return commandes.filter((c) => c.table_id === tableId && c.statut !== "echouee");
+  }
+
+  function lienMenu(numeroTable) {
+    const base = `${window.location.origin}/?menu=${workspaceSlug}`;
+    return numeroTable ? `${base}&table=${encodeURIComponent(numeroTable)}` : base;
+  }
 
   const categories = [...new Set(plats.map((p) => p.categorie))];
 
@@ -15930,6 +15950,14 @@ function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onD
         </>
       ) : (
         <>
+          {workspaceSlug && (
+            <div style={{ background: "#EAF0FB", border: "1px solid #C9D9F2", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 12.5, color: "#1E4B8C" }}>📋 Menu général (sans table précise), pour l'entrée ou les commandes à emporter</div>
+              <button onClick={() => setTableQrOuverte({ id: "general", numero: null })} style={{ background: "#2452E8", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0 }}>
+                🔗 QR du menu
+              </button>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             <input placeholder="Numéro de table (ex: 5, Terrasse 2)" value={nouvelleTable} onChange={(e) => setNouvelleTable(e.target.value)} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
             <button
@@ -15941,18 +15969,83 @@ function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onD
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10 }}>
             {tablesRestaurant.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => onToggleStatutTable(t.id, t.statut)}
-                style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center", cursor: "pointer" }}
-              >
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>{t.numero}</div>
-                <div style={{ fontSize: 10.5, color: t.statut === "occupee" ? "#D64933" : "#3B6D11", marginTop: 2 }}>{t.statut === "occupee" ? "Occupée" : "Libre"}</div>
-              </button>
+              <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <button
+                  onClick={() => onToggleStatutTable(t.id, t.statut)}
+                  style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center", cursor: "pointer" }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>{t.numero}</div>
+                  <div style={{ fontSize: 10.5, color: t.statut === "occupee" ? "#D64933" : "#3B6D11", marginTop: 2 }}>{t.statut === "occupee" ? "Occupée" : "Libre"}</div>
+                </button>
+                {workspaceSlug && (
+                  <button onClick={() => setTableQrOuverte({ id: t.id, numero: t.numero })} style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 8, padding: "5px 0", fontSize: 10.5, fontWeight: 700, color: "#16231F", cursor: "pointer" }}>
+                    🔗 QR
+                  </button>
+                )}
+                {t.statut === "occupee" && (
+                  <button onClick={() => setAdditionTable(t)} style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "5px 0", fontSize: 10.5, fontWeight: 700, color: "#8A6412", cursor: "pointer" }}>
+                    🧾 Addition
+                  </button>
+                )}
+              </div>
             ))}
           </div>
           <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 8 }}>Clique sur une table pour changer son statut manuellement si besoin.</div>
           {tablesRestaurant.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune table pour l'instant.</div>}
+
+          {tableQrOuverte && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => setTableQrOuverte(null)}>
+              <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 320, textAlign: "center" }}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{tableQrOuverte.numero ? `Table ${tableQrOuverte.numero}` : "Menu général"}</div>
+                <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>À imprimer et coller sur la table — le client scanne et commande directement.</div>
+                <img
+                  alt="QR code du menu"
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(lienMenu(tableQrOuverte.numero))}`}
+                  style={{ width: 220, height: 220, margin: "0 auto 14px", display: "block" }}
+                />
+                <div style={{ fontSize: 10.5, color: "#8A9089", wordBreak: "break-all", background: "#FAFAF7", borderRadius: 8, padding: "8px 10px", marginBottom: 14 }}>{lienMenu(tableQrOuverte.numero)}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => window.print()} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>🖨️ Imprimer</button>
+                  <button onClick={() => setTableQrOuverte(null)} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Fermer</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {additionTable && (() => {
+            const lignes = commandesDeLaTable(additionTable.id);
+            const total = lignes.reduce((s, c) => s + Number(c.montant), 0);
+            return (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => setAdditionTable(null)}>
+                <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, maxHeight: "88vh", overflowY: "auto" }}>
+                  <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>🧾 Addition — Table {additionTable.numero}</div>
+                  <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14, borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC", padding: "10px 0" }}>
+                    {lignes.length === 0 && <div style={{ fontSize: 13, color: "#8A9089", textAlign: "center" }}>Aucune commande sur cette table pour l'instant.</div>}
+                    {lignes.map((c) => (
+                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
+                        <span>{c.produit}</span>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>Total</span>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 800, fontSize: 20, color: "#1a7a3c" }}>{total.toLocaleString("fr-FR")} {currency}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => window.print()} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>🖨️ Imprimer l'addition</button>
+                    <button
+                      onClick={() => { onToggleStatutTable(additionTable.id, "occupee"); setAdditionTable(null); }}
+                      style={{ flex: 1, background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                    >
+                      ✅ Table libérée
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
@@ -15991,6 +16084,14 @@ function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
                   >
                     {col.labelBouton}
                   </button>
+                  {col.statut === "nouvelle" && (
+                    <button
+                      onClick={() => window.print()}
+                      style={{ width: "100%", marginTop: 6, background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 7, padding: "7px 0", fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+                    >
+                      🖨️ Imprimer le ticket
+                    </button>
+                  )}
                 </div>
               ))}
               {commandesParStatut(col.statut).length === 0 && (

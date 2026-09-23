@@ -34,6 +34,17 @@ const MUTED = "#6B7168";
 // Petits utilitaires
 // ---------------------------------------------------------------------------
 
+// IDENTIQUE à slugifierProduit() dans CataloguePublic.jsx (à garder synchronisé) : sert au
+// lien court « façon Shopify » construit ci-dessous (lienPublic).
+function slugifierProduitPage(nom) {
+  return String(nom || "produit")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 function useLargeur() {
   const [w, setW] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
   useEffect(() => {
@@ -905,9 +916,12 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
 
   const lienPublic = (() => {
     if (typeof window === "undefined") return "";
-    if (workspace?.domaine_personnalise) return `https://${workspace.domaine_personnalise}/?produit=${produit.id}`;
-    if (workspace?.slug) return `${window.location.origin}/?boutique=${workspace.slug}&produit=${produit.id}`;
-    return `${window.location.origin}/?catalogue=${workspace.id}&produit=${produit.id}`;
+    // Lien court façon Shopify (/nom-boutique/nom-produit, ou /nom-produit sur un domaine
+    // personnalisé) — voir CataloguePublic.jsx (lienProduitPropre) pour la même logique.
+    const slugP = slugifierProduitPage(produit.nom);
+    if (workspace?.domaine_personnalise) return `https://${workspace.domaine_personnalise}/${slugP}`;
+    if (workspace?.slug) return `${window.location.origin}/${workspace.slug}/${slugP}`;
+    return `${window.location.origin}/?catalogue=${workspace.id}&produit=${slugP}-${String(produit.id).slice(0, 8)}`;
   })();
 
   // -- Aperçu : état et actions locaux

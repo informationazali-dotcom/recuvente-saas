@@ -1,7 +1,7 @@
 import "./premium-landing-overrides.css";
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
-import { EcranAmorce, cleBoutiqueDepuisUrl, lireIdentiteCachee } from "./AmorceBoutique.jsx";
+import { EcranAmorce, cleBoutiqueDepuisUrl, lireIdentiteCachee, chemincourtDepuisUrl, produitDepuisCheminDomainePerso } from "./AmorceBoutique.jsx";
 
 const App = lazy(() => import("./App.jsx"));
 const SuiviPublic = lazy(() => import("./SuiviPublic.jsx"));
@@ -59,10 +59,17 @@ const menuSuiviId = params.get("suivi_menu");
 const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
 const hostname = window.location.hostname;
 const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
-const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !estDomainePersonnalise;
+// Lien court façon Shopify (« /nom-boutique » ou « /nom-boutique/nom-produit ») sur le domaine
+// partagé — remplace les longs liens ?boutique=...&produit=<uuid>. Vérifié SEULEMENT si aucune
+// des routes ci-dessus ne correspond déjà, pour ne jamais capter une URL existante par erreur.
+// Sur un domaine personnalisé, le chemin ne contient pas de segment "boutique" (voir plus bas).
+const cheminCourt = !estDomainePersonnalise && !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId
+  ? chemincourtDepuisUrl()
+  : null;
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !estDomainePersonnalise && !cheminCourt;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
 // Boutique publique : on demande le code de la boutique tout de suite, sans attendre le premier affichage.
-if (catalogueId || boutiqueSlug || estDomainePersonnalise) importerCatalogue();
+if (catalogueId || boutiqueSlug || estDomainePersonnalise || cheminCourt) importerCatalogue();
 // Sentry : immédiatement pour l'admin, un peu après le chargement pour les visiteurs.
 if (estVueAdmin) chargerSentry();
 else window.addEventListener("load", () => setTimeout(chargerSentry, 2000));
@@ -93,7 +100,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErreurBoundary>
       <Suspense fallback={<ChargementInitial />}>
-        {pageAnnuaire ? <AnnuairePublic /> : pageOutils ? <OutilsPublic /> : slugLocation ? <ReservationPublique slug={slugLocation} /> : menuSlug ? <MenuPublic slug={menuSlug} tableParam={menuTable} suiviId={menuSuiviId} /> : menuWorkspaceId ? <MenuPublic workspaceId={menuWorkspaceId} tableParam={menuTable} suiviId={menuSuiviId} /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} /></> : <App />}
+        {pageAnnuaire ? <AnnuairePublic /> : pageOutils ? <OutilsPublic /> : slugLocation ? <ReservationPublique slug={slugLocation} /> : menuSlug ? <MenuPublic slug={menuSlug} tableParam={menuTable} suiviId={menuSuiviId} /> : menuWorkspaceId ? <MenuPublic workspaceId={menuWorkspaceId} tableParam={menuTable} suiviId={menuSuiviId} /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : cheminCourt ? <><PublicTracker slug={cheminCourt.boutique} /><CataloguePublic slug={cheminCourt.boutique} produitSlugInitial={cheminCourt.produit} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} produitSlugInitial={produitDepuisCheminDomainePerso()} /></> : <App />}
       </Suspense>
     </ErreurBoundary>
   </React.StrictMode>

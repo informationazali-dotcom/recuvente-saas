@@ -15,6 +15,17 @@
       "destination": "/api/og-preview?business=1"
     },
     {
+      "source": "/:boutique((?!(?:tunnel|activer-compte|marketing-reseau|boutique|business|api|assets)$)[a-z0-9][a-z0-9-]{1,80}[a-z0-9])/:produit([a-z0-9][a-z0-9-]{1,80}[a-z0-9])",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": { "re": "facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|vkShare|redditbot|Applebot|Googlebot|Bingbot" }
+        }
+      ],
+      "destination": "/api/og-preview?boutique=:boutique&produit=:produit"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

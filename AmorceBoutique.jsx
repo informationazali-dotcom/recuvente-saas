@@ -18,7 +18,56 @@ export function cleBoutiqueDepuisUrl() {
   if (p.get("marketing") || p.get("suivi")) return null;
   const h = window.location.hostname;
   const perso = !DOMAINES_INTERNES.includes(h) && !h.endsWith(".vercel.app");
-  return p.get("commander") || p.get("catalogue") || p.get("boutique") || (perso ? h : null);
+  if (perso) return h;
+  const classique = p.get("commander") || p.get("catalogue") || p.get("boutique");
+  if (classique) return classique;
+  // Lien court façon Shopify (/nom-boutique[/nom-produit]) : la clé de cache identité reste
+  // le slug de la boutique, comme pour ?boutique=.
+  const court = chemincourtDepuisUrl();
+  return court ? court.boutique : null;
+}
+
+// ---------- Lien court façon Shopify : /nom-boutique ou /nom-boutique/nom-produit ----------
+// Remplace les longs liens ?boutique=...&produit=<uuid-complet> par un chemin court et lisible,
+// SANS jamais retirer l'ancien format (les liens déjà partagés/indexés continuent de marcher —
+// voir main.jsx et App.jsx, qui vérifient toujours ?boutique=/?catalogue= EN PREMIER).
+// Chemins déjà utilisés ailleurs dans l'app : jamais interprétés comme un slug de boutique, pour
+// ne jamais capter une route existante par erreur (à tenir synchronisé avec App.jsx).
+const CHEMINS_RESERVES = new Set([
+  "tunnel", "activer-compte", "marketing-reseau", "boutique", "business",
+  "api", "assets", "favicon", "robots", "manifest", "sitemap",
+]);
+// Lettres/chiffres/tirets uniquement (jamais de point : exclut favicon.ico, robots.txt, etc.),
+// pas de tiret en début/fin, au moins 3 caractères.
+const SLUG_CHEMIN_VALIDE = /^[a-z0-9][a-z0-9-]{1,80}[a-z0-9]$/;
+
+function segmentsCheminValides() {
+  if (typeof window === "undefined") return null;
+  const chemin = window.location.pathname.replace(/\/+$/, "");
+  if (!chemin || chemin === "/") return null;
+  const segments = chemin.slice(1).split("/").filter(Boolean);
+  if (segments.length < 1 || segments.length > 2) return null;
+  if (!segments.every((s) => SLUG_CHEMIN_VALIDE.test(s))) return null;
+  if (CHEMINS_RESERVES.has(segments[0])) return null;
+  return segments;
+}
+
+// Renvoie { boutique, produit } si l'URL courante ressemble à un lien court de boutique/produit,
+// sinon null (URL d'admin, de suivi, route réservée, fichier statique, etc.). Pour le domaine
+// partagé recuvente-saas.vercel.app uniquement — un domaine personnalisé n'a pas de segment
+// "boutique" dans son chemin (le domaine EST la boutique), voir produitDepuisCheminDomainePerso.
+export function chemincourtDepuisUrl() {
+  const segments = segmentsCheminValides();
+  if (!segments) return null;
+  return { boutique: segments[0], produit: segments[1] || null };
+}
+
+// Sur un domaine personnalisé (monsite.com/nom-produit), le seul segment du chemin désigne
+// directement le produit — il n'y a pas de boutique à nommer, le domaine en tient déjà lieu.
+export function produitDepuisCheminDomainePerso() {
+  const segments = segmentsCheminValides();
+  if (!segments || segments.length !== 1) return null;
+  return segments[0];
 }
 
 // Clé identique à celle utilisée par CataloguePublic : `rv_identite_<cle>`

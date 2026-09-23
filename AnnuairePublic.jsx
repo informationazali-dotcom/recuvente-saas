@@ -42,7 +42,7 @@ export default function AnnuairePublic() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14, marginTop: 8 }}>
           {filtrees.map((b) => (
-            <a key={b.slug} href={`/?boutique=${encodeURIComponent(b.slug)}`} style={{ textDecoration: "none", color: "inherit", background: "white", border: b.a_la_une ? "2px solid #E8920A" : "1px solid #ECE8DC", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+            <a key={b.slug} href={`/${encodeURIComponent(b.slug)}`} style={{ textDecoration: "none", color: "inherit", background: "white", border: b.a_la_une ? "2px solid #E8920A" : "1px solid #ECE8DC", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 {b.logo ? <img src={b.logo} alt="" loading="lazy" style={{ width: 52, height: 52, borderRadius: 12, objectFit: "cover", flexShrink: 0, background: "#EEF0EA" }} /> : <div style={{ width: 52, height: 52, borderRadius: 12, background: "#1a7a3c", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 22, flexShrink: 0 }}>{String(b.nom || "?").charAt(0).toUpperCase()}</div>}
                 <div style={{ minWidth: 0 }}>

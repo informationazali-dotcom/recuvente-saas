@@ -964,7 +964,7 @@ function prixUnitairePourBundle(prixVente, bundle) {
   return Number(prixVente) * (1 - (Number(bundle.discount) || 0) / 100);
 }
 
-export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, domaine }) {
+export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, domaine, produitSlugInitial }) {
   const [workspaceId, setWorkspaceId] = useState(workspaceIdProp || null);
   const pixelFbRef = useRef(null);
   const [entreprise, setEntreprise] = useState(undefined);
@@ -1460,9 +1460,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setProduits(listeProduits);
 
       const idProduitDansUrl = new URLSearchParams(window.location.search).get("produit");
-      if (idProduitDansUrl) {
-        const suffixe8 = idProduitDansUrl.slice(-8);
-        const trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl || p.produit_id.slice(0, 8) === suffixe8);
+      if (idProduitDansUrl || produitSlugInitial) {
+        let trouve = null;
+        if (idProduitDansUrl) {
+          const suffixe8 = idProduitDansUrl.slice(-8);
+          trouve = listeProduits.find((p) => p.produit_id === idProduitDansUrl || p.produit_id.slice(0, 8) === suffixe8);
+        }
+        // Lien court façon Shopify (/nom-boutique/nom-produit, sans identifiant dans l'URL) :
+        // on résout par le nom slugifié du produit, avec la MÊME fonction que celle qui génère
+        // ces liens plus bas (slugifierProduit) — jamais par position/index dans la liste.
+        if (!trouve && produitSlugInitial) {
+          trouve = listeProduits.find((p) => slugifierProduit(p.produit_nom) === produitSlugInitial);
+        }
         if (trouve) {
           setProduitOuvert(trouve);
           setForm({ client: "", tel: "", zone: "" });
@@ -1555,6 +1564,51 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     });
   }, [workspaceId]);
 
+  // ---------- Lien court façon Shopify : /nom-boutique/nom-produit ----------
+  // Remplace les longs "?boutique=...&produit=<uuid-complet>" par un chemin court et lisible.
+  // Sur un domaine personnalisé, le domaine tient déjà lieu de boutique : /nom-produit suffit.
+  // Si la boutique n'a exceptionnellement pas encore de slug, on retombe sur l'ancien format
+  // (le seul qui fonctionne sans slug) — jamais de lien cassé.
+  function lienProduitPropre(p) {
+    const slugP = slugifierProduit(p.produit_nom);
+    if (domaine) return `${window.location.origin}/${slugP}`;
+    if (entreprise?.slug) return `${window.location.origin}/${entreprise.slug}/${slugP}`;
+    return `${window.location.origin}/?catalogue=${workspaceId}&produit=${slugP}-${p.produit_id.slice(0, 8)}`;
+  }
+
+  // Met à jour la barre d'adresse avec le lien court ci-dessus (sans recharger la page),
+  // en conservant les éventuels paramètres de suivi déjà présents (aff, utm_*, fbclid...).
+  function definirUrlProduitPropre(p) {
+    const url = new URL(window.location.href);
+    const slugP = slugifierProduit(p.produit_nom);
+    url.searchParams.delete("boutique");
+    url.searchParams.delete("catalogue");
+    url.searchParams.delete("produit");
+    if (domaine) {
+      url.pathname = `/${slugP}`;
+    } else if (entreprise?.slug) {
+      url.pathname = `/${entreprise.slug}/${slugP}`;
+    } else {
+      url.pathname = "/";
+      url.searchParams.set("catalogue", workspaceId);
+      url.searchParams.set("produit", `${slugP}-${p.produit_id.slice(0, 8)}`);
+    }
+    window.history.pushState({}, "", url);
+  }
+
+  // Retire le produit de l'URL (fermeture / navigation vers une collection) : enlève le
+  // paramètre "produit" de l'ancien format ET, pour le lien court, le dernier segment du
+  // chemin (/nom-boutique/nom-produit → /nom-boutique ; /nom-produit → / sur domaine perso).
+  function retirerProduitDeUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("produit");
+    const segments = url.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+    const minimum = domaine ? 0 : 1;
+    if (segments.length > minimum) segments.pop();
+    url.pathname = segments.length ? `/${segments.join("/")}` : "/";
+    window.history.pushState({}, "", url);
+  }
+
   function ouvrirProduit(p) {
     trackEvenement("ViewContent", {
       content_ids: [p.produit_id],
@@ -1587,9 +1641,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       // n'apporte rien visuellement et alourdit la liste inutilement.
       setAvisListe((data || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0));
     });
-    const url = new URL(window.location.href);
-    url.searchParams.set("produit", `${slugifierProduit(p.produit_nom)}-${p.produit_id.slice(0, 8)}`);
-    window.history.pushState({}, "", url);
+    definirUrlProduitPropre(p);
     window.scrollTo(0, 0);
   }
 
@@ -1626,18 +1678,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setProduitOuvert(null);
     setPagePersoOuverte(null);
     setPolitiqueOuverte(null);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("produit");
-    window.history.pushState({}, "", url);
+    retirerProduitDeUrl();
   }
 
   function naviguerVersCollection(id) {
     setProduitOuvert(null);
     setPagePersoOuverte(null);
     setPolitiqueOuverte(null);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("produit");
-    window.history.pushState({}, "", url);
+    retirerProduitDeUrl();
     setCollectionOuverte(id);
     window.scrollTo(0, 0);
   }
@@ -2750,10 +2798,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             </button>
             <button
               onClick={() => {
-                const lienAvecApercu = entreprise.slug
-                  ? `${window.location.origin}/api/og-preview?boutique=${entreprise.slug}&produit=${produitOuvert.produit_id}`
-                  : `${window.location.origin}/api/og-preview?catalogue=${workspaceId}&produit=${produitOuvert.produit_id}`;
-                navigator.clipboard.writeText(lienAvecApercu);
+                // Lien court et lisible (façon Shopify) — l'aperçu photo WhatsApp/Facebook
+                // continue de fonctionner sur ce même lien (voir vercel.json : les robots de
+                // partage sont redirigés en coulisses vers /api/og-preview, un vrai visiteur
+                // voit directement la boutique).
+                navigator.clipboard.writeText(lienProduitPropre(produitOuvert));
                 setLienCopie(true);
                 setTimeout(() => setLienCopie(false), 2500);
               }}

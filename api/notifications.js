@@ -102,6 +102,29 @@ export async function pousserPaiementRecu({ commande, montant, devise }) {
   }
 }
 
+// ===== LOT 3 (location de maison) : rappel récapitulatif "X loyers en retard" au propriétaire =====
+// Appelé par lib/loyers.js (cron quotidien), au plus une fois par jour et jamais pour zéro retard
+// (ces deux garde-fous sont gérés côté appelant, via workspace_options).
+export async function pousserRappelLoyers({ workspaceId, nbEnRetard, totalEnRetard }) {
+  try {
+    if (!workspaceId || !nbEnRetard) return { envoyes: 0 };
+    const abonnements = await abonnementsWorkspace(workspaceId);
+    if (abonnements.length === 0) return { envoyes: 0, raison: "personne n'a activé les notifications" };
+    const { data: ws } = await supabaseAdmin.from("workspaces").select("name, currency").eq("id", workspaceId).maybeSingle();
+    const somme = `${Number(totalEnRetard || 0).toLocaleString("fr-FR")} ${libelleDevise(ws?.currency)}`;
+    return await envoyerAuxAbonnements(abonnements, {
+      title: `🏠 ${nbEnRetard} loyer${nbEnRetard > 1 ? "s" : ""} en retard${ws?.name ? " — " + ws.name : ""}`,
+      body: `${somme} à encaisser au total. Ouvre Locataires & loyers pour relancer.`,
+      url: "/admin/",
+      tag: `loyers-retard-${workspaceId}`,
+      sound: true,
+      ts: Date.now(),
+    });
+  } catch (e) {
+    return { envoyes: 0, erreur: e.message };
+  }
+}
+
 export async function pousserNouvelleCommande(commandeOuId) {
   try {
     let cmd = commandeOuId && typeof commandeOuId === "object" ? commandeOuId : null;

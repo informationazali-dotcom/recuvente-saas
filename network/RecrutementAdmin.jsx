@@ -172,6 +172,17 @@ export default function RecrutementAdmin({ workspace, currency, onFilleulsChange
   );
 }
 
+const LIBELLES_ACTION_HISTORIQUE = {
+  paiement_confirme: "💳 Paiement confirmé",
+  paiement_refuse: "❌ Paiement refusé",
+  partenaire_externe_enregistre: "🏢 Partenaire externe enregistré",
+  partenaire_active: "🎉 Partenaire activé",
+};
+
+function libelleAction(action) {
+  return LIBELLES_ACTION_HISTORIQUE[action] || action;
+}
+
 function libelleEtape(c) {
   if (c.recrutement_candidatures?.statut_admin === "refusee") return { texte: "🚫 Candidature refusée", couleur: "#8A9089" };
   if (c.id === null) return { texte: "📋 Candidature reçue — pas encore de pack", couleur: "#2452E8" };
@@ -209,6 +220,9 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
   const [docUrl, setDocUrl] = useState(null);
   const [chargementDoc, setChargementDoc] = useState(false);
   const [erreurDoc, setErreurDoc] = useState("");
+  const [afficherHistorique, setAfficherHistorique] = useState(false);
+  const [historique, setHistorique] = useState([]);
+  const [chargementHistorique, setChargementHistorique] = useState(false);
 
   const candidat = commande.recrutement_candidatures;
   const etape = libelleEtape(commande);
@@ -248,6 +262,16 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
       setErreurDoc("Erreur réseau, réessaie.");
     }
     setChargementDoc(false);
+  }
+
+  async function afficherOuMasquerHistorique() {
+    if (afficherHistorique) { setAfficherHistorique(false); return; }
+    setAfficherHistorique(true);
+    if (historique.length > 0 || commande.id === null) return;
+    setChargementHistorique(true);
+    const { data } = await supabase.from("recrutement_audit_log").select("*").eq("commande_pack_id", commande.id).order("created_at", { ascending: false });
+    setHistorique(data || []);
+    setChargementHistorique(false);
   }
 
   async function rafraichirCommande() {
@@ -456,6 +480,33 @@ function FicheCommandeModal({ commande: commandeInitiale, workspace, currency, o
                   {copieLienCompte ? "✅ Copié !" : "📋 Copier ce lien"}
                 </button>
                 <div style={{ fontSize: 9.5, color: "#8A9089", marginTop: 6, lineHeight: 1.5 }}>Envoie ce lien par WhatsApp/SMS — il permet à {candidat?.nom} de créer son mot de passe et se connecter. Lien à usage unique.</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {commande.id !== null && (
+          <div style={{ marginTop: 4, marginBottom: 8 }}>
+            <button onClick={afficherOuMasquerHistorique} style={{ width: "100%", background: "#F3F1EA", color: "#6B7168", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              🕘 {afficherHistorique ? "Masquer l'historique" : "Voir l'historique"}
+            </button>
+            {afficherHistorique && (
+              <div style={{ marginTop: 8, border: "1px solid #ECE8DC", borderRadius: 10, padding: 10 }}>
+                {chargementHistorique && <div style={{ fontSize: 11.5, color: "#8A9089" }}>Chargement...</div>}
+                {!chargementHistorique && historique.length === 0 && (
+                  <div style={{ fontSize: 11.5, color: "#8A9089", textAlign: "center" }}>Aucun événement journalisé pour cette commande.</div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {historique.map((h) => (
+                    <div key={h.id} style={{ fontSize: 11, lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 700, color: "#16231F" }}>{libelleAction(h.action)}</div>
+                      {(h.ancien_statut || h.nouveau_statut) && (
+                        <div style={{ color: "#6B7168" }}>{h.ancien_statut || "—"} → {h.nouveau_statut || "—"}</div>
+                      )}
+                      <div style={{ color: "#8A9089" }}>{new Date(h.created_at).toLocaleString("fr-FR")}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

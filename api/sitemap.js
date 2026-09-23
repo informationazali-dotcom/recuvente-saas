@@ -5,6 +5,19 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// IDENTIQUE à slugifierProduit() dans CataloguePublic.jsx (à garder synchronisé) : sert au
+// lien court « façon Shopify » du sitemap ci-dessous (jamais utilisé pour le flux Meta/Google
+// Shopping plus haut, laissé inchangé pour ne rien perturber dans les campagnes publicitaires
+// déjà actives des marchands).
+function slugifierProduitSitemap(nom) {
+  return String(nom || "produit")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 function echapperXML(texte) {
   return String(texte || "")
     .replace(/&/g, "&amp;")
@@ -106,17 +119,21 @@ export default async function handler(req, res) {
     const actif = sub && (sub.status === "active" || (sub.status === "trial" && sub.trial_ends_at && new Date(sub.trial_ends_at) > new Date()));
     if (!actif) continue;
 
-    urls.push(`${origine}/?boutique=${encodeURIComponent(ws.slug)}`);
+    // Lien court façon Shopify (/nom-boutique/nom-produit) — voir CataloguePublic.jsx
+    // (lienProduitPropre) pour la même logique. Les anciens liens ?boutique=...&produit=<uuid>
+    // déjà indexés par Google continuent de fonctionner (jamais retirés) ; seul ce sitemap,
+    // relu périodiquement par Google, change pour proposer désormais le lien court.
+    urls.push(`${origine}/${encodeURIComponent(ws.slug)}`);
 
     const { data: produits } = await supabaseAdmin
       .from("produits")
-      .select("id, updated_at")
+      .select("id, nom, updated_at")
       .eq("workspace_id", ws.id)
       .not("prix_vente", "is", null)
       .gt("prix_vente", 0);
 
     for (const p of produits || []) {
-      urls.push(`${origine}/?boutique=${encodeURIComponent(ws.slug)}&produit=${p.id}`);
+      urls.push(`${origine}/${encodeURIComponent(ws.slug)}/${encodeURIComponent(slugifierProduitSitemap(p.nom))}`);
     }
   }
 

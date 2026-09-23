@@ -21,6 +21,19 @@ function echapperHTML(texte) {
     .replace(/"/g, "&quot;");
 }
 
+// IDENTIQUE à slugifierProduit() dans CataloguePublic.jsx (à garder synchronisé) : permet à
+// cette fonction de résoudre un produit à partir du lien court façon Shopify (/nom-boutique/
+// nom-produit, sans identifiant), utilisé par la redirection des robots de partage — voir
+// vercel.json (rewrite "has" sur l'en-tête user-agent).
+function slugifierProduit(nom) {
+  return String(nom || "produit")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 export default async function handler(req, res) {
   // Vitrine commerciale (recuvente-saas.vercel.app/business) : contenu statique, pas besoin
   // de Supabase. Même logique que le reste de ce fichier : les robots de partage lisent ces
@@ -100,7 +113,11 @@ export default async function handler(req, res) {
     let titre, description, image, type;
 
     if (produitId) {
-      const produit = lignes.find((r) => r.produit_id === produitId);
+      // D'abord l'ancien format (identifiant exact ou "slug-8caractères"), puis, si rien ne
+      // correspond, le nouveau lien court (slug seul, sans identifiant) — voir slugifierProduit.
+      const suffixe8 = String(produitId).slice(-8);
+      let produit = lignes.find((r) => r.produit_id === produitId || r.produit_id.slice(0, 8) === suffixe8);
+      if (!produit) produit = lignes.find((r) => slugifierProduit(r.produit_nom) === produitId);
       if (produit) {
         titre = `${produit.produit_nom} — ${entreprise.entreprise_nom}`;
         description = (produit.produit_description || entreprise.description_boutique || "").replace(/<[^>]*>/g, "").slice(0, 160);

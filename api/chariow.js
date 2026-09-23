@@ -38,6 +38,11 @@ export default async function handler(req, res) {
     catch (e) { return res.status(500).json({ error: "Traitement impossible pour l'instant" }); }
   }
 
+  // Le filleul consulte l'état de son abonnement personnel : « /api/chariow?abonnement_filleul_statut=1 ».
+  if (req.method === "GET" && req.query && req.query.abonnement_filleul_statut) {
+    return (await import("../lib/filleuls-abonnements.js")).statutAbonnementFilleul(req, res);
+  }
+
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
 
   // ===== CAS 1 : Chariow nous notifie d'un paiement (Pulse webhook) =====
@@ -68,6 +73,21 @@ export default async function handler(req, res) {
         // Erreur (table pas encore créée…) : on répond une erreur pour que Chariow renvoie la notification plus tard.
         if (errAchat) return res.status(500).json({ error: "Crédits non enregistrés (table ia_usage manquante ?)" });
         return res.status(200).json({ success: true, credits_ajoutes: pack.credits });
+      }
+
+      // Abonnement personnel d'un filleul (voir lib/filleuls-abonnements.js) : PAS le même
+      // compte que le commerçant (CinetPay/PayDunya, lib/paiements.js) — celui-ci encaisse
+      // pour RecuVente, via le même compte Chariow que l'abonnement boutique ci-dessous.
+      const modAbonnementFilleul = await import("../lib/filleuls-abonnements.js");
+      if (modAbonnementFilleul.estUnProduitAbonnementFilleul(chariowProductId)) {
+        const utilisateurFilleul = await trouverUtilisateurParEmail(emailClient);
+        if (!utilisateurFilleul) return res.status(200).json({ recu: true, ignore: "client introuvable" });
+        const resultat = await modAbonnementFilleul.confirmerPaiementAbonnementFilleulDepuisWebhook({
+          chariowProductId,
+          userId: utilisateurFilleul.id,
+        });
+        if (!resultat.traite) return res.status(200).json({ recu: true, ignore: resultat.raison || "non traité" });
+        return res.status(200).json({ success: true, abonnement_filleul_actif: true });
       }
 
       // Retrouve le plan correspondant à ce produit Chariow
@@ -114,6 +134,14 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ recu: true, ignore: "événement non géré" });
+  }
+
+  // ===== CAS 2bis : le filleul démarre le paiement de son abonnement personnel =====
+  // Regroupé ici (même endpoint /api/chariow) pour rester dans la limite de fonctions Vercel.
+  // Cette fonction fait sa propre vérification d'authentification, indépendamment de CAS 2
+  // ci-dessous (qui concerne l'abonnement de la boutique, pas celui du filleul).
+  if (req.body?.abonnementFilleul === true) {
+    return (await import("../lib/filleuls-abonnements.js")).creerPaiementAbonnementFilleul(req, res);
   }
 
   // ===== CAS 2 : Notre app demande de créer un paiement =====

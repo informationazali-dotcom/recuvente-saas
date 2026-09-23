@@ -506,6 +506,21 @@ export default async function handler(req, res) {
   let resultatLoyers = null;
   try { resultatLoyers = await (await import("../lib/loyers.js")).genererLoyersEtRelances(); } catch (_) {}
 
+  // LOT G (abonnement personnel du filleul) : détecte les filleuls qui viennent de franchir
+  // leur seuil de commandes nettes, puis suspend ceux dont le délai de grâce est écoulé sans
+  // paiement. Deux fonctions SQL distinctes, isolées dans leur propre try/catch chacune — une
+  // erreur ici ne doit jamais empêcher le reste du cron quotidien de s'exécuter.
+  let resultatSeuilAbonnementFilleul = null;
+  try {
+    const { data } = await supabaseAdmin.rpc("fn_detecter_seuil_abonnement_filleuls");
+    resultatSeuilAbonnementFilleul = data;
+  } catch (_) {}
+  let resultatGraceAbonnementFilleul = null;
+  try {
+    const { data } = await supabaseAdmin.rpc("fn_expirer_grace_abonnement_filleuls");
+    resultatGraceAbonnementFilleul = data;
+  } catch (_) {}
+
   return res.status(200).json({
     prospection: resultatProspection,
     alertes: resultatAlertes,
@@ -516,5 +531,7 @@ export default async function handler(req, res) {
     paiementsEnLigne: resultatPaiements,
     paiementsStripe: resultatStripe,
     loyers: resultatLoyers,
+    abonnementFilleulSeuilDetecte: resultatSeuilAbonnementFilleul,
+    abonnementFilleulGraceExpiree: resultatGraceAbonnementFilleul,
   });
 }

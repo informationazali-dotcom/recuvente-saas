@@ -1359,9 +1359,8 @@ async function gererObtenirUrlPreuveIdentite(req, res, user) {
 // jamais accès (§42 : documents sensibles jamais consultables par un
 // autre filleul).
 async function gererObtenirUrlDocumentCandidature(req, res, user) {
-  const { candidature_id, workspace_id, type } = req.body || {};
-  if (!candidature_id || !workspace_id) return res.status(400).json({ error: "candidature_id et workspace_id requis." });
-  const colonne = type === "photo" ? "photo_profil_path" : "preuve_identite_path"; // rétrocompatible : sans type = identité, comme avant
+  const { candidature_id, commande_id, workspace_id, type } = req.body || {};
+  if (!workspace_id) return res.status(400).json({ error: "workspace_id requis." });
 
   const { data: membership } = await supabaseAdmin
     .from("workspace_members").select("role")
@@ -1369,6 +1368,24 @@ async function gererObtenirUrlDocumentCandidature(req, res, user) {
   if (!membership || !["owner", "admin"].includes(membership.role)) {
     return res.status(403).json({ error: "Réservé au propriétaire ou à un admin." });
   }
+
+  // Preuve de paiement d'une commande de pack (recrutement_commandes_pack, distincte de
+  // recrutement_candidatures) : chemin séparé, ne touche pas au comportement existant ci-dessous.
+  if (type === "paiement") {
+    if (!commande_id) return res.status(400).json({ error: "commande_id requis." });
+    const { data: commande } = await supabaseAdmin
+      .from("recrutement_commandes_pack").select("preuve_paiement_path")
+      .eq("id", commande_id).eq("workspace_id", workspace_id).maybeSingle();
+    if (!commande?.preuve_paiement_path) return res.status(404).json({ error: "Aucune preuve de paiement pour cette commande." });
+    const { data: signedPaiement, error: erreurPaiement } = await supabaseAdmin.storage
+      .from("candidatures-documents")
+      .createSignedUrl(commande.preuve_paiement_path, 600);
+    if (erreurPaiement) return res.status(400).json({ error: erreurPaiement.message });
+    return res.status(200).json({ url: signedPaiement.signedUrl });
+  }
+
+  if (!candidature_id) return res.status(400).json({ error: "candidature_id requis." });
+  const colonne = type === "photo" ? "photo_profil_path" : "preuve_identite_path"; // rétrocompatible : sans type = identité, comme avant
 
   const { data: candidature } = await supabaseAdmin
     .from("recrutement_candidatures").select(colonne)

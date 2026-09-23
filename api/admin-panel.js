@@ -1707,6 +1707,36 @@ export default async function handler(req, res) {
     try { module_croissance = await import("../lib/croissance.js"); } catch (e) { return res.status(500).json({ error: "Module indisponible : " + e.message }); }
     return module_croissance.traiterAction(req, res);
   }
+  // Paiement par carte Stripe (marché Europe, compte unique plateforme — voir lib/stripe.js) : la commande
+  // est déjà connue (créée avant, comme pour CinetPay/PayDunya) ; le client ne fait ici que payer/confirmer,
+  // donc pas de vérification d'appartenance à la boutique — lib/stripe.js valide lui-même la commande.
+  if (req.method === "POST" && req.body?.action === "creer_session_paiement_stripe") {
+    let module_stripe;
+    try { module_stripe = await import("../lib/stripe.js"); } catch (e) { return res.status(500).json({ error: "Module indisponible : " + e.message }); }
+    try {
+      const resultat = await module_stripe.creerSessionPaiementStripe({
+        commandeId: req.body.commandeId,
+        montant: req.body.montant,
+        devise: req.body.devise,
+        workspaceId: req.body.workspace_id,
+        successUrl: req.body.successUrl,
+        cancelUrl: req.body.cancelUrl,
+      });
+      return res.status(200).json(resultat);
+    } catch (e) {
+      return res.status(400).json({ error: e.message || "Erreur" });
+    }
+  }
+  if (req.method === "POST" && req.body?.action === "verifier_paiement_stripe") {
+    let module_stripe;
+    try { module_stripe = await import("../lib/stripe.js"); } catch (e) { return res.status(500).json({ error: "Module indisponible : " + e.message }); }
+    try {
+      const resultat = await module_stripe.verifierPaiementStripe({ sessionId: req.body.sessionId, reference: req.body.reference });
+      return res.status(200).json(resultat);
+    } catch (e) {
+      return res.status(400).json({ error: e.message || "Erreur" });
+    }
+  }
   // Ces 3 actions servent à tous les abonnés RecuVente (pas seulement le compte propriétaire) —
   // vérifiées différemment, avant le contrôle admin qui, lui, reste réservé à l'AI Company OS.
   if (req.method === "POST" && req.body?.action === "ia_credits") {

@@ -496,6 +496,10 @@ export default async function handler(req, res) {
   // Filet de sécurité du paiement en ligne : vérifie les paiements restés « en attente » (notification jamais reçue).
   let resultatPaiements = null;
   try { resultatPaiements = await (await import("../lib/paiements.js")).rattraperPaiementsEnAttente(); } catch (_) {}
+  // Filet de sécurité du paiement Stripe (marché Europe) : rattrape les clients qui ont payé mais dont le
+  // navigateur n'est jamais revenu confirmer côté serveur (pas de webhook dans ce lot — voir lib/stripe.js).
+  let resultatStripe = null;
+  try { resultatStripe = await (await import("../lib/stripe.js")).rattraperPaiementsStripeEnAttente(); } catch (_) {}
   // LOT 3 (location de maison) : génère les loyers du mois (et du mois suivant à J-5) pour chaque
   // bail actif, puis relance le propriétaire s'il a des loyers en retard. Isolé dans son propre
   // try/catch : une erreur ici ne doit jamais empêcher le reste du cron quotidien de s'exécuter.
@@ -510,6 +514,7 @@ export default async function handler(req, res) {
     ...resultatStock,
     retryCAPI: resultatRetryCAPI,
     paiementsEnLigne: resultatPaiements,
+    paiementsStripe: resultatStripe,
     loyers: resultatLoyers,
   });
 }

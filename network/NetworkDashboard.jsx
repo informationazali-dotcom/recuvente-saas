@@ -145,7 +145,7 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {/* Onglets */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid #ECE8DC" }}>
-        {[{ key: "filleuls", label: "Filleuls" }, { key: "commissions", label: "💰 Commissions" }, { key: "produits", label: "🏷️ Commissions produits" }, { key: "prospects", label: "🎯 Prospects" }].map((o) => (
+        {[{ key: "filleuls", label: "Filleuls" }, { key: "commissions", label: "💰 Commissions" }, { key: "produits", label: "🏷️ Commissions produits" }, { key: "prospects", label: "🎯 Prospects" }, { key: "abonnement_filleul", label: "⚙️ Abonnement partenaire" }].map((o) => (
           <button key={o.key} onClick={() => { setOnglet(o.key); if (o.key === "prospects" && !prospectsCharges) chargerProspects(); }} style={{
             background: "none", border: "none", padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
             color: onglet === o.key ? "#1a7a3c" : "#8A9089",
@@ -244,6 +244,10 @@ export default function NetworkDashboard({ workspace, filleuls, produits, curren
 
       {onglet === "produits" && (
         <ProduitsCommissionsPanel workspace={workspace} produits={produits} currency={currency} />
+      )}
+
+      {onglet === "abonnement_filleul" && (
+        <ReglagesAbonnementFilleulPanel workspace={workspace} />
       )}
 
       {onglet === "prospects" && (
@@ -1081,6 +1085,82 @@ function ProduitsCommissionsPanel({ workspace, produits, currency }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// Réglages de l'abonnement personnel du filleul (LOT G) — 100% optionnel et désactivé
+// par défaut. Une fois activé, un filleul qui franchit le seuil de commandes nettes
+// (commissions validées) est invité à payer un abonnement pour continuer à vendre,
+// avec un délai de grâce avant suspension de son lien. Rien de codé en dur : tout ici
+// vient des colonnes workspaces.filleul_abonnement_* ; le montant, lui, vient du
+// catalogue Chariow configuré côté serveur (voir lib/filleuls-abonnements.js).
+function ReglagesAbonnementFilleulPanel({ workspace }) {
+  const [actif, setActif] = useState(!!workspace.filleul_abonnement_actif);
+  const [seuil, setSeuil] = useState(String(workspace.filleul_abonnement_seuil_commandes ?? 20));
+  const [grace, setGrace] = useState(String(workspace.filleul_abonnement_jours_grace ?? 14));
+  const [enCours, setEnCours] = useState(false);
+  const [confirme, setConfirme] = useState(false);
+  const [erreur, setErreur] = useState("");
+
+  async function enregistrer() {
+    const seuilNombre = Number(seuil);
+    const graceNombre = Number(grace);
+    if (!seuilNombre || seuilNombre <= 0) { setErreur("Le seuil doit être un nombre positif."); return; }
+    if (graceNombre < 0) { setErreur("Le délai de grâce ne peut pas être négatif."); return; }
+    setEnCours(true);
+    setErreur("");
+    const { error } = await supabase
+      .from("workspaces")
+      .update({ filleul_abonnement_actif: actif, filleul_abonnement_seuil_commandes: seuilNombre, filleul_abonnement_jours_grace: graceNombre })
+      .eq("id", workspace.id);
+    setEnCours(false);
+    if (error) { setErreur(error.message || "Échec de l'enregistrement."); return; }
+    setConfirme(true);
+    setTimeout(() => setConfirme(false), 1800);
+  }
+
+  const carte = { background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: "16px 18px" };
+
+  return (
+    <div style={{ ...carte, maxWidth: 460 }}>
+      <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 6 }}>Abonnement personnel du filleul</div>
+      <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 16, lineHeight: 1.6 }}>
+        Aucun filleul ne paie rien à l'inscription. Une fois activé, un filleul qui atteint le seuil ci-dessous
+        (commandes nettes, donc confirmées et non annulées) est invité à payer un abonnement personnel pour
+        continuer à vendre, avec un délai de grâce avant que son lien ne soit mis en pause.
+      </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, cursor: "pointer" }}>
+        <input type="checkbox" checked={actif} onChange={(e) => { setActif(e.target.checked); setConfirme(false); }} style={{ width: 18, height: 18 }} />
+        <span style={{ fontSize: 12.5, fontWeight: 700 }}>Activer l'abonnement partenaire pour cette boutique</span>
+      </label>
+
+      <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Seuil de commandes nettes avant invitation à payer</div>
+      <input
+        type="number" min="1" value={seuil}
+        onChange={(e) => { setSeuil(e.target.value); setConfirme(false); }}
+        style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 12 }}
+      />
+
+      <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 4 }}>Délai de grâce avant suspension (jours)</div>
+      <input
+        type="number" min="0" value={grace}
+        onChange={(e) => { setGrace(e.target.value); setConfirme(false); }}
+        style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14 }}
+      />
+
+      {erreur && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 10 }}>{erreur}</div>}
+
+      <button onClick={enregistrer} disabled={enCours} style={{ background: confirme ? "#1F9D6E" : "#1a7a3c", color: "white", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+        {confirme ? "✅ Enregistré" : enCours ? "..." : "Enregistrer"}
+      </button>
+
+      <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 12, lineHeight: 1.5 }}>
+        Le montant de l'abonnement n'est pas réglable ici — il dépend de la devise de la boutique et est
+        configuré côté serveur. Un filleul suspendu pour non-paiement ne perd rien : ses ventes et
+        commissions passées restent intactes, tout se réactive dès qu'il paie.
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
   const [coachings, setCoachings] = useState([]);
   const [monEquipe, setMonEquipe] = useState([]);
   const [commissionsLeader, setCommissionsLeader] = useState([]);
+  const [abonnementFilleul, setAbonnementFilleul] = useState(null);
 
   async function chargerStock() {
     const { data } = await supabase.from("filleuls_stock").select("*, produits(nom)").eq("filleul_id", filleul.id).gt("quantite_restante", 0);
@@ -49,6 +50,10 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
       setCommissions(comm || []);
       setVentes(attrib || []);
       setCommissionsLeader(commLeader || []);
+      // LOT G : n'existe QUE si le filleul a déjà franchi le seuil de commandes nettes —
+      // absence de ligne = rien à afficher (comportement normal pour la grande majorité).
+      const { data: abo } = await supabase.from("filleuls_abonnements").select("*").eq("filleul_id", filleul.id).maybeSingle();
+      setAbonnementFilleul(abo || null);
       if (filleul.mode_vente === "revendeur") await chargerStock();
       await chargerProspects();
       const { data: equipeData } = await supabase.from("filleuls").select("id, nom, statut").eq("parrain_id", filleul.id);
@@ -120,6 +125,12 @@ export default function FilleulPortalSaas({ filleul, workspace, currency, produi
           )}
         </div>
       </div>
+
+      {/* Abonnement personnel (LOT G) — n'apparaît que si le filleul a franchi le seuil
+          de commandes nettes ; rien à voir pour la grande majorité des filleuls. */}
+      {abonnementFilleul && abonnementFilleul.statut !== "non_requis" && (
+        <AbonnementFilleulCard abonnement={abonnementFilleul} />
+      )}
 
       {/* Lien de recrutement — volontairement distinct du lien boutique (§13, §28) :
           l'un sert à vendre, l'autre à recruter, jamais confondus. */}
@@ -505,6 +516,81 @@ function LienRecrutement({ filleul }) {
         <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: "rgba(255,255,255,0.8)" }}>
           <div>👀 {stats.visites} visite{stats.visites > 1 ? "s" : ""}</div>
           <div>📝 {stats.candidatures} candidature{stats.candidatures > 1 ? "s" : ""}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Abonnement personnel du filleul (LOT G) — apparaît une fois le seuil de
+// commandes nettes franchi. « en_grace » : encore vendeur normalement, juste
+// invité à payer avant la fin du délai. « suspendu » : lien de vente en pause
+// jusqu'au paiement (rien n'est perdu, ses ventes/commissions passées restent
+// intactes). « actif » : confirmation discrète, rien à faire.
+function AbonnementFilleulCard({ abonnement }) {
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+
+  async function payer() {
+    if (!prenom.trim() || !nom.trim() || !telephone.trim()) {
+      setErreur("Renseigne prénom, nom et téléphone pour continuer.");
+      return;
+    }
+    setEnCours(true);
+    setErreur("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const r = await fetch("/api/chariow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ abonnementFilleul: true, firstName: prenom.trim(), lastName: nom.trim(), phone: telephone.trim() }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.url) { window.location.href = j.url; return; }
+      setErreur(j.error || "Paiement indisponible pour l'instant.");
+    } catch (_) {
+      setErreur("Connexion impossible. Réessaie dans un instant.");
+    }
+    setEnCours(false);
+  }
+
+  if (abonnement.statut === "actif") {
+    return (
+      <div style={{ background: "#EAF3DE", border: "1px solid #C9E4B0", borderRadius: 14, padding: 16, marginBottom: 16, fontSize: 12.5, color: "#1a7a3c" }}>
+        ✅ Abonnement partenaire actif{abonnement.periode_fin ? ` — jusqu'au ${new Date(abonnement.periode_fin).toLocaleDateString("fr-FR")}` : ""}.
+      </div>
+    );
+  }
+
+  const suspendu = abonnement.statut === "suspendu";
+
+  return (
+    <div style={{ background: suspendu ? "#FBEAE6" : "#FFF8E7", border: `1px solid ${suspendu ? "#F0C4B0" : "#F0DDA8"}`, borderRadius: 14, padding: 18, marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 6, color: suspendu ? "#B23A26" : "#8A6412" }}>
+        {suspendu ? "⏸️ Ton lien de vente est en pause" : "🎉 Bravo pour tes ventes !"}
+      </div>
+      <div style={{ fontSize: 12.5, color: "#5C574C", marginBottom: 12, lineHeight: 1.6 }}>
+        {suspendu
+          ? "L'abonnement partenaire n'a pas été réglé à temps. Paie-le maintenant pour réactiver ton lien immédiatement — tes ventes et commissions passées restent intactes."
+          : `Tu vends bien ! Active ton abonnement partenaire avant le ${abonnement.grace_expire_at ? new Date(abonnement.grace_expire_at).toLocaleDateString("fr-FR") : "délai indiqué"} pour continuer à vendre sans interruption.`}
+      </div>
+      {!afficherFormulaire ? (
+        <button onClick={() => setAfficherFormulaire(true)} style={{ background: suspendu ? "#B23A26" : "#8A6412", color: "white", border: "none", borderRadius: 9, padding: "10px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+          Payer mon abonnement
+        </button>
+      ) : (
+        <div>
+          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 6 }} />
+          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 6 }} />
+          <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8 }} />
+          {erreur && <div style={{ color: "#D64933", fontSize: 11.5, marginBottom: 8 }}>{erreur}</div>}
+          <button onClick={payer} disabled={enCours} style={{ width: "100%", background: suspendu ? "#B23A26" : "#8A6412", color: "white", border: "none", borderRadius: 9, padding: "10px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: enCours ? 0.7 : 1 }}>
+            {enCours ? "Ouverture du paiement…" : "Continuer vers le paiement"}
+          </button>
         </div>
       )}
     </div>

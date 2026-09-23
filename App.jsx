@@ -2387,7 +2387,16 @@ function AuthScreen({ modeInitial }) {
     setError("");
     setLoading(true);
     if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      // IMPORTANT : sans emailRedirectTo explicite, le lien du mail de confirmation renvoie
+      // vers l'URL "Site URL" réglée dans le tableau de bord Supabase (Authentication → URL
+      // Configuration) — si elle est absente, obsolète ou pas dans la liste "Redirect URLs"
+      // autorisée, Supabase n'arrive pas à ramener la personne connectée sur le bon site, et
+      // elle retombe sur le formulaire d'inscription comme si de rien n'était. On fixe donc
+      // explicitement la destination ici, exactement comme le fait déjà resetPasswordForEmail
+      // juste en dessous — mais il faut AUSSI que cette même URL figure dans la liste
+      // "Redirect URLs" du tableau de bord Supabase, sinon Supabase refusera quand même la
+      // redirection (ça, seul un réglage dans Supabase peut le corriger, pas le code).
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
       if (error) setError(error.message);
       else if (data.user && !data.session) setConfirmationRequise(true);
     } else if (mode === "reset") {

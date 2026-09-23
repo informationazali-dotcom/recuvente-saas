@@ -2382,12 +2382,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const pageAOptions = pageBlocsActifs.some((b) => b.type === "hero" || b.type === "info_produit");
     const rendreFormulaireCommande = (enLigne = false) => (
       <>
+              <style>{CSS_FORMULAIRE_COMMANDE}</style>
               {!enLigne && (<>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ fontWeight: 700, fontSize: 17 }}>{t("tesCoordonnees")}</div>
-                <button onClick={() => setAfficherFormulaire(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#8A9089" }}>×</button>
+                <div style={{ fontWeight: 800, fontSize: 17.5, color: "#16231F", letterSpacing: "-0.01em" }}>📝 {t("tesCoordonnees")}</div>
+                <button onClick={() => setAfficherFormulaire(false)} style={{ background: "#F4F1E8", border: "none", width: 30, height: 30, borderRadius: "50%", fontSize: 17, cursor: "pointer", color: "#6B7168", lineHeight: 1 }}>×</button>
               </div>
-              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>
+              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 18 }}>
                 {t("pourTeContacter")}
               </div>
               </>)}
@@ -2404,6 +2405,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               />
 
               <input
+                className="rv-cmd-input"
                 placeholder={t("tonNom")}
                 value={form.client}
                 onChange={(e) => setForm({ ...form, client: e.target.value })}
@@ -2413,6 +2415,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               />
               <SelecteurPays pays={paysClient} langue={entreprise.langue} style={inputStyle} />
               <input
+                className="rv-cmd-input"
                 placeholder={t("tonTelephone")}
                 value={form.tel}
                 onChange={(e) => { setForm({ ...form, tel: e.target.value }); paysClient.detecter(e.target.value); }}
@@ -2422,6 +2425,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 style={inputStyle}
               />
               <input
+                className="rv-cmd-input"
                 placeholder={t("taVille")}
                 value={form.zone}
                 onChange={(e) => setForm({ ...form, zone: e.target.value })}
@@ -2430,6 +2434,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               />
               {pageConfig?.formulaire?.commune && (
                 <input
+                  className="rv-cmd-input"
                   placeholder="Commune / quartier (optionnel)"
                   value={form.commune || ""}
                   onChange={(e) => setForm({ ...form, commune: e.target.value })}
@@ -2439,6 +2444,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               )}
               {pageConfig?.formulaire?.instructions && (
                 <textarea
+                  className="rv-cmd-input"
                   placeholder="Instructions de livraison : repère, étage, point de rencontre… (optionnel)"
                   value={form.instructions || ""}
                   onChange={(e) => setForm({ ...form, instructions: e.target.value })}
@@ -2447,19 +2453,21 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 />
               )}
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <span style={{ fontSize: 13, color: "#6B7168" }}>{t("quantite")}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="rv-cmd-quantite" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, background: "#FAFAF7", border: "1px solid #F1EFE8", borderRadius: 12, padding: "10px 14px" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#16231F" }}>{t("quantite")}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <button
+                    className="rv-cmd-stepper"
                     onClick={() => { setQuantite((q) => Math.max(1, q - 1)); setBundleChoisiId(null); }}
-                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                    style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
                   >
                     −
                   </button>
-                  <div style={{ fontWeight: 700, fontSize: 16, minWidth: 20, textAlign: "center" }}>{quantite}</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, minWidth: 20, textAlign: "center" }}>{quantite}</div>
                   <button
+                    className="rv-cmd-stepper"
                     onClick={() => { setQuantite((q) => q + 1); setBundleChoisiId(null); }}
-                    style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                    style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
                   >
                     +
                   </button>
@@ -2646,15 +2654,16 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 ) : (
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
+                      className="rv-cmd-input"
                       placeholder="Code promo (optionnel)"
                       value={codePromoInput}
                       onChange={(e) => setCodePromoInput(e.target.value)}
-                      style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 16, boxSizing: "border-box", textTransform: "uppercase" }}
+                      style={{ flex: 1, padding: "9px 11px", borderRadius: 10, border: "1px solid #E4E1D5", background: "#FBFAF6", fontSize: 16, boxSizing: "border-box", textTransform: "uppercase" }}
                     />
                     <button
                       onClick={() => verifierCodePromo(prixUnitaireEffectif * quantite + fraisLivraisonActuel + (produitBumpId ? (produitOuvert.bump_prix_special != null ? Number(produitOuvert.bump_prix_special) : Number(produits.find((p) => p.produit_id === produitBumpId)?.prix_vente || 0)) : 0))}
                       disabled={verificationCodePromoEnCours || !codePromoInput.trim()}
-                      style={{ background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "0 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      style={{ background: "#16231F", color: "white", border: "none", borderRadius: 10, padding: "0 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                     >
                       {verificationCodePromoEnCours ? "..." : "Appliquer"}
                     </button>
@@ -2665,11 +2674,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 )}
               </div>
 
-              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
+              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
                 {t("onVaAppeler")}
               </div>
 
-              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
+              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                 {t("engagement")}
               </div>
 
@@ -2697,9 +2706,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               </div>
 
               <button
+                className="rv-cmd-submit"
                 onClick={envoyerCommande}
                 disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 12, padding: "15px 0", fontWeight: 700, fontSize: 15, cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
+                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 14, padding: "16px 0", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", boxShadow: "0 8px 20px -6px rgba(22,35,31,0.35)", cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
                 {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${montantAffiche(totalAffiche)} ${formaterDevise(entreprise.devise)}`}
               </button>
@@ -3886,6 +3896,23 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
   const [menuOuvert, setMenuOuvert] = useState(false);
   const categories = [...new Set(biensLocation.map((b) => b.categorie).filter(Boolean))];
 
+  // Épinglé en haut (position: sticky) pendant tout le défilement, et réduit passé un petit
+  // seuil de scroll — même mécanique que EnteteBoutique/EnteteAzaliExpress (hystérésis pour
+  // éviter les allers-retours, requestAnimationFrame pour ne jamais impacter la fluidité).
+  const [enteteRepliee, setEnteteRepliee] = useState(false);
+  useEffect(() => {
+    let ticking = false;
+    function verifier() {
+      setEnteteRepliee((etaitRepliee) => window.scrollY > (etaitRepliee ? 20 : 44));
+      ticking = false;
+    }
+    function onScroll() {
+      if (!ticking) { window.requestAnimationFrame(verifier); ticking = true; }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Charge la police premium en arrière-plan, sans jamais bloquer l'affichage de la page —
   // le site s'affiche immédiatement avec une police de secours, puis bascule sur la police
   // premium dès qu'elle est prête (aucune attente visible pour le visiteur).
@@ -3899,19 +3926,27 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
   }, []);
 
   return (
-    <div style={{ fontFamily: "'Inter', sans-serif", background: "#0a0a0a" }}>
+    <div className={`rv-lux-sticky${enteteRepliee ? " rv-lux-repliee" : ""}`} style={{ fontFamily: "'Inter', sans-serif", background: "#0a0a0a" }}>
       <style>{`
         .rv-lux-titre { font-family: 'Playfair Display', 'Georgia', serif; }
+        /* Position en CSS (avec le préfixe -webkit-) : certains anciens navigateurs/webviews
+           ignorent silencieusement "position: sticky" sans le préfixe -webkit-. */
+        .rv-lux-sticky { position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 40 !important; transition: box-shadow .2s ease; }
+        .rv-lux-repliee { box-shadow: 0 4px 18px rgba(0,0,0,0.45); }
+        .rv-lux-bandeau { overflow: hidden; transition: max-height .22s ease, opacity .18s ease; }
+        .rv-lux-repliee .rv-lux-bandeau { max-height: 0 !important; opacity: 0 !important; }
+        .rv-lux-cats { overflow: hidden; transition: max-height .22s ease, opacity .18s ease; }
+        .rv-lux-repliee .rv-lux-cats { max-height: 0 !important; opacity: 0 !important; border-top-color: transparent !important; }
       `}</style>
-      <div style={{ background: "#D4AF37", color: "#0a0a0a", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>
+      <div className="rv-lux-bandeau" style={{ background: "#D4AF37", color: "#0a0a0a", textAlign: "center", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", maxHeight: 40 }}>
         ✨ VÉHICULES DE LUXE · MATÉRIEL LOURD · IMPORT SUR MESURE DEPUIS LA CHINE
       </div>
-      <div style={{ maxWidth: 1300, margin: "0 auto", padding: "16px 20px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+      <div style={{ maxWidth: 1300, margin: "0 auto", padding: enteteRepliee ? "9px 20px" : "16px 20px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", transition: "padding .2s ease" }}>
         <div onClick={onLogoClick} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }}>
           {entreprise.logo ? (
-            <img src={entreprise.logo} alt={entreprise.nom} style={{ height: 42, objectFit: "contain" }} />
+            <img src={entreprise.logo} alt={entreprise.nom} style={{ height: enteteRepliee ? 30 : 42, objectFit: "contain", transition: "height .2s ease" }} />
           ) : (
-            <span className="rv-lux-titre" style={{ fontWeight: 700, fontSize: 21, color: "#D4AF37", letterSpacing: "0.02em" }}>{entreprise.nom}</span>
+            <span className="rv-lux-titre" style={{ fontWeight: 700, fontSize: enteteRepliee ? 16 : 21, color: "#D4AF37", letterSpacing: "0.02em", transition: "font-size .2s ease" }}>{entreprise.nom}</span>
           )}
         </div>
 
@@ -3938,7 +3973,7 @@ function EnteteLuxuryCar({ entreprise, recherche, setRecherche, onLogoClick, bie
       </div>
 
       {categories.length > 0 && (
-        <div style={{ borderTop: "1px solid rgba(212,175,55,0.15)", overflowX: "auto" }}>
+        <div className="rv-lux-cats" style={{ borderTop: "1px solid rgba(212,175,55,0.15)", overflowX: "auto", maxHeight: 46 }}>
           <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px", display: "flex", gap: 4 }}>
             <button onClick={() => onOuvrirCategorie(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.8)", padding: "12px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>TOUT VOIR</button>
             {categories.map((c) => (
@@ -4492,8 +4527,7 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
           </div>
         </div>
 
-        {!estFixe && (
-        <div className="rv-azali-nav-scroll" style={{ background: bgMenu, padding: "0 16px", overflowX: "auto" }}>
+        <div className="rv-azali-nav-scroll" style={{ background: bgMenu, padding: estFixe ? "0 16px" : "0 16px", overflow: estFixe ? "hidden" : "auto", overflowX: estFixe ? "hidden" : "auto", maxHeight: estFixe ? 0 : 44, opacity: estFixe ? 0 : 1, transition: "max-height .2s ease, opacity .16s ease" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}>
             <span
               onClick={() => onNaviguerVersCollection(null)}
@@ -4528,7 +4562,6 @@ function EnteteAzaliExpress({ entreprise, couleur, recherche, setRecherche, onLo
             </div>
           </div>
         </div>
-        )}
 
         {menuMobileOuvert && (
           <div style={{ background: couleurPersoValide(scAz.headerNavBgColor) || "#0f3d20", maxHeight: "70vh", overflowY: "auto" }}>
@@ -4787,7 +4820,7 @@ function EnteteBoutique({ entreprise, couleur, recherche, setRecherche, onLogoCl
       </div>
 
       {aDesLiensNav && (
-        <div className="rv-shop-nav-desktop" style={{ borderTop: "1px solid rgba(0,0,0,0.08)", overflowX: "auto", ...(bgNav ? { background: bgNav } : {}) }}>
+        <div className="rv-shop-nav-desktop" style={{ borderTop: enteteRepliee ? "none" : "1px solid rgba(0,0,0,0.08)", overflow: enteteRepliee ? "hidden" : "auto", overflowX: enteteRepliee ? "hidden" : "auto", maxHeight: enteteRepliee ? 0 : 46, opacity: enteteRepliee ? 0 : 1, transition: "max-height .22s ease, opacity .18s ease, border-color .22s ease", ...(bgNav ? { background: bgNav } : {}) }}>
           <div className="rv-shop-header-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px", display: "flex", gap: 4 }}>
             {aDesLiensPersonnalises ? (
               headerConfig.liens.map((lien) => (
@@ -5656,7 +5689,24 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
   );
 }
 
-const inputStyle = { width: "100%", padding: "12px 13px", borderRadius: 10, border: "1px solid #DDD8CC", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box" };
+const inputStyle = { width: "100%", padding: "13px 14px", borderRadius: 12, border: "1px solid #E4E1D5", background: "#FBFAF6", color: "#16231F", fontSize: 14.5, marginBottom: 10, boxSizing: "border-box", outline: "none" };
+
+// Polish visuel du bon de commande (focus, survol) — en CSS plutôt qu'en style inline, car
+// ':focus'/':hover' ne peuvent pas s'exprimer en style React. Neutre (jamais dépendant de la
+// couleur de marque de la boutique, potentiellement invalide en CSS) : identique sur toutes les
+// boutiques, cohérent avec la palette du reste de l'app.
+const CSS_FORMULAIRE_COMMANDE = `
+  .rv-cmd-input, .rv-selecteur-pays select { transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+  .rv-cmd-input:focus, .rv-selecteur-pays select:focus { border-color: #9CA89A; box-shadow: 0 0 0 3px rgba(22,35,31,0.07); background: #ffffff; }
+  .rv-cmd-input::placeholder { color: #A8AA9E; }
+  .rv-cmd-stepper { transition: background .12s ease, border-color .12s ease; }
+  .rv-cmd-stepper:active { background: #F1EFE8; }
+  .rv-cmd-submit { transition: transform .12s ease, box-shadow .15s ease; }
+  .rv-cmd-submit:not(:disabled):active { transform: scale(0.985); }
+  @media (hover: hover) {
+    .rv-cmd-stepper:hover { border-color: #B7C2B4; }
+  }
+`;
 
 // ---------------------------------------------------------------------------
 // PAGE PRODUIT « style Copyfy » — briques réutilisables

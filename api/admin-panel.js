@@ -11,6 +11,7 @@ const ACTIONS_CROISSANCE = new Set([
   "options_lire", "options_enregistrer", "reseau_verifier",
   "amb_moi", "amb_infos", "amb_lier",
   "amb_admin_liste", "amb_admin_payer", "annuaire_admin_liste", "annuaire_une",
+  "stripe_reversements_admin_liste", "stripe_reversements_admin_marquer",
 ]);
 
 async function verifierAdmin(req, res) {

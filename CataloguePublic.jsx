@@ -3362,6 +3362,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         </div>
       )}
 
+      {entreprise.slug === "luxury-car" && <SectionsLuxuryCar entreprise={entreprise} biensLocation={biensLocation} onOuvrirCategorie={(cat) => setFiltreCategorieBien(cat)} />}
+
       {entreprise.slug !== "luxury-car" && biensLocation.length > 0 && (
         <div id="rv-vehicules" style={{ padding: "24px 16px", maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
@@ -3400,8 +3402,6 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           </div>
         </div>
       )}
-
-      {entreprise.slug === "luxury-car" && <SectionsLuxuryCar entreprise={entreprise} biensLocation={biensLocation} onOuvrirCategorie={(cat) => setFiltreCategorieBien(cat)} />}
 
       <div className="rv-shop-content" style={{ paddingTop: 20, ...(entreprise.slug === "luxury-car" ? { background: "#0a0a0a", color: "white" } : {}) }}>
         {produits.length === 0 && (

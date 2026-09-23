@@ -15,10 +15,25 @@ import SchoolAdmin from "./network/SchoolAdmin.jsx";
 import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import * as XLSX from "xlsx";
+import { verifierChevauchement, messageChevauchement } from "./locationVehiculeUtils.js";
 // Product Page Builder : éditeur chargé À LA DEMANDE (n'alourdit ni la boutique publique ni le tableau de bord).
 const PageProduitBuilder = React.lazy(() => import("./PageProduitBuilder.jsx"));
 // Croissance (paiement en ligne optionnel, réseau anti-refus, annuaire, ambassadeur) : chargée à la demande.
 const CroissanceModal = React.lazy(() => import("./Croissance.jsx"));
+// Tarifs de livraison, dépenses générales et mouvements de stock : chargé à la demande.
+const GestionLivraisonFinancesModal = React.lazy(() => import("./GestionLivraisonFinances.jsx"));
+// Caisse (boutique physique : vente rapide au comptoir, dettes clients, clôture de caisse,
+// fournisseurs & achats) : chargée à la demande, uniquement pour activity_type === "retail".
+const CaisseModal = React.lazy(() => import("./Caisse.jsx"));
+// Restaurant : addition par table (paiements fractionnés) + petits rapports — chargé à la demande.
+const RestaurantPlus = React.lazy(() => import("./RestaurantPlus.jsx"));
+// Restaurant : écran "Mes QR" (lien du menu public + QR par table, planche à imprimer) — chargé à la demande.
+const RestaurantQR = React.lazy(() => import("./RestaurantQR.jsx"));
+// LOT 3 : Locataires & loyers (location_immobiliere) — vrai système de baux/loyers, chargé à la demande.
+const LocationMaisonModal = React.lazy(() => import("./LocationMaison.jsx"));
+// LOT 4 — Location de voitures/véhicules : calendrier, retours, contrat PDF, états des lieux,
+// entretien & rentabilité. Chargé à la demande, uniquement pour activity_type "location_vehicule".
+const LocationVoiture = React.lazy(() => import("./LocationVoiture.jsx"));
 
 
 // ============================================================================
@@ -58,6 +73,86 @@ function rvUsePaiementsEnLigne(wsId) {
 }
 // Part de la commande réellement à encaisser en main propre (le reste a déjà été payé en ligne).
 const rvAEncaisser = (c, pe) => Math.max(0, Number(c.montant) - Math.min(Number(c.montant), Number((pe || {})[c.id]) || 0));
+
+// 1 bis) Coût de livraison RÉEL par commande (remplace l'ancien 1 500 F fixe appliqué à tout, y compris aux
+// loyers et aux repas sur place, ce qui faussait le bénéfice). Réglable : un tarif par défaut pour la
+// boutique, avec possibilité de préciser un tarif différent par zone ou par livreur — sinon 1 500 F comme
+// avant. Si les tables n'existent pas encore (avant collage du SQL), tout continue de fonctionner comme avant.
+const RV_TARIF_LIVRAISON_DEFAUT = 1500;
+const rvTL = { ws: null, defaut: null, parZone: {}, parLivreur: {}, charge: false, ecout: new Set() };
+async function rvChargerTarifsLivraison() {
+  const wsId = rvTL.ws;
+  if (!wsId) return;
+  try {
+    const [{ data: reg }, { data: zones }, { data: livr }] = await Promise.all([
+      supabase.from("reglages_livraison").select("tarif_defaut").eq("workspace_id", wsId).maybeSingle(),
+      supabase.from("tarifs_zone_livraison").select("zone, montant").eq("workspace_id", wsId).limit(500),
+      supabase.from("tarifs_livreur_livraison").select("livreur_nom, montant").eq("workspace_id", wsId).limit(500),
+    ]);
+    if (rvTL.ws !== wsId) return;
+    rvTL.defaut = reg && reg.tarif_defaut != null ? Number(reg.tarif_defaut) : null;
+    const pz = {}; (zones || []).forEach((z) => { pz[String(z.zone || "").trim().toLowerCase()] = Number(z.montant); }); rvTL.parZone = pz;
+    const pl = {}; (livr || []).forEach((l) => { pl[String(l.livreur_nom || "").trim().toLowerCase()] = Number(l.montant); }); rvTL.parLivreur = pl;
+  } catch (_) { /* tables pas encore créées : comportement inchangé */ }
+  rvTL.charge = true;
+  rvTL.ecout.forEach((f) => f());
+}
+function useTarifsLivraison(wsId) {
+  const [, forcer] = useState(0);
+  useEffect(() => {
+    if (!wsId) return;
+    if (rvTL.ws !== wsId) { rvTL.ws = wsId; rvTL.defaut = null; rvTL.parZone = {}; rvTL.parLivreur = {}; rvTL.charge = false; rvChargerTarifsLivraison(); }
+    const f = () => forcer((n) => n + 1);
+    rvTL.ecout.add(f);
+    return () => rvTL.ecout.delete(f);
+  }, [wsId]);
+  return { defaut: rvTL.defaut ?? RV_TARIF_LIVRAISON_DEFAUT, parZone: rvTL.parZone, parLivreur: rvTL.parLivreur };
+}
+// Cette commande a-t-elle un vrai trajet de livraison à payer ? (jamais un loyer, jamais une location de
+// véhicule, jamais un repas sur place ou à emporter — seulement une vraie livraison/expédition).
+function rvEstLivraisonFacturable(c, activityType) {
+  if (activityType === "location_immobiliere" || activityType === "location_vehicule") return false;
+  if (activityType === "restaurant") return c.type_commande === "livraison";
+  return c.mode_vente === "livraison" || c.mode_vente === "expedition";
+}
+// Montant du tarif à appliquer à CETTE commande : priorité au tarif du livreur assigné, sinon celui de sa
+// zone, sinon le tarif par défaut de la boutique (1 500 F si rien n'a jamais été réglé, comme avant).
+function rvTarifPourCommande(c, tarifs) {
+  const cleLivreur = String(c.livreur || "").trim().toLowerCase();
+  if (cleLivreur && tarifs.parLivreur[cleLivreur] != null) return tarifs.parLivreur[cleLivreur];
+  const cleZone = String(c.zone || "").trim().toLowerCase();
+  if (cleZone && tarifs.parZone[cleZone] != null) return tarifs.parZone[cleZone];
+  return tarifs.defaut;
+}
+function rvCoutLivraison(c, workspace, tarifs) {
+  if (!rvEstLivraisonFacturable(c, workspace?.activity_type)) return 0;
+  return rvTarifPourCommande(c, tarifs);
+}
+
+// 1 ter) Dépenses générales de la période (loyer, publicité, salaires…) — ce que l'ancien
+// "bénéfice réel" ne retirait jamais. Si la table n'existe pas encore (avant collage du SQL
+// du Lot 1), retourne simplement 0 : le reste continue de fonctionner comme avant.
+function useDepensesPeriode(wsId, debut, fin) {
+  const [total, setTotal] = useState(0);
+  useEffect(() => {
+    if (!wsId || !debut || !fin) { setTotal(0); return; }
+    let annule = false;
+    supabase
+      .from("depenses_generales")
+      .select("montant")
+      .eq("workspace_id", wsId)
+      .gte("date_depense", debut.toISOString().slice(0, 10))
+      .lt("date_depense", fin.toISOString().slice(0, 10))
+      .then(({ data, error }) => {
+        if (annule || error) return;
+        setTotal((data || []).reduce((s, d) => s + Number(d.montant), 0));
+      })
+      .catch(() => {});
+    return () => { annule = true; };
+  }, [wsId, debut ? debut.getTime() : null, fin ? fin.getTime() : null]);
+  return total;
+}
+
 
 // 2) Ce numéro a-t-il déjà refusé des colis dans d'autres boutiques ? (chiffres seulement, voir Croissance → Réseau)
 const rvRisque = { ws: null, map: {}, attente: new Set(), connus: new Set(), timer: null, ecout: new Set(), pauseJusqua: 0 };
@@ -3806,7 +3901,7 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
   );
 }
 
-function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace, onSupprimerBoutique }) {
+export function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace, onSupprimerBoutique }) {
   const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || workspace.activity_type === "network_marketing" || workspace.activity_type === "location_vehicule";
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
@@ -3858,7 +3953,10 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const [showCampagne, setShowCampagne] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showCroissance, setShowCroissance] = useState(false);
+  const [showGestionLivraisonFinances, setShowGestionLivraisonFinances] = useState(false);
+  const [showLocationMaison, setShowLocationMaison] = useState(false); // LOT 3 : Locataires & loyers
   const [showStoreBuilder, setShowStoreBuilder] = useState(false);
+  const [showLocationVoiture, setShowLocationVoiture] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
 
@@ -3884,6 +3982,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadCommandes();
   }
   const [showProduits, setShowProduits] = useState(false);
+  const [showCaisse, setShowCaisse] = useState(false);
   const [showAvis, setShowAvis] = useState(false);
   const [showProspectsIA, setShowProspectsIA] = useState(false);
   const [showCeoIA, setShowCeoIA] = useState(false);
@@ -4027,15 +4126,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await loadLogements();
   }
 
-  // Fiche locataire : assigner/mettre à jour le nom, le téléphone et les dates de bail d'un
-  // logement. On marque aussi automatiquement le logement comme "loué" (disponible = false)
-  // dès qu'un locataire est assigné, et "disponible" à nouveau quand on le libère.
-  async function updateLocataireLogement(id, infosLocataire) {
-    const libere = !infosLocataire.nom_locataire;
-    await supabase.from("logements").update({ ...infosLocataire, disponible: libere }).eq("id", id);
-    await loadLogements();
-  }
-
   async function deleteLogement(id) {
     await supabase.from("logements").delete().eq("id", id);
     await loadLogements();
@@ -4075,7 +4165,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     await supabase.from("commandes").update({ statut_cuisine: nouveauStatutCuisine }).eq("id", commandeId);
     if (nouveauStatutCuisine === "servie") {
       const commandeConcernee = commandes.find((c) => c.id === commandeId);
-      if (commandeConcernee?.table_id) {
+      // La table ne se libère plus automatiquement dès qu'un plat est "servi" : elle reste occupée
+      // tant que l'addition n'est pas réglée (vue "🧾 Tables & addition", bouton "Encaisser et
+      // libérer la table"). Elle ne se libère toute seule ici que si cette commande était déjà payée.
+      const dejaPayee = commandeConcernee && Number(commandeConcernee.montant_paye || 0) >= Number(commandeConcernee.montant || 0);
+      if (commandeConcernee?.table_id && dejaPayee) {
         await supabase.from("tables_restaurant").update({ statut: "libre" }).eq("id", commandeConcernee.table_id);
         await loadTablesRestaurant();
       }
@@ -4475,32 +4569,6 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       loadLogements();
     }
   }, []);
-
-  // Génération automatique du loyer du mois : dès que les logements et les commandes sont
-  // chargés, on crée le loyer du mois en cours pour chaque logement occupé (locataire assigné)
-  // qui n'a pas encore de loyer enregistré pour ce mois — évite d'avoir à cliquer chaque mois.
-  useEffect(() => {
-    if (workspace.activity_type !== "location_immobiliere" || !loaded || logements.length === 0) return;
-    const moisCourant = new Date().toISOString().slice(0, 7);
-    const occupesSansLoyerCeMois = logements.filter(
-      (l) => l.nom_locataire && l.tel_locataire && !commandes.some((c) => c.logement_id === l.id && c.mois_loyer === moisCourant)
-    );
-    if (occupesSansLoyerCeMois.length === 0) return;
-    const lignes = occupesSansLoyerCeMois.map((l) => ({
-      workspace_id: workspace.id,
-      client: l.nom_locataire,
-      tel: l.tel_locataire,
-      produit: l.nom,
-      montant: Number(l.loyer_mensuel) || 0,
-      montant_paye: 0,
-      zone: l.adresse || "",
-      mode_vente: "sur_place",
-      logement_id: l.id,
-      mois_loyer: moisCourant,
-      statut: "en_cours",
-    }));
-    supabase.from("commandes").insert(lignes).then(({ error }) => { if (!error) loadCommandes(); });
-  }, [loaded, logements, workspace.activity_type]);
 
   const accesBloque = (() => {
     if (subscription === undefined) return false; // encore en cours de chargement, ne pas bloquer par erreur
@@ -5385,18 +5453,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
   const tauxLivraison = commandesInRange.length ? Math.round((confirmees.length / commandesInRange.length) * 100) : 0;
   const tauxEchec = commandesInRange.length ? Math.round((echoueesInRange.length / commandesInRange.length) * 100) : 0;
 
-  const COUT_LIVRAISON = 1500;
-  // Le coût de livraison ne s'applique que là où une livraison a réellement lieu :
-  // systématiquement pour la vente à la livraison (cod_ecommerce), au cas par cas selon le
-  // mode de vente pour la boutique physique (retail) et le restaurant (une commande "livraison"
-  // a un vrai livreur, une commande "sur place"/"emporter" n'en a pas), et jamais pour la
-  // location de maison, la location de véhicule ou le réseau de vente.
-  const nbLivraisonsFacturees = workspace.activity_type === "retail" || workspace.activity_type === "restaurant"
-    ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length
-    : workspace.activity_type === "cod_ecommerce"
-      ? confirmees.length
-      : 0;
-  const coutLivraisons = nbLivraisonsFacturees * COUT_LIVRAISON;
+  const tarifsLivraison = useTarifsLivraison(workspace?.id);
+  const coutLivraisons = confirmees.reduce((s, c) => s + rvCoutLivraison(c, workspace, tarifsLivraison), 0);
+  const depensesPeriode = useDepensesPeriode(workspace?.id, dateRange.start, dateRange.end);
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0;
@@ -5466,15 +5525,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       const trouve = produits.find((p) => p.nom.toLowerCase() === nom.toLowerCase());
       m.ca += Number(c.montant);
       m.cout += trouve ? (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite : 0;
-      m.livraison += workspace.activity_type === "retail" || workspace.activity_type === "restaurant"
-        ? ((c.mode_vente === "livraison" || c.mode_vente === "expedition") ? COUT_LIVRAISON : 0)
-        : workspace.activity_type === "cod_ecommerce"
-          ? COUT_LIVRAISON
-          : 0;
+      m.livraison += rvCoutLivraison(c, workspace, tarifsLivraison);
       m.nbCommandes += 1;
     });
     return Object.values(map).map((x) => ({ ...x, benefice: x.ca - x.cout - x.livraison })).sort((a, b) => b.benefice - a.benefice || b.nbTotal - a.nbTotal);
-  }, [commandesInRange, produits, workspace.activity_type]);
+  }, [commandesInRange, produits, workspace, tarifsLivraison]);
 
   const paiementsEnLigne = rvUsePaiementsEnLigne(workspace?.id);
   const depotsParLivreur = useMemo(() => {
@@ -5483,12 +5538,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         const mesLivrees = confirmees.filter((c) => c.livreur === l.nom);
         // Ce qui a déjà été payé en ligne n'a pas été encaissé par le livreur : on ne le lui réclame pas.
         const montantRecupere = mesLivrees.reduce((s, c) => s + rvAEncaisser(c, paiementsEnLigne), 0);
-        const commission = mesLivrees.length * COUT_LIVRAISON;
+        const commission = mesLivrees.reduce((s, c) => s + rvCoutLivraison(c, workspace, tarifsLivraison), 0);
         return { nom: l.nom, livrees: mesLivrees.length, montantRecupere, commission, aDeposer: montantRecupere - commission };
       })
       .filter((l) => l.livrees > 0)
       .sort((a, b) => b.aDeposer - a.aDeposer);
-  }, [livreurs, confirmees, paiementsEnLigne]);
+  }, [livreurs, confirmees, paiementsEnLigne, workspace, tarifsLivraison]);
 
   const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
   const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
@@ -5538,16 +5593,16 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     function auRetourNavigateur() {
       const uneFenetreEstOuverte =
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
-        showCollections || showPages || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showAbonnement || showCampagne || showLivreurs || showClosers ||
+        showCollections || showPages || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showCaisse || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
-        showBatch || showAdd;
+        showBatch || showAdd || showLocationMaison;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
-        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowPages(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false);
+        setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowPages(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false); setShowCaisse(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
-        setShowIntegrations(false); setShowBatch(false); setShowAdd(false);
+        setShowIntegrations(false); setShowBatch(false); setShowAdd(false); setShowLocationMaison(false);
       } else if (vue !== "aujourdhui") {
         setVue("aujourdhui");
       }
@@ -5558,9 +5613,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
     return () => window.removeEventListener("popstate", auRetourNavigateur);
   }, [
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
-    showCollections, showPages, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showAbonnement, showCampagne, showLivreurs, showClosers,
+    showCollections, showPages, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showCaisse, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
-    showBatch, showAdd, vue,
+    showBatch, showAdd, showLocationMaison, vue,
   ]);
 
   if (workspace.role === "livreur" && monProfilLivreur) {
@@ -5570,6 +5625,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         commandes={commandes.filter((c) => c.livreur === monProfilLivreur.nom)}
         currency={formaterDevise(workspace.currency)}
         onStatusChanged={loadCommandes}
+        workspace={workspace}
       />
     );
   }
@@ -5733,9 +5789,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         )}
 
         {[
-          { key: "aujourdhui", label: "Aujourd'hui" },
+          { key: "aujourdhui", label: "🏠 Accueil" },
           { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "restaurant" ? "Commandes" : "Commandes" },
-          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }] : []),
+          ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }, { key: "tables_addition", label: "🧾 Tables & addition" }, { key: "qr_menu", label: "📲 QR & menu public" }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "🚗 Véhicules/Matériel" }] : []),
           ...(workspace.activity_type === "location_immobiliere" ? [{ key: "logements", label: "🏠 Logements" }] : []),
           { key: "validations", label: "Validations" },
@@ -5791,6 +5847,14 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             📦 Catalogue
+          </button>
+        )}
+        {workspace.activity_type === "retail" && (
+          <button
+            onClick={() => setShowCaisse(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🧾 Caisse
           </button>
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
@@ -5956,6 +6020,22 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
             >
               🚀 Paiement en ligne & croissance
             </button>
+            {workspace.activity_type === "location_immobiliere" && (
+              <button
+                onClick={() => setShowLocationMaison(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(26,122,60,0.18)", color: "#7fd6a3", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🏠 Locataires & loyers
+              </button>
+            )}
+            {workspace.activity_type === "location_vehicule" && (
+              <button
+                onClick={() => setShowLocationVoiture(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🚗 Calendrier & locations
+              </button>
+            )}
             {estEcommerce && (
               <button
                 onClick={() => setShowStoreBuilder(true)}
@@ -6064,14 +6144,20 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                 )}
                 <button onClick={() => setShowRapportHebdo(true)} aria-label="Ma semaine" style={{ flexShrink: 0, background: "rgba(232,146,10,0.25)", border: "1px solid rgba(232,146,10,0.4)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>
                 {estEcommerce && <button onClick={() => setShowProduits(true)} aria-label="Catalogue" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📦</button>}
+                {workspace.activity_type === "retail" && <button onClick={() => setShowCaisse(true)} aria-label="Caisse" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧾</button>}
                 <button onClick={() => setVue("rapprochement")} aria-label="Rapprochement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🔗</button>
                 <button onClick={() => setVue("score_business")} aria-label="Score business" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>
                 {estEcommerce && <button onClick={() => setVue("simulateur")} aria-label="Simulateur pub" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>}
                 <button onClick={() => setVue("validations")} aria-label="Validations" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✅</button>
                 {workspace.activity_type === "restaurant" && <button onClick={() => setVue("menu_restaurant")} aria-label="Menu" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📋</button>}
+                {workspace.activity_type === "restaurant" && <button onClick={() => setVue("tables_addition")} aria-label="Tables et addition" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧾</button>}
+                {workspace.activity_type === "restaurant" && <button onClick={() => setVue("qr_menu")} aria-label="QR et menu public" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📲</button>}
+                {workspace.activity_type === "location_vehicule" && <button onClick={() => setShowLocationVoiture(true)} aria-label="Calendrier & locations" style={{ flexShrink: 0, background: "rgba(232,146,10,0.25)", border: "1px solid rgba(232,146,10,0.4)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🚗</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowIntegrations(true)} aria-label="Réglages" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>}
                 {estAdminRecuvente && <button onClick={() => setShowAdminPanel(true)} aria-label="Administration RecuVente" style={{ flexShrink: 0, background: "rgba(232,146,10,0.3)", border: "1px solid rgba(232,146,10,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🛡️</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowCroissance(true)} aria-label="Paiement en ligne et croissance" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🚀</button>}
+                {(workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowGestionLivraisonFinances(true)} aria-label="Tarifs de livraison et dépenses" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>⚙️</button>}
+                {workspace.activity_type === "location_immobiliere" && <button onClick={() => setShowLocationMaison(true)} aria-label="Locataires et loyers" style={{ flexShrink: 0, background: "rgba(26,122,60,0.3)", border: "1px solid rgba(26,122,60,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🏠</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
                 {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowProspectsIA(true)} aria-label="Prospects IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤖</button>}
@@ -6316,30 +6402,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
                       >
                         📞
                       </a>
-                      {workspace.activity_type === "location_immobiliere" && (
-                        <a
-                          href={`https://wa.me/${cleanPhoneForWhatsApp(c.tel)}?text=${encodeURIComponent(`Bonjour ${(c.client || "").split(" ")[0]} 👋, petit rappel : le loyer de ${c.produit} (${Number(c.montant).toLocaleString("fr-FR")} ${workspace.currency}) n'a pas encore été réglé. Merci de régulariser dès que possible 🙏`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#25d366", color: "white", borderRadius: 7, padding: "9px 14px", fontSize: 15, textDecoration: "none" }}
-                        >
-                          💬
-                        </a>
-                      )}
                       <button
                         onClick={() => setCommandeAConfirmerRapide(c)}
                         style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
                       >
-                        {workspace.activity_type === "location_immobiliere" ? "✅ Loyer payé" : "✅ Confirmer"}
+                        ✅ Confirmer
                       </button>
-                      {workspace.activity_type !== "location_immobiliere" && (
-                        <button
-                          onClick={() => changerStatutRapide(c.id, "echouee")}
-                          style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
-                        >
-                          ❌ Échoué
-                        </button>
-                      )}
+                      <button
+                        onClick={() => changerStatutRapide(c.id, "echouee")}
+                        style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                      >
+                        ❌ Échoué
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -6579,14 +6653,12 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           onAdd={addLogement}
           onToggleDisponibilite={toggleDisponibiliteLogement}
           onDelete={deleteLogement}
-          onUpdateLocataire={updateLocataireLogement}
         />
       )}
 
       {vue === "menu_restaurant" && !accesBloque && (
         <MenuRestaurantView
           plats={plats}
-          workspaceSlug={workspace.slug}
           currency={formaterDevise(workspace.currency)}
           onAdd={addPlat}
           onToggleDisponibilite={toggleDisponibilitePlat}
@@ -6594,7 +6666,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           tablesRestaurant={tablesRestaurant}
           onAddTable={addTableRestaurant}
           onToggleStatutTable={toggleStatutTable}
-          commandes={commandes}
+          workspaceId={workspace.id}
         />
       )}
 
@@ -6603,7 +6675,28 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           commandes={commandes.filter((c) => c.statut !== "annulee" && c.statut !== "echouee")}
           onChangerStatutCuisine={changerStatutCuisine}
           currency={formaterDevise(workspace.currency)}
+          workspace={workspace}
         />
+      )}
+
+      {vue === "tables_addition" && !accesBloque && workspace.activity_type === "restaurant" && (
+        <React.Suspense fallback={null}>
+          <RestaurantPlus
+            workspace={workspace}
+            commandes={commandes}
+            tablesRestaurant={tablesRestaurant}
+            plats={plats}
+            confirmateurNom={session.user.email.split("@")[0]}
+            currency={formaterDevise(workspace.currency)}
+            onRefresh={async () => { await loadCommandes(); await loadTablesRestaurant(); }}
+          />
+        </React.Suspense>
+      )}
+
+      {vue === "qr_menu" && !accesBloque && workspace.activity_type === "restaurant" && (
+        <React.Suspense fallback={null}>
+          <RestaurantQR workspace={workspace} tablesRestaurant={tablesRestaurant} />
+        </React.Suspense>
       )}
 
       {vue === "produits_vue" && !accesBloque && (
@@ -6781,13 +6874,18 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
           </div>
 
           <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
-              {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice net</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: (beneficeReel - depensesPeriode) >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+              {(beneficeReel - depensesPeriode).toLocaleString("fr-FR")} {workspace.currency}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({nbLivraisonsFacturees} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
+              CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({coutLivraisons.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")}) − Dépenses générales ({depensesPeriode.toLocaleString("fr-FR")})
             </div>
+            {depensesPeriode === 0 && (
+              <button onClick={() => setShowGestionLivraisonFinances(true)} style={{ marginTop: 8, background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: 7, padding: "6px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                🧾 Ajouter mes dépenses générales
+              </button>
+            )}
           </div>
 
           {coutProduitsInfo.nbInconnu > 0 && (
@@ -6884,7 +6982,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       >
         {[
           { key: "__menu__", label: "Menu", icon: Menu, action: () => setMenuMobileOuvert(true) },
-          { key: "aujourdhui", label: "Aujourd'hui", icon: ListChecks },
+          { key: "aujourdhui", label: "Accueil", icon: ListChecks },
           { key: "commandes", label: "Commandes", icon: Package },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "Cuisine", icon: Package }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "Véhicules", icon: Boxes }] : []),
@@ -6969,7 +7067,7 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
         </div>
       )}
       {celebration && <CelebrationOverlaySaas montant={celebration.montant} client={celebration.client} currency={formaterDevise(workspace.currency)} />}
-      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={formaterDevise(workspace.currency)} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} commandes={commandes} />}
+      {showAdd && <AddCommandeModal onClose={() => setShowAdd(false)} onAdd={addCommande} currency={formaterDevise(workspace.currency)} activityType={workspace.activity_type} plats={plats} tablesRestaurant={tablesRestaurant} biensLocation={biensLocation} logements={logements} commandes={commandes} role={workspace.role} livreurs={livreurs} fraisLivraisonDefaut={Number(workspace.frais_livraison) || 0} />}
       {showTeam && !accesBloque && <TeamModal workspace={workspace} onClose={() => setShowTeam(false)} />}
       {showRapportSemaine && (
         <RapportSemaineModal
@@ -6984,6 +7082,9 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={formaterDevise(workspace.currency)} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showCroissance && <React.Suspense fallback={null}><CroissanceModal workspace={workspace} onClose={() => setShowCroissance(false)} /></React.Suspense>}
+      {showGestionLivraisonFinances && <React.Suspense fallback={null}><GestionLivraisonFinancesModal workspace={workspace} produits={produits} onClose={() => setShowGestionLivraisonFinances(false)} /></React.Suspense>}
+      {showLocationMaison && <React.Suspense fallback={null}><LocationMaisonModal workspace={workspace} session={session} onClose={() => setShowLocationMaison(false)} /></React.Suspense>}
+      {showLocationVoiture && <React.Suspense fallback={null}><LocationVoiture workspace={workspace} session={session} onClose={() => setShowLocationVoiture(false)} /></React.Suspense>}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} onSupprimerBoutique={onSupprimerBoutique} />}
       {showStoreBuilder && !accesBloque && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
@@ -7021,6 +7122,11 @@ function WorkspaceDashboard({ workspace, session, subscription, workspacesDispon
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
       {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} onBulkAttachCollection={rattacherProduitsACollection} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showCaisse && workspace.activity_type === "retail" && !accesBloque && (
+        <React.Suspense fallback={null}>
+          <CaisseModal workspace={workspace} session={session} quotaAtteint={quotaAtteint} onChange={loadCommandes} onClose={() => setShowCaisse(false)} />
+        </React.Suspense>
+      )}
       {showAvis && !accesBloque && <AvisModal workspaceId={workspace.id} produits={produits} onClose={() => setShowAvis(false)} />}
       {showProspectsIA && session?.user?.email === "oulipaiexpress@gmail.com" && <ProspectsIAModal onClose={() => setShowProspectsIA(false)} />}
       {showCeoIA && session?.user?.email === "oulipaiexpress@gmail.com" && <CeoIAModal onClose={() => setShowCeoIA(false)} />}
@@ -7132,7 +7238,7 @@ function BoutonMicro({ onResultat, langue = "fr-FR" }) {
   );
 }
 
-function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [], logements = [], commandes = [] }) {
+function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], tablesRestaurant = [], biensLocation = [], logements = [], commandes = [], role, livreurs = [], fraisLivraisonDefaut = 0 }) {
   const estRetail = activityType === "retail";
   const estLocation = activityType === "location_immobiliere";
   const estRestaurant = activityType === "restaurant";
@@ -7149,21 +7255,22 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
     const bienChoisi = biensLocation.find((b) => b.id === bienId);
     const nbJours = dateDebut && dateFin ? Math.max(1, Math.round((new Date(dateFin) - new Date(dateDebut)) / (1000 * 60 * 60 * 24)) + 1) : 0;
     const montantTotal = bienChoisi ? nbJours * Number(bienChoisi.prix_jour) : 0;
-
-    // Anti-double-réservation : deux clients ne doivent jamais pouvoir réserver le même
-    // véhicule sur des dates qui se chevauchent. On regarde les locations déjà enregistrées
-    // pour ce bien (hors réservations échouées/annulées) et on compare les périodes.
-    const chevauchent = (aDebut, aFin, bDebut, bFin) => aDebut <= bFin && bDebut <= aFin;
-    const reservationsActives = commandes.filter((c) => c.bien_location_id && c.statut !== "echouee" && c.date_debut_location && c.date_fin_location);
-    function bienLibrePourPeriode(id, debut, fin) {
-      if (!id || !debut || !fin) return true;
-      return !reservationsActives.some((c) => c.bien_location_id === id && chevauchent(debut, fin, c.date_debut_location, c.date_fin_location));
-    }
-    const bienChoisiLibre = bienLibrePourPeriode(bienId, dateDebut, dateFin);
-    const formValide = bienId && nomLocataire.trim() && telLocataire.trim() && dateDebut && dateFin && nbJours > 0 && bienChoisiLibre;
+    const formValide = bienId && nomLocataire.trim() && telLocataire.trim() && dateDebut && dateFin && nbJours > 0;
+    // Anti-chevauchement (LOT 4) : cherche une commande active existante sur le même véhicule
+    // dont la période recoupe celle demandée. Peut être forcé par owner/admin (avec confirmation).
+    const conflit = formValide ? verifierChevauchement(commandes, bienId, dateDebut, dateFin) : null;
+    const peutForcer = role === "owner" || role === "admin";
 
     function validerLocation() {
       if (!formValide) return;
+      if (conflit) {
+        if (!peutForcer) {
+          alert(messageChevauchement(conflit));
+          return;
+        }
+        const continuer = window.confirm(`${messageChevauchement(conflit)}\n\nForcer quand même cette réservation en double ?`);
+        if (!continuer) return;
+      }
       onAdd({
         client: nomLocataire.trim(),
         tel: telLocataire.trim(),
@@ -7197,14 +7304,9 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 10, boxSizing: "border-box" }}
           >
             <option value="">Choisir un véhicule / matériel...</option>
-            {biensLocation.filter((b) => b.disponible).map((b) => {
-              const libre = bienLibrePourPeriode(b.id, dateDebut, dateFin);
-              return (
-                <option key={b.id} value={b.id} disabled={!libre}>
-                  {b.nom} — {Number(b.prix_jour).toLocaleString("fr-FR")} {currency}/jour{!libre ? " — déjà réservé sur ces dates" : ""}
-                </option>
-              );
-            })}
+            {biensLocation.filter((b) => b.disponible).map((b) => (
+              <option key={b.id} value={b.id}>{b.nom} — {Number(b.prix_jour).toLocaleString("fr-FR")} {currency}/jour</option>
+            ))}
           </select>
 
           <input placeholder="Nom du client" value={nomLocataire} onChange={(e) => setNomLocataire(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
@@ -7223,9 +7325,10 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
 
           <input placeholder={`Caution (${currency}, optionnel)`} type="number" value={caution} onChange={(e) => setCaution(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }} />
 
-          {bienId && dateDebut && dateFin && !bienChoisiLibre && (
-            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12.5, color: "#B23A26", fontWeight: 600 }}>
-              ⚠️ Ce véhicule est déjà réservé sur une partie de cette période. Choisis d'autres dates ou un autre véhicule.
+          {conflit && (
+            <div style={{ background: "#FBEAE6", border: "1px solid #F0B8AC", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12.5, color: "#B23A26", lineHeight: 1.5 }}>
+              🚫 {messageChevauchement(conflit)}
+              {peutForcer && <div style={{ marginTop: 4, fontWeight: 600 }}>Tu peux forcer quand même en confirmant.</div>}
             </div>
           )}
 
@@ -7238,10 +7341,10 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
 
           <button
             onClick={validerLocation}
-            disabled={!formValide}
-            style={{ width: "100%", background: formValide ? "#1a7a3c" : "#DDD8CC", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: formValide ? "pointer" : "default" }}
+            disabled={!formValide || (conflit && !peutForcer)}
+            style={{ width: "100%", background: !formValide || (conflit && !peutForcer) ? "#DDD8CC" : conflit ? "#B23A26" : "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: !formValide || (conflit && !peutForcer) ? "default" : "pointer" }}
           >
-            Créer la location
+            {conflit ? (peutForcer ? "⚠️ Forcer la réservation quand même" : "Véhicule indisponible sur ces dates") : "Créer la location"}
           </button>
         </div>
       </div>
@@ -7253,16 +7356,18 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   const [quantitesPlats, setQuantitesPlats] = useState({});
   const [nomClient, setNomClient] = useState("");
   const [telClient, setTelClient] = useState("");
-  const [adresseLivraisonRestaurant, setAdresseLivraisonRestaurant] = useState("");
-  const [fraisLivraisonRestaurant, setFraisLivraisonRestaurant] = useState("");
+  const [zoneLivraison, setZoneLivraison] = useState("");
+  const [fraisLivraison, setFraisLivraison] = useState(fraisLivraisonDefaut ? String(fraisLivraisonDefaut) : "");
+  const [livreurChoisi, setLivreurChoisi] = useState("");
 
   if (estRestaurant) {
-    const totalPlats = plats.reduce((s, p) => s + (quantitesPlats[p.id] || 0) * Number(p.prix), 0);
-    const fraisLivraisonNum = typeCommande === "livraison" ? (Number(fraisLivraisonRestaurant) || 0) : 0;
-    const totalRestaurant = totalPlats + fraisLivraisonNum;
+    const sousTotalRestaurant = plats.reduce((s, p) => s + (quantitesPlats[p.id] || 0) * Number(p.prix), 0);
+    const fraisLivraisonNum = typeCommande === "livraison" ? (Number(fraisLivraison) || 0) : 0;
+    const totalRestaurant = sousTotalRestaurant + fraisLivraisonNum;
     const platsChoisis = plats.filter((p) => (quantitesPlats[p.id] || 0) > 0);
     const resumePlats = platsChoisis.map((p) => `${p.nom} x${quantitesPlats[p.id]}`).join(", ");
     const tableChoisie = tablesRestaurant.find((t) => t.id === tableId);
+    const livraisonIncomplete = typeCommande === "livraison" && !zoneLivraison.trim();
 
     function ajusterQuantite(platId, delta) {
       setQuantitesPlats((q) => ({ ...q, [platId]: Math.max(0, (q[platId] || 0) + delta) }));
@@ -7271,18 +7376,19 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
     function validerCommandeRestaurant() {
       if (platsChoisis.length === 0) return;
       if (typeCommande !== "sur_place" && !telClient.trim()) return;
-      if (typeCommande === "livraison" && !adresseLivraisonRestaurant.trim()) return;
+      if (livraisonIncomplete) return;
       onAdd({
         client: typeCommande === "sur_place" ? (tableChoisie ? `Table ${tableChoisie.numero}` : "Client") : (nomClient.trim() || (typeCommande === "emporter" ? "À emporter" : "Livraison")),
         tel: telClient.trim(),
         produit: resumePlats,
         montant: String(totalRestaurant),
-        zone: typeCommande === "livraison" ? adresseLivraisonRestaurant.trim() : "",
-        mode_vente: typeCommande === "livraison" ? "livraison" : "sur_place",
+        zone: typeCommande === "livraison" ? zoneLivraison.trim() : "",
+        mode_vente: "sur_place",
         montant_paye: "",
         table_id: tableId || null,
         type_commande: typeCommande,
         statut_cuisine: "nouvelle",
+        livreur: typeCommande === "livraison" && livreurChoisi ? livreurChoisi : null,
       });
     }
 
@@ -7318,6 +7424,23 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
               <input placeholder="Nom du client (optionnel)" value={nomClient} onChange={(e) => setNomClient(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
               <input placeholder="Numéro de téléphone (obligatoire)" value={telClient} onChange={(e) => setTelClient(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
               <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 4 }}>Pour appeler le client dès que sa commande est prête.</div>
+
+              {typeCommande === "livraison" && (
+                <div style={{ marginTop: 10 }}>
+                  <input placeholder="Quartier / adresse de livraison (obligatoire)" value={zoneLivraison} onChange={(e) => setZoneLivraison(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <input placeholder={`Frais de livraison (${currency})`} type="number" value={fraisLivraison} onChange={(e) => setFraisLivraison(e.target.value)} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
+                  </div>
+                  {livreurs.length > 0 && (
+                    <select value={livreurChoisi} onChange={(e) => setLivreurChoisi(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box", background: "white" }}>
+                      <option value="">Livreur à assigner (optionnel)</option>
+                      {livreurs.map((l) => (
+                        <option key={l.id} value={l.nom}>{l.nom}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -7341,6 +7464,11 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             )}
           </div>
 
+          {fraisLivraisonNum > 0 && (
+            <div style={{ fontSize: 11.5, color: "#8A6412", marginTop: -6, marginBottom: 10 }}>
+              + {fraisLivraisonNum.toLocaleString("fr-FR")} {currency} de frais de livraison ajoutés au total
+            </div>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid #ECE8DC", marginBottom: 14 }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>Total</span>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, color: "#1a7a3c" }}>{totalRestaurant.toLocaleString("fr-FR")} {currency}</span>
@@ -7348,8 +7476,8 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
 
           <button
             onClick={validerCommandeRestaurant}
-            disabled={platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim())}
-            style={{ width: "100%", background: (platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim())) ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: (platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim())) ? "default" : "pointer" }}
+            disabled={platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim()) || livraisonIncomplete}
+            style={{ width: "100%", background: (platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim()) || livraisonIncomplete) ? "#DDD8CC" : "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: (platsChoisis.length === 0 || (typeCommande !== "sur_place" && !telClient.trim()) || livraisonIncomplete) ? "default" : "pointer" }}
           >
             Envoyer en cuisine
           </button>
@@ -7365,19 +7493,8 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
   function selectionnerLogement(id) {
     setLogementId(id);
     const l = logements.find((x) => x.id === id);
-    if (l) setForm((f) => ({
-      ...f,
-      produit: l.nom,
-      zone: l.adresse || "",
-      montant: String(l.loyer_mensuel),
-      caution: l.caution_suggeree ? String(l.caution_suggeree) : f.caution,
-      client: l.nom_locataire || f.client,
-      tel: l.tel_locataire || f.tel,
-    }));
+    if (l) setForm((f) => ({ ...f, produit: l.nom, zone: l.adresse || "", montant: String(l.loyer_mensuel), caution: l.caution_suggeree ? String(l.caution_suggeree) : f.caution }));
   }
-  // Pour la location immobilière : on rattache la commande au logement et au mois concerné
-  // (mois en cours), ce qui permet à la génération automatique du loyer d'éviter les doublons.
-  const donneesLocation = estLocation ? { logement_id: logementId || null, mois_loyer: new Date().toISOString().slice(0, 7) } : {};
   const montantValide = Number(form.montant) > 0;
   const canSubmit = form.client.trim() && montantValide;
   const montantPayeValide = form.montant_paye === "" || Number(form.montant_paye) <= Number(form.montant || 0);
@@ -7438,7 +7555,7 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
             {form.montant && !montantValide && (
               <div style={{ color: "#D64933", fontSize: 12, marginTop: -6, marginBottom: 10 }}>Le montant doit être supérieur à 0.</div>
             )}
-            <button onClick={() => canSubmit && onAdd({ ...form, ...donneesLocation, mode_vente: "sur_place", montant_paye: "" })} disabled={!canSubmit} style={btnStyle}>
+            <button onClick={() => canSubmit && onAdd({ ...form, mode_vente: "sur_place", montant_paye: "" })} disabled={!canSubmit} style={btnStyle}>
               ⚡ Enregistrer
             </button>
           </>
@@ -7584,7 +7701,7 @@ function AddCommandeModal({ onClose, onAdd, currency, activityType, plats = [], 
           onClick={() => {
             if (!canSubmit || !montantPayeValide) return;
             const fraisExp = form.mode_vente === "expedition" ? (Number(form.frais_expedition_saisi) || 0) : 0;
-            onAdd({ ...form, ...donneesLocation, montant: (Number(form.montant) || 0) + fraisExp });
+            onAdd({ ...form, montant: (Number(form.montant) || 0) + fraisExp });
           }}
           disabled={!canSubmit || !montantPayeValide}
           style={btnStyle}
@@ -9659,7 +9776,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
 
   // Bénéfice de CETTE commande précise — même logique que le calcul global du tableau de
   // bord (CA − coût produit − coût livraison), appliquée à une seule commande.
-  const COUT_LIVRAISON_UNITAIRE = 1500;
+  const tarifsLivraisonCarte = useTarifsLivraison(workspace?.id);
   const beneficeCommande = useMemo(() => {
     if (commande.statut !== "confirmee") return null;
     const match = String(commande.produit || "").match(/^(.*?)\s*x\s*(\d+)\s*$/i);
@@ -9668,13 +9785,9 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
     const trouve = produits.find((p) => p.nom?.toLowerCase() === nomProduit.toLowerCase());
     if (!trouve) return { connu: false };
     const coutProduit = (Number(trouve.cout_achat) + Number(trouve.frais_import_unitaire || 0)) * quantite;
-    const coutLivraison = workspace?.activity_type === "retail" || workspace?.activity_type === "restaurant"
-      ? (commande.mode_vente === "livraison" || commande.mode_vente === "expedition" ? COUT_LIVRAISON_UNITAIRE : 0)
-      : workspace?.activity_type === "cod_ecommerce"
-        ? COUT_LIVRAISON_UNITAIRE
-        : 0;
+    const coutLivraison = rvCoutLivraison(commande, workspace, tarifsLivraisonCarte);
     return { connu: true, montant: Number(commande.montant) - coutProduit - coutLivraison };
-  }, [commande.statut, commande.produit, commande.montant, commande.mode_vente, produits, workspace?.activity_type]);
+  }, [commande, produits, workspace, tarifsLivraisonCarte]);
   const [dernierAppel, setDernierAppel] = useState(null);
 
   function chargerDernierAppel() {
@@ -10190,13 +10303,6 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                 <button
                   onClick={async () => {
                     if (!window.confirm(`Créer le loyer du mois prochain pour ${commande.client} (${commande.produit}) — même montant, même infos ?`)) return;
-                    // On avance d'un mois par rapport au mois déjà couvert par CE loyer (ou par
-                    // rapport à aujourd'hui si l'info n'est pas connue), et on garde le lien vers
-                    // le logement : la génération automatique du loyer du mois ne recréera pas
-                    // ce même loyer en double.
-                    const base = commande.mois_loyer ? new Date(commande.mois_loyer + "-01") : new Date();
-                    base.setMonth(base.getMonth() + 1);
-                    const moisSuivant = base.toISOString().slice(0, 7);
                     await supabase.from("commandes").insert([{
                       workspace_id: workspace.id,
                       client: commande.client,
@@ -10204,9 +10310,11 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                       produit: commande.produit,
                       montant: commande.montant,
                       zone: commande.zone,
-                      logement_id: commande.logement_id || null,
-                      mois_loyer: moisSuivant,
                       statut: "en_cours",
+                      // La caution est déjà entre tes mains depuis le bail initial : ce nouveau
+                      // mois n'en redemande pas une deuxième, mais garde le montant pour référence
+                      // (colonne "caution" déjà utilisée sur commandes, voir AddCommandeModal).
+                      caution: commande.caution,
                     }]);
                     await onStatusChanged();
                   }}
@@ -14256,10 +14364,12 @@ function ConfirmationEnregistre({ inline }) {
 
 const champStyle = { width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" };
 
-function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
+function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, workspace }) {
+  const tarifsLivraisonLivreur = useTarifsLivraison(workspace?.id);
   const [enTournee, setEnTournee] = useState(!!livreur.en_tournee);
   const paiementsEnLigne = rvUsePaiementsEnLigne(livreur.workspace_id);
   const [commandeAConfirmer, setCommandeAConfirmer] = useState(null);
+  const [etapePreuve, setEtapePreuve] = useState(null); // { commande, mode } — après le choix du mode de paiement, avant la confirmation finale
   const [gpsErreur, setGpsErreur] = useState(null);
   const watchIdRef = React.useRef(null);
   const [enLigne, setEnLigne] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -14363,10 +14473,10 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         map[key] = { date: key, label: d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }), livrees: 0, gains: 0 };
       }
       map[key].livrees += 1;
-      map[key].gains += 1500;
+      map[key].gains += rvCoutLivraison(c, workspace, tarifsLivraisonLivreur);
     });
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [confirmees]);
+  }, [confirmees, workspace, tarifsLivraisonLivreur]);
   const [showBilan, setShowBilan] = useState(false);
   const [showDeclarationDepot, setShowDeclarationDepot] = useState(false);
 
@@ -14426,6 +14536,35 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
     setEnvoiPhotoId(null);
   }
 
+  // Confirmation d'une livraison normale (main à main), avec preuve photo FACULTATIVE —
+  // contrairement à l'expédition (déjà obligatoire plus haut), on ne bloque jamais la
+  // confirmation si la photo échoue ou n'est pas prise : elle s'ajoute juste en plus.
+  async function confirmerAvecPreuve(commande, modePaiement, fichierPhoto) {
+    if (fichierPhoto) {
+      if (fichierPhoto.size > 5 * 1024 * 1024) {
+        alert("La photo est trop lourde (max 5 Mo) — la livraison est confirmée sans preuve photo.");
+        fichierPhoto = null;
+      }
+    }
+    if (fichierPhoto) {
+      setEnvoiPhotoId(commande.id);
+      try {
+        const extension = fichierPhoto.name.split(".").pop();
+        const chemin = `${workspace?.id || "sans-boutique"}/preuves/${commande.id}-${Date.now()}.${extension}`;
+        const { error: erreurUpload } = await supabase.storage.from("expeditions").upload(chemin, fichierPhoto, { upsert: true });
+        if (!erreurUpload) {
+          const { data } = supabase.storage.from("expeditions").getPublicUrl(chemin);
+          await supabase.from("preuves_livraison").upsert(
+            { workspace_id: workspace?.id, commande_id: commande.id, photo_url: data.publicUrl, livreur_nom: livreur.nom },
+            { onConflict: "commande_id" }
+          );
+        }
+      } catch (_) { /* la confirmation continue même si la photo échoue */ }
+      setEnvoiPhotoId(null);
+    }
+    await changerStatut(commande.id, "confirmee", modePaiement);
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif" }}>
       <div style={{ background: "#1a7a3c", color: "white", padding: 20 }}>
@@ -14461,9 +14600,9 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         </div>
 
         <div style={{ marginTop: 10, background: "rgba(232,146,10,0.18)", border: "1px solid rgba(232,146,10,0.35)", borderRadius: 10, padding: "12px 14px" }}>
-          <div style={{ fontSize: 11, opacity: 0.85 }}>💰 Mes gains ({confirmees.length} × 1 500 {currency})</div>
+          <div style={{ fontSize: 11, opacity: 0.85 }}>💰 Mes gains ({confirmees.length} livraison{confirmees.length > 1 ? "s" : ""})</div>
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 22, color: "#e8920a", marginTop: 2 }}>
-            {(confirmees.length * 1500).toLocaleString("fr-FR")} {currency}
+            {confirmees.reduce((s, c) => s + rvCoutLivraison(c, workspace, tarifsLivraisonLivreur), 0).toLocaleString("fr-FR")} {currency}
           </div>
           {bilanParJour.length > 0 && (
             <button
@@ -14626,7 +14765,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
               ].map((mode) => (
                 <button
                   key={mode.key}
-                  onClick={() => { changerStatut(commandeAConfirmer.id, "confirmee", mode.key); setCommandeAConfirmer(null); }}
+                  onClick={() => { setEtapePreuve({ commande: commandeAConfirmer, mode: mode.key }); setCommandeAConfirmer(null); }}
                   style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 10, padding: "13px 16px", textAlign: "left", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
                 >
                   {mode.label}
@@ -14640,11 +14779,40 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged }) {
         </div>
       )}
 
+      {etapePreuve && (
+        <div
+          onClick={() => { if (envoiPhotoId !== etapePreuve.commande.id) { confirmerAvecPreuve(etapePreuve.commande, etapePreuve.mode, null); setEtapePreuve(null); } }}
+          style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 420, borderRadius: "18px 18px 0 0", padding: "20px 18px 28px" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>📷 Preuve de livraison (facultatif)</div>
+            <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>Une photo (colis remis, signature, client) peut aider en cas de contestation.</div>
+            <label style={{ display: "block", background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "13px 16px", textAlign: "center", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              {envoiPhotoId === etapePreuve.commande.id ? "Envoi en cours..." : "📷 Prendre / choisir une photo"}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={envoiPhotoId === etapePreuve.commande.id}
+                style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; const c = etapePreuve.commande, m = etapePreuve.mode; setEtapePreuve(null); confirmerAvecPreuve(c, m, f); }}
+              />
+            </label>
+            <button
+              onClick={() => { const c = etapePreuve.commande, m = etapePreuve.mode; setEtapePreuve(null); confirmerAvecPreuve(c, m, null); }}
+              style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#8A9089", fontSize: 13, padding: "8px 0", cursor: "pointer" }}
+            >
+              Confirmer sans photo
+            </button>
+          </div>
+        </div>
+      )}
+
       {showDeclarationDepot && (
         <DeclarationDepotModal
           livreur={livreur}
           montantEncaisse={confirmees.reduce((s, c) => s + rvAEncaisser(c, paiementsEnLigne), 0)}
-          commission={confirmees.length * 1500}
+          commission={confirmees.reduce((s, c) => s + rvCoutLivraison(c, workspace, tarifsLivraisonLivreur), 0)}
           currency={currency}
           onClose={() => setShowDeclarationDepot(false)}
         />
@@ -14771,16 +14939,8 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
 
   const confirmees = commandesInRange.filter((c) => c.statut === "confirmee");
   const caConfirme = confirmees.reduce((s, c) => s + Number(c.montant), 0);
-  const COUT_LIVRAISON = 1500;
-  // Même règle que sur le tableau de bord : coût de livraison selon le mode de vente pour
-  // retail et restaurant, systématique pour cod_ecommerce, jamais pour location de maison,
-  // location de véhicule ou réseau de vente.
-  const nbLivraisonsFacturees = workspace.activity_type === "retail" || workspace.activity_type === "restaurant"
-    ? confirmees.filter((c) => c.mode_vente === "livraison" || c.mode_vente === "expedition").length
-    : workspace.activity_type === "cod_ecommerce"
-      ? confirmees.length
-      : 0;
-  const coutLivraisons = nbLivraisonsFacturees * COUT_LIVRAISON;
+  const tarifsLivraison = useTarifsLivraison(workspace?.id);
+  const coutLivraisons = confirmees.reduce((s, c) => s + rvCoutLivraison(c, workspace, tarifsLivraison), 0);
 
   const coutProduitsInfo = useMemo(() => {
     let coutTotal = 0, nbInconnu = 0, montantInconnu = 0;
@@ -14798,6 +14958,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
   }, [confirmees, produits]);
 
   const beneficeReel = caConfirme - coutLivraisons - coutProduitsInfo.coutTotal;
+  const depensesPeriode = useDepensesPeriode(workspace?.id, dateRange.start, dateRange.end);
 
   const paiementsEnLigne = rvUsePaiementsEnLigne(workspace?.id);
   const depotsParLivreur = useMemo(() => {
@@ -14806,12 +14967,12 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
         const mesLivrees = confirmees.filter((c) => c.livreur === l.nom);
         // Ce qui a déjà été payé en ligne n'a pas été encaissé par le livreur : on ne le lui réclame pas.
         const montantRecupere = mesLivrees.reduce((s, c) => s + rvAEncaisser(c, paiementsEnLigne), 0);
-        const commission = mesLivrees.length * COUT_LIVRAISON;
+        const commission = mesLivrees.reduce((s, c) => s + rvCoutLivraison(c, workspace, tarifsLivraison), 0);
         return { nom: l.nom, livrees: mesLivrees.length, montantRecupere, commission, aDeposer: montantRecupere - commission };
       })
       .filter((l) => l.livrees > 0)
       .sort((a, b) => b.aDeposer - a.aDeposer);
-  }, [livreurs, confirmees, paiementsEnLigne]);
+  }, [livreurs, confirmees, paiementsEnLigne, workspace, tarifsLivraison]);
 
   const totalCommission = depotsParLivreur.reduce((s, l) => s + l.commission, 0);
   const totalADeposer = depotsParLivreur.reduce((s, l) => s + l.aDeposer, 0);
@@ -14902,12 +15063,12 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
       </div>
 
       <div style={{ background: "linear-gradient(135deg, #16231F, #1e2f28)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice réel</div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: beneficeReel >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
-          {beneficeReel.toLocaleString("fr-FR")} {workspace.currency}
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" }}>💰 Bénéfice net</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 24, color: (beneficeReel - depensesPeriode) >= 0 ? "#7fd6a3" : "#f0a0a0", marginTop: 3 }}>
+          {(beneficeReel - depensesPeriode).toLocaleString("fr-FR")} {workspace.currency}
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
-          CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({nbLivraisonsFacturees} × {COUT_LIVRAISON.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")})
+          CA confirmé {caConfirme.toLocaleString("fr-FR")} − Livraisons ({coutLivraisons.toLocaleString("fr-FR")}) − Produits ({coutProduitsInfo.coutTotal.toLocaleString("fr-FR")}) − Dépenses générales ({depensesPeriode.toLocaleString("fr-FR")})
         </div>
       </div>
 
@@ -15762,33 +15923,11 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
   );
 }
 
-function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDelete, onUpdateLocataire }) {
+function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDelete }) {
   const [form, setForm] = useState({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "" });
-  const [editionLocataireId, setEditionLocataireId] = useState(null);
-  const [locataireForm, setLocataireForm] = useState({ nom_locataire: "", tel_locataire: "", date_debut_bail: "", date_fin_bail: "" });
 
   const nbDisponibles = logements.filter((l) => l.disponible).length;
   const nbLoues = logements.length - nbDisponibles;
-
-  function ouvrirEditionLocataire(l) {
-    setEditionLocataireId(l.id);
-    setLocataireForm({
-      nom_locataire: l.nom_locataire || "",
-      tel_locataire: l.tel_locataire || "",
-      date_debut_bail: l.date_debut_bail || "",
-      date_fin_bail: l.date_fin_bail || "",
-    });
-  }
-
-  function enregistrerLocataire(id) {
-    onUpdateLocataire(id, locataireForm);
-    setEditionLocataireId(null);
-  }
-
-  function libererLogement(id) {
-    onUpdateLocataire(id, { nom_locataire: "", tel_locataire: "", date_debut_bail: "", date_fin_bail: "" });
-    setEditionLocataireId(null);
-  }
 
   return (
     <div style={{ padding: "20px 20px 8px" }}>
@@ -15830,45 +15969,6 @@ function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDe
             >
               {l.disponible ? "✅ Disponible" : "🚫 Actuellement loué"}
             </button>
-
-            {l.nom_locataire && editionLocataireId !== l.id ? (
-              <div style={{ marginTop: 10, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>🧑 {l.nom_locataire}{l.tel_locataire ? ` — ${l.tel_locataire}` : ""}</div>
-                {(l.date_debut_bail || l.date_fin_bail) && (
-                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 3 }}>
-                    Bail : {l.date_debut_bail ? new Date(l.date_debut_bail).toLocaleDateString("fr-FR") : "—"} → {l.date_fin_bail ? new Date(l.date_fin_bail).toLocaleDateString("fr-FR") : "durée indéterminée"}
-                  </div>
-                )}
-                <button onClick={() => ouvrirEditionLocataire(l)} style={{ marginTop: 6, background: "none", border: "none", color: "#1a7a3c", fontWeight: 700, fontSize: 11.5, cursor: "pointer", padding: 0 }}>
-                  ✏️ Modifier la fiche locataire
-                </button>
-              </div>
-            ) : editionLocataireId === l.id ? (
-              <div style={{ marginTop: 10, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 8 }}>Fiche locataire</div>
-                <input placeholder="Nom du locataire" value={locataireForm.nom_locataire} onChange={(e) => setLocataireForm({ ...locataireForm, nom_locataire: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 6, boxSizing: "border-box" }} />
-                <input placeholder="Téléphone (WhatsApp)" value={locataireForm.tel_locataire} onChange={(e) => setLocataireForm({ ...locataireForm, tel_locataire: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 6, boxSizing: "border-box" }} />
-                <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: "#8A9089", marginBottom: 3 }}>Début du bail</div>
-                    <input type="date" value={locataireForm.date_debut_bail} onChange={(e) => setLocataireForm({ ...locataireForm, date_debut_bail: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: "#8A9089", marginBottom: 3 }}>Fin du bail (optionnel)</div>
-                    <input type="date" value={locataireForm.date_fin_bail} onChange={(e) => setLocataireForm({ ...locataireForm, date_fin_bail: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => enregistrerLocataire(l.id)} disabled={!locataireForm.nom_locataire.trim()} style={{ flex: 1, background: locataireForm.nom_locataire.trim() ? "#1a7a3c" : "#DDD8CC", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: locataireForm.nom_locataire.trim() ? "pointer" : "default" }}>Enregistrer</button>
-                  {l.nom_locataire && <button onClick={() => libererLogement(l.id)} style={{ flex: 1, background: "white", border: "1px solid #D64933", color: "#D64933", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Libérer</button>}
-                  <button onClick={() => setEditionLocataireId(null)} style={{ background: "none", border: "none", color: "#8A9089", fontSize: 12, cursor: "pointer" }}>Annuler</button>
-                </div>
-              </div>
-            ) : (
-              <button onClick={() => ouvrirEditionLocataire(l)} style={{ width: "100%", marginTop: 8, background: "white", border: "1px dashed #DDD8CC", color: "#6B7168", borderRadius: 8, padding: "7px 0", fontWeight: 600, fontSize: 11.5, cursor: "pointer" }}>
-                + Assigner un locataire
-              </button>
-            )}
           </div>
         ))}
         {logements.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun logement pour l'instant.</div>}
@@ -15877,20 +15977,39 @@ function LogementsView({ logements, currency, onAdd, onToggleDisponibilite, onDe
   );
 }
 
-function MenuRestaurantView({ plats, workspaceSlug, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable, onToggleStatutTable, commandes = [] }) {
+function MenuRestaurantView({ plats, currency, onAdd, onToggleDisponibilite, onDelete, tablesRestaurant, onAddTable, onToggleStatutTable, workspaceId }) {
   const [form, setForm] = useState({ nom: "", categorie: "Plats", prix: "", description: "" });
   const [nouvelleTable, setNouvelleTable] = useState("");
   const [ongletActif, setOngletActif] = useState("menu");
-  const [tableQrOuverte, setTableQrOuverte] = useState(null);
-  const [additionTable, setAdditionTable] = useState(null);
+  // Photo par plat (facultative, affichée sur le menu public "?menu=") : stockée dans une table à
+  // part (plats_photos) — la table "plats" existante n'a pas de colonne photo, on n'en invente pas.
+  const [photos, setPhotos] = useState({});
+  const [uploadEnCours, setUploadEnCours] = useState(null);
 
-  function commandesDeLaTable(tableId) {
-    return commandes.filter((c) => c.table_id === tableId && c.statut !== "echouee");
-  }
+  useEffect(() => {
+    if (!workspaceId) return;
+    supabase.from("plats_photos").select("plat_id, photo_url").eq("workspace_id", workspaceId).then(({ data }) => {
+      const map = {};
+      (data || []).forEach((r) => { map[r.plat_id] = r.photo_url; });
+      setPhotos(map);
+    });
+  }, [workspaceId, plats.length]);
 
-  function lienMenu(numeroTable) {
-    const base = `${window.location.origin}/?menu=${workspaceSlug}`;
-    return numeroTable ? `${base}&table=${encodeURIComponent(numeroTable)}` : base;
+  async function changerPhoto(platId, fichier) {
+    if (!fichier || !workspaceId) return;
+    setUploadEnCours(platId);
+    try {
+      const compresse = await compresserImage(fichier);
+      const ext = (compresse.name.split(".").pop() || "jpg").toLowerCase();
+      const chemin = `${workspaceId}/plats/${platId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("produits").upload(chemin, compresse, { upsert: true });
+      if (!error) {
+        const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+        await supabase.from("plats_photos").upsert([{ plat_id: platId, workspace_id: workspaceId, photo_url: data.publicUrl, updated_at: new Date().toISOString() }]);
+        setPhotos((p) => ({ ...p, [platId]: data.publicUrl }));
+      }
+    } catch (_) {}
+    setUploadEnCours(null);
   }
 
   const categories = [...new Set(plats.map((p) => p.categorie))];
@@ -15931,9 +16050,15 @@ function MenuRestaurantView({ plats, workspaceSlug, currency, onAdd, onToggleDis
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {plats.filter((p) => p.categorie === cat).map((p) => (
                   <div key={p.id} style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: p.disponible ? 1 : 0.5 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{p.nom}</div>
-                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 13, color: "#1a7a3c" }}>{Number(p.prix).toLocaleString("fr-FR")} {currency}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <label style={{ width: 36, height: 36, borderRadius: 8, background: photos[p.id] ? `url(${photos[p.id]}) center/cover` : "#F0EEE6", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 13, color: "#8A9089" }}>
+                        {!photos[p.id] && (uploadEnCours === p.id ? "…" : "📷")}
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => changerPhoto(p.id, e.target.files?.[0])} />
+                      </label>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{p.nom}</div>
+                        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 13, color: "#1a7a3c" }}>{Number(p.prix).toLocaleString("fr-FR")} {currency}</div>
+                      </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <button onClick={() => onToggleDisponibilite(p.id, p.disponible)} style={{ background: p.disponible ? "#EAF3DE" : "#F0EEE6", color: p.disponible ? "#3B6D11" : "#8A9089", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
@@ -15950,14 +16075,6 @@ function MenuRestaurantView({ plats, workspaceSlug, currency, onAdd, onToggleDis
         </>
       ) : (
         <>
-          {workspaceSlug && (
-            <div style={{ background: "#EAF0FB", border: "1px solid #C9D9F2", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 12.5, color: "#1E4B8C" }}>📋 Menu général (sans table précise), pour l'entrée ou les commandes à emporter</div>
-              <button onClick={() => setTableQrOuverte({ id: "general", numero: null })} style={{ background: "#2452E8", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0 }}>
-                🔗 QR du menu
-              </button>
-            </div>
-          )}
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             <input placeholder="Numéro de table (ex: 5, Terrasse 2)" value={nouvelleTable} onChange={(e) => setNouvelleTable(e.target.value)} style={{ flex: 1, padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, boxSizing: "border-box" }} />
             <button
@@ -15969,90 +16086,58 @@ function MenuRestaurantView({ plats, workspaceSlug, currency, onAdd, onToggleDis
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10 }}>
             {tablesRestaurant.map((t) => (
-              <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <button
-                  onClick={() => onToggleStatutTable(t.id, t.statut)}
-                  style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center", cursor: "pointer" }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>{t.numero}</div>
-                  <div style={{ fontSize: 10.5, color: t.statut === "occupee" ? "#D64933" : "#3B6D11", marginTop: 2 }}>{t.statut === "occupee" ? "Occupée" : "Libre"}</div>
-                </button>
-                {workspaceSlug && (
-                  <button onClick={() => setTableQrOuverte({ id: t.id, numero: t.numero })} style={{ background: "white", border: "1px solid #DDD8CC", borderRadius: 8, padding: "5px 0", fontSize: 10.5, fontWeight: 700, color: "#16231F", cursor: "pointer" }}>
-                    🔗 QR
-                  </button>
-                )}
-                {t.statut === "occupee" && (
-                  <button onClick={() => setAdditionTable(t)} style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "5px 0", fontSize: 10.5, fontWeight: 700, color: "#8A6412", cursor: "pointer" }}>
-                    🧾 Addition
-                  </button>
-                )}
-              </div>
+              <button
+                key={t.id}
+                onClick={() => onToggleStatutTable(t.id, t.statut)}
+                style={{ background: t.statut === "occupee" ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${t.statut === "occupee" ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 10, padding: "14px 8px", textAlign: "center", cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#16231F" }}>{t.numero}</div>
+                <div style={{ fontSize: 10.5, color: t.statut === "occupee" ? "#D64933" : "#3B6D11", marginTop: 2 }}>{t.statut === "occupee" ? "Occupée" : "Libre"}</div>
+              </button>
             ))}
           </div>
           <div style={{ fontSize: 10.5, color: "#8A9089", marginTop: 8 }}>Clique sur une table pour changer son statut manuellement si besoin.</div>
           {tablesRestaurant.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucune table pour l'instant.</div>}
-
-          {tableQrOuverte && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => setTableQrOuverte(null)}>
-              <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 320, textAlign: "center" }}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{tableQrOuverte.numero ? `Table ${tableQrOuverte.numero}` : "Menu général"}</div>
-                <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>À imprimer et coller sur la table — le client scanne et commande directement.</div>
-                <img
-                  alt="QR code du menu"
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(lienMenu(tableQrOuverte.numero))}`}
-                  style={{ width: 220, height: 220, margin: "0 auto 14px", display: "block" }}
-                />
-                <div style={{ fontSize: 10.5, color: "#8A9089", wordBreak: "break-all", background: "#FAFAF7", borderRadius: 8, padding: "8px 10px", marginBottom: 14 }}>{lienMenu(tableQrOuverte.numero)}</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => window.print()} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>🖨️ Imprimer</button>
-                  <button onClick={() => setTableQrOuverte(null)} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Fermer</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {additionTable && (() => {
-            const lignes = commandesDeLaTable(additionTable.id);
-            const total = lignes.reduce((s, c) => s + Number(c.montant), 0);
-            return (
-              <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => setAdditionTable(null)}>
-                <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, maxHeight: "88vh", overflowY: "auto" }}>
-                  <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>🧾 Addition — Table {additionTable.numero}</div>
-                  <div style={{ fontSize: 11.5, color: "#8A9089", marginBottom: 14 }}>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14, borderTop: "1px solid #ECE8DC", borderBottom: "1px solid #ECE8DC", padding: "10px 0" }}>
-                    {lignes.length === 0 && <div style={{ fontSize: 13, color: "#8A9089", textAlign: "center" }}>Aucune commande sur cette table pour l'instant.</div>}
-                    {lignes.map((c) => (
-                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
-                        <span>{c.produit}</span>
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{Number(c.montant).toLocaleString("fr-FR")} {currency}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>Total</span>
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 800, fontSize: 20, color: "#1a7a3c" }}>{total.toLocaleString("fr-FR")} {currency}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => window.print()} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>🖨️ Imprimer l'addition</button>
-                    <button
-                      onClick={() => { onToggleStatutTable(additionTable.id, "occupee"); setAdditionTable(null); }}
-                      style={{ flex: 1, background: "#EAF3DE", border: "1px solid #C7DDA3", color: "#3B6D11", borderRadius: 8, padding: "10px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
-                    >
-                      ✅ Table libérée
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </>
       )}
     </div>
   );
 }
 
-function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
+// Ticket cuisine imprimable (58/80mm) : nouvelle fenêtre + window.print(), comme les autres
+// impressions de l'app. Les notes du client (ajoutées par "?menu=" après " | Note: ") sont
+// séparées de la liste des plats pour être bien visibles, en gros caractères.
+function imprimerTicketCuisine(commande, workspaceNom) {
+  const fenetre = window.open("", "_blank", "width=380,height=600");
+  if (!fenetre) return;
+  const [ligneplats, ...resteNote] = String(commande.produit || "").split(" | Note:");
+  const note = resteNote.join(" | Note:").trim();
+  const lignes = ligneplats.split(",").map((l) => l.trim()).filter(Boolean);
+  const type = commande.type_commande === "sur_place" ? "SUR PLACE" : commande.type_commande === "emporter" ? "À EMPORTER" : "LIVRAISON";
+  const cible = commande.type_commande === "sur_place" ? commande.client : (commande.type_commande === "livraison" ? `${commande.client}${commande.zone ? " — " + commande.zone : ""}` : commande.client);
+  const heure = new Date(commande.created_at || Date.now()).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ticket cuisine</title><style>
+    @page { size: 80mm auto; margin: 3mm; }
+    body { font-family: 'Courier New', monospace; width: 74mm; margin: 0; padding: 0; color: #000; }
+    .titre { font-size: 15px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .type { font-size: 16px; font-weight: 900; text-align: center; border: 2px solid #000; padding: 4px; margin-bottom: 6px; }
+    .meta { font-size: 11px; text-align: center; margin-bottom: 8px; }
+    hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+    .ligne { font-size: 17px; font-weight: 700; margin: 5px 0; }
+    .note { font-size: 13px; font-weight: 700; margin-top: 8px; padding: 6px; border: 1px dashed #000; }
+  </style></head><body onload="window.print()">
+    <div class="titre">${(workspaceNom || "").replace(/</g, "")}</div>
+    <div class="type">${type}</div>
+    <div class="meta">${(cible || "").replace(/</g, "")} — ${heure}</div>
+    <hr/>
+    ${lignes.map((l) => `<div class="ligne">${l.replace(/</g, "")}</div>`).join("")}
+    ${note ? `<div class="note">📝 ${note.replace(/</g, "")}</div>` : ""}
+  </body></html>`;
+  fenetre.document.write(html);
+  fenetre.document.close();
+}
+
+function CuisineView({ commandes, onChangerStatutCuisine, currency, workspace }) {
   const colonnes = [
     { statut: "nouvelle", titre: "🆕 Nouvelle", couleur: "#8A6412", suivant: "en_preparation", labelBouton: "Démarrer" },
     { statut: "en_preparation", titre: "🔥 En préparation", couleur: "#D64933", suivant: "prete", labelBouton: "Marquer prête" },
@@ -16061,9 +16146,77 @@ function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
 
   const commandesParStatut = (statut) => commandes.filter((c) => (c.statut_cuisine || "nouvelle") === statut);
 
+  // Alerte nouvelle commande : bandeau clignotant tant qu'elle est active, + le son partagé de
+  // l'app (le même fichier /sons/vente.mp3 que "Nouvelle vente", coupable depuis le réglage
+  // ci-dessous ou depuis "Réglages" — même clé localStorage, un seul interrupteur pour l'utilisateur).
+  const [sonOn, setSonOn] = useState(() => sonVentesActif());
+  const [impressionAuto, setImpressionAuto] = useState(() => {
+    try { return localStorage.getItem("rv_cuisine_impression_auto") === "on"; } catch (_) { return false; }
+  });
+  const [banniere, setBanniere] = useState(null);
+  const idsConnus = useRef(null);
+  const [, forceTick] = useState(0);
+
+  useEffect(() => {
+    const idsActuels = new Set(commandes.filter((c) => (c.statut_cuisine || "nouvelle") === "nouvelle").map((c) => c.id));
+    if (idsConnus.current !== null) {
+      const nouvellesCommandes = commandes.filter(
+        (c) => (c.statut_cuisine || "nouvelle") === "nouvelle" && !idsConnus.current.has(c.id)
+      );
+      if (nouvellesCommandes.length > 0) {
+        setBanniere(nouvellesCommandes.length === 1 ? `🆕 Nouvelle commande — ${nouvellesCommandes[0].client}` : `🆕 ${nouvellesCommandes.length} nouvelles commandes`);
+        if (sonOn) jouerSonVente(2).catch(() => {});
+        if (impressionAuto) nouvellesCommandes.forEach((c) => imprimerTicketCuisine(c, workspace?.name));
+        setTimeout(() => setBanniere(null), 7000);
+      }
+    }
+    idsConnus.current = idsActuels;
+  }, [commandes, sonOn, impressionAuto]);
+
+  // Rafraîchit l'affichage du temps d'attente toutes les 30s sans recharger les données.
+  useEffect(() => {
+    const id = setInterval(() => forceTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  function toggleSon() {
+    const nouveau = !sonOn;
+    setSonOn(nouveau);
+    definirSonVentes(nouveau);
+  }
+  function toggleImpressionAuto() {
+    const nouveau = !impressionAuto;
+    setImpressionAuto(nouveau);
+    try { localStorage.setItem("rv_cuisine_impression_auto", nouveau ? "on" : "off"); } catch (_) {}
+  }
+
+  function attenteInfo(c) {
+    const minutes = Math.max(0, Math.round((Date.now() - new Date(c.created_at).getTime()) / 60000));
+    const couleur = minutes >= 20 ? "#D64933" : minutes >= 10 ? "#e8920a" : "#8A9089";
+    return { minutes, couleur };
+  }
+
   return (
     <div style={{ padding: "20px 20px 8px" }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 16 }}>🍽️ Cuisine</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 22 }}>🍽️ Cuisine</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={toggleSon} style={{ background: sonOn ? "#EAF3DE" : "#F0EEE6", color: sonOn ? "#3B6D11" : "#8A9089", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            {sonOn ? "🔊 Son activé" : "🔇 Son coupé"}
+          </button>
+          <button onClick={toggleImpressionAuto} style={{ background: impressionAuto ? "#EAF0FB" : "#F0EEE6", color: impressionAuto ? "#2452E8" : "#8A9089", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            {impressionAuto ? "🖨️ Impression auto ON" : "🖨️ Impression auto OFF"}
+          </button>
+        </div>
+      </div>
+
+      {banniere && (
+        <div className="rv-cuisine-banniere" style={{ background: "#e8920a", color: "white", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontWeight: 700, fontSize: 14, textAlign: "center", animation: "rvCuisineClignote 1s ease-in-out infinite" }}>
+          {banniere}
+        </div>
+      )}
+      <style>{`@keyframes rvCuisineClignote { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }`}</style>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
         {colonnes.map((col) => (
           <div key={col.statut}>
@@ -16071,29 +16224,36 @@ function CuisineView({ commandes, onChangerStatutCuisine, currency }) {
               {col.titre} ({commandesParStatut(col.statut).length})
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {commandesParStatut(col.statut).map((c) => (
-                <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${col.couleur}`, borderRadius: 10, padding: "12px 14px" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.client}</div>
-                  <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2 }}>{c.produit}</div>
-                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>
-                    {c.type_commande === "sur_place" ? "🍽️ Sur place" : c.type_commande === "emporter" ? "🥡 À emporter" : "🚚 Livraison"}
+              {commandesParStatut(col.statut).map((c) => {
+                const { minutes, couleur } = attenteInfo(c);
+                return (
+                  <div key={c.id} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${col.couleur}`, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.client}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: couleur, whiteSpace: "nowrap" }}>⏱ {minutes} min</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6B7168", marginTop: 2 }}>{c.produit}</div>
+                    <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>
+                      {c.type_commande === "sur_place" ? "🍽️ Sur place" : c.type_commande === "emporter" ? "🥡 À emporter" : "🚚 Livraison"}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                      <button
+                        onClick={() => onChangerStatutCuisine(c.id, col.suivant)}
+                        style={{ flex: 1, background: col.couleur, color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                      >
+                        {col.labelBouton}
+                      </button>
+                      <button
+                        onClick={() => imprimerTicketCuisine(c, workspace?.name)}
+                        aria-label="Imprimer le ticket"
+                        style={{ background: "#F4F1E8", color: "#16231F", border: "1px solid #DDD8CC", borderRadius: 7, padding: "8px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                      >
+                        🖨️
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => onChangerStatutCuisine(c.id, col.suivant)}
-                    style={{ width: "100%", marginTop: 8, background: col.couleur, color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
-                  >
-                    {col.labelBouton}
-                  </button>
-                  {col.statut === "nouvelle" && (
-                    <button
-                      onClick={() => window.print()}
-                      style={{ width: "100%", marginTop: 6, background: "white", border: "1px solid #DDD8CC", color: "#16231F", borderRadius: 7, padding: "7px 0", fontWeight: 600, fontSize: 11, cursor: "pointer" }}
-                    >
-                      🖨️ Imprimer le ticket
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {commandesParStatut(col.statut).length === 0 && (
                 <div style={{ fontSize: 12, color: "#8A9089", textAlign: "center", padding: "16px 0" }}>Rien ici</div>
               )}

@@ -1192,8 +1192,13 @@ export function produitsCrossSell(produit, produits, collectionsManuelles, props
   const max = Math.max(1, Math.min(12, Number(props.max) || 6));
   const autres = (produits || []).filter((p) => p.produit_id !== produit?.produit_id);
   if (props.mode === "manuel") {
+    // Sélection à la main dans l'éditeur de bloc : un choix explicite, distinct du réglage
+    // "Afficher tu pourrais aussi aimer" du produit -- on le respecte tel quel.
     return (props.produit_ids || []).map((id) => autres.find((p) => p.produit_id === id)).filter(Boolean).slice(0, max);
   }
+  // Le commerçant a décoché "Afficher tu pourrais aussi aimer" pour ce produit : on n'affiche
+  // rien du tout, y compris le repli automatique "meilleures ventes" ci-dessous.
+  if (produit?.masquer_produits_similaires) return [];
   const idsChoisis = Array.isArray(produit?.produits_similaires_ids) ? produit.produits_similaires_ids : [];
   const collection = produit?.produits_similaires_collection_id
     ? (collectionsManuelles || []).find((c) => c.id === produit.produits_similaires_collection_id)

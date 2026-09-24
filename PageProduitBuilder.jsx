@@ -735,6 +735,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
       livraison_gratuite: !!produit.livraison_gratuite, livraison_gratuite_qte_min: produit.livraison_gratuite_qte_min,
       frais_livraison_produit: produit.frais_livraison_produit, frais_expedition_produit: produit.frais_expedition_produit,
       produits_similaires_ids: produit.produits_similaires_ids || [], produits_similaires_collection_id: produit.produits_similaires_collection_id || null,
+      masquer_produits_similaires: !!produit.masquer_produits_similaires,
     };
   }, [produit, avis]);
 

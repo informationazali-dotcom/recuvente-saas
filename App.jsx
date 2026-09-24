@@ -5410,6 +5410,29 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         );
         if (!continuer) return;
       }
+
+      // Détecte aussi un signal du réseau anti-refus entre boutiques RecuVente (mêmes chiffres
+      // que le badge "Numéro signalé" affiché sur les commandes en cours, voir rvUseRisqueReseau
+      // plus haut dans ce fichier) — vérifié ici EN PLUS, dès la création, pour prévenir avant
+      // d'envoyer un livreur plutôt qu'après coup. Jamais bloquant : une panne du signal réseau
+      // ne doit jamais empêcher la création d'une commande.
+      try {
+        const rReseau = await fetch("/api/admin-panel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "reseau_verifier", workspace_id: workspace.id, telephones: [form.tel] }),
+        });
+        const jReseau = await rReseau.json().catch(() => ({}));
+        const signalReseau = rReseau.ok && jReseau.actif !== false ? Object.values(jReseau.resultats || {})[0] : null;
+        if (signalReseau) {
+          const continuerReseau = window.confirm(
+            `⚠️ Numéro signalé par le réseau RecuVente : ${signalReseau.boutiques} boutique${signalReseau.boutiques > 1 ? "s" : ""} (hors la tienne) ${signalReseau.boutiques > 1 ? "ont" : "a"} eu ${signalReseau.refus} refus/retour${signalReseau.refus > 1 ? "s" : ""} sur ce numéro (et ${signalReseau.livrees} livraison${signalReseau.livrees > 1 ? "s" : ""} réussie${signalReseau.livrees > 1 ? "s" : ""} ailleurs).\n\nAppelle avant d'envoyer un livreur, ou demande un acompte.\n\nContinuer quand même ?`
+          );
+          if (!continuerReseau) return;
+        }
+      } catch (_) {
+        // Signal réseau indisponible : on ne bloque jamais la création d'une commande pour ça.
+      }
     }
 
     const montantDejaPaye = workspace.activity_type === "retail" ? (form.montant_paye === "" ? montantTotal : Number(form.montant_paye)) : 0;

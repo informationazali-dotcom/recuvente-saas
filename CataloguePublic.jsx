@@ -5,7 +5,7 @@ import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS, construireResumeVocal } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS, construireResumeVocal, analyserVideo } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -140,6 +140,33 @@ function extraireTextePourAudio(html) {
 // "resume" (optionnel) : phrase courte lue AVANT la description — nom + prix + livraison +
 // points forts (voir construireResumeVocal dans blocs.js) — pour la personne qui ne veut
 // même pas attendre la description et cherche juste l'essentiel à l'oreille.
+// Petite vignette vidéo pour un avis client (YouTube, Vimeo ou lien .mp4 direct) : rien
+// n'est chargé (ni iframe, ni fichier vidéo) tant que la personne n'a pas cliqué dessus.
+function VignetteVideoAvis({ url, poster }) {
+  const video = useMemo(() => analyserVideo(url), [url]);
+  const [lecture, setLecture] = useState(false);
+  if (!video) return null;
+  const style = { width: 64, height: 64, borderRadius: 8, marginTop: 8, border: "1px solid #ECE8DC", position: "relative", overflow: "hidden", background: "#EEF0EA" };
+  if (lecture) {
+    return (
+      <div style={style}>
+        {video.type === "fichier" ? (
+          <video src={video.src} controls autoPlay playsInline preload="metadata" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <iframe src={`${video.src}${video.src.includes("?") ? "&" : "?"}autoplay=1`} title="Vidéo" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
+        )}
+      </div>
+    );
+  }
+  const affiche = poster || video.poster;
+  return (
+    <button type="button" onClick={() => setLecture(true)} style={{ ...style, cursor: "pointer", padding: 0 }} aria-label="Lire la vidéo">
+      {affiche && <img src={affiche} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.28)", color: "#fff", fontSize: 16 }}>▶</span>
+    </button>
+  );
+}
+
 function BoutonEcouterDescription({ descriptionHTML, resume, couleur, langue, t }) {
   const [etat, setEtat] = useState("idle"); // idle | lecture | pause
   const supporte = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -1651,9 +1678,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setAvisEnvoye(false);
     avisChargesRef.current = p.produit_id;
     supabase.rpc("avis_produit_public", { p_produit_id: p.produit_id }).then(({ data }) => {
-      // On n'affiche que les avis avec un vrai commentaire — un avis "juste des étoiles, sans texte"
-      // n'apporte rien visuellement et alourdit la liste inutilement.
-      setAvisListe((data || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0));
+      // On n'affiche que les avis avec un vrai contenu (texte, photo ou vidéo) — un avis
+      // "juste des étoiles, sans rien d'autre" n'apporte rien visuellement.
+      setAvisListe((data || []).filter((a) => (a.commentaire && a.commentaire.trim().length > 0) || a.photo_url || a.video_url));
     });
     definirUrlProduitPropre(p);
     window.scrollTo(0, 0);
@@ -1988,7 +2015,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     if (avisChargesRef.current !== produitOuvert.produit_id) {
       avisChargesRef.current = produitOuvert.produit_id;
       supabase.rpc("avis_produit_public", { p_produit_id: produitOuvert.produit_id }).then(({ data }) => {
-        setAvisListe((data || []).filter((a) => a.commentaire && a.commentaire.trim().length > 0));
+        setAvisListe((data || []).filter((a) => (a.commentaire && a.commentaire.trim().length > 0) || a.photo_url || a.video_url));
       });
     }
   }, [produitOuvert?.produit_id, pageConfigActive, workspaceId]);
@@ -3122,7 +3149,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                         <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
                       </div>
                       {a.commentaire && <div style={{ fontSize: 13, color: "#16231F", marginTop: 4, lineHeight: 1.5 }}>{a.commentaire}</div>}
-                      {a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, marginTop: 8, border: "1px solid #ECE8DC", cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />}
+                      {analyserVideo(a.video_url) ? (
+                        <VignetteVideoAvis url={a.video_url} poster={a.photo_url} />
+                      ) : (
+                        a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, marginTop: 8, border: "1px solid #ECE8DC", cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />
+                      )}
                     </div>
                   ))}
                 </div>

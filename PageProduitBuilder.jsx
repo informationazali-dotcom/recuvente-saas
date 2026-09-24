@@ -777,7 +777,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
       setChargement(false);
     })();
     supabase.rpc("avis_produit_public", { p_produit_id: produit.id }).then(({ data }) => {
-      if (!annule) setAvis((data || []).filter((a) => a.commentaire && String(a.commentaire).trim().length > 0));
+      if (!annule) setAvis((data || []).filter((a) => (a.commentaire && String(a.commentaire).trim().length > 0) || a.photo_url || a.video_url));
     });
     return () => { annule = true; };
   }, [workspace.id, produit.id]);

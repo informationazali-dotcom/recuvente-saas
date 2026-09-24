@@ -172,6 +172,9 @@ const CSS_PAGE = `
 .rvpp-rev-h b{font-size:14px}
 .rvpp-rev p{margin:0;font-size:14px;line-height:1.55}
 .rvpp-rev img{width:72px;height:72px;object-fit:cover;border-radius:10px;margin-top:10px;border:1px solid var(--pp-line)}
+.rvpp-rev-media{position:relative;width:72px;height:72px;border-radius:10px;margin-top:10px;overflow:hidden;background:var(--pp-alt);border:1px solid var(--pp-line)}
+.rvpp-rev-media img,.rvpp-rev-media video,.rvpp-rev-media iframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
+.rvpp-rev-media .rvpp-play span{width:32px;height:32px;font-size:14px;padding-left:2px}
 .rvpp-ugc{overflow:hidden;text-align:left}
 .rvpp-ugc-m{position:relative;aspect-ratio:4/5;background:var(--pp-alt)}
 .rvpp-ugc-m img,.rvpp-ugc-m iframe,.rvpp-ugc-m video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
@@ -850,7 +853,11 @@ function BlocAvis({ bloc, ctx }) {
           <div className="rvpp-card rvpp-rev" key={k}>
             <div className="rvpp-rev-h"><b>{a.client_nom}</b><Etoiles note={a.note} taille={13} /></div>
             {(a.commentaire || "").trim() && <p>{a.commentaire}</p>}
-            {p.afficher_photos !== false && a.photo_url && <img src={a.photo_url} alt="Photo du client" loading="lazy" decoding="async" />}
+            {p.afficher_photos !== false && analyserVideo(a.video_url) ? (
+              <div className="rvpp-rev-media"><VideoFacadeCarre url={a.video_url} poster={a.photo_url} /></div>
+            ) : (
+              p.afficher_photos !== false && a.photo_url && <img src={a.photo_url} alt="Photo du client" loading="lazy" decoding="async" />
+            )}
           </div>
         ))}
       </div>

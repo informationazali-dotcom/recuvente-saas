@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
 import CataloguePublic, { GrilleCollections, EnteteCollectionVedette } from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
-import { normaliserHex, couleurCssSure, reparerCouleurs, completerDieze, estClaire, texteSurFond, DEVISE_PAR_DEFAUT_PAYS, DEVISES_PROPOSEES, libelleDevise, tauxFixe } from "./blocs.js";
+import { normaliserHex, couleurCssSure, reparerCouleurs, completerDieze, estClaire, texteSurFond, DEVISE_PAR_DEFAUT_PAYS, DEVISES_PROPOSEES, libelleDevise, tauxFixe, analyserVideo } from "./blocs.js";
 import FilleulPortalSaas from "./network/FilleulPortalSaas.jsx";
 import NetworkDashboard from "./network/NetworkDashboard.jsx";
 import { MarketingReseauLanding, TunnelRecrutementPublic, BoutiqueReferralPublic } from "./network/MarketingReseauPublic.jsx";
@@ -12638,6 +12638,64 @@ function AvisModal({ workspaceId, onClose }) {
   const [texteImport, setTexteImport] = useState("");
   const [importEnCours, setImportEnCours] = useState(false);
 
+  // Ajout d'un seul avis à la main (avec ou sans photo, avec ou sans vidéo) : pour le
+  // commerçant qui veut recréer un avis précis (ex: recopié d'AliExpress avec sa photo),
+  // sans passer par le format ligne par ligne de l'import en masse ci-dessus.
+  const [afficherAjout, setAfficherAjout] = useState(false);
+  const [produitAjoutId, setProduitAjoutId] = useState("");
+  const [ajoutNom, setAjoutNom] = useState("");
+  const [ajoutNote, setAjoutNote] = useState(5);
+  const [ajoutCommentaire, setAjoutCommentaire] = useState("");
+  const [ajoutPhotoFichier, setAjoutPhotoFichier] = useState(null);
+  const [ajoutVideoUrl, setAjoutVideoUrl] = useState("");
+  const [ajoutEnCours, setAjoutEnCours] = useState(false);
+  const [resultatAjout, setResultatAjout] = useState(null);
+
+  async function ajouterAvisManuel() {
+    if (!produitAjoutId) { setResultatAjout({ succes: false, message: "Choisis d'abord un produit." }); return; }
+    if (!ajoutNom.trim()) { setResultatAjout({ succes: false, message: "Le nom du client est obligatoire." }); return; }
+    if (ajoutVideoUrl.trim() && !analyserVideo(ajoutVideoUrl.trim())) {
+      setResultatAjout({ succes: false, message: "Lien vidéo non reconnu (YouTube, Vimeo ou lien direct .mp4)." });
+      return;
+    }
+    setAjoutEnCours(true);
+    setResultatAjout(null);
+    let photoUrl = null;
+    if (ajoutPhotoFichier) {
+      try {
+        const fichierCompresse = await compresserImage(ajoutPhotoFichier);
+        const extension = fichierCompresse.name.split(".").pop();
+        const chemin = `avis-${produitAjoutId}-${Date.now()}.${extension}`;
+        const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true, contentType: fichierCompresse.type || undefined });
+        if (erreurUpload) throw erreurUpload;
+        const { data: dataUrl } = supabase.storage.from("produits").getPublicUrl(chemin);
+        photoUrl = dataUrl.publicUrl;
+      } catch (e) {
+        setAjoutEnCours(false);
+        setResultatAjout({ succes: false, message: "Erreur lors de l'envoi de la photo : " + (e.message || "réessaie.") });
+        return;
+      }
+    }
+    const { error } = await supabase.from("avis_produits").insert({
+      workspace_id: workspaceId,
+      produit_id: produitAjoutId,
+      client_nom: ajoutNom.trim(),
+      note: ajoutNote,
+      commentaire: ajoutCommentaire.trim() || null,
+      photo_url: photoUrl,
+      video_url: ajoutVideoUrl.trim() || null,
+      approuve: true, // ajouté par toi directement, donc déjà "approuvé"
+    });
+    setAjoutEnCours(false);
+    if (error) {
+      setResultatAjout({ succes: false, message: "Erreur : " + error.message });
+      return;
+    }
+    setResultatAjout({ succes: true, message: "Avis ajouté et publié." });
+    setAjoutNom(""); setAjoutNote(5); setAjoutCommentaire(""); setAjoutPhotoFichier(null); setAjoutVideoUrl("");
+    await charger();
+  }
+
   function ligneCSVVersColonnes(ligne) {
     // Découpe une ligne CSV en colonnes, en gérant les champs entre guillemets
     // (qui peuvent contenir des virgules ou point-virgules sans casser le découpage).
@@ -12717,10 +12775,21 @@ function AvisModal({ workspaceId, onClose }) {
       const nom = parties[0] || "Client AliExpress";
       const noteTrouvee = parseInt(parties[1], 10);
       const note = (noteTrouvee >= 1 && noteTrouvee <= 5) ? noteTrouvee : 5;
-      const commentaire = parties.slice(2).join(" | ").trim() || null;
+      // 4e colonne optionnelle : un lien de photo (ex: image copiée depuis AliExpress).
+      // Reconnu seulement s'il ressemble vraiment à un lien d'image, pour ne jamais
+      // couper la fin d'un commentaire qui contiendrait un "|" par hasard.
+      let reste = parties.slice(2);
+      let photoUrlLigne = null;
+      const derniereColonne = (reste[reste.length - 1] || "").trim();
+      if (reste.length > 1 && /^https?:\/\/\S+\.(jpe?g|png|webp|gif)(\?\S*)?$/i.test(derniereColonne)) {
+        photoUrlLigne = derniereColonne;
+        reste = reste.slice(0, -1);
+      }
+      const commentaire = reste.join(" | ").trim() || null;
       avisAInserer.push({
         workspace_id: workspaceId,
         produit_id: produitImportId,
+        photo_url: photoUrlLigne,
         client_nom: nom,
         note,
         commentaire,
@@ -12795,6 +12864,42 @@ function AvisModal({ workspaceId, onClose }) {
         </div>
 
         <button
+          onClick={() => setAfficherAjout(!afficherAjout)}
+          style={{ width: "100%", background: afficherAjout ? "#1a7a3c" : "#FAFAF7", color: afficherAjout ? "white" : "#16231F", border: "1px solid " + (afficherAjout ? "#1a7a3c" : "#ECE8DC"), borderRadius: 10, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 8 }}
+        >
+          ➕ {afficherAjout ? "Fermer" : "Ajouter un avis moi-même (photo et/ou vidéo)"}
+        </button>
+
+        {afficherAjout && (
+          <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <select value={produitAjoutId} onChange={(e) => setProduitAjoutId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8, boxSizing: "border-box" }}>
+              <option value="">Choisir le produit concerné...</option>
+              {Object.entries(produitsMap).map(([id, nom]) => <option key={id} value={id}>{nom}</option>)}
+            </select>
+            <input placeholder="Nom du client" value={ajoutNom} onChange={(e) => setAjoutNom(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box" }} />
+            <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" onClick={() => setAjoutNote(n)} style={{ background: "none", border: "none", padding: 0, fontSize: 22, cursor: "pointer", color: n <= ajoutNote ? "#e8920a" : "#DDD8CC" }}>★</button>
+              ))}
+            </div>
+            <textarea placeholder="Commentaire (optionnel)" value={ajoutCommentaire} onChange={(e) => setAjoutCommentaire(e.target.value)} rows={3} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" }} />
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", boxSizing: "border-box", border: "1px solid #cfdad2", background: "#f8fbf8", color: "#1a7a3c", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+              📷 {ajoutPhotoFichier ? ajoutPhotoFichier.name : "Ajouter une photo (optionnel)"}
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => setAjoutPhotoFichier(e.target.files?.[0] || null)} />
+            </label>
+            <input placeholder="Lien de la vidéo (optionnel) — YouTube, Vimeo ou .mp4" value={ajoutVideoUrl} onChange={(e) => setAjoutVideoUrl(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box" }} />
+            {resultatAjout && (
+              <div style={{ background: resultatAjout.succes ? "#EAF3DE" : "#FBEAE6", border: "1px solid " + (resultatAjout.succes ? "#C7DDA3" : "#F0B8AC"), borderRadius: 8, padding: "8px 10px", marginBottom: 8, fontSize: 11.5, color: resultatAjout.succes ? "#3B6D11" : "#D64933" }}>
+                {resultatAjout.succes ? "✅ " : "⚠️ "}{resultatAjout.message}
+              </div>
+            )}
+            <button onClick={ajouterAvisManuel} disabled={ajoutEnCours} style={{ width: "100%", background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+              {ajoutEnCours ? "Ajout en cours..." : "Ajouter cet avis"}
+            </button>
+          </div>
+        )}
+
+        <button
           onClick={() => setAfficherImport(!afficherImport)}
           style={{ width: "100%", background: afficherImport ? "#1a7a3c" : "#FAFAF7", color: afficherImport ? "white" : "#16231F", border: "1px solid " + (afficherImport ? "#1a7a3c" : "#ECE8DC"), borderRadius: 10, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 14 }}
         >
@@ -12805,7 +12910,8 @@ function AvisModal({ workspaceId, onClose }) {
           <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
             <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.6 }}>
               Deux façons d'importer : <strong>1)</strong> choisis un fichier CSV avec 3 colonnes (Nom, Note, Commentaire) — exporté depuis Excel ou Google Sheets. <strong>2)</strong> ou copie chaque avis depuis AliExpress et colle-les directement, un avis par ligne, dans ce format :<br />
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>Nom du client | Note (1 à 5) | Le commentaire</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>Nom du client | Note (1 à 5) | Le commentaire</span><br />
+              Tu peux ajouter un lien de photo à la fin (optionnel) : <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>... | Le commentaire | https://exemple.com/photo.jpg</span>. Pour ajouter une vidéo à un avis, utilise plutôt le bouton "Ajouter un avis moi-même" ci-dessus.
             </div>
             <select value={produitImportId} onChange={(e) => setProduitImportId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8, boxSizing: "border-box" }}>
               <option value="">Choisir le produit concerné...</option>
@@ -12859,6 +12965,7 @@ function AvisModal({ workspaceId, onClose }) {
                   </div>
                   {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{a.commentaire}</div>}
                   {a.photo_url && <img src={a.photo_url} alt="Photo client" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, marginTop: 6, cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />}
+                  {a.video_url && <button type="button" onClick={() => window.open(a.video_url, "_blank")} style={{ display: "block", marginTop: 6, background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>▶ Voir la vidéo</button>}
                   <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                     <button onClick={() => approuver(a.id)} style={{ flex: 1, background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Approuver</button>
                     <button onClick={() => supprimer(a.id)} style={{ flex: 1, background: "white", border: "1px solid #DDD8CC", color: "#D64933", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🗑️ Rejeter</button>
@@ -12881,6 +12988,7 @@ function AvisModal({ workspaceId, onClose }) {
               </div>
               {a.commentaire && <div style={{ fontSize: 12.5, color: "#16231F", marginTop: 4 }}>{a.commentaire}</div>}
                   {a.photo_url && <img src={a.photo_url} alt="Photo client" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, marginTop: 6, cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />}
+                  {a.video_url && <button type="button" onClick={() => window.open(a.video_url, "_blank")} style={{ display: "block", marginTop: 6, background: "#16231F", color: "white", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>▶ Voir la vidéo</button>}
               <button onClick={() => supprimer(a.id)} style={{ marginTop: 6, background: "none", border: "none", color: "#D64933", fontSize: 11.5, cursor: "pointer", padding: 0 }}>🗑️ Retirer</button>
             </div>
           ))}

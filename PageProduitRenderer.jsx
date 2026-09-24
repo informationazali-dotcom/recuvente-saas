@@ -635,8 +635,14 @@ function BoutonEcouterPage({ texteAudio, langue, lib }) {
 function InfoProduit({ p, ctx, blocOffres }) {
   const { produit, devise, etat, actions, liv, t, entreprise } = ctx;
   const titre = (p.titre || "").trim() || produit.produit_nom;
-  const nbAvis = Number(produit.nb_avis) || 0;
-  const note = Number(produit.note_moyenne) || 0;
+  const aDeVraisAvis = Number(produit.nb_avis) > 0 && Number(produit.note_moyenne) > 0;
+  const noteDefaut = produit.avis_note_defaut != null ? Number(produit.avis_note_defaut) : null;
+  const nombreDefaut = produit.avis_nombre_defaut != null ? Number(produit.avis_nombre_defaut) : null;
+  // Vrais avis d'abord ; sinon la note/le nombre de départ choisis par le commerçant pour
+  // ce produit (réglage "Note de départ") ; sinon rien ne s'affiche.
+  const afficherNote = aDeVraisAvis || noteDefaut != null;
+  const note = aDeVraisAvis ? Number(produit.note_moyenne) : (noteDefaut != null ? noteDefaut : 0);
+  const nbAvis = aDeVraisAvis ? Number(produit.nb_avis) : nombreDefaut;
   const prixVente = etat.prixBase;
   const prixBarre = Number(produit.prix_barre);
   const aBarre = p.afficher_ancien_prix !== false && Number.isFinite(prixBarre) && prixBarre > prixVente && prixVente > 0;
@@ -662,12 +668,6 @@ function InfoProduit({ p, ctx, blocOffres }) {
   return (
     <div>
       {(p.badge || "").trim() && <div style={{ marginBottom: 8 }}><span className="rvpp-pill">{p.badge}</span></div>}
-      {p.afficher_avis !== false && nbAvis > 0 && note > 0 && (
-        <button type="button" onClick={() => ctx.allerVers("rvpp-avis")} style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, marginBottom: 8, cursor: "pointer", textAlign: "left", color: "inherit" }}>
-          <Etoiles note={note} />
-          <span style={{ fontSize: 13, color: "var(--pp-muted)" }}>{note}/5 — {nbAvis} avis</span>
-        </button>
-      )}
       <h1 className="rvpp-h1">{titre}</h1>
       {(p.sous_titre || "").trim() && <p className="rvpp-lead" style={{ marginBottom: 4 }}>{p.sous_titre}</p>}
 
@@ -677,6 +677,20 @@ function InfoProduit({ p, ctx, blocOffres }) {
           {aBarre && <span className="rvpp-price-old">{formaterMontant(prixBarre, devise)}</span>}
           {aBarre && p.afficher_economie !== false && pct > 0 && <span className="rvpp-save">-{pct}% · {lib("economisez", "Économisez")} {formaterMontant(economieAffichee(prixBarre, prixVente, prixBarre - prixVente), devise)}</span>}
         </div>
+      )}
+
+      {p.afficher_avis !== false && afficherNote && (
+        aDeVraisAvis ? (
+          <button type="button" onClick={() => ctx.allerVers("rvpp-avis")} style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, marginTop: 8, marginBottom: 8, cursor: "pointer", textAlign: "left", color: "inherit" }}>
+            <Etoiles note={note} />
+            <span style={{ fontSize: 13, color: "var(--pp-muted)" }}>{note}/5 — {nbAvis} avis</span>
+          </button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 8, marginBottom: 8 }}>
+            <Etoiles note={note} />
+            <span style={{ fontSize: 13, color: "var(--pp-muted)" }}>{note}/5{nbAvis != null && ` — ${nbAvis} avis`}</span>
+          </div>
+        )
       )}
 
       {liv.gratuite ? (

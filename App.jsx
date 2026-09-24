@@ -13333,7 +13333,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
   const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
-  const [livraison, setLivraison] = useState({ livraison_gratuite: false, livraison_gratuite_qte_min: "", frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [], produits_similaires_collection_id: "" });
+  const [livraison, setLivraison] = useState({ livraison_gratuite: false, livraison_gratuite_qte_min: "", frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [], produits_similaires_collection_id: "", avis_note_defaut: "", avis_nombre_defaut: "" });
   const [collectionsDispo, setCollectionsDispo] = useState([]);
 
   useEffect(() => {
@@ -13369,6 +13369,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         bump_prix_special: selected.bump_prix_special ?? "",
         produits_similaires_ids: Array.isArray(selected.produits_similaires_ids) ? selected.produits_similaires_ids : [],
         produits_similaires_collection_id: selected.produits_similaires_collection_id || "",
+        avis_note_defaut: selected.avis_note_defaut ?? "",
+        avis_nombre_defaut: selected.avis_nombre_defaut ?? "",
       });
       const optsExistantes = Array.isArray(selected.options) ? selected.options : [];
       setOptionsProduit([0, 1, 2].map((i) => optsExistantes[i] ? { nom: optsExistantes[i].nom || "", valeursTexte: (optsExistantes[i].valeurs || []).join(", ") } : { nom: "", valeursTexte: "" }));
@@ -14362,6 +14364,23 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                   </div>
 
                   <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 12, marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#344239", marginBottom: 4 }}>⭐ Note de départ (avant tes premiers vrais avis)</div>
+                    <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 8, lineHeight: 1.5 }}>
+                      Affichée juste après le prix tant que ce produit n'a pas encore de vrais avis. Dès qu'il en reçoit, ses vrais avis prennent automatiquement le relais. Laisse les deux champs vides pour ne rien afficher en attendant.
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 3 }}>Note (sur 5)</div>
+                        <input type="number" min="1" max="5" step="0.1" placeholder="ex: 4.8" value={livraison.avis_note_defaut} onChange={(e) => setLivraison((v) => ({ ...v, avis_note_defaut: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 10.5, color: "#8A9089", marginBottom: 3 }}>Nombre d'avis</div>
+                        <input type="number" min="0" step="1" placeholder="ex: 97" value={livraison.avis_nombre_defaut} onChange={(e) => setLivraison((v) => ({ ...v, avis_nombre_defaut: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, boxSizing: "border-box" }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: "1px solid #ECE8DC", paddingTop: 12, marginBottom: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#344239", marginBottom: 6 }}>➕ Order bump (proposé juste avant la validation de commande)</div>
                     <select value={livraison.bump_produit_id} onChange={(e) => setLivraison((v) => ({ ...v, bump_produit_id: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8 }}>
                       <option value="">Aucun order bump pour ce produit</option>
@@ -14412,6 +14431,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
                           bump_prix_special: livraison.bump_prix_special === "" ? null : Number(livraison.bump_prix_special),
                           produits_similaires_ids: livraison.produits_similaires_ids,
                           produits_similaires_collection_id: livraison.produits_similaires_collection_id || null,
+                          avis_note_defaut: livraison.avis_note_defaut === "" ? null : Math.min(5, Math.max(1, Number(livraison.avis_note_defaut))),
+                          avis_nombre_defaut: livraison.avis_nombre_defaut === "" ? null : Math.max(0, Math.round(Number(livraison.avis_nombre_defaut))),
                         });
                         if (res && !res.ok) {
                           const seulementColonnes = res.echecs.every((e) => e.colonneAbsente && e.cle !== "bundles");

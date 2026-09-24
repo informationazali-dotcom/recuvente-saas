@@ -2875,18 +2875,6 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 🔥 {t("bestSeller")} — {produitOuvert.nb_ventes} {t("ventes")}
               </div>
             )}
-            {produitOuvert.note_moyenne > 0 && produitOuvert.nb_avis > 0 && (
-              <button
-                onClick={() => document.getElementById("rv-shop-avis-section")?.scrollIntoView({ behavior: "smooth" })}
-                style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, marginBottom: 8, cursor: "pointer", textAlign: "left" }}
-              >
-                <span style={{ color: "#e8920a", fontSize: 15, letterSpacing: 1 }}>{"★".repeat(Math.round(produitOuvert.note_moyenne))}{"☆".repeat(5 - Math.round(produitOuvert.note_moyenne))}</span>
-                <span style={{ fontSize: 12.5, color: "#6B7168" }}>
-                  {produitOuvert.note_moyenne >= 4.5 ? t("noteExcellent") : produitOuvert.note_moyenne >= 4 ? t("noteTresBien") : t("noteBien")} | {produitOuvert.note_moyenne}/5 ({produitOuvert.nb_avis} {t("noteAvisClients")})
-                </span>
-              </button>
-            )}
-
             <h1 style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.15, margin: "0 0 4px", color: "#16231F", overflowWrap: "anywhere" }}>{produitOuvert.produit_nom}</h1>
 
             <PointsFortsListe points={structureDescription.points} couleur={couleur} />
@@ -2912,6 +2900,34 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                     </span>
                   )}
                 </div>
+              );
+            })()}
+
+            {(() => {
+              // Étoiles juste après le prix : vrais avis d'abord ; sinon la note/le
+              // nombre de départ choisis par le commerçant pour ce produit (réglage
+              // "Note de départ", dans la fiche produit) ; sinon rien du tout.
+              const aDeVraisAvis = produitOuvert.note_moyenne > 0 && produitOuvert.nb_avis > 0;
+              const noteDefaut = produitOuvert.avis_note_defaut != null ? Number(produitOuvert.avis_note_defaut) : null;
+              const nombreDefaut = produitOuvert.avis_nombre_defaut != null ? Number(produitOuvert.avis_nombre_defaut) : null;
+              if (!aDeVraisAvis && noteDefaut == null) return null;
+              const note = aDeVraisAvis ? produitOuvert.note_moyenne : noteDefaut;
+              const nombre = aDeVraisAvis ? produitOuvert.nb_avis : (nombreDefaut != null ? nombreDefaut : "");
+              const contenu = (
+                <>
+                  <span style={{ color: "#e8920a", fontSize: 15, letterSpacing: 1 }}>{"★".repeat(Math.round(note))}{"☆".repeat(5 - Math.round(note))}</span>
+                  <span style={{ fontSize: 12.5, color: "#6B7168" }}>
+                    {note >= 4.5 ? t("noteExcellent") : note >= 4 ? t("noteTresBien") : t("noteBien")} | {note}/5{nombre !== "" && ` (${nombre} ${t("noteAvisClients")})`}
+                  </span>
+                </>
+              );
+              const style = { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, marginBottom: 12, textAlign: "left" };
+              // Cliquable pour aller voir les avis seulement s'il y a de vrais avis à montrer —
+              // pas de scroll vers une section vide quand c'est la note de départ qui s'affiche.
+              return aDeVraisAvis ? (
+                <button onClick={() => document.getElementById("rv-shop-avis-section")?.scrollIntoView({ behavior: "smooth" })} style={{ ...style, cursor: "pointer" }}>{contenu}</button>
+              ) : (
+                <div style={style}>{contenu}</div>
               );
             })()}
 
@@ -5314,12 +5330,22 @@ function CarteProduit({ p, couleur, devise, onOpen, langue, onAjouterAuPanier, e
       <div className="rv-card-corps">
         {estAzali && <div style={{ fontSize: 8.5, fontWeight: 700, color: "#8A9089", letterSpacing: "0.3px", marginBottom: 2 }}>AZALIEXPRESS®</div>}
         <div className="rv-card-nom">{p.produit_nom}</div>
-        {(aDesVraisAvis || estAzali) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-            <span style={{ color: "#e8920a", fontSize: 11.5 }}>{aDesVraisAvis ? "★".repeat(Math.round(p.note_moyenne)) + "☆".repeat(5 - Math.round(p.note_moyenne)) : "★★★★★"}</span>
-            <span style={{ fontSize: 10.5, color: "#8A9089" }}>({aDesVraisAvis ? p.nb_avis : "4.7"})</span>
-          </div>
-        )}
+        {(() => {
+          // Vrais avis d'abord ; sinon la note/le nombre de départ choisis par le
+          // commerçant pour CE produit (réglage "Note de départ") ; sinon, pour le
+          // gabarit Azali uniquement, l'ancien repli fixe (compatibilité).
+          const noteDefaut = p.avis_note_defaut != null ? Number(p.avis_note_defaut) : null;
+          const nombreDefaut = p.avis_nombre_defaut != null ? Number(p.avis_nombre_defaut) : null;
+          if (!aDesVraisAvis && noteDefaut == null && !estAzali) return null;
+          const note = aDesVraisAvis ? p.note_moyenne : (noteDefaut != null ? noteDefaut : 5);
+          const nombre = aDesVraisAvis ? p.nb_avis : (nombreDefaut != null ? nombreDefaut : "4.7");
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+              <span style={{ color: "#e8920a", fontSize: 11.5 }}>{"★".repeat(Math.round(note)) + "☆".repeat(5 - Math.round(note))}</span>
+              <span style={{ fontSize: 10.5, color: "#8A9089" }}>({nombre})</span>
+            </div>
+          );
+        })()}
         <div className="rv-card-prix rv-card-prix-ligne">
           <span>{montantAffiche(Number(p.prix_vente))} {devise}</span>
           {remisePct >= 1 && <s className="rv-card-barre">{montantAffiche(prixBarreNum)}</s>}

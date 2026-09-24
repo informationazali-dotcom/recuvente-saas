@@ -1142,13 +1142,24 @@ IMPORTANT :
   return res.status(200).json({ config: configGeneree });
 }
 
+// Beaucoup de marchands copient-collent depuis le bouton "Partager" de l'appli AliExpress (ou
+// WhatsApp), qui envoie une phrase entière autour du lien ("Regarde ce produit ! ... https://...
+// 50% de réduction") plutôt que le lien tout seul. Un lien qui ne commence pas *exactement* par
+// "http" était donc rejeté à tort comme "invalide" alors qu'un vrai lien s'y trouve. On extrait
+// maintenant le premier lien http(s) trouvé n'importe où dans le texte collé.
+function extraireUrlDuTexteColle(texteColle) {
+  const m = String(texteColle || "").match(/https?:\/\/[^\s"'<>]+/i);
+  return m ? m[0] : null;
+}
+
 // ===== POST "extraire_produit_depuis_lien" : à partir d'un vrai lien produit (AliExpress et
 // similaires), récupère le nom, la photo et le prix quand ils sont publiquement disponibles sur
 // la page — jamais inventés. La photo est re-téléchargée et hébergée chez nous (pas de lien
 // direct vers un site externe, qui pourrait casser plus tard).
 async function gererExtraireProduitDepuisLien(req, res, user) {
-  const { url, workspace_id } = req.body;
-  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "Lien invalide" });
+  const { workspace_id } = req.body;
+  const url = extraireUrlDuTexteColle(req.body?.url);
+  if (!url) return res.status(400).json({ error: "Lien invalide -- colle un lien qui contient bien http:// ou https://" });
   if (!workspace_id) return res.status(400).json({ error: "Espace de travail manquant" });
 
   // Beaucoup de sites (AliExpress en tête) bloquent une requête serveur trop nue. On imite un
@@ -1264,8 +1275,9 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
 // requête à certains moments -- dans ce cas on le dit clairement, le marchand garde toujours
 // l'import CSV/collage (toujours fiable) comme solution de repli, jamais de blocage silencieux.
 async function gererImporterAvisAliExpress(req, res, user) {
-  const { url, max } = req.body || {};
-  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "Lien invalide" });
+  const { max } = req.body || {};
+  const url = extraireUrlDuTexteColle(req.body?.url);
+  if (!url) return res.status(400).json({ error: "Lien invalide -- colle un lien qui contient bien http:// ou https://" });
 
   const idTrouve = String(url).match(/\/item\/(\d+)\.html/) || String(url).match(/[?&]productId=(\d+)/);
   const productId = idTrouve ? idTrouve[1] : null;

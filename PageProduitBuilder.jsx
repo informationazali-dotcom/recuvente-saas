@@ -45,6 +45,11 @@ function slugifierProduitPage(nom) {
     .slice(0, 60);
 }
 
+// Meme regle de validite que dans CataloguePublic.jsx (SLUG_PRODUIT_VALIDE) : un nom de produit
+// trop court une fois slugifie ne peut pas servir de segment d'URL court, sinon le lien public
+// de la page serait invalide et retomberait sur le tableau de bord admin au clic.
+const SLUG_PRODUIT_PAGE_VALIDE = /^[a-z0-9][a-z0-9-]{1,80}[a-z0-9]$/;
+
 function useLargeur() {
   const [w, setW] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
   useEffect(() => {
@@ -919,8 +924,9 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
     // Lien court façon Shopify (/nom-boutique/nom-produit, ou /nom-produit sur un domaine
     // personnalisé) — voir CataloguePublic.jsx (lienProduitPropre) pour la même logique.
     const slugP = slugifierProduitPage(produit.nom);
-    if (workspace?.domaine_personnalise) return `https://${workspace.domaine_personnalise}/${slugP}`;
-    if (workspace?.slug) return `${window.location.origin}/${workspace.slug}/${slugP}`;
+    const slugOk = SLUG_PRODUIT_PAGE_VALIDE.test(slugP);
+    if (slugOk && workspace?.domaine_personnalise) return `https://${workspace.domaine_personnalise}/${slugP}`;
+    if (slugOk && workspace?.slug) return `${window.location.origin}/${workspace.slug}/${slugP}`;
     return `${window.location.origin}/?catalogue=${workspace.id}&produit=${slugP}-${String(produit.id).slice(0, 8)}`;
   })();
 

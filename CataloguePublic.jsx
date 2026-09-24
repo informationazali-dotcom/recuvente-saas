@@ -683,6 +683,14 @@ function slugifierProduit(nom) {
     .slice(0, 60);
 }
 
+// Meme regle de validite que AmorceBoutique.jsx (SLUG_CHEMIN_VALIDE) : un nom de produit trop
+// court une fois slugifie (nom d'1-2 caracteres, ou uniquement des accents/emoji/symboles qui
+// disparaissent au nettoyage) ne peut PAS servir de segment d'URL court - sinon le lien genere
+// serait invalide, et un vrai visiteur qui clique dessus retomberait sur le tableau de bord
+// admin au lieu d'ouvrir la fiche produit (voir main.jsx : cheminCourt / estVueAdmin). Dans ce
+// cas les fonctions ci-dessous retombent sur l'ancien format long, qui marche toujours.
+const SLUG_PRODUIT_VALIDE = /^[a-z0-9][a-z0-9-]{1,80}[a-z0-9]$/;
+
 function urlEmbedVideo(url) {
   if (!url) return "";
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/);
@@ -1571,8 +1579,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   // (le seul qui fonctionne sans slug) — jamais de lien cassé.
   function lienProduitPropre(p) {
     const slugP = slugifierProduit(p.produit_nom);
-    if (domaine) return `${window.location.origin}/${slugP}`;
-    if (entreprise?.slug) return `${window.location.origin}/${entreprise.slug}/${slugP}`;
+    const slugOk = SLUG_PRODUIT_VALIDE.test(slugP);
+    if (slugOk && domaine) return `${window.location.origin}/${slugP}`;
+    if (slugOk && entreprise?.slug) return `${window.location.origin}/${entreprise.slug}/${slugP}`;
     return `${window.location.origin}/?catalogue=${workspaceId}&produit=${slugP}-${p.produit_id.slice(0, 8)}`;
   }
 
@@ -1581,12 +1590,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   function definirUrlProduitPropre(p) {
     const url = new URL(window.location.href);
     const slugP = slugifierProduit(p.produit_nom);
+    const slugOk = SLUG_PRODUIT_VALIDE.test(slugP);
     url.searchParams.delete("boutique");
     url.searchParams.delete("catalogue");
     url.searchParams.delete("produit");
-    if (domaine) {
+    if (slugOk && domaine) {
       url.pathname = `/${slugP}`;
-    } else if (entreprise?.slug) {
+    } else if (slugOk && entreprise?.slug) {
       url.pathname = `/${entreprise.slug}/${slugP}`;
     } else {
       url.pathname = "/";

@@ -175,6 +175,19 @@ const CSS_PAGE = `
 .rvpp-rev-media{position:relative;width:72px;height:72px;border-radius:10px;margin-top:10px;overflow:hidden;background:var(--pp-alt);border:1px solid var(--pp-line)}
 .rvpp-rev-media img,.rvpp-rev-media video,.rvpp-rev-media iframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
 .rvpp-rev-media .rvpp-play span{width:32px;height:32px;font-size:14px;padding-left:2px}
+.rvpp-avis-recap{display:flex;gap:20px;align-items:center;flex-wrap:wrap;padding:16px 18px;background:var(--pp-alt);border:1px solid var(--pp-line);border-radius:var(--pp-radius);margin-bottom:16px}
+.rvpp-avis-recap-note{text-align:center;min-width:84px}
+.rvpp-avis-recap-note b{font-size:32px;font-weight:800;line-height:1;color:var(--pp-ink)}
+.rvpp-avis-recap-note div{font-size:10.5px;color:var(--pp-muted);margin-top:4px}
+.rvpp-avis-dist{flex:1;min-width:150px;display:flex;flex-direction:column;gap:4px}
+.rvpp-avis-dist-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--pp-muted)}
+.rvpp-avis-dist-row>span:first-child{width:18px}
+.rvpp-avis-dist-row>span:last-child{width:22px;text-align:right}
+.rvpp-avis-dist-track{flex:1;height:6px;border-radius:3px;background:var(--pp-line);overflow:hidden}
+.rvpp-avis-dist-fill{height:100%;background:var(--pp-accent)}
+.rvpp-avis-avatar{width:26px;height:26px;border-radius:50%;background:var(--pp-accent);color:var(--pp-accent-txt);display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex-shrink:0}
+.rvpp-avis-chips{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.rvpp-avis-chips button{min-height:0;padding:5px 12px;font-size:11.5px}
 .rvpp-ugc{overflow:hidden;text-align:left}
 .rvpp-ugc-m{position:relative;aspect-ratio:4/5;background:var(--pp-alt)}
 .rvpp-ugc-m img,.rvpp-ugc-m iframe,.rvpp-ugc-m video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
@@ -849,23 +862,53 @@ function BlocOffres({ bloc, ctx }) {
 function BlocAvis({ bloc, ctx }) {
   const p = bloc.props;
   const max = Math.max(1, Math.min(24, Number(p.max) || 6));
-  const liste = ctx.avis.slice(0, max);
+  const [avecMediaSeulement, setAvecMediaSeulement] = useState(false);
+  const avecMedia = ctx.avis.filter((a) => a.photo_url || a.video_url);
+  const baseListe = avecMediaSeulement ? avecMedia : ctx.avis;
+  const liste = baseListe.slice(0, max);
   const nb = Number(ctx.produit.nb_avis) || ctx.avis.length;
   const note = Number(ctx.produit.note_moyenne) || (ctx.avis.length ? ctx.avis.reduce((s, a) => s + Number(a.note || 0), 0) / ctx.avis.length : 0);
   return (
     <>
       <TitreSection titre={p.titre} />
       {p.afficher_note !== false && note > 0 && (
-        <div className="rvpp-center" style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>{Number(note).toFixed(1)}<span style={{ fontSize: 16, color: "var(--pp-muted)", fontWeight: 600 }}>/5</span></div>
-          <Etoiles note={note} taille={18} />
-          <div style={{ fontSize: 13, color: "var(--pp-muted)", marginTop: 2 }}>{nb} avis</div>
+        <div className="rvpp-avis-recap">
+          <div className="rvpp-avis-recap-note">
+            <b>{Number(note).toFixed(1)}</b>
+            <Etoiles note={note} taille={16} />
+            <div>{nb} avis</div>
+          </div>
+          <div className="rvpp-avis-dist">
+            {[5, 4, 3, 2, 1].map((n) => {
+              const count = ctx.avis.filter((a) => Math.round(Number(a.note || 0)) === n).length;
+              const pct = ctx.avis.length > 0 ? Math.round((count / ctx.avis.length) * 100) : 0;
+              return (
+                <div className="rvpp-avis-dist-row" key={n}>
+                  <span>{n}★</span>
+                  <div className="rvpp-avis-dist-track"><div className="rvpp-avis-dist-fill" style={{ width: `${pct}%` }} /></div>
+                  <span>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {p.afficher_photos !== false && avecMedia.length > 0 && (
+        <div className="rvpp-avis-chips">
+          <button type="button" className="rvpp-chip" aria-pressed={!avecMediaSeulement} onClick={() => setAvecMediaSeulement(false)}>Tous ({ctx.avis.length})</button>
+          <button type="button" className="rvpp-chip" aria-pressed={avecMediaSeulement} onClick={() => setAvecMediaSeulement(true)}>📷 Avec photo/vidéo ({avecMedia.length})</button>
         </div>
       )}
       <div className="rvpp-grid c2">
         {liste.map((a, k) => (
           <div className="rvpp-card rvpp-rev" key={k}>
-            <div className="rvpp-rev-h"><b>{a.client_nom}</b><Etoiles note={a.note} taille={13} /></div>
+            <div className="rvpp-rev-h">
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="rvpp-avis-avatar">{String(a.client_nom || "?").trim().charAt(0).toUpperCase()}</span>
+                <b>{a.client_nom}</b>
+              </span>
+              <Etoiles note={a.note} taille={13} />
+            </div>
             {(a.commentaire || "").trim() && <p>{a.commentaire}</p>}
             {p.afficher_photos !== false && analyserVideo(a.video_url) ? (
               <div className="rvpp-rev-media"><VideoFacadeCarre url={a.video_url} poster={a.photo_url} /></div>

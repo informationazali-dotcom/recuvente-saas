@@ -1172,6 +1172,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [typeLivraisonChoisi, setTypeLivraisonChoisi] = useState(null);
   const [photoActive, setPhotoActive] = useState(0);
   const [avisListe, setAvisListe] = useState([]);
+  const [filtreAvisPhoto, setFiltreAvisPhoto] = useState(false);
   const [afficherFormAvis, setAfficherFormAvis] = useState(false);
   const [formAvis, setFormAvis] = useState({ nom: "", note: 5, commentaire: "" });
   const [photoAvis, setPhotoAvis] = useState(null);
@@ -1673,6 +1674,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setIdCommandeEnvoyee(null);
     setErreurEnvoi("");
     setAvisListe([]);
+    setFiltreAvisPhoto(false);
     setAfficherFormAvis(false);
     setFormAvis({ nom: "", note: 5, commentaire: "" });
     setAvisEnvoye(false);
@@ -3156,24 +3158,72 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
               {avisListe.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#8A9089", fontStyle: "italic" }}>{t("aucunAvis")}</div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {avisListe.map((a, i) => (
-                    <div key={i} style={{ background: "#FAFAF7", borderRadius: 10, padding: "10px 14px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{a.client_nom}</span>
-                        <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
+              ) : (() => {
+                const moyenne = avisListe.reduce((s, a) => s + Number(a.note || 0), 0) / avisListe.length;
+                const avecMedia = avisListe.filter((a) => a.photo_url || a.video_url);
+                const listeAffichee = filtreAvisPhoto ? avecMedia : avisListe;
+                return (
+                  <>
+                    <div style={{ display: "flex", gap: 20, alignItems: "center", background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: "16px 18px", marginBottom: 12, flexWrap: "wrap" }}>
+                      <div style={{ textAlign: "center", minWidth: 84 }}>
+                        <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1, color: "#16231F" }}>{moyenne.toFixed(1)}</div>
+                        <div style={{ color: "#e8920a", fontSize: 13, margin: "4px 0" }}>{"★".repeat(Math.round(moyenne))}{"☆".repeat(5 - Math.round(moyenne))}</div>
+                        <div style={{ fontSize: 10.5, color: "#8A9089" }}>{avisListe.length} avis</div>
                       </div>
-                      {a.commentaire && <div style={{ fontSize: 13, color: "#16231F", marginTop: 4, lineHeight: 1.5 }}>{a.commentaire}</div>}
-                      {analyserVideo(a.video_url) ? (
-                        <VignetteVideoAvis url={a.video_url} poster={a.photo_url} />
-                      ) : (
-                        a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, marginTop: 8, border: "1px solid #ECE8DC", cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />
-                      )}
+                      <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+                        {[5, 4, 3, 2, 1].map((n) => {
+                          const count = avisListe.filter((a) => Math.round(Number(a.note || 0)) === n).length;
+                          const pct = avisListe.length > 0 ? Math.round((count / avisListe.length) * 100) : 0;
+                          return (
+                            <div key={n} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                              <span style={{ width: 18, color: "#6B7168" }}>{n}★</span>
+                              <div style={{ flex: 1, height: 6, borderRadius: 3, background: "#ECE8DC", overflow: "hidden" }}>
+                                <div style={{ width: `${pct}%`, height: "100%", background: "#e8920a" }} />
+                              </div>
+                              <span style={{ width: 22, textAlign: "right", color: "#8A9089" }}>{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {avecMedia.length > 0 && (
+                      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                        <button
+                          onClick={() => setFiltreAvisPhoto(false)}
+                          style={{ background: !filtreAvisPhoto ? "#16231F" : "white", color: !filtreAvisPhoto ? "white" : "#16231F", border: "1px solid #ECE8DC", borderRadius: 999, padding: "5px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                        >
+                          Tous ({avisListe.length})
+                        </button>
+                        <button
+                          onClick={() => setFiltreAvisPhoto(true)}
+                          style={{ background: filtreAvisPhoto ? "#16231F" : "white", color: filtreAvisPhoto ? "white" : "#16231F", border: "1px solid #ECE8DC", borderRadius: 999, padding: "5px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                        >
+                          📷 Avec photo/vidéo ({avecMedia.length})
+                        </button>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {listeAffichee.map((a, i) => (
+                        <div key={i} style={{ background: "#FAFAF7", borderRadius: 10, padding: "10px 14px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: couleur, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 }}>
+                              {String(a.client_nom || "?").trim().charAt(0).toUpperCase()}
+                            </div>
+                            <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>{a.client_nom}</span>
+                            <span style={{ color: "#e8920a", fontSize: 12 }}>{"★".repeat(a.note)}{"☆".repeat(5 - a.note)}</span>
+                          </div>
+                          {a.commentaire && <div style={{ fontSize: 13, color: "#16231F", marginTop: 4, lineHeight: 1.5 }}>{a.commentaire}</div>}
+                          {analyserVideo(a.video_url) ? (
+                            <VignetteVideoAvis url={a.video_url} poster={a.photo_url} />
+                          ) : (
+                            a.photo_url && <img src={a.photo_url} alt="Photo du client" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, marginTop: 8, border: "1px solid #ECE8DC", cursor: "pointer" }} onClick={() => window.open(a.photo_url, "_blank")} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
 

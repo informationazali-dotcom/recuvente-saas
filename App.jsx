@@ -12726,7 +12726,11 @@ function AvisModal({ workspaceId, onClose }) {
         .map((l) => {
           const col = ligneCSVVersColonnes(l);
           if (col.length < 2) return null;
-          return `${col[0] || "Client"} | ${col[1] || "5"} | ${(col[2] || "").replace(/\|/g, "-")}`;
+          // Colonnes 4 et 5 optionnelles : lien photo et/ou lien vidéo. On les rattache
+          // telles quelles -- c'est le même format "|" que l'import collé, qui sait déjà
+          // reconnaître un lien photo/vidéo en fin de ligne.
+          const extra = [col[3], col[4]].filter(Boolean).map((v) => ` | ${v}`).join("");
+          return `${col[0] || "Client"} | ${col[1] || "5"} | ${(col[2] || "").replace(/\|/g, "-")}${extra}`;
         })
         .filter(Boolean)
         .join("\n");
@@ -12775,12 +12779,18 @@ function AvisModal({ workspaceId, onClose }) {
       const nom = parties[0] || "Client AliExpress";
       const noteTrouvee = parseInt(parties[1], 10);
       const note = (noteTrouvee >= 1 && noteTrouvee <= 5) ? noteTrouvee : 5;
-      // 4e colonne optionnelle : un lien de photo (ex: image copiée depuis AliExpress).
-      // Reconnu seulement s'il ressemble vraiment à un lien d'image, pour ne jamais
-      // couper la fin d'un commentaire qui contiendrait un "|" par hasard.
+      // 4e et 5e colonnes optionnelles : un lien de photo et/ou un lien de vidéo (ex: copiés
+      // depuis AliExpress, ou remplis via l'import CSV). Reconnus seulement s'ils ressemblent
+      // vraiment à ce type de lien, pour ne jamais couper la fin d'un commentaire contenant un "|".
       let reste = parties.slice(2);
       let photoUrlLigne = null;
-      const derniereColonne = (reste[reste.length - 1] || "").trim();
+      let videoUrlLigne = null;
+      let derniereColonne = (reste[reste.length - 1] || "").trim();
+      if (reste.length > 1 && analyserVideo(derniereColonne)) {
+        videoUrlLigne = derniereColonne;
+        reste = reste.slice(0, -1);
+        derniereColonne = (reste[reste.length - 1] || "").trim();
+      }
       if (reste.length > 1 && /^https?:\/\/\S+\.(jpe?g|png|webp|gif)(\?\S*)?$/i.test(derniereColonne)) {
         photoUrlLigne = derniereColonne;
         reste = reste.slice(0, -1);
@@ -12790,6 +12800,7 @@ function AvisModal({ workspaceId, onClose }) {
         workspace_id: workspaceId,
         produit_id: produitImportId,
         photo_url: photoUrlLigne,
+        video_url: videoUrlLigne,
         client_nom: nom,
         note,
         commentaire,
@@ -12909,16 +12920,16 @@ function AvisModal({ workspaceId, onClose }) {
         {afficherImport && (
           <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 14, marginBottom: 16 }}>
             <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.6 }}>
-              Deux façons d'importer : <strong>1)</strong> choisis un fichier CSV avec 3 colonnes (Nom, Note, Commentaire) — exporté depuis Excel ou Google Sheets. <strong>2)</strong> ou copie chaque avis depuis AliExpress et colle-les directement, un avis par ligne, dans ce format :<br />
+              Deux façons d'importer : <strong>1)</strong> choisis un fichier CSV — colonnes Nom, Note, Commentaire, et en option une 4e colonne (lien photo) et une 5e colonne (lien vidéo) — exporté depuis Excel ou Google Sheets. <strong>2)</strong> ou copie chaque avis depuis AliExpress et colle-les directement, un avis par ligne, dans ce format :<br />
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>Nom du client | Note (1 à 5) | Le commentaire</span><br />
-              Tu peux ajouter un lien de photo à la fin (optionnel) : <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>... | Le commentaire | https://exemple.com/photo.jpg</span>. Pour ajouter une vidéo à un avis, utilise plutôt le bouton "Ajouter un avis moi-même" ci-dessus.
+              Tu peux ajouter un lien de photo et/ou un lien de vidéo à la fin (optionnel) : <span style={{ fontFamily: "'IBM Plex Mono', monospace", background: "white", padding: "2px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>... | Le commentaire | https://exemple.com/photo.jpg | https://youtube.com/watch?v=...</span>.
             </div>
             <select value={produitImportId} onChange={(e) => setProduitImportId(e.target.value)} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, background: "white", marginBottom: 8, boxSizing: "border-box" }}>
               <option value="">Choisir le produit concerné...</option>
               {Object.entries(produitsMap).map(([id, nom]) => <option key={id} value={id}>{nom}</option>)}
             </select>
             <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", boxSizing: "border-box", border: "1px solid #cfdad2", background: "#f8fbf8", color: "#1a7a3c", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
-              📄 Choisir un fichier CSV (colonnes : Nom, Note, Commentaire)
+              📄 Choisir un fichier CSV (Nom, Note, Commentaire, photo et vidéo en option)
               <input type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(e) => importerFichierCSVAvis(e.target.files?.[0])} />
             </label>
             <div style={{ textAlign: "center", fontSize: 10.5, color: "#8A9089", marginBottom: 10 }}>— ou colle directement le texte ci-dessous —</div>

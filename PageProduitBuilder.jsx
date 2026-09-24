@@ -215,6 +215,8 @@ function Champ({ def, valeur, onChange, televerser, produits, produitCourantId, 
       case "texte": return <input style={champ} value={valeur ?? ""} placeholder={def.placeholder || ""} onChange={(e) => onChange(e.target.value)} />;
       case "zone": return <textarea style={{ ...champ, minHeight: 74, resize: "vertical" }} value={valeur ?? ""} onChange={(e) => onChange(e.target.value)} />;
       case "nombre": return <input style={champ} type="number" min="0" value={valeur ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} />;
+      case "datetime": return <input style={champ} type="datetime-local" value={valeur ?? ""} onChange={(e) => onChange(e.target.value)} />;
+      case "heure": return <input style={champ} type="time" value={valeur ?? ""} onChange={(e) => onChange(e.target.value)} />;
       case "oui_non":
         return (
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", minHeight: 30 }}>

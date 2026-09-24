@@ -9425,7 +9425,7 @@ function CarteBoutiqueTableauDeBord({ workspace, onPersonnaliser, onVoirEnLigne,
         </span>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        <a href={`${lien}&_t=${Date.now()}`} target="_blank" rel="noopener noreferrer" style={{ ...lienBtn, background: "#e8920a", border: "none", color: "#16231F" }}>👁️ Voir ma boutique</a>
+        <a href={`${lien}${lien.includes("?") ? "&" : "?"}_t=${Date.now()}`} target="_blank" rel="noopener noreferrer" style={{ ...lienBtn, background: "#e8920a", border: "none", color: "#16231F" }}>👁️ Voir ma boutique</a>
         <button onClick={copier} style={lienBtn}>{copie ? "✅ Lien copié" : "📋 Copier le lien"}</button>
         {onPersonnaliser && <button onClick={onPersonnaliser} style={lienBtn}>🎨 {workspace.store_is_published ? "Personnaliser" : "Créer ma boutique"}</button>}
       </div>

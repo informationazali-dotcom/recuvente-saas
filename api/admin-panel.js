@@ -1256,6 +1256,92 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
   });
 }
 
+// ===== POST "importer_avis_aliexpress" : à partir d'un lien produit AliExpress, récupère les
+// vrais avis publics déjà laissés par leurs acheteurs (texte, note, pays, photo) -- jamais
+// inventés, jamais réécrits. On interroge directement le service d'avis public qu'AliExpress
+// utilise lui-même pour afficher les avis sur sa page produit (aucune donnée privée, aucune
+// connexion à un compte). Meilleur effort assumé : leur protection anti-robot peut bloquer la
+// requête à certains moments -- dans ce cas on le dit clairement, le marchand garde toujours
+// l'import CSV/collage (toujours fiable) comme solution de repli, jamais de blocage silencieux.
+async function gererImporterAvisAliExpress(req, res, user) {
+  const { url, max } = req.body || {};
+  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "Lien invalide" });
+
+  const idTrouve = String(url).match(/\/item\/(\d+)\.html/) || String(url).match(/[?&]productId=(\d+)/);
+  const productId = idTrouve ? idTrouve[1] : null;
+  if (!productId) {
+    return res.status(400).json({ error: "Ce lien ne ressemble pas à une fiche produit AliExpress (il doit contenir \"/item/UN-NUMERO.html\")." });
+  }
+
+  const tailleParPage = 20;
+  const maxAvis = Math.max(1, Math.min(150, Number(max) || 50));
+
+  const entetesNavigateur = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Referer": `https://www.aliexpress.com/item/${productId}.html`,
+  };
+
+  async function recupererPage(page) {
+    const controleur = new AbortController();
+    const delai = setTimeout(() => controleur.abort(), 12000);
+    try {
+      const cible = `https://feedback.aliexpress.com/pc/searchEvaluation.do?productId=${productId}&lang=en_US&country=US&page=${page}&pageSize=${tailleParPage}`;
+      const reponse = await fetch(cible, { headers: entetesNavigateur, signal: controleur.signal });
+      clearTimeout(delai);
+      if (!reponse.ok) return null;
+      const donnees = await reponse.json().catch(() => null);
+      return donnees;
+    } catch (e) {
+      clearTimeout(delai);
+      return null;
+    }
+  }
+
+  const premierePage = await recupererPage(1);
+  if (!premierePage) {
+    return res.status(400).json({
+      error: "AliExpress a bloqué la récupération automatique cette fois-ci (leur protection anti-robot varie selon le moment). Réessaie dans quelques minutes, ou utilise l'import CSV/collage ci-dessous -- il fonctionne toujours.",
+    });
+  }
+
+  const totalAnnonce = Number(premierePage.totalNum) || 0;
+  const listeAvis = [];
+  function ajouterDepuisPage(donnees) {
+    const liste = Array.isArray(donnees?.evaViewList) ? donnees.evaViewList : [];
+    for (const item of liste) {
+      if (listeAvis.length >= maxAvis) break;
+      const noteBrute = Number(item.buyerEval);
+      const note = Number.isFinite(noteBrute) && noteBrute > 0 ? Math.max(1, Math.min(5, Math.round(noteBrute / 20))) : 5;
+      const commentaire = String(item.buyerTranslationFeedback || item.buyerFeedback || "").trim() || null;
+      const premierePhoto = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null;
+      listeAvis.push({
+        client_nom: item.anonymous ? "Client AliExpress" : (String(item.buyerName || "").trim() || "Client AliExpress"),
+        note,
+        commentaire,
+        photo_url: premierePhoto,
+      });
+    }
+  }
+  ajouterDepuisPage(premierePage);
+
+  const pagesRestantes = Math.min(Math.ceil(maxAvis / tailleParPage), Math.ceil(totalAnnonce / tailleParPage) || 1) - 1;
+  if (pagesRestantes > 0 && listeAvis.length < maxAvis) {
+    const numerosPages = Array.from({ length: pagesRestantes }, (_, i) => i + 2);
+    const resultatsPages = await Promise.all(numerosPages.map((p) => recupererPage(p)));
+    for (const donnees of resultatsPages) {
+      if (donnees) ajouterDepuisPage(donnees);
+    }
+  }
+
+  if (listeAvis.length === 0) {
+    return res.status(200).json({ avis: [], total_annonce: totalAnnonce, message: "Ce produit n'a aucun avis visible publiquement sur AliExpress pour l'instant." });
+  }
+
+  return res.status(200).json({ avis: listeAvis, total_annonce: totalAnnonce });
+}
+
 // ===== POST "identifier_produit_depuis_photo" : quand le marchand n'a ni lien ni nom à donner
 // — juste une photo — Claude regarde l'image (compréhension d'image, pas génération) et
 // identifie lui-même de quoi il s'agit, puis rédige la même fiche en sections que les deux
@@ -1622,7 +1708,7 @@ async function gererCreerCompteFilleul(req, res) {
 // Limites réglables sans toucher au code : variables Vercel IA_LIMITE_ESSAI (défaut 20) et IA_LIMITE_ABONNE (défaut 100).
 // Packs de crédits achetables (Chariow) : variable Vercel CHARIOW_PACKS_IA = [{"id":"<id produit Chariow>","credits":100,"prix":2000,"devise":"XOF","nom":"Pack 100 crédits"}]
 // Comptage dans la table ia_usage : lignes d'usage (type = l'action), « achat:… » (crédits achetés) et « pack_conso » (crédits de pack dépensés).
-const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1 };
+const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1, avis_aliexpress: 2 };
 const memoireUsageIA = new Map(); // repli si la table ia_usage n'existe pas encore (compte par instance serveur)
 function limiteIA(nom, defaut) { const n = Number(process.env[nom]); return Number.isFinite(n) && n >= 0 ? n : defaut; }
 function packsIA() {
@@ -1785,6 +1871,12 @@ export default async function handler(req, res) {
     if (!userMembre) return;
     if (!(await autoriserUsageIA(req, res, userMembre, "extraire_lien"))) return;
     return gererExtraireProduitDepuisLien(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "importer_avis_aliexpress") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "avis_aliexpress"))) return;
+    return gererImporterAvisAliExpress(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "identifier_produit_depuis_photo") {
     const userMembre = await verifierMembreWorkspace(req, res);

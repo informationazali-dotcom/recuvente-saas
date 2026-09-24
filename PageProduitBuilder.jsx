@@ -556,7 +556,7 @@ function Modale({ titre, onClose, children, large = false }) {
 function ModaleTemplates({ actuel, onChoisir, onClose, premiereFois }) {
   return (
     <Modale titre={premiereFois ? "Choisissez un point de départ" : "Changer de template"} onClose={onClose} large>
-      <div style={{ fontSize: 13, color: MUTED, marginBottom: 14, lineHeight: 1.5 }}>Les trois templates utilisent les mêmes blocs. {premiereFois ? "Vous pourrez tout modifier ensuite." : "Les contenus déjà saisis dans vos blocs sont conservés."}</div>
+      <div style={{ fontSize: 13, color: MUTED, marginBottom: 14, lineHeight: 1.5 }}>Tous les templates utilisent les mêmes blocs, juste dans un ordre différent. {premiereFois ? "Vous pourrez tout modifier ensuite." : "Les contenus déjà saisis dans vos blocs sont conservés."}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
         {IDS_TEMPLATES.map((id) => {
           const t = TEMPLATES[id];

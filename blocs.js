@@ -24,19 +24,37 @@ export function idAleatoire(prefixe = "b") {
   return `${prefixe}_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`;
 }
 
-// Version allégée d'une photo pour l'affichage. Les produits importés depuis Shopify gardent
-// l'adresse d'origine (cdn.shopify.com) : ce sont des originaux de plusieurs Mo, alors qu'une
-// carte produit en affiche 200 px. Le CDN de Shopify fournit la bonne taille si on la lui
-// demande (`width=`), sans rien changer à la photo stockée. Toute autre adresse est renvoyée
-// telle quelle — aucun risque de casser une image.
+// Version allégée d'une photo pour l'affichage, selon l'hébergeur :
+// • Shopify (produits importés) gardent l'adresse d'origine (cdn.shopify.com) — des originaux de
+//   plusieurs Mo, alors qu'une carte produit en affiche 200 px. Le CDN Shopify fournit la bonne
+//   taille si on la lui demande (`width=`), sans rien changer à la photo stockée.
+// • Supabase Storage, bucket "produits" (photos envoyées depuis RecuVente) : une vraie vignette
+//   (~480 px) est générée EN PLUS de l'originale au moment de l'envoi (voir App.jsx,
+//   televerserVignetteProduit). Pour un affichage en petit format (grille de catégorie, miniature,
+//   galerie de vignettes...), on demande cette vignette au lieu de télécharger l'originale complète.
+//   Une photo envoyée AVANT cette mise à jour n'a pas de vignette : chaque endroit qui l'affiche en
+//   petit prévoit un repli automatique sur l'originale si le fichier n'existe pas — aucune photo
+//   déjà en ligne ne peut donc casser.
+// Toute autre adresse est renvoyée telle quelle.
+const VIGNETTE_SEUIL_LARGEUR = 700;
 export function urlImageLegere(url, largeur = 600) {
   if (!url || typeof url !== "string") return url;
   try {
     const u = new URL(url);
-    if (u.hostname !== "cdn.shopify.com") return url;
-    if (u.searchParams.has("width") || u.searchParams.has("height")) return url;
-    u.searchParams.set("width", String(Math.round(largeur)));
-    return u.toString();
+    if (u.hostname === "cdn.shopify.com") {
+      if (u.searchParams.has("width") || u.searchParams.has("height")) return url;
+      u.searchParams.set("width", String(Math.round(largeur)));
+      return u.toString();
+    }
+    if (
+      largeur <= VIGNETTE_SEUIL_LARGEUR &&
+      /\/storage\/v1\/object\/public\/produits\//.test(u.pathname) &&
+      !/_vignette\.[a-z0-9]+$/i.test(u.pathname)
+    ) {
+      u.pathname = u.pathname.replace(/(\.[a-z0-9]+)$/i, "_vignette$1");
+      return u.toString();
+    }
+    return url;
   } catch (_) {
     return url;
   }
@@ -230,6 +248,45 @@ export function structureDescriptionProduit(html) {
 export function extrairePointsDescription(html) {
   if (!html || typeof document === "undefined") return [];
   return structureDescriptionProduit(html).points;
+}
+
+// ---------------------------------------------------------------------------
+// Lecture vocale de la description : MÊME logique que le bouton "Écouter la description" de la
+// fiche produit historique (CataloguePublic.jsx), exportée ici pour que la page tunnel (Product
+// Page Builder) puisse aussi proposer ce bouton, gratuitement, sans dupliquer le nettoyage HTML.
+// Insère une pause après chaque bloc (titre, paragraphe, liste), retire les emojis/symboles que
+// la voix prononcerait littéralement, et évite d'épeler un nom de marque en majuscules.
+// ---------------------------------------------------------------------------
+
+export function extraireTextePourAudio(html) {
+  if (!html || typeof document === "undefined") return "";
+  const div = document.createElement("div");
+  div.innerHTML = nettoyerHtmlDescription(html);
+  div.querySelectorAll("h1, h2, h3, h4, p, li, br").forEach((el) => {
+    el.insertAdjacentText("afterend", ". ");
+  });
+  let texte = div.textContent || "";
+  texte = texte.replace(/\p{Extended_Pictographic}/gu, " ");
+  texte = texte.replace(/[•●▪️‣►◆★☆♦™®©]/g, " ");
+  texte = texte.replace(/\b[A-ZÀ-Ý]{5,}\b/g, (mot) => mot.charAt(0) + mot.slice(1).toLowerCase());
+  texte = texte.replace(/\s+/g, " ").replace(/(\s*\.\s*){2,}/g, ". ").replace(/\s+\./g, ".").trim();
+  return texte;
+}
+
+// Résumé vocal court (nom + prix + livraison + points forts), lu AVANT la description par le
+// bouton "Écouter" — pensé pour la personne qui ne veut pas lire du tout et cherche juste
+// l'essentiel à l'oreille. Utilisé par la fiche produit classique ET les pages tunnel.
+export function construireResumeVocal({ nom, prix, devise, livraisonGratuite, fraisLivraison, points = [], langue = "fr" } = {}) {
+  const en = langue === "en";
+  const phrases = [];
+  if ((nom || "").trim()) phrases.push(String(nom).trim());
+  const prixTxt = formaterMontant(prix, devise);
+  if (prixTxt) phrases.push(prixTxt);
+  if (livraisonGratuite) phrases.push(en ? "Free delivery" : "Livraison gratuite");
+  else if (Number(fraisLivraison) > 0) phrases.push(`${en ? "Plus" : "Plus"} ${formaterMontant(fraisLivraison, devise)} ${en ? "delivery fee" : "de frais de livraison"}`);
+  const pointsValides = (points || []).map((p) => String(p || "").trim()).filter(Boolean).slice(0, 4);
+  if (pointsValides.length > 0) phrases.push(`${en ? "Key points" : "Points forts"} : ${pointsValides.join(", ")}`);
+  return phrases.join(". ").replace(/\.\.+/g, ".").trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -643,6 +700,18 @@ export const REGISTRE_BLOCS = {
       { cle: "bouton_texte", label: "Texte du bouton", type: "texte", aide: "Vide = texte du bouton défini dans « Page »." },
     ],
   },
+  urgence: {
+    label: "Compte à rebours / urgence", icone: "⏳", categorie: "vente", unique: true,
+    description: "Un VRAI décompte jusqu'à une date ou une heure que vous fixez — jamais un faux minuteur qui recommence à chaque visite. Vide (aucune date choisie) = bloc masqué.",
+    defaut: () => ({ titre: "Offre à durée limitée", mode: "date_fixe", date_fin: "", heure_fin: "23:59", afficher_stock_reel: false }),
+    champs: [
+      { cle: "titre", label: "Titre", type: "texte" },
+      { cle: "mode", label: "Type de décompte", type: "choix", options: [{ v: "date_fixe", l: "Date précise (promo ponctuelle)" }, { v: "quotidien", l: "Tous les jours à une heure fixe" }] },
+      { cle: "date_fin", label: "Se termine le", type: "datetime", visibleSi: { mode: "date_fixe" }, aide: "Heure de votre fuseau horaire. Le bloc disparaît automatiquement une fois cette date passée — aucune relance automatique." },
+      { cle: "heure_fin", label: "Heure limite chaque jour", type: "heure", visibleSi: { mode: "quotidien" }, aide: "Ex : commandez avant 18h pour une expédition le jour même. Redémarre automatiquement le lendemain." },
+      { cle: "afficher_stock_reel", label: "Afficher aussi le stock restant réel", type: "oui_non", aide: "Repris directement du stock du produit — affiché seulement s'il en reste 5 ou moins." },
+    ],
+  },
 };
 
 export const TYPES_BLOCS = Object.keys(REGISTRE_BLOCS);
@@ -912,6 +981,11 @@ export function blocEstVide(bloc, ctx = {}) {
     // sans texte ni image, le bloc ne s'affiche pas publiquement.
     case "image_texte": return !rempli(p.image) && !rempli(p.texte);
     case "cta": return false;
+    // Décompte quotidien : toujours actif dès qu'une heure est réglée (il redémarre chaque
+    // jour). Date précise : masqué sans date ET une fois cette date dépassée — jamais de
+    // minuteur figé à zéro ou de "offre" qui continue après sa vraie fin.
+    case "urgence":
+      return p.mode === "quotidien" ? !rempli(p.heure_fin) : !(p.date_fin && new Date(p.date_fin).getTime() > Date.now());
     default: return false;
   }
 }

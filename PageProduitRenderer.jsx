@@ -18,7 +18,7 @@ import { createPortal } from "react-dom";
 import {
   normaliserConfig, REGISTRE_BLOCS, blocEstVide, calculerOffresAffichees, analyserVideo,
   couleurTextePourFond, couleurValide, formaterMontant, arrondiLocalBase, monnaieAffichage, produitsCrossSell, textePlat, CTA_TEXTE_DEFAUT,
-  structureDescriptionProduit, urlImageLegere,
+  structureDescriptionProduit, urlImageLegere, extraireTextePourAudio, construireResumeVocal,
 } from "./blocs.js";
 
 // ---------------------------------------------------------------------------
@@ -105,6 +105,12 @@ const CSS_PAGE = `
 .rvpp-check{display:flex;flex-direction:column;gap:8px;margin:14px 0 16px}
 .rvpp-check-i{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.45;background:var(--pp-alt);border-radius:10px;padding:9px 12px}
 .rvpp-check-i b{flex:0 0 auto;width:18px;height:18px;margin-top:1px;border-radius:5px;background:var(--pp-accent);color:var(--pp-accent-txt);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.rvpp-listen{display:inline-flex;align-items:center;gap:7px;background:none;border:1.5px solid var(--pp-accent);color:var(--pp-accent-ink);border-radius:999px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;margin:2px 0 12px;touch-action:manipulation}
+.rvpp-listen-active{display:inline-flex;align-items:center;gap:8px;background:var(--pp-accent-soft);border:1.5px solid var(--pp-accent);border-radius:999px;padding:6px 8px 6px 16px;margin:2px 0 12px}
+.rvpp-listen-active span{font-size:12px;font-weight:700;color:var(--pp-accent-ink)}
+.rvpp-listen-btn{width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rvpp-listen-btn.play{background:var(--pp-accent);color:var(--pp-accent-txt)}
+.rvpp-listen-btn.stop{background:#fff;border:1px solid var(--pp-accent);color:var(--pp-accent-ink)}
 .rvpp-opt-t{font-size:13px;font-weight:700;margin:12px 0 7px}
 .rvpp-chips{display:flex;flex-wrap:wrap;gap:8px}
 .rvpp-chip{min-height:42px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--pp-line);background:#fff;color:var(--pp-ink);font-size:13.5px;font-weight:700;cursor:pointer;touch-action:manipulation}
@@ -206,6 +212,13 @@ const CSS_PAGE = `
 .rvpp-band .rvpp-h2{color:inherit}
 .rvpp-band p{margin:0 0 16px;opacity:.94;font-size:15.5px}
 .rvpp-band .rvpp-cta{background:#fff;color:#16231F;max-width:420px;margin:0 auto;box-shadow:none}
+.rvpp-urgence{background:#FBEAE6;border:1.5px solid #F0C4B8;border-radius:var(--pp-radius);padding:18px 20px;text-align:center;max-width:520px;margin:0 auto}
+.rvpp-urgence-titre{font-size:13px;font-weight:800;color:#B33A2A;margin-bottom:12px;text-transform:uppercase;letter-spacing:.02em}
+.rvpp-urgence-timer{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.rvpp-urgence-u{background:#fff;border:1px solid #F0C4B8;border-radius:10px;padding:8px 13px;min-width:52px}
+.rvpp-urgence-u b{display:block;font-size:22px;font-weight:800;color:#B33A2A;line-height:1.1;font-variant-numeric:tabular-nums}
+.rvpp-urgence-u span{display:block;font-size:10px;color:#8A6412;text-transform:uppercase;margin-top:2px}
+.rvpp-urgence-stock{margin-top:12px;font-size:12.5px;font-weight:700;color:#B33A2A}
 .rvpp-formcard{padding:18px 16px;max-width:560px;margin:0 auto;box-shadow:0 10px 30px rgba(22,35,31,.08)}
 .rvpp-info-list{display:grid;gap:10px;font-size:14.5px}
 .rvpp-info-list div{display:flex;gap:10px;align-items:flex-start}
@@ -397,7 +410,7 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
               aria-label={it.type === "video" ? "Voir la vidéo" : `Voir la photo ${k + 1}`}
               style={{ position: "relative", flex: "0 0 auto", width: 64, height: 64, borderRadius: 10, overflow: "hidden", padding: 0, background: "var(--pp-alt)", cursor: "pointer", border: k === idx ? `2px solid ${accent}` : "1px solid var(--pp-line)", opacity: k === idx ? 1 : 0.82 }}
             >
-              {it.url ? <img src={urlImageLegere(it.url, 200)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <span style={{ fontSize: 22 }}>🎬</span>}
+              {it.url ? <img src={urlImageLegere(it.url, 200)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { if (e.target.dataset.rvOrig !== "1" && e.target.src !== it.url) { e.target.dataset.rvOrig = "1"; e.target.src = it.url; } }} /> : <span style={{ fontSize: 22 }}>🎬</span>}
               {it.type === "video" && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.28)", color: "#fff", fontSize: 18 }}>▶</span>}
             </button>
           ))}
@@ -460,7 +473,11 @@ function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
   const enCartes = modeDemande === "cartes" && cartes.length >= 2 && cartes.length <= 4;
 
   if (enCartes) {
-    const photo = urlImageLegere(produit.photo_url, 160);
+    // Affichée en CSS background-image (empilement de miniatures) : impossible d'y détecter un
+    // échec de chargement et de retomber sur l'originale, donc on demande volontairement une
+    // largeur au-dessus du seuil de vignette (voir urlImageLegere dans blocs.js) — jamais de
+    // photo cassée ici, même pour un produit envoyé avant l'existence de la vignette.
+    const photo = urlImageLegere(produit.photo_url, 900);
     return (
       <div className={`rvpp-packs${cartes.length === 4 ? " rvpp-n4" : ""}`} style={{ "--n": cartes.length === 4 ? 2 : cartes.length }} role="radiogroup" aria-label="Choisissez votre offre">
         {cartes.map((o) => {
@@ -526,6 +543,89 @@ function OffresListe({ ctx, blocOffres, afficherEconomie = true }) {
 }
 
 // ---------------------------------------------------------------------------
+// Bouton "Écouter" — même principe que la fiche produit historique (synthèse vocale native du
+// navigateur, gratuite), mais absent jusqu'ici des pages tunnel : c'est pourtant là que va le
+// plus de trafic publicitaire payant. Lit d'abord un résumé (nom, prix, livraison, points forts),
+// puis la description complète du produit si elle existe. Se masque silencieusement si l'appareil
+// ne supporte pas la synthèse vocale, ou s'il n'y a rien à lire.
+// ---------------------------------------------------------------------------
+
+function BoutonEcouterPage({ texteAudio, langue, lib }) {
+  const [etat, setEtat] = useState("idle"); // idle | lecture | pause
+  const supporte = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  useEffect(() => {
+    // Coupe la lecture si la personne change de produit ou quitte la page —
+    // sinon la voix continue de lire un produit qu'on ne regarde plus.
+    return () => {
+      if (supporte) window.speechSynthesis.cancel();
+    };
+  }, [texteAudio]);
+
+  if (!supporte || !texteAudio) return null;
+
+  function demarrer() {
+    window.speechSynthesis.cancel();
+    const langueCible = langue === "en" ? "en-US" : "fr-FR";
+    const utterance = new SpeechSynthesisUtterance(texteAudio);
+    utterance.lang = langueCible;
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+
+    // Même choix de voix que la fiche produit historique : privilégier une voix "réseau"
+    // (Google, Microsoft en ligne), nettement plus naturelle que la voix locale par défaut.
+    const choisirMeilleureVoix = () => {
+      const voix = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith(langueCible.slice(0, 2)));
+      const meilleure = voix.find((v) => !v.localService) || voix[0];
+      if (meilleure) utterance.voice = meilleure;
+      window.speechSynthesis.speak(utterance);
+    };
+    if (window.speechSynthesis.getVoices().length > 0) {
+      choisirMeilleureVoix();
+    } else {
+      window.speechSynthesis.onvoiceschanged = choisirMeilleureVoix;
+    }
+
+    utterance.onend = () => setEtat("idle");
+    utterance.onerror = () => setEtat("idle");
+    setEtat("lecture");
+  }
+
+  function basculerPause() {
+    if (etat === "lecture") {
+      window.speechSynthesis.pause();
+      setEtat("pause");
+    } else if (etat === "pause") {
+      window.speechSynthesis.resume();
+      setEtat("lecture");
+    }
+  }
+
+  function arreter() {
+    window.speechSynthesis.cancel();
+    setEtat("idle");
+  }
+
+  if (etat === "idle") {
+    return (
+      <button type="button" className="rvpp-listen" onClick={demarrer}>
+        🔊 {lib("ecouterDescription", "Écouter la fiche produit")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rvpp-listen-active">
+      <span>{etat === "lecture" ? `🔊 ${lib("lectureAudioEnCours", "Lecture en cours…")}` : `⏸️ ${lib("lectureAudioEnPause", "En pause")}`}</span>
+      <button type="button" className="rvpp-listen-btn play" onClick={basculerPause} title={etat === "lecture" ? "Pause" : "Reprendre"}>
+        {etat === "lecture" ? "⏸" : "▶"}
+      </button>
+      <button type="button" className="rvpp-listen-btn stop" onClick={arreter} title="Arrêter">✕</button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Informations produit (utilisé par Hero et par le bloc "Infos produit")
 // ---------------------------------------------------------------------------
 
@@ -545,6 +645,17 @@ function InfoProduit({ p, ctx, blocOffres }) {
   const libCta = (p.cta_texte || "").trim() || ctx.libelleCta;
   const stock = Number(produit.stock_initial);
   const lib = (k, secours) => { const v = t ? t(k) : secours; return v && v !== k ? v : secours; };
+  const langue = entreprise?.langue;
+  // Résumé (nom, prix, livraison, points forts) + description complète du produit, mis bout à
+  // bout pour la lecture vocale — voir BoutonEcouterPage ci-dessus. Recalculé seulement quand
+  // ces infos changent (pas à chaque frappe dans le formulaire de commande, par exemple).
+  const texteAudio = useMemo(() => {
+    const resume = construireResumeVocal({
+      nom: titre, prix: prixVente, devise, livraisonGratuite: liv.gratuite, fraisLivraison: liv.frais, points, langue,
+    });
+    const description = extraireTextePourAudio(ctx.descriptionReste);
+    return [resume, description].filter(Boolean).join(". ").replace(/\.\.+/g, ".").trim();
+  }, [titre, prixVente, devise, liv.gratuite, liv.frais, points, langue, ctx.descriptionReste]);
   return (
     <div>
       {(p.badge || "").trim() && <div style={{ marginBottom: 8 }}><span className="rvpp-pill">{p.badge}</span></div>}
@@ -580,6 +691,8 @@ function InfoProduit({ p, ctx, blocOffres }) {
           {points.map((b, k) => (<div className="rvpp-check-i" key={k}><b aria-hidden="true">✓</b><span>{b}</span></div>))}
         </div>
       )}
+
+      <BoutonEcouterPage texteAudio={texteAudio} langue={langue} lib={lib} />
 
       {aOptions && (
         <div id="rvpp-options" style={{ marginBottom: 6, scrollMarginTop: 80 }}>
@@ -846,7 +959,7 @@ function CarteComplement({ prod, prixSpecial, devise, actif, onClick, texte }) {
   return (
     <button type="button" className="rvpp-add" aria-pressed={actif} onClick={onClick}>
       <span className="bx" aria-hidden="true">{actif ? "✓" : ""}</span>
-      {prod.photo_url ? <img src={urlImageLegere(prod.photo_url, 200)} alt="" loading="lazy" decoding="async" /> : <span style={{ width: 52, height: 52, borderRadius: 10, background: "var(--pp-alt)", flex: "0 0 auto" }} />}
+      {prod.photo_url ? <img src={urlImageLegere(prod.photo_url, 200)} alt="" loading="lazy" decoding="async" onError={(e) => { if (e.target.dataset.rvOrig !== "1" && e.target.src !== prod.photo_url) { e.target.dataset.rvOrig = "1"; e.target.src = prod.photo_url; } }} /> : <span style={{ width: 52, height: 52, borderRadius: 10, background: "var(--pp-alt)", flex: "0 0 auto" }} />}
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontWeight: 700, fontSize: 14.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{prod.produit_nom}</span>
         {(texte || "").trim() && <span style={{ display: "block", fontSize: 12.5, color: "var(--pp-muted)" }}>{texte}</span>}
@@ -890,7 +1003,7 @@ function BlocGroupee({ bloc, ctx }) {
             <React.Fragment key={x.produit_id || k}>
               {k === 1 && <span style={{ fontSize: 22, fontWeight: 800 }}>+</span>}
               <div style={{ textAlign: "center", width: 96 }}>
-                <div style={{ aspectRatio: "1/1", background: "var(--pp-alt)", borderRadius: 12, overflow: "hidden" }}>{x.photo_url && <img src={urlImageLegere(x.photo_url, 400)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} />}</div>
+                <div style={{ aspectRatio: "1/1", background: "var(--pp-alt)", borderRadius: 12, overflow: "hidden" }}>{x.photo_url && <img src={urlImageLegere(x.photo_url, 400)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} onError={(e) => { if (e.target.dataset.rvOrig !== "1" && e.target.src !== x.photo_url) { e.target.dataset.rvOrig = "1"; e.target.src = x.photo_url; } }} />}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.produit_nom}</div>
               </div>
             </React.Fragment>
@@ -919,7 +1032,7 @@ function BlocCrossSell({ bloc, ctx }) {
           const barre = Number(x.prix_barre);
           return (
             <button key={x.produit_id} type="button" onClick={() => ctx.actions.onOuvrirProduit(x)}>
-              <span className="ph" style={{ display: "block" }}>{x.photo_url ? <img src={urlImageLegere(x.photo_url, 400)} alt={x.produit_nom} loading="lazy" decoding="async" /> : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</span>}</span>
+              <span className="ph" style={{ display: "block" }}>{x.photo_url ? <img src={urlImageLegere(x.photo_url, 400)} alt={x.produit_nom} loading="lazy" decoding="async" onError={(e) => { if (e.target.dataset.rvOrig !== "1" && e.target.src !== x.photo_url) { e.target.dataset.rvOrig = "1"; e.target.src = x.photo_url; } }} /> : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</span>}</span>
               <span className="nm" style={{ display: "block" }}>{x.produit_nom}</span>
               <span className="pr" style={{ display: "block" }}>{formaterMontant(x.prix_vente, ctx.devise)}{Number.isFinite(barre) && barre > Number(x.prix_vente) && <s style={{ marginLeft: 6, color: "#8A9089", fontWeight: 500 }}>{formaterMontant(barre, ctx.devise)}</s>}</span>
             </button>
@@ -1014,6 +1127,77 @@ function BlocImageTexte({ bloc, ctx }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Compte à rebours / urgence — TOUJOURS un vrai décompte vers une date ou une heure fixée par
+// le commerçant, jamais un faux minuteur qui recommence à chaque visite (voir la règle d'or de
+// l'AI Page Architect dans blocs.js : « ne crée jamais... de compte à rebours »). Deux modes :
+//  • "date_fixe" : une fin d'offre ponctuelle réelle — le bloc disparaît tout seul une fois passée.
+//  • "quotidien" : une heure limite chaque jour (ex. « commandez avant 18h pour une expédition le
+//    jour même ») — redémarre automatiquement le lendemain, ce n'est jamais présenté comme une
+//    "offre" qui se termine, seulement comme une heure limite opérationnelle.
+// ---------------------------------------------------------------------------
+
+function prochaineEcheanceQuotidienne(heureFin) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(heureFin || "").trim());
+  if (!m) return null;
+  const cible = new Date();
+  cible.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  if (cible.getTime() <= Date.now()) cible.setDate(cible.getDate() + 1);
+  return cible;
+}
+
+function useCompteARebours(echeance) {
+  const cle = echeance ? echeance.getTime() : null;
+  const [restant, setRestant] = useState(() => (cle ? Math.max(0, cle - Date.now()) : 0));
+  useEffect(() => {
+    if (!cle) { setRestant(0); return undefined; }
+    setRestant(Math.max(0, cle - Date.now()));
+    const id = setInterval(() => setRestant(Math.max(0, cle - Date.now())), 1000);
+    return () => clearInterval(id);
+  }, [cle]);
+  return restant;
+}
+
+function BlocUrgence({ bloc, ctx }) {
+  const p = bloc.props;
+  const quotidien = p.mode === "quotidien";
+  const echeance = useMemo(() => {
+    if (quotidien) return prochaineEcheanceQuotidienne(p.heure_fin);
+    if (!p.date_fin) return null;
+    const d = new Date(p.date_fin);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [quotidien, p.heure_fin, p.date_fin]);
+
+  const restantMs = useCompteARebours(echeance);
+  const expire = !quotidien && !!echeance && restantMs <= 0;
+  const stock = Number(ctx.produit?.stock_initial);
+  const afficherStock = !!p.afficher_stock_reel && stock > 0 && stock <= 5;
+
+  if (!echeance || expire) return null;
+
+  const totalSec = Math.floor(restantMs / 1000);
+  const jours = Math.floor(totalSec / 86400);
+  const heures = Math.floor((totalSec % 86400) / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const secondes = totalSec % 60;
+  const deux = (n) => String(n).padStart(2, "0");
+
+  return (
+    <div className="rvpp-urgence">
+      {(p.titre || "").trim() && <div className="rvpp-urgence-titre">⏳ {p.titre}</div>}
+      <div className="rvpp-urgence-timer">
+        {jours > 0 && (
+          <div className="rvpp-urgence-u"><b>{jours}</b><span>{jours > 1 ? "jours" : "jour"}</span></div>
+        )}
+        <div className="rvpp-urgence-u"><b>{deux(heures)}</b><span>h</span></div>
+        <div className="rvpp-urgence-u"><b>{deux(minutes)}</b><span>min</span></div>
+        <div className="rvpp-urgence-u"><b>{deux(secondes)}</b><span>s</span></div>
+      </div>
+      {afficherStock && <div className="rvpp-urgence-stock">⚡ Plus que {stock} en stock</div>}
+    </div>
+  );
+}
+
 function BlocCta({ bloc, ctx }) {
   const p = bloc.props;
   return (
@@ -1030,7 +1214,7 @@ const COMPOSANTS = {
   comment_ca_marche: BlocEtapes, offres: BlocOffres, bundles: BlocGroupee, avis: BlocAvis, ugc: BlocUGC,
   reassurance: BlocReassurance, comparaison: BlocComparaison, faq: BlocFAQ, upsell: BlocUpsell,
   cross_sell: BlocCrossSell, formulaire_cod: BlocFormulaire, livraison: BlocLivraison, texte: BlocTexte, description: BlocDescription,
-  image_texte: BlocImageTexte, cta: BlocCta,
+  image_texte: BlocImageTexte, cta: BlocCta, urgence: BlocUrgence,
 };
 
 // ---------------------------------------------------------------------------

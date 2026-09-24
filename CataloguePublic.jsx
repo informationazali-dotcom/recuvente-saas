@@ -5,7 +5,7 @@ import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
 import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
-import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS } from "./blocs.js";
+import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS, construireResumeVocal } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
 const supabase = createClient(
@@ -137,7 +137,10 @@ function extraireTextePourAudio(html) {
 // Bouton "Écouter la description" — lit automatiquement à voix haute le texte déjà écrit
 // (aucun enregistrement audio à faire), via la synthèse vocale du navigateur. Se masque
 // silencieusement si l'appareil ne supporte pas la synthèse vocale.
-function BoutonEcouterDescription({ descriptionHTML, couleur, langue, t }) {
+// "resume" (optionnel) : phrase courte lue AVANT la description — nom + prix + livraison +
+// points forts (voir construireResumeVocal dans blocs.js) — pour la personne qui ne veut
+// même pas attendre la description et cherche juste l'essentiel à l'oreille.
+function BoutonEcouterDescription({ descriptionHTML, resume, couleur, langue, t }) {
   const [etat, setEtat] = useState("idle"); // idle | lecture | pause
   const supporte = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -152,7 +155,8 @@ function BoutonEcouterDescription({ descriptionHTML, couleur, langue, t }) {
   if (!supporte) return null;
 
   function demarrer() {
-    const texte = extraireTextePourAudio(descriptionHTML);
+    const texteDescription = extraireTextePourAudio(descriptionHTML);
+    const texte = [(resume || "").trim(), texteDescription].filter(Boolean).join(". ").replace(/\.\.+/g, ".").trim();
     if (!texte) return;
     window.speechSynthesis.cancel();
     const langueCible = langue === "en" ? "en-US" : "fr-FR";
@@ -2949,6 +2953,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <>
                 <BoutonEcouterDescription
                   descriptionHTML={produitOuvert.produit_description}
+                  resume={construireResumeVocal({
+                    nom: produitOuvert.produit_nom,
+                    prix: produitOuvert.prix_vente,
+                    devise: formaterDevise(entreprise.devise),
+                    livraisonGratuite: !!livraisonGratuite,
+                    fraisLivraison: fraisLivraisonEffectif,
+                    points: structureDescription.points,
+                    langue: entreprise.langue,
+                  })}
                   couleur={couleur}
                   langue={entreprise.langue}
                   t={t}
@@ -5824,7 +5837,13 @@ function GaleriePhotosProduit({ photos, alt, couleur, index, setIndex, t }) {
               onClick={() => setIndex(k)}
               style={{ flexShrink: 0, width: 62, height: 62, borderRadius: 8, overflow: "hidden", padding: 0, border: k === i ? `2px solid ${couleur}` : "1px solid #ECE8DC", opacity: k === i ? 1 : 0.8, cursor: "pointer", background: "none" }}
             >
-              <img src={urlImageLegere(url, 160)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img
+                src={urlImageLegere(url, 160)}
+                alt=""
+                loading="lazy"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                onError={(e) => { if (e.target.dataset.rvOrig !== "1" && e.target.src !== url) { e.target.dataset.rvOrig = "1"; e.target.src = url; } }}
+              />
             </button>
           ))}
         </div>
@@ -5954,7 +5973,13 @@ function CarteProduitAzali({ p, devise, couleur, ouvrirProduit, onAjouterAuPanie
     <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 10, overflow: "hidden" }}>
       <div onClick={() => ouvrirProduit(p)} style={{ position: "relative", cursor: "pointer" }}>
         {p.photo_url ? (
-          <img src={p.photo_url} alt="" loading="lazy" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+          <img
+            src={urlImageLegere(p.photo_url, 400)}
+            alt=""
+            loading="lazy"
+            style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }}
+            onError={(e) => { if (e.target.dataset.rvOrig !== "1" && e.target.src !== p.photo_url) { e.target.dataset.rvOrig = "1"; e.target.src = p.photo_url; } }}
+          />
         ) : (
           <div style={{ width: "100%", height: 140, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>📦</div>
         )}

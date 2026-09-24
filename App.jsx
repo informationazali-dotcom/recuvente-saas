@@ -261,6 +261,26 @@ function compresserImage(file, maxWidth = 1280, quality = 0.82) {
   });
 }
 
+// Vignette légère pour les grilles de catégories (~480 px), envoyée EN PLUS de la photo
+// principale (inchangée, jusqu'à 1280 px) — voir compresserImage ci-dessus. Une carte produit
+// n'affiche la photo qu'en ~200-500 px : sans cette vignette, chaque visite d'une grille
+// télécharge inutilement l'originale complète, ce qui compte double pour un client qui achète
+// depuis son mobile avec un forfait data limité. Toujours "best effort" et jamais bloquant :
+// si l'envoi de la vignette échoue, la photo principale reste utilisée partout (voir
+// urlImageLegere dans blocs.js, qui retombe automatiquement sur l'originale si la vignette
+// n'existe pas). "chemin" doit être exactement le même chemin que celui utilisé pour la photo
+// principale (même dossier, même nom, seule l'extension peut différer selon la compression).
+function televerserVignetteProduit(bucket, chemin, fichierBrut) {
+  (async () => {
+    try {
+      const fichierVignette = await compresserImage(fichierBrut, 480, 0.75);
+      const extension = fichierVignette.name.split(".").pop();
+      const cheminVignette = chemin.replace(/\.[^.]+$/, `_vignette.${extension}`);
+      await supabase.storage.from(bucket).upload(cheminVignette, fichierVignette, { upsert: true, contentType: fichierVignette.type || undefined });
+    } catch (_) { /* la vignette est un plus, jamais bloquant si elle échoue */ }
+  })();
+}
+
 function cleanPhoneForWhatsApp(tel) {
   let digits = String(tel).replace(/\D/g, "");
   // Numéro déjà international (« +224… », boutique multi-pays) : on le garde tel quel.
@@ -13350,6 +13370,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       return;
     }
     const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+    televerserVignetteProduit("produits", chemin, fichier);
     await onUpdatePhoto(produitId, data.publicUrl);
     setPhotoEnvoiId(null);
   }
@@ -13371,6 +13392,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
       return;
     }
     const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+    televerserVignetteProduit("produits", chemin, fichier);
     const nouvelleGalerie = [...(produit.photos_galerie || []), data.publicUrl];
     await onUpdateGalerie(produit.id, nouvelleGalerie);
     setGalerieEnvoiId(null);
@@ -13417,6 +13439,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
         const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
         if (!erreurUpload) {
           const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+          televerserVignetteProduit("produits", chemin, nouvellePhotoFichier);
           await onUpdatePhoto(resultat.id, data.publicUrl);
         }
       } catch (e) { /* la photo est un plus, pas bloquant si elle échoue */ }

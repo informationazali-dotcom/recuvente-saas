@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { lireOption, ecrireOption } from "../lib/options.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -220,6 +221,132 @@ async function verifierStockBas() {
     await supabaseAdmin.from("produits").update({ derniere_alerte_stock: new Date().toISOString() }).in("id", produitsAMettreAJour);
   }
 
+  return { alertesEnvoyees };
+}
+
+// Dépôt de caisse en retard : le tableau de bord Comptabilité affiche déjà un badge "Écart de
+// caisse" (dépôt déclaré par le livreur vs montant attendu, voir LivreurCarteEcartCaisse dans
+// App.jsx), mais c'est un signal PASSIF — il faut ouvrir l'écran et cliquer sur le bon livreur
+// pour le voir, et il ne s'affiche même pas tant qu'aucun dépôt n'a jamais été déclaré (silence,
+// pas alerte, dans le pire des cas : un livreur qui ne déclare jamais rien). Ici, on prévient
+// PAR EMAIL — une fois tous les 3 jours par boutique, comme l'alerte stock bas — dès qu'un
+// livreur a un montant significatif à déposer (commandes confirmées, encaissé en espèces moins
+// sa commission — même calcul que "depotsParLivreur" dans App.jsx) sans aucun dépôt déclaré
+// dans la fenêtre. Purement additif : ne crée ni ne modifie aucune commande, aucun dépôt,
+// aucune donnée existante — se contente de lire ce qui existe déjà et d'envoyer un email.
+const FENETRE_JOURS_CAISSE = 7;
+
+function estLivraisonFacturableCaisse(c, activityType) {
+  if (activityType === "location_immobiliere" || activityType === "location_vehicule") return false;
+  if (activityType === "restaurant") return c.type_commande === "livraison";
+  return c.mode_vente === "livraison" || c.mode_vente === "expedition";
+}
+
+function tarifPourCommandeCaisse(c, defaut, zones, livreurTarifs) {
+  const cleLivreur = String(c.livreur || "").trim().toLowerCase();
+  const tl = cleLivreur ? livreurTarifs.find((t) => String(t.livreur_nom || "").trim().toLowerCase() === cleLivreur) : null;
+  if (tl) return Number(tl.montant);
+  const cleZone = String(c.zone || "").trim().toLowerCase();
+  const tz = cleZone ? zones.find((z) => String(z.zone || "").trim().toLowerCase() === cleZone) : null;
+  if (tz) return Number(tz.montant);
+  return defaut;
+}
+
+async function verifierEcartsCaisse() {
+  const depuis = new Date(Date.now() - FENETRE_JOURS_CAISSE * 24 * 3600 * 1000).toISOString();
+
+  const { data: workspaces, error: wsError } = await supabaseAdmin
+    .from("workspaces")
+    .select("id, name, owner_id, activity_type, currency");
+  if (wsError) return { alertesEnvoyees: 0, erreur: wsError.message };
+  if (!workspaces || workspaces.length === 0) return { alertesEnvoyees: 0 };
+
+  const [{ data: livreurs }, { data: commandes }, { data: paiements }, { data: reglages }, { data: zonesTarifs }, { data: livreurTarifs }, { data: depots }] = await Promise.all([
+    supabaseAdmin.from("livreurs").select("workspace_id, nom"),
+    supabaseAdmin.from("commandes").select("id, workspace_id, montant, livreur, zone, mode_vente, type_commande").eq("statut", "confirmee").gte("created_at", depuis),
+    supabaseAdmin.from("paiements_en_ligne").select("workspace_id, commande_id, montant_paye").eq("statut", "paye"),
+    supabaseAdmin.from("reglages_livraison").select("workspace_id, tarif_defaut"),
+    supabaseAdmin.from("tarifs_zone_livraison").select("workspace_id, zone, montant"),
+    supabaseAdmin.from("tarifs_livreur_livraison").select("workspace_id, livreur_nom, montant"),
+    supabaseAdmin.from("depots_livreur").select("workspace_id, livreur_nom, created_at").gte("created_at", depuis),
+  ]);
+
+  const parWorkspace = (arr, cle = "workspace_id") => {
+    const m = {};
+    (arr || []).forEach((x) => { (m[x[cle]] ||= []).push(x); });
+    return m;
+  };
+  const livreursParWs = parWorkspace(livreurs);
+  const commandesParWs = parWorkspace(commandes);
+  const paiementsParWs = parWorkspace(paiements);
+  const zonesParWs = parWorkspace(zonesTarifs);
+  const livreurTarifsParWs = parWorkspace(livreurTarifs);
+  const depotsParWs = parWorkspace(depots);
+  const reglagesParWs = {};
+  (reglages || []).forEach((r) => { reglagesParWs[r.workspace_id] = r; });
+
+  let alertesEnvoyees = 0;
+
+  const taches = workspaces.map((ws) => async () => {
+    const mesLivreurs = livreursParWs[ws.id] || [];
+    const mesCommandes = commandesParWs[ws.id] || [];
+    if (mesLivreurs.length === 0 || mesCommandes.length === 0) return;
+
+    const mesPaiements = {};
+    (paiementsParWs[ws.id] || []).forEach((p) => { mesPaiements[p.commande_id] = (mesPaiements[p.commande_id] || 0) + Number(p.montant_paye || 0); });
+    const tarifDefaut = reglagesParWs[ws.id]?.tarif_defaut != null ? Number(reglagesParWs[ws.id].tarif_defaut) : 1500;
+    const mesDepots = depotsParWs[ws.id] || [];
+    const zones = zonesParWs[ws.id] || [];
+    const livreurTarifsWs = livreurTarifsParWs[ws.id] || [];
+
+    const aRisque = mesLivreurs
+      .map((l) => {
+        const mesLivrees = mesCommandes.filter((c) => c.livreur === l.nom);
+        if (mesLivrees.length === 0) return null;
+        const montantRecupere = mesLivrees.reduce((s, c) => {
+          const paye = Math.min(Number(c.montant), mesPaiements[c.id] || 0);
+          return s + Math.max(0, Number(c.montant) - paye);
+        }, 0);
+        const commission = mesLivrees.reduce((s, c) => s + (estLivraisonFacturableCaisse(c, ws.activity_type) ? tarifPourCommandeCaisse(c, tarifDefaut, zones, livreurTarifsWs) : 0), 0);
+        const aDeposer = montantRecupere - commission;
+        const declareRecemment = mesDepots.some((d) => String(d.livreur_nom || "").trim().toLowerCase() === String(l.nom || "").trim().toLowerCase());
+        return { nom: l.nom, aDeposer, declareRecemment };
+      })
+      .filter((l) => l && l.aDeposer > Math.max(1000, tarifDefaut * 2) && !l.declareRecemment);
+
+    if (aRisque.length === 0) return;
+
+    const opt = await lireOption(ws.id, "derniere_alerte_caisse");
+    if (opt?.at && Date.now() - new Date(opt.at).getTime() < 3 * 24 * 3600 * 1000) return;
+
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(ws.owner_id);
+    const email = userData?.user?.email;
+    if (!email) return;
+
+    const devise = ws.currency || "";
+    await resend.emails.send({
+      from: "RecuVente <onboarding@resend.dev>",
+      to: email,
+      subject: `🧾 Dépôt de caisse en retard — ${aRisque.length} livreur${aRisque.length > 1 ? "s" : ""} à contrôler`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #D64933; font-size: 20px;">🧾 Dépôt de caisse en retard — ${ws.name}</h1>
+          <p style="color: #6B7168; font-size: 14px;">Ces livreurs ont de l'argent à déposer (commandes livrées des ${FENETRE_JOURS_CAISSE} derniers jours), sans aucun dépôt déclaré récemment :</p>
+          <ul style="color: #16231F; font-size: 14px; line-height: 1.8;">
+            ${aRisque.map((l) => `<li><strong>${l.nom}</strong> — environ ${Math.round(l.aDeposer).toLocaleString("fr-FR")} ${devise} à déposer</li>`).join("")}
+          </ul>
+          <p style="color: #8A9089; font-size: 12px;">Montant estimé automatiquement — vérifie le détail exact dans Comptabilité avant d'agir.</p>
+          <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+            Vérifier dans Comptabilité
+          </a>
+        </div>
+      `,
+    });
+    await ecrireOption(ws.id, "derniere_alerte_caisse", { at: new Date().toISOString() });
+    alertesEnvoyees++;
+  });
+
+  await executerParLots(taches);
   return { alertesEnvoyees };
 }
 
@@ -492,6 +619,11 @@ export default async function handler(req, res) {
   const sauvegardeReussie = await sauvegarderQuotidiennement();
   const resultatEssais = await verifierEssaisEtRappels();
   const resultatStock = await verifierStockBas();
+  // Isolé dans son propre try/catch, comme les autres lots plus récents ci-dessous : une
+  // erreur ici ne doit jamais empêcher le reste du cron quotidien (stock, essais, paiements...)
+  // de s'exécuter.
+  let resultatEcartsCaisse = null;
+  try { resultatEcartsCaisse = await verifierEcartsCaisse(); } catch (e) { console.error("Erreur écarts caisse:", e); }
   const resultatRetryCAPI = await retenterEnvoisCAPIEnAttente();
   // Filet de sécurité du paiement en ligne : vérifie les paiements restés « en attente » (notification jamais reçue).
   let resultatPaiements = null;
@@ -527,6 +659,7 @@ export default async function handler(req, res) {
     sauvegardeReussie,
     ...resultatEssais,
     ...resultatStock,
+    ecartsCaisse: resultatEcartsCaisse,
     retryCAPI: resultatRetryCAPI,
     paiementsEnLigne: resultatPaiements,
     paiementsStripe: resultatStripe,

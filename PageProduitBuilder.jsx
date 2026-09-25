@@ -361,10 +361,56 @@ function EditeurOffres({ props, onChange, produit, devise, aOptions }) {
 }
 
 // ---------------------------------------------------------------------------
+// Éditeur des bénéfices (✓) affichés juste avant le bouton d'achat — bouton IA
+// qui choisit 3 à 5 bénéfices courts à partir de la description déjà écrite par le
+// marchand (jamais d'invention : voir gererGenererBeneficesIA côté serveur). Le
+// marchand garde la main : il peut modifier, réordonner ou supprimer ensuite,
+// exactement comme s'il les avait tapés lui-même.
+// ---------------------------------------------------------------------------
+
+function ChampBenefices({ def, valeur, onChange, televerser, produits, produitNom, produitDescription, workspaceId }) {
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const liste = Array.isArray(valeur) ? valeur : [];
+
+  async function genererIA() {
+    setEnCours(true); setErreur("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "generer_benefices_ia", workspace_id: workspaceId, nom_produit: produitNom, description: produitDescription }),
+      });
+      const resultat = await reponse.json();
+      if (!reponse.ok || !Array.isArray(resultat?.benefices) || resultat.benefices.length === 0) {
+        setErreur(resultat?.error || "Erreur, réessaie.");
+        return;
+      }
+      onChange(resultat.benefices.slice(0, def.max || 6).map((texte) => ({ texte })));
+    } catch (e) {
+      setErreur("Connexion impossible, réessaie.");
+    } finally {
+      setEnCours(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={genererIA} disabled={enCours} style={btn({ width: "100%", borderStyle: "dashed", opacity: enCours ? 0.6 : 1, marginBottom: 8 })}>
+        {enCours ? "✨ L'IA choisit les bénéfices…" : liste.length > 0 ? "✨ Régénérer avec l'IA" : "✨ Générer avec l'IA (à partir de la description)"}
+      </button>
+      {erreur && <div style={{ fontSize: 11.5, color: "#B33A2A", marginBottom: 8, lineHeight: 1.4 }}>{erreur}</div>}
+      <ChampListe def={def} valeur={valeur} onChange={onChange} televerser={televerser} produits={produits} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Panneau : propriétés du bloc sélectionné
 // ---------------------------------------------------------------------------
 
-function PanneauBloc({ bloc, onProps, onMontrer, onVisible, onDupliquer, onSupprimer, televerser, produits, produitPublic, produitId, devise }) {
+function PanneauBloc({ bloc, onProps, onMontrer, onVisible, onDupliquer, onSupprimer, televerser, produits, produitPublic, produitId, devise, workspaceId }) {
   if (!bloc) return <div style={{ padding: 18, fontSize: 13, color: MUTED, lineHeight: 1.6 }}>Sélectionnez un bloc dans la structure ou cliquez dessus dans l'aperçu pour modifier ses propriétés.</div>;
   const def = REGISTRE_BLOCS[bloc.type];
   const setProp = (cle, v) => onProps({ ...bloc.props, [cle]: v });
@@ -390,6 +436,8 @@ function PanneauBloc({ bloc, onProps, onMontrer, onVisible, onDupliquer, onSuppr
       {def.champs.map((c) => (
         c.type === "offres"
           ? <Etiquette key={c.cle} label={c.label}><EditeurOffres props={bloc.props} onChange={onProps} produit={produitPublic} devise={devise} aOptions={Array.isArray(produitPublic.options) && produitPublic.options.length > 0} /></Etiquette>
+          : c.cle === "benefices"
+          ? <Etiquette key={c.cle} label={c.label} aide={c.aide}><ChampBenefices def={c} valeur={bloc.props[c.cle]} onChange={(v) => setProp(c.cle, v)} televerser={televerser} produits={produits} produitNom={produitPublic.produit_nom} produitDescription={produitPublic.produit_description} workspaceId={workspaceId} /></Etiquette>
           : <Champ key={c.cle} def={c} valeur={bloc.props[c.cle]} valeurs={bloc.props} onChange={(v) => setProp(c.cle, v)} televerser={televerser} produits={produits} produitCourantId={produitId} />
       ))}
       {(bloc.type === "upsell" || bloc.type === "bundles") && (
@@ -1037,6 +1085,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
           produitPublic={produitPublic}
           produitId={produit.id}
           devise={devise}
+          workspaceId={workspace.id}
         />
       )}
       {onglet === "page" && <PanneauPage config={config} onChange={(c) => modifier(() => c, "page")} couleurBoutique={couleurBoutique} />}
@@ -1103,6 +1152,20 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
       </div>
 
       {erreurChargement && <div style={{ background: "#FBEAE6", color: "#8B2E1F", fontSize: 12.5, padding: "8px 14px", lineHeight: 1.45 }}>⚠️ {erreurChargement}</div>}
+      {/* Bannière bien visible (pas juste le petit texte du statut ci-dessus) : la confusion la plus fréquente sur
+          le Page Builder est de configurer une page (bundles, bénéfices…) sans jamais la publier, ou d'oublier
+          de republier après une modification — la boutique continue alors d'afficher l'ancienne version, et le
+          marchand croit à tort que ce qu'il a réglé ici « ne marche pas ». */}
+      {!publie && (
+        <div style={{ background: "#FBF3E3", color: "#8A6412", fontSize: 12.5, fontWeight: 600, padding: "8px 14px", lineHeight: 1.45 }}>
+          ⚠️ Cette page n'est pas encore publiée : vos clients voient toujours la fiche produit habituelle (avec ses propres réglages, y compris ses Bundles). Cliquez sur « Publier » en haut à droite pour mettre CETTE page en ligne.
+        </div>
+      )}
+      {publie && modifsNonPubliees && (
+        <div style={{ background: "#FBF3E3", color: "#8A6412", fontSize: 12.5, fontWeight: 600, padding: "8px 14px", lineHeight: 1.45 }}>
+          ⚠️ Vous avez des changements non publiés sur cette page : vos clients voient encore l'ancienne version. Cliquez sur « Mettre à jour la page publiée » en haut à droite pour les mettre en ligne.
+        </div>
+      )}
       {message && <div role="status" style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", zIndex: 500, background: message.ok ? "#16231F" : "#B33A2A", color: "#fff", padding: "10px 16px", borderRadius: 10, fontSize: 13.5, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,.3)", maxWidth: "92vw" }}>{message.texte}</div>}
 
       {/* Onglets (petits écrans) */}

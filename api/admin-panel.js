@@ -999,6 +999,39 @@ IMPORTANT : reformule uniquement ce qui est déjà dans la description donnée �
   return res.status(200).json({ benefices });
 }
 
+// ===== POST "renommer_produit" : le nom d'un produit était jusqu'ici verrouillé dans l'éditeur
+// (Catalogue → produit) car les statistiques de vente et les commandes le retrouvent PAR SON NOM,
+// pas par son id — un simple UPDATE produits.nom côté client aurait "perdu" l'historique de ventes
+// affiché pour ce produit. Cette action, exécutée avec le rôle serveur (accès complet, comme les
+// autres actions IA ci-dessus — commande_items n'a qu'une politique RLS de LECTURE pour les
+// membres, une écriture directe depuis le navigateur échouerait silencieusement), répercute le
+// nouveau nom sur les commandes DÉJÀ reliées à ce produit par son id (commande_items.produit_id —
+// lien fiable, aucune ambiguïté de texte). Les commandes les plus anciennes, au format texte libre
+// (commandes.produit) sans lien par id, ne sont PAS réécrites : leur libellé reste tel qu'il était
+// au moment de la commande, comme un vrai historique — jamais falsifié après coup.
+async function gererRenommerProduit(req, res, user) {
+  const workspaceId = req.body?.workspace_id;
+  const produitId = req.body?.produit_id;
+  const nom = String(req.body?.nom || "").trim();
+  if (!produitId) return res.status(400).json({ error: "Produit manquant" });
+  if (!nom) return res.status(400).json({ error: "Le nom ne peut pas être vide." });
+
+  const { data: produits, error: erreurLecture } = await supabaseAdmin.from("produits").select("id, nom").eq("workspace_id", workspaceId);
+  if (erreurLecture) return res.status(400).json({ error: erreurLecture.message });
+  const produitActuel = (produits || []).find((p) => p.id === produitId);
+  if (!produitActuel) return res.status(404).json({ error: "Produit introuvable." });
+  if (nom === produitActuel.nom) return res.status(200).json({ ok: true });
+  const collision = (produits || []).some((p) => p.id !== produitId && String(p.nom || "").trim().toLowerCase() === nom.toLowerCase());
+  if (collision) return res.status(400).json({ error: "Un autre produit de ton catalogue porte déjà ce nom." });
+
+  const { error: erreurMaj } = await supabaseAdmin.from("produits").update({ nom }).eq("id", produitId).eq("workspace_id", workspaceId);
+  if (erreurMaj) return res.status(400).json({ error: erreurMaj.message });
+  const { error: erreurCascade } = await supabaseAdmin.from("commande_items").update({ produit_nom: nom }).eq("produit_id", produitId).eq("workspace_id", workspaceId);
+  if (erreurCascade) console.error("Erreur cascade renommage produit (commande_items) :", erreurCascade.message);
+
+  return res.status(200).json({ ok: true, ancien_nom: produitActuel.nom });
+}
+
 // ===== POST "generer_configuration_boutique_ia" : à la place d'une boutique vide à remplir
 // soi-même, l'IA propose une description, une politique de livraison et une politique de
 // retours de départ, à partir du seul nom de l'entreprise et de son type d'activité. Le
@@ -1918,6 +1951,11 @@ export default async function handler(req, res) {
     if (!userMembre) return;
     if (!(await autoriserUsageIA(req, res, userMembre, "fiche"))) return;
     return gererGenererFicheProduitIA(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "renommer_produit") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    return gererRenommerProduit(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "generer_benefices_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);

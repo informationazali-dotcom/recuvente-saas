@@ -4339,6 +4339,40 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     return { succes: true, importes: produitsAImporter.length, ignores, collectionsCreees };
   }
 
+  // Renommer un produit était bloqué jusqu'ici (champ non modifiable dans l'éditeur) parce que les
+  // statistiques de vente (quantitesParProduit) et les anciennes commandes au format texte libre
+  // (commandes.produit) associent le produit par SON NOM, pas par son id. Renommer sans rien
+  // d'autre aurait donc « perdu » les ventes déjà comptabilisées pour ce produit.
+  // Solution sûre et minimale : le nouveau nom est répercuté sur les commandes DÉJÀ reliées à ce
+  // produit par son id (commande_items.produit_id — lien fiable, aucune ambiguïté). Les commandes
+  // les plus anciennes, au format texte libre sans lien par id, ne sont PAS réécrites : leur
+  // libellé reste tel qu'il était au moment de la commande, comme un vrai historique.
+  // Passe par le serveur (api/admin-panel.js, action "renommer_produit") plutôt qu'un UPDATE direct
+  // depuis le navigateur : commande_items n'a qu'une politique RLS de LECTURE pour les membres —
+  // un UPDATE client échouerait silencieusement (0 ligne modifiée, sans erreur visible).
+  async function updateProduitNom(id, nomBrut) {
+    const nom = String(nomBrut || "").trim();
+    if (!nom) return { ok: false, erreur: "Le nom ne peut pas être vide." };
+    const produitConcerne = produits.find((p) => p.id === id);
+    if (!produitConcerne) return { ok: false, erreur: "Produit introuvable." };
+    if (nom === produitConcerne.nom) return { ok: true };
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "renommer_produit", workspace_id: workspace.id, produit_id: id, nom }),
+      });
+      const resultat = await reponse.json();
+      if (!reponse.ok || !resultat?.ok) return { ok: false, erreur: resultat?.error || "Erreur, réessaie." };
+      enregistrerAudit("Nom du produit modifié", `${produitConcerne.nom} → ${nom}`);
+      await loadProduits();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, erreur: "Connexion impossible, réessaie." };
+    }
+  }
+
   async function updateProduitCout(id, cout) {
     await supabase.from("produits").update({ cout_achat: Number(cout) || 0 }).eq("id", id);
     await loadProduits();
@@ -7214,7 +7248,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       )}
       {showLivreurs && <EquipeModal titre="Livreurs" items={livreurs} onAdd={addLivreur} onDelete={deleteLivreur} onClose={() => setShowLivreurs(false)} avecEmail produitsRecus={produitsRecusParLivreur} detailParProduit={detailParLivreurEtProduit} commandesParMembre={commandesParLivreur} currency={formaterDevise(workspace.currency)} />}
       {showClosers && <EquipeModal titre="Closers" items={closers} onAdd={addCloser} onDelete={deleteCloser} onClose={() => setShowClosers(false)} avecEmail produitsRecus={produitsGeresParCloser} detailParProduit={detailParCloserEtProduit} commandesParMembre={commandesParCloser} currency={formaterDevise(workspace.currency)} />}
-      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} onBulkAttachCollection={rattacherProduitsACollection} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
+      {showProduits && !accesBloque && <ProduitsModal produits={produits} onAdd={addProduit} onUpdateNom={updateProduitNom} onUpdateCout={updateProduitCout} onUpdateFraisImport={updateProduitFraisImport} onUpdateStock={updateProduitStock} onUpdatePrixVente={updateProduitPrixVente} onUpdatePhoto={updateProduitPhoto} onUpdateDescription={updateProduitDescription} onUpdateGalerie={updateProduitGalerie} onUpdateLivraisonBundles={updateProduitLivraisonBundles} quantitesParProduit={quantitesParProduit} onDelete={deleteProduit} onBulkDelete={deleteProduitsMultiples} onBulkAttachCollection={rattacherProduitsACollection} currency={formaterDevise(workspace.currency)} workspaceId={workspace.id} workspace={workspace} onImportCSV={importerProduitsCSV} onClose={() => setShowProduits(false)} />}
       {showCaisse && workspace.activity_type === "retail" && !accesBloque && (
         <React.Suspense fallback={null}>
           <CaisseModal workspace={workspace} session={session} quotaAtteint={quotaAtteint} onChange={loadCommandes} onClose={() => setShowCaisse(false)} />
@@ -13402,7 +13436,7 @@ function PagesModal({ workspace, onClose }) {
   );
 }
 
-function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, onBulkAttachCollection, currency, workspaceId, workspace, onClose, onImportCSV }) {
+function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFraisImport, onUpdateStock, onUpdatePrixVente, onUpdatePhoto, onUpdateDescription, onUpdateGalerie, onUpdateLivraisonBundles, quantitesParProduit, onDelete, onBulkDelete, onBulkAttachCollection, currency, workspaceId, workspace, onClose, onImportCSV }) {
   const [selectedId, setSelectedId] = useState(produits[0]?.id || null);
   const [recherche, setRecherche] = useState("");
   const [nouveauNom, setNouveauNom] = useState("");
@@ -13454,7 +13488,7 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [derniereCreation, setDerniereCreation] = useState("");
 
   // États locaux du produit sélectionné (édition avant sauvegarde)
-  const [champs, setChamps] = useState({ cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
+  const [champs, setChamps] = useState({ nom: "", cout: "", fraisImport: "", prixVente: "", stock: "", description: "" });
   const [livraison, setLivraison] = useState({ livraison_gratuite: false, livraison_gratuite_qte_min: "", frais_livraison_produit: "", frais_expedition_produit: "", bundles: [], masquer_produits_similaires: false, bump_produit_id: "", bump_prix_special: "", produits_similaires_ids: [], produits_similaires_collection_id: "", avis_note_defaut: "", avis_nombre_defaut: "" });
   const [collectionsDispo, setCollectionsDispo] = useState([]);
 
@@ -13465,6 +13499,8 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   const [variantesListe, setVariantesListe] = useState([]);
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
   const [erreurEnreg, setErreurEnreg] = useState(null); // échec d'enregistrement à afficher (livraison / bundles / variantes)
+  const [erreurNom, setErreurNom] = useState(null);
+  const [nomEnCours, setNomEnCours] = useState(false);
 
   const produitsFiltres = recherche.trim()
     ? produits.filter((p) => p.nom.toLowerCase().includes(recherche.trim().toLowerCase()))
@@ -13474,12 +13510,14 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
   useEffect(() => {
     if (selected) {
       setChamps({
+        nom: selected.nom || "",
         cout: String(selected.cout_achat ?? ""),
         fraisImport: String(selected.frais_import_unitaire ?? ""),
         prixVente: String(selected.prix_vente ?? ""),
         stock: String(selected.stock_initial ?? ""),
         description: selected.description || "",
       });
+      setErreurNom(null);
       setLivraison({
         livraison_gratuite: !!selected.livraison_gratuite,
         livraison_gratuite_qte_min: selected.livraison_gratuite_qte_min ?? "",
@@ -14244,9 +14282,28 @@ function ProduitsModal({ produits, onAdd, onUpdateCout, onUpdateFraisImport, onU
             ) : (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 21, color: "#16231F" }}>{selected.nom}</div>
-                    <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 3 }}>Le nom doit rester identique à celui utilisé dans tes commandes.</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <input
+                      className="rv-pm-field"
+                      value={champs.nom}
+                      onChange={(e) => { setChamps((c) => ({ ...c, nom: e.target.value })); if (erreurNom) setErreurNom(null); }}
+                      onBlur={async () => {
+                        const nomSaisi = champs.nom.trim();
+                        if (nomSaisi === (selected.nom || "").trim()) { setChamps((c) => ({ ...c, nom: selected.nom || "" })); return; }
+                        setNomEnCours(true);
+                        const r = await onUpdateNom(selected.id, nomSaisi);
+                        setNomEnCours(false);
+                        if (r?.ok) { flash("nom"); setErreurNom(null); }
+                        else { setChamps((c) => ({ ...c, nom: selected.nom || "" })); setErreurNom(r?.erreur || "Erreur, réessaie."); }
+                      }}
+                      disabled={nomEnCours}
+                      style={{ width: "100%", fontWeight: 700, fontSize: 21, color: "#16231F", border: "1px solid #ECE8DC", borderRadius: 8, padding: "3px 6px", marginLeft: -7, background: "#fff", boxSizing: "border-box" }}
+                    />
+                    {erreurNom ? (
+                      <div style={{ fontSize: 11.5, color: "#D64933", marginTop: 3, fontWeight: 600 }}>⚠️ {erreurNom}</div>
+                    ) : (
+                      <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 3 }}>{savedFlash === "nom" ? "✅ Nom enregistré." : "Renommer met aussi à jour tes statistiques de vente ; les commandes déjà passées gardent le nom d'origine."}</div>
+                    )}
                   </div>
                   {confirmSuppr === selected.id ? (
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>

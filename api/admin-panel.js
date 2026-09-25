@@ -946,6 +946,59 @@ IMPORTANT : n'invente jamais de prix, de certification, de marque, de chiffre de
   return res.status(200).json({ fiche: ficheGeneree });
 }
 
+// Retire les balises HTML pour donner un texte simple à l'IA (pas de DOM côté serveur Vercel,
+// donc un nettoyage par expression régulière, comme nettoyerHtmlIA plus bas dans ce fichier).
+function htmlVersTexteSimple(html) {
+  if (!html || typeof html !== "string") return "";
+  return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000);
+}
+
+// ===== POST "generer_benefices_ia" : à partir du nom et de la description déjà écrits par le
+// marchand (Product Page Builder), l'IA choisit 3 à 5 bénéfices courts (façon Shopify, affichés
+// en liste à coche juste avant le bouton d'achat sur la page produit). Elle ne fait QUE reformuler
+// ce que le marchand a déjà écrit — jamais de caractéristique, prix, certification ou chiffre
+// non mentionné dans le texte fourni. Le marchand reste libre de modifier/réordonner/supprimer
+// avant de publier (comme pour generer_fiche_produit_ia ci-dessus).
+async function gererGenererBeneficesIA(req, res, user) {
+  const { nom_produit, description } = req.body;
+  if (!nom_produit || !nom_produit.trim()) return res.status(400).json({ error: "Nom du produit manquant" });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const texteDescription = htmlVersTexteSimple(description);
+  if (!texteDescription) return res.status(400).json({ error: "Écris d'abord une description pour ce produit : l'IA choisit les bénéfices à partir de ce texte, elle n'invente rien." });
+
+  const prompt = `Tu prépares la liste "bénéfices" affichée juste au-dessus du bouton d'achat d'une page produit e-commerce (paiement à la livraison, Afrique de l'Ouest), dans le style d'une fiche Shopify bien faite : une courte liste à coche (✓), pas des phrases complètes.
+
+Nom du produit : "${nom_produit.trim()}"
+Description déjà rédigée par le marchand : "${texteDescription}"
+
+À partir de CE SEUL texte, choisis les 3 à 5 bénéfices les plus convaincants pour un acheteur, et reformule chacun en une phrase très courte (4 à 8 mots, jamais plus de 70 caractères), qui commence si possible par le mot-clé le plus fort. Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
+{ "benefices": ["...", "...", "..."] }
+
+IMPORTANT : reformule uniquement ce qui est déjà dans la description donnée — n'invente aucune caractéristique technique, aucun chiffre, aucune certification, aucune garantie qui n'y figure pas. Si la description ne contient pas assez d'éléments concrets pour au moins 3 bénéfices distincts, réponds avec un tableau plus court plutôt que d'inventer. Réponds uniquement le JSON, sans texte autour, sans balises \`\`\`json.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 600, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let benefices;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    const parse = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+    benefices = Array.isArray(parse?.benefices) ? parse.benefices.map((b) => String(b || "").trim()).filter(Boolean).slice(0, 5) : [];
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+  if (benefices.length === 0) return res.status(400).json({ error: "L'IA n'a pas trouvé assez d'éléments concrets dans la description pour proposer des bénéfices. Complète la description puis réessaie." });
+
+  return res.status(200).json({ benefices });
+}
+
 // ===== POST "generer_configuration_boutique_ia" : à la place d'une boutique vide à remplir
 // soi-même, l'IA propose une description, une politique de livraison et une politique de
 // retours de départ, à partir du seul nom de l'entreprise et de son type d'activité. Le
@@ -1720,7 +1773,7 @@ async function gererCreerCompteFilleul(req, res) {
 // Limites réglables sans toucher au code : variables Vercel IA_LIMITE_ESSAI (défaut 20) et IA_LIMITE_ABONNE (défaut 100).
 // Packs de crédits achetables (Chariow) : variable Vercel CHARIOW_PACKS_IA = [{"id":"<id produit Chariow>","credits":100,"prix":2000,"devise":"XOF","nom":"Pack 100 crédits"}]
 // Comptage dans la table ia_usage : lignes d'usage (type = l'action), « achat:… » (crédits achetés) et « pack_conso » (crédits de pack dépensés).
-const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1, avis_aliexpress: 2 };
+const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1, avis_aliexpress: 2, benefices: 1 };
 const memoireUsageIA = new Map(); // repli si la table ia_usage n'existe pas encore (compte par instance serveur)
 function limiteIA(nom, defaut) { const n = Number(process.env[nom]); return Number.isFinite(n) && n >= 0 ? n : defaut; }
 function packsIA() {
@@ -1865,6 +1918,12 @@ export default async function handler(req, res) {
     if (!userMembre) return;
     if (!(await autoriserUsageIA(req, res, userMembre, "fiche"))) return;
     return gererGenererFicheProduitIA(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "generer_benefices_ia") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "benefices"))) return;
+    return gererGenererBeneficesIA(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "generer_configuration_boutique_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);

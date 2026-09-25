@@ -812,6 +812,22 @@ function instantanePaysClient() {
   return `${storePaysClient.choix}|${storePaysClient.auto}`;
 }
 
+// Pays du visiteur pour le signal « Visiteurs en ligne » du tableau de bord (App.jsx). Volontairement
+// SÉPARÉ de storePaysClient ci-dessus (qui pilote la devise/le montant affichés au client) pour ne
+// jamais faire interagir ce simple indicateur de présence avec la logique de paiement — même source
+// (/api/facebook-capi?pays=1, déjà en production) mais un cache indépendant, en lecture seule.
+const cachePaysVisiteur = { pays: "", demande: null };
+function paysVisiteurPromesse() {
+  if (cachePaysVisiteur.pays) return Promise.resolve(cachePaysVisiteur.pays);
+  if (!cachePaysVisiteur.demande) {
+    cachePaysVisiteur.demande = typeof fetch !== "function" ? Promise.resolve("") : fetch("/api/facebook-capi?pays=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { const c = String(j?.pays || "").toUpperCase(); if (c) cachePaysVisiteur.pays = c; return c; })
+      .catch(() => "");
+  }
+  return cachePaysVisiteur.demande;
+}
+
 // Taux de change du jour (repli quand le commerçant n'a saisi aucun taux). Mémorisé 12 h dans le navigateur.
 const memoireTaux = { base: "", rates: null, encours: false, ecouteurs: new Set() };
 function besoinTauxAuto(entreprise, code) {
@@ -1399,7 +1415,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     try { sid = sessionStorage.getItem("rv_sid") || ""; if (!sid) { sid = (window.crypto?.randomUUID ? window.crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, ""); sessionStorage.setItem("rv_sid", sid); } } catch (_) { sid = String(Math.random()).slice(2) + Date.now(); }
     const ping = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      try { supabase.rpc("ping_visiteur_boutique", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current }).then(() => {}, () => {}); } catch (_) {}
+      paysVisiteurPromesse().then((pays) => {
+        try { supabase.rpc("ping_visiteur_boutique", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null }).then(() => {}, () => {}); } catch (_) {}
+      });
     };
     ping();
     const minuteur = setInterval(ping, 30000);

@@ -9400,10 +9400,16 @@ function VisiteursEnLigneModal({ workspaceId, onClose }) {
             {visiteurs.map((v, i) => {
               const secondes = Math.max(0, Math.round((Date.now() - (v.present_depuis || Date.now())) / 1000));
               const duree = secondes < 60 ? `${secondes}s` : `${Math.round(secondes / 60)} min`;
+              const pays = nomEtDrapeauPays(v.pays);
               return (
                 <div key={i} style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "10px 14px" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#16231F" }}>{v.page || "Accueil"}</div>
-                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>Présent depuis {duree}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#16231F", display: "flex", alignItems: "center", gap: 6 }}>
+                    {pays && <span title={pays.nom}>{pays.drapeau}</span>}
+                    {v.page || "Accueil"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#8A9089", marginTop: 2 }}>
+                    {pays ? `Depuis ${pays.nom} — ` : ""}Présent depuis {duree}
+                  </div>
                 </div>
               );
             })}
@@ -9424,7 +9430,7 @@ function useVisiteursEnLigne(workspaceId) {
     const lire = () => {
       if (document.visibilityState === "hidden") return;
       supabase.rpc("visiteurs_en_ligne", { p_workspace: workspaceId }).then(({ data, error }) => {
-        if (vivant && !error && Array.isArray(data)) setListe(data.map((v) => ({ page: v.page, present_depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now() })));
+        if (vivant && !error && Array.isArray(data)) setListe(data.map((v) => ({ page: v.page, pays: v.pays || "", present_depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now() })));
       }, () => {});
     };
     lire();
@@ -9432,6 +9438,22 @@ function useVisiteursEnLigne(workspaceId) {
     return () => { vivant = false; clearInterval(minuteur); };
   }, [workspaceId]);
   return liste;
+}
+
+// Drapeau + nom (en français) d'un pays à partir de son code ISO à 2 lettres (ex. "SN" → 🇸🇳 Sénégal).
+// Calculé, pas une liste à maintenir : un visiteur peut venir de n'importe où dans le monde (contrairement
+// à PAYS_INFOS dans CataloguePublic.jsx, volontairement limitée aux pays où les boutiques livrent).
+const CACHE_NOM_PAYS = new Map();
+function nomEtDrapeauPays(code) {
+  const c = String(code || "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return null;
+  if (CACHE_NOM_PAYS.has(c)) return CACHE_NOM_PAYS.get(c);
+  let nom = c;
+  try { nom = new Intl.DisplayNames(["fr"], { type: "region" }).of(c) || c; } catch (_) {}
+  const drapeau = String.fromCodePoint(...[...c].map((car) => 127397 + car.charCodeAt(0)));
+  const r = { nom, drapeau };
+  CACHE_NOM_PAYS.set(c, r);
+  return r;
 }
 
 // Carte « Ma boutique en ligne » du tableau de bord : lien, visiteurs en direct et trafic, au même endroit (plus besoin d'ouvrir d'autres menus).

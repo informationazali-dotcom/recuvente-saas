@@ -33,9 +33,15 @@ export function cleBoutiqueDepuisUrl() {
 // voir main.jsx et App.jsx, qui vérifient toujours ?boutique=/?catalogue= EN PREMIER).
 // Chemins déjà utilisés ailleurs dans l'app : jamais interprétés comme un slug de boutique, pour
 // ne jamais capter une route existante par erreur (à tenir synchronisé avec App.jsx).
+// "admin" a été oublié ici : le manifest PWA (public/manifest.json) a pour start_url "/admin/",
+// donc à chaque ouverture de l'application installée sur le téléphone, le navigateur charge
+// directement /admin/ — une navigation neuve, pas un clic interne — et chemincourtDepuisUrl()
+// prenait "admin" pour un slug de boutique inexistant, affichant "Cette boutique est
+// introuvable." (CataloguePublic.jsx) au lieu du tableau de bord. Reproductible à coup sûr pour
+// toute boutique installant l'application, ce qui correspond exactement à ce qui a été signalé.
 const CHEMINS_RESERVES = new Set([
   "tunnel", "activer-compte", "marketing-reseau", "boutique", "business",
-  "api", "assets", "favicon", "robots", "manifest", "sitemap",
+  "api", "assets", "favicon", "robots", "manifest", "sitemap", "admin",
 ]);
 // Lettres/chiffres/tirets uniquement (jamais de point : exclut favicon.ico, robots.txt, etc.),
 // pas de tiret en début/fin, au moins 3 caractères.

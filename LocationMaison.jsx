@@ -686,22 +686,156 @@ const LIBELLE_STATUT_VENTE = { disponible: "🟢 Disponible", reserve: "🟠 Ré
 const FOND_STATUT_VENTE = { disponible: "#EAF3DE", reserve: "#FBF3E3", vendu: "#EAF7F1" };
 const COULEUR_STATUT_VENTE = { disponible: "#3B6D11", reserve: COULEURS.ambre, vendu: "#1F9D6E" };
 
+// Caractéristiques à cocher (section 4 du cahier des charges) — affichées en grille de puces.
+const CARACS_BIEN_VENTE = [
+  ["salon", "Salon"], ["salle_a_manger", "Salle à manger"], ["cuisine_equipee", "Cuisine équipée"],
+  ["garage", "Garage"], ["parking", "Parking"], ["balcon", "Balcon"], ["terrasse", "Terrasse"],
+  ["jardin", "Jardin"], ["piscine", "Piscine"], ["dependance", "Dépendance"], ["cloture", "Clôture"],
+  ["portail", "Portail"], ["securite", "Sécurité"],
+];
+
+// Compression d'image avant envoi — copie volontairement autonome (ce fichier ne dépend pas des
+// utilitaires d'App.jsx), même logique que celle déjà utilisée ailleurs dans l'application.
+function compresserImageBien(file, maxWidth = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith("image/")) { resolve(file); return; }
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" }));
+        }, "image/jpeg", quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function envoyerFichierBienVente(file, workspaceId, prefixe) {
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+  const chemin = `${workspaceId}/vente-${prefixe}-${Date.now()}-${Math.round(Math.random() * 9999)}.${ext}`;
+  const { error } = await supabase.storage.from("boutique").upload(chemin, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  return supabase.storage.from("boutique").getPublicUrl(chemin).data.publicUrl;
+}
+
+const ETAPES_BIEN_VENTE = [
+  ["infos", "Informations"], ["localisation", "Localisation"], ["caracteristiques", "Caractéristiques"],
+  ["medias", "Photos & médias"], ["prix", "Prix & disponibilité"],
+];
+
 function FormBienVente({ workspace, bien, onFermer, onEnregistre }) {
+  const [etape, setEtape] = useState(0);
   const [form, setForm] = useState({
-    nom: bien?.nom || "", type_bien: bien?.type_bien || "maison", adresse: bien?.adresse || "",
-    superficie: bien ? String(bien.superficie || "") : "", nombre_pieces: bien ? String(bien.nombre_pieces || "") : "",
-    prix_vente: bien ? String(bien.prix_vente || "") : "", description: bien?.description || "",
+    nom: bien?.nom || "", type_bien: bien?.type_bien || "maison", titre_annonce: bien?.titre_annonce || "",
+    description: bien?.description || "",
+    adresse: bien?.adresse || "", pays: bien?.pays || "", ville: bien?.ville || "", commune: bien?.commune || "",
+    quartier: bien?.quartier || "", adresse_precise: bien?.adresse_precise || "", points_de_repere: bien?.points_de_repere || "",
+    adresse_publique_visible: bien?.adresse_publique_visible || false,
+    superficie: bien ? String(bien.superficie || "") : "", superficie_terrain: bien ? String(bien.superficie_terrain || "") : "",
+    nombre_pieces: bien ? String(bien.nombre_pieces || "") : "", nombre_chambres: bien ? String(bien.nombre_chambres || "") : "",
+    nombre_salles_bain: bien ? String(bien.nombre_salles_bain || "") : "", nombre_toilettes: bien ? String(bien.nombre_toilettes || "") : "",
+    nombre_etages: bien ? String(bien.nombre_etages || "") : "",
+    salon: bien?.salon || false, salle_a_manger: bien?.salle_a_manger || false, cuisine_equipee: bien?.cuisine_equipee || false,
+    garage: bien?.garage || false, parking: bien?.parking || false, balcon: bien?.balcon || false, terrasse: bien?.terrasse || false,
+    jardin: bien?.jardin || false, piscine: bien?.piscine || false, dependance: bien?.dependance || false, cloture: bien?.cloture || false,
+    portail: bien?.portail || false, securite: bien?.securite || false,
+    caracteristiques_personnalisees: Array.isArray(bien?.caracteristiques_personnalisees) ? bien.caracteristiques_personnalisees : [],
+    photos: Array.isArray(bien?.photos) ? bien.photos : [], video_url: bien?.video_url || "", plan_url: bien?.plan_url || "",
+    brochure_url: bien?.brochure_url || "", documents: Array.isArray(bien?.documents) ? bien.documents : [],
+    prix_vente: bien ? String(bien.prix_vente || "") : "", prix_negociable: bien?.prix_negociable || false,
+    disponibilite: bien?.disponibilite || "",
   });
   const [erreur, setErreur] = useState("");
   const [enCours, setEnCours] = useState(false);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  function maj(champs) { setForm((f) => ({ ...f, ...champs })); }
+  function bascule(cle) { setForm((f) => ({ ...f, [cle]: !f[cle] })); }
+
+  async function ajouterPhotos(fichiers) {
+    if (!fichiers || fichiers.length === 0) return;
+    setEnvoiEnCours(true); setErreur("");
+    try {
+      const urls = [];
+      for (const f of Array.from(fichiers)) {
+        const compresse = await compresserImageBien(f);
+        urls.push(await envoyerFichierBienVente(compresse, workspace.id, "photo"));
+      }
+      setForm((fo) => ({ ...fo, photos: [...fo.photos, ...urls] }));
+    } catch (e) { setErreur("Envoi impossible : " + e.message); }
+    setEnvoiEnCours(false);
+  }
+  function retirerPhoto(i) { setForm((f) => ({ ...f, photos: f.photos.filter((_, idx) => idx !== i) })); }
+  function photoPrincipaleEnPremier(i) {
+    setForm((f) => { const p = [...f.photos]; const [choisie] = p.splice(i, 1); return { ...f, photos: [choisie, ...p] }; });
+  }
+
+  async function envoyerFichierUnique(fichier, champ) {
+    if (!fichier) return;
+    setEnvoiEnCours(true); setErreur("");
+    try {
+      const source = champ === "plan_url" ? await compresserImageBien(fichier) : fichier;
+      const url = await envoyerFichierBienVente(source, workspace.id, champ.replace("_url", ""));
+      maj({ [champ]: url });
+    } catch (e) { setErreur("Envoi impossible : " + e.message); }
+    setEnvoiEnCours(false);
+  }
+
+  async function ajouterDocument(fichier) {
+    if (!fichier) return;
+    setEnvoiEnCours(true); setErreur("");
+    try {
+      const url = await envoyerFichierBienVente(fichier, workspace.id, "doc");
+      setForm((f) => ({ ...f, documents: [...f.documents, { nom: fichier.name, url }] }));
+    } catch (e) { setErreur("Envoi impossible : " + e.message); }
+    setEnvoiEnCours(false);
+  }
+  function retirerDocument(i) { setForm((f) => ({ ...f, documents: f.documents.filter((_, idx) => idx !== i) })); }
+
+  function ajouterCaracPerso() {
+    setForm((f) => ({ ...f, caracteristiques_personnalisees: [...f.caracteristiques_personnalisees, { libelle: "", valeur: "" }] }));
+  }
+  function majCaracPerso(i, champ, valeur) {
+    setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.map((c, idx) => idx === i ? { ...c, [champ]: valeur } : c) }));
+  }
+  function retirerCaracPerso(i) { setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.filter((_, idx) => idx !== i) })); }
+
+  const nombre = (v) => v === "" ? null : Number(v);
 
   async function enregistrer() {
     setErreur("");
-    if (!form.nom.trim() || !form.prix_vente) { setErreur("Le nom du bien et le prix de vente sont obligatoires."); return; }
+    if (!form.nom.trim() || !form.prix_vente) {
+      setErreur("Le nom du bien et le prix de vente sont obligatoires.");
+      setEtape(form.nom.trim() ? 4 : 0);
+      return;
+    }
     const payload = {
-      nom: form.nom.trim(), type_bien: form.type_bien, adresse: form.adresse.trim() || null,
-      superficie: form.superficie ? Number(form.superficie) : null, nombre_pieces: form.nombre_pieces ? Number(form.nombre_pieces) : null,
-      prix_vente: Number(form.prix_vente) || 0, description: form.description.trim() || null,
+      nom: form.nom.trim(), type_bien: form.type_bien, titre_annonce: form.titre_annonce.trim() || null,
+      description: form.description.trim() || null,
+      adresse: form.adresse.trim() || null, pays: form.pays.trim() || null, ville: form.ville.trim() || null,
+      commune: form.commune.trim() || null, quartier: form.quartier.trim() || null,
+      adresse_precise: form.adresse_precise.trim() || null, points_de_repere: form.points_de_repere.trim() || null,
+      adresse_publique_visible: !!form.adresse_publique_visible,
+      superficie: nombre(form.superficie), superficie_terrain: nombre(form.superficie_terrain),
+      nombre_pieces: nombre(form.nombre_pieces), nombre_chambres: nombre(form.nombre_chambres),
+      nombre_salles_bain: nombre(form.nombre_salles_bain), nombre_toilettes: nombre(form.nombre_toilettes),
+      nombre_etages: nombre(form.nombre_etages),
+      salon: form.salon, salle_a_manger: form.salle_a_manger, cuisine_equipee: form.cuisine_equipee,
+      garage: form.garage, parking: form.parking, balcon: form.balcon, terrasse: form.terrasse, jardin: form.jardin,
+      piscine: form.piscine, dependance: form.dependance, cloture: form.cloture, portail: form.portail, securite: form.securite,
+      caracteristiques_personnalisees: form.caracteristiques_personnalisees.filter((c) => c.libelle.trim()),
+      photos: form.photos, photo_url: form.photos[0] || null, video_url: form.video_url.trim() || null,
+      plan_url: form.plan_url || null, brochure_url: form.brochure_url || null, documents: form.documents,
+      prix_vente: Number(form.prix_vente) || 0, prix_negociable: !!form.prix_negociable, disponibilite: form.disponibilite.trim() || null,
     };
     setEnCours(true);
     const { error } = bien
@@ -712,26 +846,149 @@ function FormBienVente({ workspace, bien, onFermer, onEnregistre }) {
     onEnregistre();
   }
 
+  const dernierIndex = ETAPES_BIEN_VENTE.length - 1;
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 400, maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12 }}>{bien ? "Modifier ce bien" : "Nouveau bien à vendre"}</div>
-        <input style={S.champ} placeholder="Nom (ex: Villa Cocody 4 pièces)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
-        <select style={S.champ} value={form.type_bien} onChange={(e) => setForm({ ...form, type_bien: e.target.value })}>
-          {TYPES_BIEN_VENTE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-        <input style={S.champ} placeholder="Adresse / zone" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} />
-        <div style={{ display: "flex", gap: 8 }}>
-          <input style={S.champ} type="number" placeholder="Superficie (m², optionnel)" value={form.superficie} onChange={(e) => setForm({ ...form, superficie: e.target.value })} />
-          <input style={S.champ} type="number" placeholder="Nombre de pièces (optionnel)" value={form.nombre_pieces} onChange={(e) => setForm({ ...form, nombre_pieces: e.target.value })} />
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{bien ? "Modifier ce bien" : "Nouveau bien à vendre"}</div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
+          {ETAPES_BIEN_VENTE.map(([k, l], i) => (
+            <div key={k} onClick={() => setEtape(i)} style={{
+              fontSize: 10.5, fontWeight: 700, padding: "4px 9px", borderRadius: 99, cursor: "pointer",
+              background: i === etape ? COULEURS.vertFonce : "#F1EFE8", color: i === etape ? "white" : COULEURS.grisClair,
+            }}>{i + 1}. {l}</div>
+          ))}
         </div>
-        <input style={S.champ} type="number" placeholder={`Prix de vente (${devise(workspace.currency)})`} value={form.prix_vente} onChange={(e) => setForm({ ...form, prix_vente: e.target.value })} />
-        <textarea style={{ ...S.champ, minHeight: 60 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        {erreur && <div style={{ background: "#FBEAE6", color: COULEURS.rougeFonce, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, marginBottom: 8 }}>{erreur}</div>}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button disabled={enCours} onClick={enregistrer} style={{ ...S.bouton, flex: 1, opacity: enCours ? 0.6 : 1 }}>{enCours ? "…" : "Enregistrer"}</button>
-          <button onClick={onFermer} style={{ ...S.boutonClair, flex: 1 }}>Annuler</button>
+
+        {etape === 0 && (
+          <>
+            <input style={S.champ} placeholder="Nom interne (ex: Villa Cocody 4 pièces)" value={form.nom} onChange={(e) => maj({ nom: e.target.value })} />
+            <select style={S.champ} value={form.type_bien} onChange={(e) => maj({ type_bien: e.target.value })}>
+              {TYPES_BIEN_VENTE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            <input style={S.champ} placeholder="Titre de l'annonce (ex: Villa moderne 5 pièces — Riviera)" value={form.titre_annonce} onChange={(e) => maj({ titre_annonce: e.target.value })} />
+            <textarea style={{ ...S.champ, minHeight: 70 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => maj({ description: e.target.value })} />
+          </>
+        )}
+
+        {etape === 1 && (
+          <>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 4 }}>Localisation publique (visible sur la future fiche)</div>
+            <input style={S.champ} placeholder="Adresse / zone (résumé affiché aujourd'hui)" value={form.adresse} onChange={(e) => maj({ adresse: e.target.value })} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Pays" value={form.pays} onChange={(e) => maj({ pays: e.target.value })} />
+              <input style={S.champ} placeholder="Ville" value={form.ville} onChange={(e) => maj({ ville: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Commune" value={form.commune} onChange={(e) => maj({ commune: e.target.value })} />
+              <input style={S.champ} placeholder="Quartier" value={form.quartier} onChange={(e) => maj({ quartier: e.target.value })} />
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, margin: "10px 0 4px" }}>Localisation privée (équipe seulement, jamais publiée sans ton accord)</div>
+            <input style={S.champ} placeholder="Adresse précise" value={form.adresse_precise} onChange={(e) => maj({ adresse_precise: e.target.value })} />
+            <input style={S.champ} placeholder="Points de repère" value={form.points_de_repere} onChange={(e) => maj({ points_de_repere: e.target.value })} />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COULEURS.gris, marginTop: 4, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.adresse_publique_visible} onChange={() => bascule("adresse_publique_visible")} />
+              Autoriser à montrer l'adresse précise publiquement plus tard
+            </label>
+          </>
+        )}
+
+        {etape === 2 && (
+          <>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} type="number" placeholder="Superficie habitable (m²)" value={form.superficie} onChange={(e) => maj({ superficie: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Superficie du terrain (m²)" value={form.superficie_terrain} onChange={(e) => maj({ superficie_terrain: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} type="number" placeholder="Nombre de pièces" value={form.nombre_pieces} onChange={(e) => maj({ nombre_pieces: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Nombre de chambres" value={form.nombre_chambres} onChange={(e) => maj({ nombre_chambres: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} type="number" placeholder="Salles de bain" value={form.nombre_salles_bain} onChange={(e) => maj({ nombre_salles_bain: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Toilettes" value={form.nombre_toilettes} onChange={(e) => maj({ nombre_toilettes: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Étages" value={form.nombre_etages} onChange={(e) => maj({ nombre_etages: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0 4px" }}>
+              {CARACS_BIEN_VENTE.map(([cle, label]) => (
+                <div key={cle} onClick={() => bascule(cle)} style={{
+                  fontSize: 11.5, fontWeight: 600, padding: "6px 10px", borderRadius: 99, cursor: "pointer",
+                  background: form[cle] ? "#EAF3DE" : "#F5F5F0", color: form[cle] ? "#3B6D11" : COULEURS.gris,
+                  border: `1px solid ${form[cle] ? COULEURS.vert : "#E5E2D8"}`,
+                }}>{form[cle] ? "✓ " : ""}{label}</div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, margin: "10px 0 4px" }}>Autres caractéristiques (optionnel)</div>
+            {form.caracteristiques_personnalisees.map((c, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <input style={{ ...S.champ, marginBottom: 0, flex: 1 }} placeholder="Ex: Titre foncier" value={c.libelle} onChange={(e) => majCaracPerso(i, "libelle", e.target.value)} />
+                <input style={{ ...S.champ, marginBottom: 0, flex: 1 }} placeholder="Ex: Disponible" value={c.valeur} onChange={(e) => majCaracPerso(i, "valeur", e.target.value)} />
+                <button onClick={() => retirerCaracPerso(i)} style={{ background: "none", border: "none", color: COULEURS.rougeFonce, cursor: "pointer", fontSize: 15 }}>🗑️</button>
+              </div>
+            ))}
+            <button onClick={ajouterCaracPerso} style={{ ...S.boutonClair, width: "100%", padding: "7px 0", fontSize: 12, marginBottom: 8 }}>+ Ajouter une caractéristique</button>
+          </>
+        )}
+
+        {etape === 3 && (
+          <>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 6 }}>Photos ({form.photos.length}) — la première sera la photo principale</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {form.photos.map((url, i) => (
+                <div key={i} style={{ position: "relative" }}>
+                  <img src={url} alt="" onClick={() => photoPrincipaleEnPremier(i)} style={{ width: 68, height: 68, objectFit: "cover", borderRadius: 8, cursor: "pointer", border: i === 0 ? `2px solid ${COULEURS.vert}` : "1px solid #E5E2D8" }} />
+                  <button onClick={() => retirerPhoto(i)} style={{ position: "absolute", top: -6, right: -6, background: COULEURS.rougeFonce, color: "white", border: "none", borderRadius: 99, width: 18, height: 18, fontSize: 11, cursor: "pointer", lineHeight: "18px" }}>×</button>
+                </div>
+              ))}
+            </div>
+            <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer", marginBottom: 10 }}>
+              {envoiEnCours ? "Envoi…" : "📷 Ajouter des photos"}
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => ajouterPhotos(e.target.files)} disabled={envoiEnCours} />
+            </label>
+            <input style={S.champ} placeholder="Lien vidéo (YouTube, Facebook...)" value={form.video_url} onChange={(e) => maj({ video_url: e.target.value })} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <label style={{ ...S.boutonClair, flex: 1, textAlign: "center", cursor: "pointer", fontSize: 12 }}>
+                {form.plan_url ? "✓ Plan ajouté" : "🗺️ Ajouter un plan"}
+                <input type="file" accept="image/*,.pdf" hidden onChange={(e) => envoyerFichierUnique(e.target.files[0], "plan_url")} disabled={envoiEnCours} />
+              </label>
+              <label style={{ ...S.boutonClair, flex: 1, textAlign: "center", cursor: "pointer", fontSize: 12 }}>
+                {form.brochure_url ? "✓ Brochure ajoutée" : "📄 Ajouter une brochure"}
+                <input type="file" accept=".pdf,image/*" hidden onChange={(e) => envoyerFichierUnique(e.target.files[0], "brochure_url")} disabled={envoiEnCours} />
+              </label>
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 6 }}>Autres documents</div>
+            {form.documents.map((d, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
+                <span>📎 {d.nom}</span>
+                <button onClick={() => retirerDocument(i)} style={{ background: "none", border: "none", color: COULEURS.rougeFonce, cursor: "pointer" }}>🗑️</button>
+              </div>
+            ))}
+            <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer" }}>
+              {envoiEnCours ? "Envoi…" : "+ Ajouter un document"}
+              <input type="file" hidden onChange={(e) => ajouterDocument(e.target.files[0])} disabled={envoiEnCours} />
+            </label>
+          </>
+        )}
+
+        {etape === 4 && (
+          <>
+            <input style={S.champ} type="number" placeholder={`Prix de vente (${devise(workspace.currency)})`} value={form.prix_vente} onChange={(e) => maj({ prix_vente: e.target.value })} />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COULEURS.gris, marginBottom: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.prix_negociable} onChange={() => bascule("prix_negociable")} />
+              Prix négociable
+            </label>
+            <input style={S.champ} placeholder="Disponibilité (ex: Immédiate, Sous 30 jours...)" value={form.disponibilite} onChange={(e) => maj({ disponibilite: e.target.value })} />
+          </>
+        )}
+
+        {erreur && <div style={{ background: "#FBEAE6", color: COULEURS.rougeFonce, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, margin: "8px 0" }}>{erreur}</div>}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          {etape > 0 && <button onClick={() => setEtape(etape - 1)} style={{ ...S.boutonClair, flex: 1 }}>← Précédent</button>}
+          {etape < dernierIndex && <button onClick={() => setEtape(etape + 1)} style={{ ...S.bouton, flex: 1 }}>Suivant →</button>}
+          {etape === dernierIndex && <button disabled={enCours} onClick={enregistrer} style={{ ...S.bouton, flex: 1, opacity: enCours ? 0.6 : 1 }}>{enCours ? "…" : "Enregistrer"}</button>}
         </div>
+        {etape === 0 && <button onClick={onFermer} style={{ ...S.boutonClair, width: "100%", marginTop: 8 }}>Annuler</button>}
       </div>
     </div>
   );
@@ -897,14 +1154,21 @@ function OngletVentes({ workspace, biensVente, role, recharger, genererRecuVente
         const reste = Math.max(0, Number(b.prix_vente) - Number(b.montant_recu || 0));
         return (
           <div key={b.id} style={S.carte}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 10 }}>
+              {(b.photos?.[0] || b.photo_url) && (
+                <img src={b.photos?.[0] || b.photo_url} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{b.titre_annonce || b.nom}</div>
                 <div style={{ fontSize: 11.5, color: COULEURS.grisClair, marginTop: 2 }}>
-                  {(TYPES_BIEN_VENTE.find(([k]) => k === b.type_bien) || [, b.type_bien])[1]}{b.adresse ? ` · ${b.adresse}` : ""}{b.superficie ? ` · ${b.superficie} m²` : ""}{b.nombre_pieces ? ` · ${b.nombre_pieces} pièces` : ""}
+                  {(TYPES_BIEN_VENTE.find(([k]) => k === b.type_bien) || [, b.type_bien])[1]}
+                  {(b.quartier || b.ville || b.adresse) ? ` · ${[b.quartier, b.ville].filter(Boolean).join(", ") || b.adresse}` : ""}
+                  {b.superficie ? ` · ${b.superficie} m²` : ""}
+                  {b.nombre_chambres ? ` · ${b.nombre_chambres} ch.` : (b.nombre_pieces ? ` · ${b.nombre_pieces} pièces` : "")}
+                  {b.nombre_salles_bain ? ` · ${b.nombre_salles_bain} SDB` : ""}
                 </div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: COULEURS.vert, marginTop: 6 }}>
-                  {nb(b.prix_vente)} {devise(workspace.currency)}
+                  {nb(b.prix_vente)} {devise(workspace.currency)}{b.prix_negociable ? " (négociable)" : ""}
                 </div>
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: FOND_STATUT_VENTE[b.statut], color: COULEUR_STATUT_VENTE[b.statut], whiteSpace: "nowrap" }}>
@@ -1218,7 +1482,16 @@ function genererCompromisVentePDF(bien, workspace) {
   doc.text("1. Bien vendu", 15, y); y += 6;
   doc.setFont("helvetica", "normal");
   const typeLabel = (TYPES_BIEN_VENTE.find(([k]) => k === bien.type_bien) || [, bien.type_bien])[1];
-  doc.text(`${bien.nom} (${typeLabel})${bien.adresse ? ", " + bien.adresse : ""}${bien.superficie ? ", " + bien.superficie + " m²" : ""}`, 15, y, { maxWidth: 180 }); y += 10;
+  const localisationTxt = [bien.quartier, bien.ville, bien.pays].filter(Boolean).join(", ") || bien.adresse;
+  const caracsTxt = [
+    bien.superficie ? `${bien.superficie} m² habitables` : null,
+    bien.superficie_terrain ? `${bien.superficie_terrain} m² de terrain` : null,
+    bien.nombre_chambres ? `${bien.nombre_chambres} chambre(s)` : null,
+    bien.nombre_salles_bain ? `${bien.nombre_salles_bain} salle(s) de bain` : null,
+  ].filter(Boolean).join(", ");
+  doc.text(`${bien.nom} (${typeLabel})${localisationTxt ? ", " + localisationTxt : ""}`, 15, y, { maxWidth: 180 }); y += 6;
+  if (caracsTxt) { doc.text(caracsTxt, 15, y, { maxWidth: 180 }); y += 6; }
+  y += 4;
 
   doc.setFont("helvetica", "bold");
   doc.text("2. Prix et modalités", 15, y); y += 6;

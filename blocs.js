@@ -4,7 +4,8 @@
 // Ce fichier contient TOUT ce qui décrit une page produit :
 //   • le registre des blocs (types, valeurs par défaut, champs éditables) ;
 //   • les templates de départ (COD Conversion / Premium / Confiance immédiate / Storytelling /
-//     Bénéfices en un clin d'œil / Duel comparatif) — voir TEMPLATES plus bas pour la liste à jour ;
+//     Bénéfices en un clin d'œil / Duel comparatif / Conversation) — voir TEMPLATES plus bas pour
+//     la liste à jour ;
 //   • la normalisation d'une configuration (JSON) venant de la base ;
 //   • la connexion au système existant de RecuVente (bundles, complément "bump",
 //     zone de livraison) — le Builder N'A PAS son propre système de commande ;
@@ -763,6 +764,7 @@ export const THEME_DEFAUT = {
   police_titres: "sans",  // sans | serif
   rayon: "doux",          // net | doux | rond
   espacement: "normal",   // compact | normal | aere
+  mise_en_page: "classique", // classique | conversation (voir template "conversation_whatsapp")
 };
 
 export const CTA_TEXTE_DEFAUT = "COMMANDER — PAIEMENT À LA LIVRAISON";
@@ -897,6 +899,24 @@ export const TEMPLATES = {
       ["reassurance"],
       ["faq"],
       ["cross_sell"],
+    ],
+  },
+  conversation_whatsapp: {
+    id: "conversation_whatsapp",
+    nom: "Conversation",
+    pour: "Marchands qui vendent par confiance et par message — reproduit sur la page ce qui marche déjà en vrai sur WhatsApp",
+    description: "Mise en page inédite : la page se présente comme une conversation — le produit d'abord (comme une photo partagée), puis les arguments et les vrais avis clients affichés comme des messages échangés, jusqu'à la commande, écrite comme une réponse dans la discussion.",
+    theme: { fond: "blanc", police_titres: "sans", rayon: "rond", espacement: "compact", mise_en_page: "conversation" },
+    blocs: [
+      ["hero"],
+      ["description"],
+      ["benefices", { titre: "Ce que ça change pour vous", colonnes: "2" }],
+      ["comment_ca_marche"],
+      ["avis"],
+      ["offres"],
+      ["reassurance"],
+      ["faq"],
+      ["formulaire_cod"],
     ],
   },
 };

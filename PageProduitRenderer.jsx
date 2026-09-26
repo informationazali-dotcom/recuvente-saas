@@ -70,6 +70,22 @@ const CSS_PAGE = `
 .rvpp-root.rvpp-ambiance{background:transparent}
 .rvpp-ambiance .rvpp-sec.rvpp-alt{background:rgba(247,246,241,.62);background:color-mix(in srgb,var(--pp-alt) 60%,transparent);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 .rvpp-in{max-width:1120px;margin:0 auto}
+/* Mise en page « Conversation » (template Conversation) : la page se présente comme une discussion
+   WhatsApp plutôt qu'une suite de sections classiques. Les blocs eux-mêmes ne changent pas (même
+   contenu, mêmes composants) — seul l'habillage autour change, via ce sélecteur sur la racine. */
+.rvpp-root[data-rvpp-mise-en-page="conversation"]{background:#E7DFD3}
+.rvpp-root[data-rvpp-mise-en-page="conversation"] .rvpp-sec{padding:6px 10px}
+.rvpp-root[data-rvpp-mise-en-page="conversation"] .rvpp-sec.rvpp-alt{background:transparent}
+.rvpp-conv-entete{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--pp-accent);color:var(--pp-accent-txt);position:sticky;top:0;z-index:5}
+.rvpp-conv-avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+.rvpp-conv-entete-nom{font-weight:800;font-size:14.5px;line-height:1.25}
+.rvpp-conv-entete-statut{font-size:11.5px;opacity:.85}
+.rvpp-bulle{max-width:86%;border-radius:16px;padding:12px 14px;margin:2px 0;box-shadow:0 1px 2px rgba(0,0,0,.09);position:relative}
+.rvpp-bulle-vendeur{background:#fff;border-bottom-left-radius:4px;margin-right:auto}
+.rvpp-bulle-client{background:#DCF8C6;border-bottom-right-radius:4px;margin-left:auto}
+.rvpp-bulle-compose{max-width:100%;background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin:10px 0}
+.rvpp-bulle-compose::before{content:"✍️ Répondre pour commander";display:block;font-size:11px;font-weight:800;color:var(--pp-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+@container rvpp (min-width:640px){ .rvpp-bulle{max-width:58%} }
 .rvpp-center{text-align:center}
 .rvpp-h1{font-family:var(--pp-font-title);font-size:clamp(24px,6.4vw,34px);line-height:1.15;font-weight:800;margin:0 0 6px;letter-spacing:-.015em;overflow-wrap:anywhere}
 .rvpp-h2{font-family:var(--pp-font-title);font-size:clamp(22px,5.4vw,30px);line-height:1.2;font-weight:800;margin:0 0 8px;letter-spacing:-.01em;overflow-wrap:anywhere}
@@ -188,6 +204,8 @@ const CSS_PAGE = `
 .rvpp-avis-avatar{width:26px;height:26px;border-radius:50%;background:var(--pp-accent);color:var(--pp-accent-txt);display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex-shrink:0}
 .rvpp-avis-chips{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .rvpp-avis-chips button{min-height:0;padding:5px 12px;font-size:11.5px}
+.rvpp-voir-plus{display:block;margin:16px auto 0;min-height:46px;padding:10px 22px;border-radius:999px;border:1.5px solid var(--pp-accent);background:#fff;color:var(--pp-accent-ink,var(--pp-accent));font-size:13.5px;font-weight:800;cursor:pointer;touch-action:manipulation}
+.rvpp-voir-plus:hover{background:var(--pp-alt)}
 .rvpp-ugc{overflow:hidden;text-align:left}
 .rvpp-ugc-m{position:relative;aspect-ratio:4/5;background:var(--pp-alt)}
 .rvpp-ugc-m img,.rvpp-ugc-m iframe,.rvpp-ugc-m video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
@@ -859,13 +877,25 @@ function BlocOffres({ bloc, ctx }) {
   );
 }
 
+// Nombre d'avis affichés au premier chargement de la page (avant de cliquer sur « Voir plus ») —
+// une page produit plus légère et moins « mur de texte » à l'arrivée, comme les fiches optimisées
+// que le marchand a demandé de suivre. Le reste (jusqu'au réglage « Nombre d'avis affichés » du
+// bloc, INCHANGÉ) se déplie sur place au clic, sans recharger la page.
+const AVIS_PREMIER_LOT = 4;
+
 function BlocAvis({ bloc, ctx }) {
   const p = bloc.props;
   const max = Math.max(1, Math.min(24, Number(p.max) || 6));
   const [avecMediaSeulement, setAvecMediaSeulement] = useState(false);
+  const [deplie, setDeplie] = useState(false);
   const avecMedia = ctx.avis.filter((a) => a.photo_url || a.video_url);
   const baseListe = avecMediaSeulement ? avecMedia : ctx.avis;
-  const liste = baseListe.slice(0, max);
+  const pool = baseListe.slice(0, max);
+  // Le filtre "Avec photo/vidéo" change la liste : on replie à nouveau, sinon le bouton "Voir plus"
+  // pourrait rester ouvert sur une liste filtrée plus courte que ce qui est déjà affiché.
+  useEffect(() => { setDeplie(false); }, [avecMediaSeulement]);
+  const liste = deplie ? pool : pool.slice(0, AVIS_PREMIER_LOT);
+  const resteAVoir = pool.length - liste.length;
   const nb = Number(ctx.produit.nb_avis) || ctx.avis.length;
   const note = Number(ctx.produit.note_moyenne) || (ctx.avis.length ? ctx.avis.reduce((s, a) => s + Number(a.note || 0), 0) / ctx.avis.length : 0);
   return (
@@ -918,6 +948,11 @@ function BlocAvis({ bloc, ctx }) {
           </div>
         ))}
       </div>
+      {resteAVoir > 0 && (
+        <button type="button" className="rvpp-voir-plus" onClick={() => setDeplie(true)}>
+          Voir {resteAVoir} avis de plus ↓
+        </button>
+      )}
     </>
   );
 }
@@ -1492,8 +1527,17 @@ export function PageProduitPublique({
 
   let indexAffiche = 0;
   return (
-    <div className={`rvpp-root ${preview ? "rvpp-preview" : ""} ${stickyActif ? "rvpp-has-sticky" : ""} ${ambiance ? "rvpp-ambiance" : ""}`} style={style} data-rvpp-template={cfg.template}>
+    <div className={`rvpp-root ${preview ? "rvpp-preview" : ""} ${stickyActif ? "rvpp-has-sticky" : ""} ${ambiance ? "rvpp-ambiance" : ""}`} style={style} data-rvpp-template={cfg.template} data-rvpp-mise-en-page={cfg.theme.mise_en_page || "classique"}>
       <style>{CSS_PAGE}</style>
+      {cfg.theme.mise_en_page === "conversation" && (
+        <div className="rvpp-conv-entete">
+          <div className="rvpp-conv-avatar">{String(entreprise?.nom || produit?.produit_nom || "?").trim().charAt(0).toUpperCase()}</div>
+          <div>
+            <div className="rvpp-conv-entete-nom">{entreprise?.nom || "Boutique"}</div>
+            <div className="rvpp-conv-entete-statut">en ligne</div>
+          </div>
+        </div>
+      )}
       <div className="rvpp-wrap">
         {blocsAffiches.map(({ bloc, vide, cs }) => {
           const Comp = COMPOSANTS[bloc.type];
@@ -1507,6 +1551,19 @@ export function PageProduitPublique({
           if (preview) classes.push("rvpp-sel"); if (selectionne) classes.push("rvpp-sel-on");
           if (vide && !preview) return null;
           const idSection = bloc.type === "avis" ? "rvpp-avis" : `rvpp-b-${bloc.id}`;
+          // Mode « Conversation » : chaque bloc (sauf l'en-tête produit) s'affiche comme une bulle de
+          // discussion plutôt qu'une section classique — les vrais avis clients à droite (couleur
+          // « message reçu » WhatsApp), tout le reste à gauche (le vendeur qui parle), et le
+          // formulaire de commande comme une zone de réponse. Le contenu de chaque bloc ne change
+          // pas du tout : seul l'habillage autour change.
+          const modeBulle = cfg.theme.mise_en_page === "conversation" && !estHero
+            ? (bloc.type === "formulaire_cod" ? "compose" : bloc.type === "avis" ? "client" : "vendeur")
+            : null;
+          const contenu = vide ? (
+            <div className="rvpp-empty">{REGISTRE_BLOCS[bloc.type].icone} <b>{REGISTRE_BLOCS[bloc.type].label}</b> — bloc vide : il n'apparaît pas sur la page publique tant qu'il n'a pas de contenu réel.</div>
+          ) : (
+            <Comp bloc={bloc} ctx={{ ...ctx, produitsCrossSell: cs }} />
+          );
           return (
             <section
               key={bloc.id}
@@ -1516,11 +1573,7 @@ export function PageProduitPublique({
               onClickCapture={preview && onSelectBloc ? (e) => { e.preventDefault(); e.stopPropagation(); onSelectBloc(bloc.id); } : undefined}
             >
               <div className="rvpp-in">
-                {vide ? (
-                  <div className="rvpp-empty">{REGISTRE_BLOCS[bloc.type].icone} <b>{REGISTRE_BLOCS[bloc.type].label}</b> — bloc vide : il n'apparaît pas sur la page publique tant qu'il n'a pas de contenu réel.</div>
-                ) : (
-                  <Comp bloc={bloc} ctx={{ ...ctx, produitsCrossSell: cs }} />
-                )}
+                {modeBulle && !vide ? <div className={`rvpp-bulle rvpp-bulle-${modeBulle}`}>{contenu}</div> : contenu}
               </div>
             </section>
           );

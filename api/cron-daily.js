@@ -31,6 +31,24 @@ async function executerParLots(taches, tailleLot = 15) {
   return resultats;
 }
 
+// Journal d'audit (table déjà existante, utilisée jusqu'ici par api/team.js pour les actions RH).
+// Étendue ici au Problem Engine : chaque détection automatique (montrée à un marchand) écrit une
+// ligne, et chaque résolution constatée au run suivant en écrit une autre — c'est le maillon
+// "Résultat" qui manquait pour mesurer, plus tard, si une alerte a vraiment changé quelque chose.
+// Jamais bloquant : une panne d'écriture ici ne doit jamais empêcher le reste du cron de tourner.
+async function tracerAudit(workspaceId, action, details) {
+  try {
+    await supabaseAdmin.from("journal_audit").insert([{
+      workspace_id: workspaceId,
+      action,
+      details: typeof details === "string" ? details : JSON.stringify(details || {}),
+      effectue_par: "Système (détection automatique)",
+    }]);
+  } catch (e) {
+    console.error("Erreur journal d'audit (non bloquant) :", e.message);
+  }
+}
+
 async function sauvegarderQuotidiennement() {
   try {
     const tables = ["workspaces", "commandes", "produits", "avis_produits", "collections", "collection_produits", "workspace_members"];
@@ -252,8 +270,14 @@ function tarifPourCommandeCaisse(c, defaut, zones, livreurTarifs) {
   return defaut;
 }
 
+// Fenêtre de lecture du journal d'audit pour retrouver les détections encore "en attente"
+// (pas encore résolues) — plus large que FENETRE_JOURS_CAISSE, qui ne sert qu'au calcul du
+// montant à déposer. 30 jours suffit largement à couvrir le cycle normal d'un livreur.
+const FENETRE_JOURS_RESOLUTION_CAISSE = 30;
+
 async function verifierEcartsCaisse() {
   const depuis = new Date(Date.now() - FENETRE_JOURS_CAISSE * 24 * 3600 * 1000).toISOString();
+  const depuisAudit = new Date(Date.now() - FENETRE_JOURS_RESOLUTION_CAISSE * 24 * 3600 * 1000).toISOString();
 
   const { data: workspaces, error: wsError } = await supabaseAdmin
     .from("workspaces")
@@ -261,7 +285,7 @@ async function verifierEcartsCaisse() {
   if (wsError) return { alertesEnvoyees: 0, erreur: wsError.message };
   if (!workspaces || workspaces.length === 0) return { alertesEnvoyees: 0 };
 
-  const [{ data: livreurs }, { data: commandes }, { data: paiements }, { data: reglages }, { data: zonesTarifs }, { data: livreurTarifs }, { data: depots }] = await Promise.all([
+  const [{ data: livreurs }, { data: commandes }, { data: paiements }, { data: reglages }, { data: zonesTarifs }, { data: livreurTarifs }, { data: depots }, { data: auditCaisse }] = await Promise.all([
     supabaseAdmin.from("livreurs").select("workspace_id, nom"),
     supabaseAdmin.from("commandes").select("id, workspace_id, montant, livreur, zone, mode_vente, type_commande").eq("statut", "confirmee").gte("created_at", depuis),
     supabaseAdmin.from("paiements_en_ligne").select("workspace_id, commande_id, montant_paye").eq("statut", "paye"),
@@ -269,6 +293,7 @@ async function verifierEcartsCaisse() {
     supabaseAdmin.from("tarifs_zone_livraison").select("workspace_id, zone, montant"),
     supabaseAdmin.from("tarifs_livreur_livraison").select("workspace_id, livreur_nom, montant"),
     supabaseAdmin.from("depots_livreur").select("workspace_id, livreur_nom, created_at").gte("created_at", depuis),
+    supabaseAdmin.from("journal_audit").select("workspace_id, action, details, created_at").in("action", ["ecart_caisse_detecte", "ecart_caisse_resolu"]).gte("created_at", depuisAudit).order("created_at", { ascending: true }),
   ]);
 
   const parWorkspace = (arr, cle = "workspace_id") => {
@@ -285,12 +310,32 @@ async function verifierEcartsCaisse() {
   const reglagesParWs = {};
   (reglages || []).forEach((r) => { reglagesParWs[r.workspace_id] = r; });
 
+  // Rejoue le journal (dans l'ordre chronologique) pour reconstruire, par boutique, l'ensemble
+  // des livreurs "détectés mais pas encore résolus" — c'est le maillon Résultat du Problem
+  // Engine (partie 15 du Blueprint) : sans cette lecture, personne ne sait si une alerte a fini
+  // par se résoudre ou non.
+  const enAttenteParWs = {};
+  (auditCaisse || []).forEach((ligne) => {
+    let d = {};
+    try { d = JSON.parse(ligne.details || "{}"); } catch (_) { d = {}; }
+    const bucket = (enAttenteParWs[ligne.workspace_id] ||= {});
+    if (ligne.action === "ecart_caisse_detecte") {
+      (d.livreurs || []).forEach((l) => {
+        const cle = String(l.nom || "").trim().toLowerCase();
+        if (cle) bucket[cle] = { nom: l.nom, depuisLe: ligne.created_at };
+      });
+    } else if (ligne.action === "ecart_caisse_resolu") {
+      const cle = String(d.nom || "").trim().toLowerCase();
+      if (cle) delete bucket[cle];
+    }
+  });
+
   let alertesEnvoyees = 0;
+  let resolutionsDetectees = 0;
 
   const taches = workspaces.map((ws) => async () => {
     const mesLivreurs = livreursParWs[ws.id] || [];
     const mesCommandes = commandesParWs[ws.id] || [];
-    if (mesLivreurs.length === 0 || mesCommandes.length === 0) return;
 
     const mesPaiements = {};
     (paiementsParWs[ws.id] || []).forEach((p) => { mesPaiements[p.commande_id] = (mesPaiements[p.commande_id] || 0) + Number(p.montant_paye || 0); });
@@ -299,7 +344,7 @@ async function verifierEcartsCaisse() {
     const zones = zonesParWs[ws.id] || [];
     const livreurTarifsWs = livreurTarifsParWs[ws.id] || [];
 
-    const aRisque = mesLivreurs
+    const aRisque = (mesLivreurs.length === 0 || mesCommandes.length === 0) ? [] : mesLivreurs
       .map((l) => {
         const mesLivrees = mesCommandes.filter((c) => c.livreur === l.nom);
         if (mesLivrees.length === 0) return null;
@@ -313,6 +358,19 @@ async function verifierEcartsCaisse() {
         return { nom: l.nom, aDeposer, declareRecemment };
       })
       .filter((l) => l && l.aDeposer > Math.max(1000, tarifDefaut * 2) && !l.declareRecemment);
+
+    // Résolution : un livreur détecté lors d'un run précédent et qui n'apparaît plus dans
+    // aRisque aujourd'hui (dépôt déclaré depuis, ou plus de commandes à risque) est résolu —
+    // qu'un nouvel email soit envoyé ou non ce jour-là.
+    const pendantes = enAttenteParWs[ws.id] || {};
+    const nomsFlagges = new Set(aRisque.map((l) => String(l.nom || "").trim().toLowerCase()));
+    for (const [cle, info] of Object.entries(pendantes)) {
+      if (!nomsFlagges.has(cle)) {
+        const jours = Math.max(0, Math.round((Date.now() - new Date(info.depuisLe).getTime()) / (24 * 3600 * 1000)));
+        await tracerAudit(ws.id, "ecart_caisse_resolu", { nom: info.nom, jours_ecoules: jours });
+        resolutionsDetectees++;
+      }
+    }
 
     if (aRisque.length === 0) return;
 
@@ -343,11 +401,12 @@ async function verifierEcartsCaisse() {
       `,
     });
     await ecrireOption(ws.id, "derniere_alerte_caisse", { at: new Date().toISOString() });
+    await tracerAudit(ws.id, "ecart_caisse_detecte", { livreurs: aRisque.map((l) => ({ nom: l.nom, a_deposer: Math.round(l.aDeposer) })) });
     alertesEnvoyees++;
   });
 
   await executerParLots(taches);
-  return { alertesEnvoyees };
+  return { alertesEnvoyees, resolutionsDetectees };
 }
 
 // Secteurs et villes qui correspondent réellement au profil de client idéal

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -6,6 +7,43 @@ const supabaseAdmin = createClient(
 );
 
 const CHARIOW_API_KEY = process.env.CHARIOW_API_KEY;
+
+// Désactive le découpage automatique du corps de la requête par Vercel : la vérification de
+// signature Chariow (ci-dessous) a besoin du corps BRUT, exactement comme envoyé, avant tout
+// JSON.parse — sinon la signature ne correspond jamais. On reparse nous-mêmes ce corps brut en
+// JSON juste après l'avoir lu, donc rien ne change pour le reste du code (req.body continue de
+// fonctionner normalement pour CAS 2/2bis, l'appel de notre propre app).
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+function lireCorpsBrut(req) {
+  return new Promise((resolve, reject) => {
+    const morceaux = [];
+    req.on("data", (c) => morceaux.push(c));
+    req.on("end", () => resolve(Buffer.concat(morceaux)));
+    req.on("error", reject);
+  });
+}
+
+// Vérifie la signature d'un webhook Chariow (guide officiel "Pulse Security") :
+// en-tête "x-chariow-signature" = "sha256=" + HMAC-SHA256(corps brut, secret de signature),
+// comparée en temps constant pour éviter qu'un attaquant devine le bon résultat octet par octet.
+// Tant que CHARIOW_PULSE_SECRET n'est pas encore configuré sur Vercel, on laisse passer sans
+// vérifier (verifie:false) plutôt que de tout bloquer par erreur — mieux vaut ne pas encore
+// protéger que de casser silencieusement l'activation des abonnements le jour du déploiement.
+function verifierSignatureChariow(corpsBrut, signatureRecue) {
+  const secret = process.env.CHARIOW_PULSE_SECRET;
+  if (!secret) return { ok: true, verifie: false };
+  if (!signatureRecue || !signatureRecue.startsWith("sha256=")) return { ok: false, verifie: true };
+  const attendu = "sha256=" + crypto.createHmac("sha256", secret).update(corpsBrut).digest("hex");
+  const bufAttendu = Buffer.from(attendu);
+  const bufRecu = Buffer.from(signatureRecue);
+  if (bufAttendu.length !== bufRecu.length) return { ok: false, verifie: true };
+  return { ok: crypto.timingSafeEqual(bufAttendu, bufRecu), verifie: true };
+}
 
 // Packs de crédits IA vendus via Chariow (variable Vercel CHARIOW_PACKS_IA, voir admin-panel.js).
 function packsIA() {
@@ -45,9 +83,30 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
 
+  // Le découpage automatique du corps est désactivé (voir "config" en haut du fichier) : on le lit
+  // nous-mêmes ici, une seule fois, puis on le reparse en JSON pour que tout le code plus bas
+  // continue de fonctionner exactement comme avant.
+  const corpsBrut = await lireCorpsBrut(req);
+  try {
+    req.body = corpsBrut.length ? JSON.parse(corpsBrut.toString("utf8")) : {};
+  } catch (_) {
+    req.body = {};
+  }
+
   // ===== CAS 1 : Chariow nous notifie d'un paiement (Pulse webhook) =====
   // Reconnu par la présence du champ "event" envoyé automatiquement par Chariow
   if (req.body?.event) {
+    // Vérifie que la notification vient bien de Chariow (et non d'un tiers qui aurait deviné
+    // l'URL du webhook) avant de faire quoi que ce soit — voir verifierSignatureChariow ci-dessus.
+    const verifSignature = verifierSignatureChariow(corpsBrut, req.headers["x-chariow-signature"]);
+    if (!verifSignature.ok) {
+      console.error("Webhook Chariow rejeté : signature invalide ou absente.");
+      return res.status(401).json({ error: "Signature invalide" });
+    }
+    if (!verifSignature.verifie) {
+      console.warn("Webhook Chariow : CHARIOW_PULSE_SECRET n'est pas encore configuré sur Vercel — signature non vérifiée pour l'instant.");
+    }
+
     const { event } = req.body;
 
     // IMPORTANT (trouvé pendant l'audit sécurité des abonnements) : la documentation officielle

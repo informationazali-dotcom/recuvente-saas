@@ -5402,6 +5402,9 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       return;
     }
     const montantTotal = Number(form.montant);
+    // Rempli si le réseau anti-refus signale ce numéro (voir plus bas) — lu après la création
+    // de la commande pour journaliser la décision prise, avec ou sans commande_id.
+    let signalReseauDetecte = null;
 
     // Détecte une commande très similaire déjà passée récemment (même client, même produit)
     // — évite d'envoyer deux livreurs pour la même personne par erreur
@@ -5459,10 +5462,25 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         const jReseau = await rReseau.json().catch(() => ({}));
         const signalReseau = rReseau.ok && jReseau.actif !== false ? Object.values(jReseau.resultats || {})[0] : null;
         if (signalReseau) {
+          signalReseauDetecte = signalReseau;
           const continuerReseau = window.confirm(
             `⚠️ Numéro signalé par le réseau RecuVente : ${signalReseau.boutiques} boutique${signalReseau.boutiques > 1 ? "s" : ""} (hors la tienne) ${signalReseau.boutiques > 1 ? "ont" : "a"} eu ${signalReseau.refus} refus/retour${signalReseau.refus > 1 ? "s" : ""} sur ce numéro (et ${signalReseau.livrees} livraison${signalReseau.livrees > 1 ? "s" : ""} réussie${signalReseau.livrees > 1 ? "s" : ""} ailleurs).\n\nAppelle avant d'envoyer un livreur, ou demande un acompte.\n\nContinuer quand même ?`
           );
-          if (!continuerReseau) return;
+          if (!continuerReseau) {
+            // Ferme le maillon "Résultat" du Problem Engine (Blueprint, partie 15) : on note que
+            // l'alerte a été montrée ET la décision prise (ici : commande annulée), même sans
+            // commande créée — sinon impossible de mesurer un jour si cette alerte sert à quelque
+            // chose. Jamais bloquant : une panne d'écriture ici ne doit jamais empêcher la suite.
+            try {
+              await supabase.from("journal_audit").insert([{
+                workspace_id: workspace.id,
+                action: "risque_reseau_detecte",
+                details: JSON.stringify({ tel: form.tel, niveau: signalReseau.niveau, boutiques: signalReseau.boutiques, refus: signalReseau.refus, decision: "commande_annulee" }),
+                effectue_par: session.user.email,
+              }]);
+            } catch (_) {}
+            return;
+          }
         }
       } catch (_) {
         // Signal réseau indisponible : on ne bloque jamais la création d'une commande pour ça.
@@ -5472,12 +5490,25 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     const montantDejaPaye = workspace.activity_type === "retail" ? (form.montant_paye === "" ? montantTotal : Number(form.montant_paye)) : 0;
     const payeEnEntier = workspace.activity_type === "retail" ? montantDejaPaye >= montantTotal : false;
     const statutInitial = workspace.activity_type === "retail" ? (payeEnEntier ? "confirmee" : "en_cours") : "en_cours";
-    const { error } = await supabase.from("commandes").insert([
+    const { data: nouvelleCommande, error } = await supabase.from("commandes").insert([
       { ...form, montant: montantTotal, montant_paye: montantDejaPaye, caution: form.caution === "" || form.caution == null ? null : Number(form.caution), workspace_id: workspace.id, statut: statutInitial, confirmed_at: statutInitial === "confirmee" ? new Date().toISOString() : null, confirmed_by: statutInitial === "confirmee" ? session.user.email.split("@")[0] : null },
-    ]);
+    ]).select("id").single();
     if (error) {
       alert("Erreur: " + error.message);
       return;
+    }
+    if (signalReseauDetecte) {
+      // Même logique que ci-dessus : la décision cette fois est "commande maintenue malgré
+      // l'alerte" — le lien vers commande_id est ce qui permettra plus tard (partie 17 du
+      // Blueprint) de croiser cette décision avec l'issue réelle de la commande.
+      try {
+        await supabase.from("journal_audit").insert([{
+          workspace_id: workspace.id,
+          action: "risque_reseau_detecte",
+          details: JSON.stringify({ commande_id: nouvelleCommande?.id || null, tel: form.tel, niveau: signalReseauDetecte.niveau, boutiques: signalReseauDetecte.boutiques, refus: signalReseauDetecte.refus, decision: "commande_maintenue" }),
+          effectue_par: session.user.email,
+        }]);
+      } catch (_) {}
     }
     if (form.table_id) {
       await supabase.from("tables_restaurant").update({ statut: "occupee" }).eq("id", form.table_id);

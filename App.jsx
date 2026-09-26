@@ -13473,6 +13473,12 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
   }, [ajoutOuvert]);
   const [importEnCours, setImportEnCours] = useState(false);
   const [resultatImport, setResultatImport] = useState(null);
+  const [modeImportLiens, setModeImportLiens] = useState(false);
+  const [liensMultiples, setLiensMultiples] = useState("");
+  const [genererAvecIALiens, setGenererAvecIALiens] = useState(false);
+  const [importLiensEnCours, setImportLiensEnCours] = useState(false);
+  const [progressionImportLiens, setProgressionImportLiens] = useState({ fait: 0, total: 0 });
+  const [resultatImportLiens, setResultatImportLiens] = useState(null);
   const [photoEnvoiId, setPhotoEnvoiId] = useState(null);
   const [galerieEnvoiId, setGalerieEnvoiId] = useState(null);
   const [confirmSuppr, setConfirmSuppr] = useState(null);
@@ -13822,6 +13828,79 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
     setDescriptionEnPreparation(false);
     setDerniereCreation(nomCree);
     setTimeout(() => setDerniereCreation((n) => (n === nomCree ? "" : n)), 3500);
+  }
+
+  // Import de plusieurs produits d'un coup à partir de plusieurs liens marketplace (un par ligne) --
+  // volontairement limité à des liens produit individuels (pas de page catalogue/vendeur à scraper :
+  // trop fragile techniquement et risqué côté conditions d'utilisation des sites). Chaque lien passe
+  // par la MÊME action déjà en place ("extraire_produit_depuis_lien"), un par un, puis tous les
+  // produits trouvés sont créés en une fois via onImportCSV (déjà testé pour le CSV/Excel).
+  const LIMITE_LIENS_MULTIPLES = 20;
+  async function importerPlusieursLiens() {
+    const liens = [...new Set(liensMultiples.split("\n").map((l) => l.trim()).filter(Boolean))].slice(0, LIMITE_LIENS_MULTIPLES);
+    if (liens.length === 0) return;
+    setImportLiensEnCours(true);
+    setResultatImportLiens(null);
+    setProgressionImportLiens({ fait: 0, total: liens.length });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const jeton = sessionData.session?.access_token;
+    const lignesAImporter = [];
+    const echecs = [];
+    for (let i = 0; i < liens.length; i++) {
+      const lien = liens[i];
+      try {
+        const reponse = await fetch("/api/admin-panel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` },
+          body: JSON.stringify({ action: "extraire_produit_depuis_lien", url: lien, workspace_id: workspaceId }),
+        });
+        const trouve = await reponse.json();
+        if (!reponse.ok || (!trouve?.nom && !trouve?.photo_url)) {
+          echecs.push({ lien, raison: trouve?.error || "Rien d'exploitable trouvé sur cette page." });
+        } else {
+          const nomProduit = (trouve.nom || `Produit importé ${i + 1}`).trim().slice(0, 150);
+          let descriptionHtml = null;
+          if (genererAvecIALiens) {
+            try {
+              const reponseIA = await fetch("/api/admin-panel", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` },
+                body: JSON.stringify({ action: "generer_fiche_produit_ia", nom_produit: nomProduit, workspace_id: workspaceId, contexte: {} }),
+              });
+              const resultatIA = await reponseIA.json();
+              if (reponseIA.ok && resultatIA?.fiche?.description_html) descriptionHtml = resultatIA.fiche.description_html;
+            } catch (e) { /* la fiche IA est un plus, pas bloquant si elle échoue */ }
+          }
+          lignesAImporter.push({
+            nom: nomProduit,
+            description: descriptionHtml,
+            photo_url: trouve.photo_url || null,
+            photos_galerie: Array.isArray(trouve.photos_galerie) && trouve.photos_galerie.length ? trouve.photos_galerie : null,
+          });
+        }
+      } catch (e) {
+        echecs.push({ lien, raison: "Erreur de connexion pendant l'extraction." });
+      }
+      setProgressionImportLiens({ fait: i + 1, total: liens.length });
+    }
+
+    if (lignesAImporter.length === 0) {
+      setImportLiensEnCours(false);
+      setResultatImportLiens({ succes: false, message: "Aucun produit n'a pu être extrait de ces liens.", echecs });
+      return;
+    }
+    const resultat = await onImportCSV(lignesAImporter);
+    setImportLiensEnCours(false);
+    if (resultat.succes) {
+      setResultatImportLiens({
+        succes: true,
+        message: `${resultat.importes} produit(s) créé(s) avec leur(s) photo(s).${resultat.ignores > 0 ? ` ${resultat.ignores} ignoré(s) (nom déjà existant).` : ""}${echecs.length > 0 ? ` ${echecs.length} lien(s) n'ont rien donné.` : ""}`,
+        echecs,
+      });
+      setLiensMultiples("");
+    } else {
+      setResultatImportLiens({ succes: false, message: resultat.message || "Erreur lors de la création des produits.", echecs });
+    }
   }
 
   const totalStock = produits.reduce((s, p) => s + Number(p.stock_initial || 0), 0);
@@ -14227,6 +14306,66 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
             {resultatImport && (
               <div style={{ margin: "0 14px 10px", background: resultatImport.succes ? "#EAF3DE" : "#FBEAE6", border: `1px solid ${resultatImport.succes ? "#C7DDA3" : "#F0B8AC"}`, borderRadius: 8, padding: "8px 10px", fontSize: 11.5, color: resultatImport.succes ? "#3B6D11" : "#D64933" }}>
                 {resultatImport.succes ? "✅ " : "⚠️ "}{resultatImport.message}
+              </div>
+            )}
+
+            <button
+              className="rv-pm-cache-nouveau"
+              onClick={() => setModeImportLiens((v) => !v)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "calc(100% - 28px)", margin: "0 14px 10px", background: "white", border: "1px dashed #5B21B6", borderRadius: 9, padding: "9px 0", fontWeight: 700, fontSize: 12, color: "#5B21B6", cursor: "pointer" }}
+            >
+              {modeImportLiens ? "▾" : "▸"} 🔗 Importer plusieurs produits depuis des liens (Alibaba, Amazon, AliExpress…)
+            </button>
+            {modeImportLiens && (
+              <div className="rv-pm-cache-nouveau" style={{ margin: "0 14px 10px", background: "#F7F4FC", border: "1px solid #DDD6FE", borderRadius: 9, padding: 12 }}>
+                <div style={{ fontSize: 11, color: "#6B7168", marginBottom: 6, lineHeight: 1.5 }}>
+                  Colle un lien produit par ligne (jusqu'à {LIMITE_LIENS_MULTIPLES}). Chaque lien est traité comme avec "Extraire" ci-dessus : le nom, la photo principale et les photos supplémentaires trouvées sont récupérés, rien n'est deviné. Les produits sont créés automatiquement à la fin.
+                </div>
+                <textarea
+                  value={liensMultiples}
+                  onChange={(e) => setLiensMultiples(e.target.value)}
+                  placeholder={"https://...\nhttps://...\nhttps://..."}
+                  rows={4}
+                  disabled={importLiensEnCours}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD6FE", fontSize: 12.5, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }}
+                />
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 600, color: "#3B6D11", cursor: "pointer", margin: "8px 0", background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 8, padding: "7px 9px" }}>
+                  <input type="checkbox" checked={genererAvecIALiens} onChange={(e) => setGenererAvecIALiens(e.target.checked)} disabled={importLiensEnCours} />
+                  ✨ Aussi générer une fiche produit IA pour chacun (coûte des crédits IA en plus)
+                </label>
+                {(() => {
+                  const nbLiens = [...new Set(liensMultiples.split("\n").map((l) => l.trim()).filter(Boolean))].slice(0, LIMITE_LIENS_MULTIPLES).length;
+                  const cout = nbLiens * (2 + (genererAvecIALiens ? 1 : 0));
+                  return nbLiens > 0 ? (
+                    <div style={{ fontSize: 10.5, color: "#8A6412", marginBottom: 8 }}>
+                      💰 Coût estimé : environ {cout} crédit(s) IA pour {nbLiens} lien(s) (2 par lien, {genererAvecIALiens ? "+1 par fiche générée" : "+1 de plus si tu coches la fiche IA"}).
+                    </div>
+                  ) : null;
+                })()}
+                {importLiensEnCours && (
+                  <div style={{ fontSize: 11.5, color: "#5B21B6", fontWeight: 600, marginBottom: 8 }}>
+                    ⏳ Traitement en cours : {progressionImportLiens.fait}/{progressionImportLiens.total} lien(s)…
+                  </div>
+                )}
+                {resultatImportLiens && (
+                  <div style={{ background: resultatImportLiens.succes ? "#EAF3DE" : "#FBEAE6", border: `1px solid ${resultatImportLiens.succes ? "#C7DDA3" : "#F0B8AC"}`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, fontSize: 11.5, color: resultatImportLiens.succes ? "#3B6D11" : "#D64933", lineHeight: 1.5 }}>
+                    {resultatImportLiens.succes ? "✅ " : "⚠️ "}{resultatImportLiens.message}
+                    {resultatImportLiens.echecs?.length > 0 && (
+                      <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                        {resultatImportLiens.echecs.map((e, idx) => (
+                          <li key={idx} style={{ wordBreak: "break-all" }}>{e.lien} — {e.raison}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                <button
+                  onClick={importerPlusieursLiens}
+                  disabled={importLiensEnCours || liensMultiples.trim() === ""}
+                  style={{ width: "100%", background: "#5B21B6", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: importLiensEnCours ? "default" : "pointer", opacity: importLiensEnCours || liensMultiples.trim() === "" ? 0.6 : 1 }}
+                >
+                  {importLiensEnCours ? "Import en cours..." : "Importer ces produits"}
+                </button>
               </div>
             )}
 

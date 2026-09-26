@@ -34,6 +34,9 @@ const LocationMaisonModal = React.lazy(() => import("./LocationMaison.jsx"));
 // LOT 4 — Location de voitures/véhicules : calendrier, retours, contrat PDF, états des lieux,
 // entretien & rentabilité. Chargé à la demande, uniquement pour activity_type "location_vehicule".
 const LocationVoiture = React.lazy(() => import("./LocationVoiture.jsx"));
+// LOT 7 — Prospects & fiches commerciales (immobilier vente, véhicule vente, logements en location) :
+// tous les prospects/questions/rendez-vous venus des fiches publiques. Chargé à la demande.
+const ProspectsFiches = React.lazy(() => import("./ProspectsFiches.jsx"));
 
 
 // ============================================================================
@@ -3987,6 +3990,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const [showLocationMaison, setShowLocationMaison] = useState(false); // LOT 3 : Locataires & loyers
   const [showStoreBuilder, setShowStoreBuilder] = useState(false);
   const [showLocationVoiture, setShowLocationVoiture] = useState(false);
+  const [showProspectsFiches, setShowProspectsFiches] = useState(false); // LOT 7 : Prospects & fiches commerciales
   const [showBatch, setShowBatch] = useState(false);
   const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
 
@@ -5732,14 +5736,14 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
         showCollections || showPages || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showCaisse || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
-        showBatch || showAdd || showLocationMaison;
+        showBatch || showAdd || showLocationMaison || showProspectsFiches;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
         setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowPages(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false); setShowCaisse(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
-        setShowIntegrations(false); setShowBatch(false); setShowAdd(false); setShowLocationMaison(false);
+        setShowIntegrations(false); setShowBatch(false); setShowAdd(false); setShowLocationMaison(false); setShowProspectsFiches(false);
       } else if (vue !== "aujourdhui") {
         setVue("aujourdhui");
       }
@@ -5752,7 +5756,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
     showCollections, showPages, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showCaisse, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
-    showBatch, showAdd, showLocationMaison, vue,
+    showBatch, showAdd, showLocationMaison, showProspectsFiches, vue,
   ]);
 
   if (workspace.role === "livreur" && monProfilLivreur) {
@@ -6171,6 +6175,14 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                 style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
               >
                 🚗 Calendrier & locations
+              </button>
+            )}
+            {(workspace.activity_type === "location_immobiliere" || workspace.activity_type === "location_vehicule") && (
+              <button
+                onClick={() => setShowProspectsFiches(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(36,82,232,0.15)", color: "#6f8cf0", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                📋 Prospects & fiches
               </button>
             )}
             {estEcommerce && (
@@ -7254,6 +7266,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       {showGestionLivraisonFinances && <React.Suspense fallback={null}><GestionLivraisonFinancesModal workspace={workspace} produits={produits} onClose={() => setShowGestionLivraisonFinances(false)} /></React.Suspense>}
       {showLocationMaison && <React.Suspense fallback={null}><LocationMaisonModal workspace={workspace} session={session} onClose={() => setShowLocationMaison(false)} /></React.Suspense>}
       {showLocationVoiture && <React.Suspense fallback={null}><LocationVoiture workspace={workspace} session={session} onClose={() => setShowLocationVoiture(false)} /></React.Suspense>}
+      {showProspectsFiches && <React.Suspense fallback={null}><ProspectsFiches workspace={workspace} session={session} onClose={() => setShowProspectsFiches(false)} /></React.Suspense>}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} onSupprimerBoutique={onSupprimerBoutique} />}
       {showStoreBuilder && !accesBloque && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { jsPDF } from "jspdf";
+import { urlFichePublique, urlQrFiche, messageWhatsAppPartageFiche } from "./fichesCommercialesUtils.js";
 
 // ============================================================================
 //  LOT 3 — Location de maison / immobilier : vrai système de baux/loyers, à côté
@@ -129,7 +130,27 @@ function bailActifPour(baux, logementId) {
 // ============================================================================
 function OngletLogements({ workspace, logements, baux, loyers, role, recharger, ouvrirBail }) {
   const [edition, setEdition] = useState(null); // id du logement en édition, ou "new"
-  const [form, setForm] = useState({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "" });
+  const [form, setForm] = useState({
+    nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "",
+    ville: "", quartier: "", superficie: "", nombre_pieces: "", nombre_chambres: "", nombre_salles_bain: "",
+    video_url: "", photos: [],
+  });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  async function ajouterPhotosLogement(fichiers) {
+    if (!fichiers || fichiers.length === 0) return;
+    setEnvoiEnCours(true);
+    try {
+      const urls = [];
+      for (const f of Array.from(fichiers)) {
+        const compresse = await compresserImageBien(f);
+        urls.push(await envoyerFichierBienVente(compresse, workspace.id, "logement"));
+      }
+      setForm((fo) => ({ ...fo, photos: [...fo.photos, ...urls] }));
+    } catch (_) { /* affichage d'erreur non bloquant, comme ailleurs dans ce fichier */ }
+    setEnvoiEnCours(false);
+  }
+  function retirerPhotoLogement(i) { setForm((f) => ({ ...f, photos: f.photos.filter((_, idx) => idx !== i) })); }
 
   const lignes = useMemo(() => logements.map((l) => {
     const bail = bailActifPour(baux, l.id);
@@ -143,18 +164,28 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
 
   function commencerEdition(l) {
     setEdition(l.id);
-    setForm({ nom: l.nom || "", adresse: l.adresse || "", loyer_mensuel: String(l.loyer_mensuel || ""), caution_suggeree: String(l.caution_suggeree || ""), description: l.description || "" });
+    setForm({
+      nom: l.nom || "", adresse: l.adresse || "", loyer_mensuel: String(l.loyer_mensuel || ""), caution_suggeree: String(l.caution_suggeree || ""), description: l.description || "",
+      ville: l.ville || "", quartier: l.quartier || "", superficie: String(l.superficie || ""), nombre_pieces: String(l.nombre_pieces || ""),
+      nombre_chambres: String(l.nombre_chambres || ""), nombre_salles_bain: String(l.nombre_salles_bain || ""),
+      video_url: l.video_url || "", photos: Array.isArray(l.photos) ? l.photos : [],
+    });
   }
   function commencerAjout() {
     setEdition("new");
-    setForm({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "" });
+    setForm({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "", ville: "", quartier: "", superficie: "", nombre_pieces: "", nombre_chambres: "", nombre_salles_bain: "", video_url: "", photos: [] });
   }
 
   async function enregistrer() {
     if (!form.nom.trim() || !form.loyer_mensuel) return;
-    // On n'écrit QUE les colonnes déjà utilisées ailleurs dans App.jsx pour "logements" :
-    // nom, adresse, loyer_mensuel, caution_suggeree, workspace_id, disponible (voir App.jsx ~l.4019).
-    const payload = { nom: form.nom.trim(), adresse: form.adresse.trim() || null, loyer_mensuel: Number(form.loyer_mensuel) || 0, caution_suggeree: Number(form.caution_suggeree) || 0 };
+    const nb = (v) => v === "" ? null : Number(v);
+    const payload = {
+      nom: form.nom.trim(), adresse: form.adresse.trim() || null, loyer_mensuel: Number(form.loyer_mensuel) || 0,
+      caution_suggeree: Number(form.caution_suggeree) || 0, description: form.description.trim() || null,
+      ville: form.ville.trim() || null, quartier: form.quartier.trim() || null,
+      superficie: nb(form.superficie), nombre_pieces: nb(form.nombre_pieces), nombre_chambres: nb(form.nombre_chambres),
+      nombre_salles_bain: nb(form.nombre_salles_bain), video_url: form.video_url.trim() || null, photos: form.photos,
+    };
     if (edition === "new") {
       await supabase.from("logements").insert([{ ...payload, workspace_id: workspace.id, disponible: true }]);
     } else {
@@ -182,6 +213,31 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
               <input style={S.champ} placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} />
               <input style={S.champ} type="number" placeholder={`Loyer mensuel (${devise(workspace.currency)})`} value={form.loyer_mensuel} onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })} />
               <input style={S.champ} type="number" placeholder={`Caution suggérée (${devise(workspace.currency)}, optionnel)`} value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} />
+              <textarea style={{ ...S.champ, minHeight: 55 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: COULEURS.grisClair, margin: "4px 0" }}>Pour la fiche publique (optionnel)</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input style={S.champ} placeholder="Ville" value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} />
+                <input style={S.champ} placeholder="Quartier" value={form.quartier} onChange={(e) => setForm({ ...form, quartier: e.target.value })} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input style={S.champ} type="number" placeholder="Superficie (m²)" value={form.superficie} onChange={(e) => setForm({ ...form, superficie: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Pièces" value={form.nombre_pieces} onChange={(e) => setForm({ ...form, nombre_pieces: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Chambres" value={form.nombre_chambres} onChange={(e) => setForm({ ...form, nombre_chambres: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="SDB" value={form.nombre_salles_bain} onChange={(e) => setForm({ ...form, nombre_salles_bain: e.target.value })} />
+              </div>
+              <input style={S.champ} placeholder="Lien vidéo (optionnel)" value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} />
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                {form.photos.map((url, i) => (
+                  <div key={i} style={{ position: "relative" }}>
+                    <img src={url} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8 }} />
+                    <button onClick={() => retirerPhotoLogement(i)} style={{ position: "absolute", top: -6, right: -6, background: COULEURS.rougeFonce, color: "white", border: "none", borderRadius: 99, width: 16, height: 16, fontSize: 10, cursor: "pointer", lineHeight: "16px" }}>×</button>
+                  </div>
+                ))}
+              </div>
+              <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer", marginBottom: 8 }}>
+                {envoiEnCours ? "Envoi…" : "📷 Ajouter des photos"}
+                <input type="file" accept="image/*" multiple hidden onChange={(e) => ajouterPhotosLogement(e.target.files)} disabled={envoiEnCours} />
+              </label>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={enregistrer} style={{ ...S.bouton, flex: 1 }}>Enregistrer</button>
                 <button onClick={() => setEdition(null)} style={{ ...S.boutonClair, flex: 1 }}>Annuler</button>
@@ -224,6 +280,9 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
               </button>
             )}
           </div>
+          {!occupe && (
+            <PanneauPublierFiche workspace={workspace} typeEntite="logement" entite={l} table="logements" onMaj={recharger} />
+          )}
         </div>
       ))}
     </div>
@@ -1108,6 +1167,65 @@ function ModalPaiementsVente({ workspace, bien, onFermer, onMaj, genererRecuVent
   );
 }
 
+// Publication d'une fiche publique (section 21-27 du cahier des charges « fiches commerciales ») :
+// activer/désactiver la fiche, obtenir son lien + QR code + message WhatsApp, voir ses statistiques.
+// Générique : réutilisé pour biens_vente, vehicules_vente et logements (même table de destination
+// passée en prop). N'affiche rien de privé (adresse précise, acheteur...) — uniquement ce que la
+// fonction publique fiche_commerciale_public() renverrait de toute façon.
+function PanneauPublierFiche({ workspace, typeEntite, entite, table, onMaj }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [enCours, setEnCours] = useState(false);
+  const lien = urlFichePublique(typeEntite, entite.id);
+
+  async function basculerPublie() {
+    setEnCours(true);
+    const nouveauPublie = !entite.publie;
+    await supabase.from(table).update({ publie: nouveauPublie, statut_fiche: nouveauPublie ? "active" : "brouillon" }).eq("id", entite.id);
+    setEnCours(false);
+    await onMaj();
+  }
+
+  useEffect(() => {
+    if (!ouvert || !entite.publie) return;
+    supabase.rpc("stats_fiche_commerciale", { p_workspace_id: workspace.id, p_type_entite: typeEntite, p_entite_id: entite.id })
+      .then(({ data }) => setStats(data || null));
+  }, [ouvert, entite.publie, entite.id]);
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button onClick={() => setOuvert(!ouvert)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>
+        🔗 {entite.publie ? "Fiche publique" : "Publier"}
+      </button>
+      {ouvert && (
+        <div style={{ background: "#F4F1E8", borderRadius: 10, padding: 12, marginTop: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer", marginBottom: entite.publie ? 10 : 0 }}>
+            <input type="checkbox" checked={!!entite.publie} disabled={enCours} onChange={basculerPublie} />
+            Publier cette fiche (visible publiquement, sans compte)
+          </label>
+          {entite.publie && (
+            <>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                <img src={urlQrFiche(lien)} alt="QR code de la fiche" style={{ width: 84, height: 84, borderRadius: 8, background: "white" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, color: COULEURS.grisClair, wordBreak: "break-all", marginBottom: 6 }}>{lien}</div>
+                  <a href={messageWhatsAppPartageFiche(entite.titre_annonce || entite.nom, entite.prix_vente ?? entite.loyer_mensuel, devise(workspace.currency), lien)} target="_blank" rel="noopener noreferrer" style={{ background: "#25d366", color: "white", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>💬 Partager sur WhatsApp</a>
+                </div>
+              </div>
+              {stats && (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, color: COULEURS.gris }}>
+                  <span>👁️ {stats.vues} vues</span><span>👤 {stats.prospects} prospects</span>
+                  <span>❓ {stats.questions} questions</span><span>📅 {stats.rendez_vous} RDV</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OngletVentes({ workspace, biensVente, role, recharger, genererRecuVentePDF, genererCompromisVentePDF }) {
   const [filtre, setFiltre] = useState("tous");
   const [formOuvert, setFormOuvert] = useState(null); // null | "new" | bien (édition)
@@ -1188,6 +1306,9 @@ function OngletVentes({ workspace, biensVente, role, recharger, genererRecuVente
               {b.statut === "vendu" && <button onClick={() => setPaiementsOuvert(b)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>💰 Paiements</button>}
               {b.statut === "vendu" && <button onClick={() => genererCompromisVentePDF(b)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>📄 Compromis PDF</button>}
             </div>
+            {b.statut !== "vendu" && (
+              <PanneauPublierFiche workspace={workspace} typeEntite="bien_vente" entite={b} table="biens_vente" onMaj={recharger} />
+            )}
           </div>
         );
       })}

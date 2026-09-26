@@ -5,6 +5,7 @@ import {
   verifierChevauchement, messageChevauchement, joursLocation, joursDeRetard,
   calculerPenaliteRetard, versDateLocale, statutBloquant,
 } from "./locationVehiculeUtils.js";
+import { urlFichePublique, urlQrFiche, messageWhatsAppPartageFiche } from "./fichesCommercialesUtils.js";
 
 // ============================================================================
 //  LOT 4 — Location de voitures / véhicules : calendrier de disponibilité, retours
@@ -118,6 +119,7 @@ function useDonneesLocationVehicule(workspace) {
   const [etatsLieux, setEtatsLieux] = useState([]);
   const [entretiens, setEntretiens] = useState([]);
   const [reglages, setReglages] = useState({ coefficient_penalite_retard: 1.5 });
+  const [vehiculesVente, setVehiculesVente] = useState([]);
   const [charge, setCharge] = useState(false);
 
   const recharger = useCallback(async () => {
@@ -139,12 +141,18 @@ function useDonneesLocationVehicule(workspace) {
     // faux clients de test) encore sous forme de tableau à un élément — on gère les deux.
     const reglagesLigne = Array.isArray(rg.data) ? rg.data[0] : rg.data;
     setReglages(reglagesLigne || { coefficient_penalite_retard: 1.5 });
+    // vehicules_vente (LOT 6) : table séparée, à part — si la migration n'a pas encore été exécutée
+    // sur ce compte, on n'affiche pas d'erreur, l'onglet Ventes reste simplement vide.
+    try {
+      const { data: vv, error: vvErr } = await supabase.from("vehicules_vente").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false });
+      setVehiculesVente(vvErr ? [] : (vv || []));
+    } catch (_) { setVehiculesVente([]); }
     setCharge(true);
   }, [workspace?.id]);
 
   useEffect(() => { recharger(); }, [recharger]);
 
-  return { biens, commandes, locationsInfos, etatsLieux, entretiens, reglages, charge, recharger, setReglages };
+  return { biens, commandes, locationsInfos, etatsLieux, entretiens, reglages, vehiculesVente, charge, recharger, setReglages };
 }
 
 // ============================================================================
@@ -163,6 +171,7 @@ export default function LocationVoiture({ workspace, session, onClose }) {
     { cle: "etats_lieux", label: "🔎 États des lieux" },
     { cle: "entretien", label: "🔧 Entretien" },
     { cle: "reservations", label: "💰 Réservations" },
+    { cle: "ventes", label: "🏷️ Ventes" },
   ];
 
   // Alertes d'entretien (bandeau + badge) — visibles depuis n'importe quel onglet.
@@ -177,7 +186,7 @@ export default function LocationVoiture({ workspace, session, onClose }) {
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: COULEURS.fond, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
       <div style={{ position: "sticky", top: 0, zIndex: 2, background: COULEURS.vertFonce, color: "white", padding: "14px 16px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>🚗 Calendrier & locations</div>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>🚗 Véhicules — Location & Vente</div>
           <button onClick={onClose} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "white", width: 32, height: 32, borderRadius: 8, fontSize: 16, cursor: "pointer" }}>×</button>
         </div>
         <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
@@ -212,6 +221,7 @@ export default function LocationVoiture({ workspace, session, onClose }) {
           {onglet === "etats_lieux" && <OngletEtatsLieux workspace={workspace} donnees={donnees} gestionnaire={gestionnaire} monNom={monNom} />}
           {onglet === "entretien" && <OngletEntretien workspace={workspace} donnees={donnees} gestionnaire={gestionnaire} alertes={alertesEntretien} />}
           {onglet === "reservations" && <OngletReservations workspace={workspace} donnees={donnees} gestionnaire={gestionnaire} monNom={monNom} />}
+          {onglet === "ventes" && <OngletVentesVehicule workspace={workspace} vehiculesVente={donnees.vehiculesVente} gestionnaire={gestionnaire} recharger={donnees.recharger} />}
         </div>
       )}
     </div>
@@ -1168,6 +1178,605 @@ function OngletReservations({ workspace, donnees, gestionnaire, monNom }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ============================================================================
+//  LOT 6 — Vente de véhicules : à côté de la location (LOT 4), sans y toucher.
+//  Table : vehicules_vente, paiements_vehicule_vente (voir sql/lot6-vente-vehicule.sql).
+//  Même logique que « Ventes » dans LocationMaison.jsx (immobilier) : nouvelle
+//  table séparée, même modal, nouvel onglet.
+// ============================================================================
+
+const LIBELLE_STATUT_VV = { disponible: "🟢 Disponible", reserve: "🟠 Réservé", vendu: "✅ Vendu" };
+const FOND_STATUT_VV = { disponible: "#EAF3DE", reserve: "#FBF3E3", vendu: "#EAF7F1" };
+const COULEUR_STATUT_VV = { disponible: "#3B6D11", reserve: COULEURS.ambre, vendu: "#1F9D6E" };
+const CARBURANTS_VV = [["essence", "Essence"], ["diesel", "Diesel"], ["hybride", "Hybride"], ["electrique", "Électrique"], ["autre", "Autre"]];
+const BOITES_VV = [["manuelle", "Manuelle"], ["automatique", "Automatique"]];
+const ETATS_VV = [["neuf", "Neuf"], ["occasion", "Occasion"]];
+const ETAPES_VV = [
+  ["infos", "Informations"], ["localisation", "Localisation"], ["caracteristiques", "Caractéristiques"],
+  ["medias", "Photos & médias"], ["prix", "Prix & disponibilité"],
+];
+
+async function envoyerFichierVV(file, workspaceId, prefixe) {
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+  const chemin = `${workspaceId}/vente-vehicule-${prefixe}-${Date.now()}-${Math.round(Math.random() * 9999)}.${ext}`;
+  const { error } = await supabase.storage.from("boutique").upload(chemin, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  return supabase.storage.from("boutique").getPublicUrl(chemin).data.publicUrl;
+}
+
+// Publication d'une fiche publique — copie volontaire de PanneauPublierFiche (LocationMaison.jsx) :
+// ce module est autonome et n'importe pas les composants d'un autre fichier plein écran.
+function PanneauPublierFicheVV({ workspace, entite, onMaj }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [enCours, setEnCours] = useState(false);
+  const lien = urlFichePublique("vehicule_vente", entite.id);
+
+  async function basculerPublie() {
+    setEnCours(true);
+    const nouveauPublie = !entite.publie;
+    await supabase.from("vehicules_vente").update({ publie: nouveauPublie, statut_fiche: nouveauPublie ? "active" : "brouillon" }).eq("id", entite.id);
+    setEnCours(false);
+    await onMaj();
+  }
+
+  useEffect(() => {
+    if (!ouvert || !entite.publie) return;
+    supabase.rpc("stats_fiche_commerciale", { p_workspace_id: workspace.id, p_type_entite: "vehicule_vente", p_entite_id: entite.id })
+      .then(({ data }) => setStats(data || null));
+  }, [ouvert, entite.publie, entite.id]);
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button onClick={() => setOuvert(!ouvert)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>
+        🔗 {entite.publie ? "Fiche publique" : "Publier"}
+      </button>
+      {ouvert && (
+        <div style={{ background: "#F4F1E8", borderRadius: 10, padding: 12, marginTop: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer", marginBottom: entite.publie ? 10 : 0 }}>
+            <input type="checkbox" checked={!!entite.publie} disabled={enCours} onChange={basculerPublie} />
+            Publier cette fiche (visible publiquement, sans compte)
+          </label>
+          {entite.publie && (
+            <>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                <img src={urlQrFiche(lien)} alt="QR code de la fiche" style={{ width: 84, height: 84, borderRadius: 8, background: "white" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, color: COULEURS.grisClair, wordBreak: "break-all", marginBottom: 6 }}>{lien}</div>
+                  <a href={messageWhatsAppPartageFiche(entite.titre_annonce || entite.nom, entite.prix_vente, devise(workspace.currency), lien)} target="_blank" rel="noopener noreferrer" style={{ background: "#25d366", color: "white", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>💬 Partager sur WhatsApp</a>
+                </div>
+              </div>
+              {stats && (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, color: COULEURS.gris }}>
+                  <span>👁️ {stats.vues} vues</span><span>👤 {stats.prospects} prospects</span>
+                  <span>❓ {stats.questions} questions</span><span>📅 {stats.rendez_vous} RDV</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormVehiculeVente({ workspace, vehicule, onFermer, onEnregistre }) {
+  const [etape, setEtape] = useState(0);
+  const [form, setForm] = useState({
+    nom: vehicule?.nom || "", titre_annonce: vehicule?.titre_annonce || "", description: vehicule?.description || "",
+    marque: vehicule?.marque || "", modele: vehicule?.modele || "", version: vehicule?.version || "",
+    annee: vehicule ? String(vehicule.annee || "") : "", kilometrage: vehicule ? String(vehicule.kilometrage || "") : "",
+    carburant: vehicule?.carburant || "essence", boite_vitesse: vehicule?.boite_vitesse || "manuelle",
+    transmission: vehicule?.transmission || "", puissance: vehicule?.puissance || "", couleur: vehicule?.couleur || "",
+    nombre_places: vehicule ? String(vehicule.nombre_places || "") : "", nombre_portes: vehicule ? String(vehicule.nombre_portes || "") : "",
+    etat: vehicule?.etat || "occasion", premiere_mise_circulation: vehicule?.premiere_mise_circulation || "",
+    origine: vehicule?.origine || "", entretien: vehicule?.entretien || "", garantie: vehicule?.garantie || "",
+    assurance: vehicule?.assurance || "", controle_technique: vehicule?.controle_technique || "",
+    options: Array.isArray(vehicule?.options) ? vehicule.options.join(", ") : "",
+    equipements: Array.isArray(vehicule?.equipements) ? vehicule.equipements.join(", ") : "",
+    caracteristiques_personnalisees: Array.isArray(vehicule?.caracteristiques_personnalisees) ? vehicule.caracteristiques_personnalisees : [],
+    pays: vehicule?.pays || "", ville: vehicule?.ville || "", commune: vehicule?.commune || "", quartier: vehicule?.quartier || "",
+    adresse_precise: vehicule?.adresse_precise || "", points_de_repere: vehicule?.points_de_repere || "",
+    adresse_publique_visible: vehicule?.adresse_publique_visible || false,
+    photos: Array.isArray(vehicule?.photos) ? vehicule.photos : [], video_url: vehicule?.video_url || "",
+    brochure_url: vehicule?.brochure_url || "", documents: Array.isArray(vehicule?.documents) ? vehicule.documents : [],
+    prix_vente: vehicule ? String(vehicule.prix_vente || "") : "", prix_negociable: vehicule?.prix_negociable || false,
+    disponibilite: vehicule?.disponibilite || "",
+  });
+  const [erreur, setErreur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  function maj(champs) { setForm((f) => ({ ...f, ...champs })); }
+  function bascule(cle) { setForm((f) => ({ ...f, [cle]: !f[cle] })); }
+
+  async function ajouterPhotos(fichiers) {
+    if (!fichiers || fichiers.length === 0) return;
+    setEnvoiEnCours(true); setErreur("");
+    try {
+      const urls = [];
+      for (const f of Array.from(fichiers)) {
+        const compresse = await compresserImageLV(f);
+        urls.push(await envoyerFichierVV(compresse, workspace.id, "photo"));
+      }
+      setForm((fo) => ({ ...fo, photos: [...fo.photos, ...urls] }));
+    } catch (e) { setErreur("Envoi impossible : " + e.message); }
+    setEnvoiEnCours(false);
+  }
+  function retirerPhoto(i) { setForm((f) => ({ ...f, photos: f.photos.filter((_, idx) => idx !== i) })); }
+  function photoPrincipaleEnPremier(i) {
+    setForm((f) => { const p = [...f.photos]; const [choisie] = p.splice(i, 1); return { ...f, photos: [choisie, ...p] }; });
+  }
+  async function envoyerBrochure(fichier) {
+    if (!fichier) return;
+    setEnvoiEnCours(true); setErreur("");
+    try { maj({ brochure_url: await envoyerFichierVV(fichier, workspace.id, "brochure") }); }
+    catch (e) { setErreur("Envoi impossible : " + e.message); }
+    setEnvoiEnCours(false);
+  }
+  async function ajouterDocument(fichier) {
+    if (!fichier) return;
+    setEnvoiEnCours(true); setErreur("");
+    try {
+      const url = await envoyerFichierVV(fichier, workspace.id, "doc");
+      setForm((f) => ({ ...f, documents: [...f.documents, { nom: fichier.name, url }] }));
+    } catch (e) { setErreur("Envoi impossible : " + e.message); }
+    setEnvoiEnCours(false);
+  }
+  function retirerDocument(i) { setForm((f) => ({ ...f, documents: f.documents.filter((_, idx) => idx !== i) })); }
+  function ajouterCaracPerso() { setForm((f) => ({ ...f, caracteristiques_personnalisees: [...f.caracteristiques_personnalisees, { libelle: "", valeur: "" }] })); }
+  function majCaracPerso(i, champ, valeur) { setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.map((c, idx) => idx === i ? { ...c, [champ]: valeur } : c) })); }
+  function retirerCaracPerso(i) { setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.filter((_, idx) => idx !== i) })); }
+
+  const nombre = (v) => v === "" ? null : Number(v);
+  const listeDepuisTexte = (t) => t.split(",").map((s) => s.trim()).filter(Boolean);
+
+  async function enregistrer() {
+    setErreur("");
+    if (!form.nom.trim() || !form.prix_vente) {
+      setErreur("Le nom du véhicule et le prix de vente sont obligatoires.");
+      setEtape(form.nom.trim() ? 4 : 0);
+      return;
+    }
+    const payload = {
+      nom: form.nom.trim(), titre_annonce: form.titre_annonce.trim() || null, description: form.description.trim() || null,
+      marque: form.marque.trim() || null, modele: form.modele.trim() || null, version: form.version.trim() || null,
+      annee: nombre(form.annee), kilometrage: nombre(form.kilometrage), carburant: form.carburant, boite_vitesse: form.boite_vitesse,
+      transmission: form.transmission.trim() || null, puissance: form.puissance.trim() || null, couleur: form.couleur.trim() || null,
+      nombre_places: nombre(form.nombre_places), nombre_portes: nombre(form.nombre_portes), etat: form.etat,
+      premiere_mise_circulation: form.premiere_mise_circulation || null, origine: form.origine.trim() || null,
+      entretien: form.entretien.trim() || null, garantie: form.garantie.trim() || null, assurance: form.assurance.trim() || null,
+      controle_technique: form.controle_technique.trim() || null,
+      options: listeDepuisTexte(form.options), equipements: listeDepuisTexte(form.equipements),
+      caracteristiques_personnalisees: form.caracteristiques_personnalisees.filter((c) => c.libelle.trim()),
+      pays: form.pays.trim() || null, ville: form.ville.trim() || null, commune: form.commune.trim() || null, quartier: form.quartier.trim() || null,
+      adresse_precise: form.adresse_precise.trim() || null, points_de_repere: form.points_de_repere.trim() || null,
+      adresse_publique_visible: !!form.adresse_publique_visible,
+      photos: form.photos, photo_url: form.photos[0] || null, video_url: form.video_url.trim() || null,
+      brochure_url: form.brochure_url || null, documents: form.documents,
+      prix_vente: Number(form.prix_vente) || 0, prix_negociable: !!form.prix_negociable, disponibilite: form.disponibilite.trim() || null,
+    };
+    setEnCours(true);
+    const { error } = vehicule
+      ? await supabase.from("vehicules_vente").update(payload).eq("id", vehicule.id)
+      : await supabase.from("vehicules_vente").insert([{ ...payload, workspace_id: workspace.id, statut: "disponible" }]);
+    setEnCours(false);
+    if (error) { setErreur("Erreur : " + error.message); return; }
+    onEnregistre();
+  }
+
+  const dernierIndex = ETAPES_VV.length - 1;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{vehicule ? "Modifier ce véhicule" : "Nouveau véhicule à vendre"}</div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
+          {ETAPES_VV.map(([k, l], i) => (
+            <div key={k} onClick={() => setEtape(i)} style={{ fontSize: 10.5, fontWeight: 700, padding: "4px 9px", borderRadius: 99, cursor: "pointer", background: i === etape ? COULEURS.vertFonce : "#F1EFE8", color: i === etape ? "white" : COULEURS.grisClair }}>{i + 1}. {l}</div>
+          ))}
+        </div>
+
+        {etape === 0 && (
+          <>
+            <input style={S.champ} placeholder="Nom interne (ex: Corolla 2023 blanche)" value={form.nom} onChange={(e) => maj({ nom: e.target.value })} />
+            <input style={S.champ} placeholder="Titre de l'annonce (ex: Toyota Corolla 2023 — 38 000 km)" value={form.titre_annonce} onChange={(e) => maj({ titre_annonce: e.target.value })} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Marque" value={form.marque} onChange={(e) => maj({ marque: e.target.value })} />
+              <input style={S.champ} placeholder="Modèle" value={form.modele} onChange={(e) => maj({ modele: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Version (optionnel)" value={form.version} onChange={(e) => maj({ version: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Année" value={form.annee} onChange={(e) => maj({ annee: e.target.value })} />
+            </div>
+            <textarea style={{ ...S.champ, minHeight: 60 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => maj({ description: e.target.value })} />
+          </>
+        )}
+
+        {etape === 1 && (
+          <>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 4 }}>Localisation publique</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Pays" value={form.pays} onChange={(e) => maj({ pays: e.target.value })} />
+              <input style={S.champ} placeholder="Ville" value={form.ville} onChange={(e) => maj({ ville: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Commune" value={form.commune} onChange={(e) => maj({ commune: e.target.value })} />
+              <input style={S.champ} placeholder="Quartier" value={form.quartier} onChange={(e) => maj({ quartier: e.target.value })} />
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, margin: "10px 0 4px" }}>Localisation privée (équipe seulement)</div>
+            <input style={S.champ} placeholder="Adresse précise" value={form.adresse_precise} onChange={(e) => maj({ adresse_precise: e.target.value })} />
+            <input style={S.champ} placeholder="Points de repère" value={form.points_de_repere} onChange={(e) => maj({ points_de_repere: e.target.value })} />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COULEURS.gris, marginTop: 4, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.adresse_publique_visible} onChange={() => bascule("adresse_publique_visible")} />
+              Autoriser à montrer l'adresse précise publiquement plus tard
+            </label>
+          </>
+        )}
+
+        {etape === 2 && (
+          <>
+            <div style={{ display: "flex", gap: 8 }}>
+              <select style={S.champ} value={form.carburant} onChange={(e) => maj({ carburant: e.target.value })}>{CARBURANTS_VV.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+              <select style={S.champ} value={form.boite_vitesse} onChange={(e) => maj({ boite_vitesse: e.target.value })}>{BOITES_VV.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} type="number" placeholder="Kilométrage" value={form.kilometrage} onChange={(e) => maj({ kilometrage: e.target.value })} />
+              <select style={S.champ} value={form.etat} onChange={(e) => maj({ etat: e.target.value })}>{ETATS_VV.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Transmission (traction/propulsion/4x4)" value={form.transmission} onChange={(e) => maj({ transmission: e.target.value })} />
+              <input style={S.champ} placeholder="Puissance" value={form.puissance} onChange={(e) => maj({ puissance: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Couleur" value={form.couleur} onChange={(e) => maj({ couleur: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Places" value={form.nombre_places} onChange={(e) => maj({ nombre_places: e.target.value })} />
+              <input style={S.champ} type="number" placeholder="Portes" value={form.nombre_portes} onChange={(e) => maj({ nombre_portes: e.target.value })} />
+            </div>
+            <input style={S.champ} type="date" placeholder="1ère mise en circulation" value={form.premiere_mise_circulation} onChange={(e) => maj({ premiere_mise_circulation: e.target.value })} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Origine" value={form.origine} onChange={(e) => maj({ origine: e.target.value })} />
+              <input style={S.champ} placeholder="Entretien" value={form.entretien} onChange={(e) => maj({ entretien: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={S.champ} placeholder="Garantie" value={form.garantie} onChange={(e) => maj({ garantie: e.target.value })} />
+              <input style={S.champ} placeholder="Assurance" value={form.assurance} onChange={(e) => maj({ assurance: e.target.value })} />
+            </div>
+            <input style={S.champ} placeholder="Contrôle technique" value={form.controle_technique} onChange={(e) => maj({ controle_technique: e.target.value })} />
+            <input style={S.champ} placeholder="Options (séparées par des virgules)" value={form.options} onChange={(e) => maj({ options: e.target.value })} />
+            <input style={S.champ} placeholder="Équipements (séparés par des virgules)" value={form.equipements} onChange={(e) => maj({ equipements: e.target.value })} />
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, margin: "10px 0 4px" }}>Autres caractéristiques (optionnel)</div>
+            {form.caracteristiques_personnalisees.map((c, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <input style={{ ...S.champ, marginBottom: 0, flex: 1 }} placeholder="Ex: Carte grise" value={c.libelle} onChange={(e) => majCaracPerso(i, "libelle", e.target.value)} />
+                <input style={{ ...S.champ, marginBottom: 0, flex: 1 }} placeholder="Ex: Disponible" value={c.valeur} onChange={(e) => majCaracPerso(i, "valeur", e.target.value)} />
+                <button onClick={() => retirerCaracPerso(i)} style={{ background: "none", border: "none", color: COULEURS.rougeFonce, cursor: "pointer", fontSize: 15 }}>🗑️</button>
+              </div>
+            ))}
+            <button onClick={ajouterCaracPerso} style={{ ...S.boutonClair, width: "100%", padding: "7px 0", fontSize: 12, marginBottom: 8 }}>+ Ajouter une caractéristique</button>
+          </>
+        )}
+
+        {etape === 3 && (
+          <>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 6 }}>Photos ({form.photos.length}) — la première sera la photo principale</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {form.photos.map((url, i) => (
+                <div key={i} style={{ position: "relative" }}>
+                  <img src={url} alt="" onClick={() => photoPrincipaleEnPremier(i)} style={{ width: 68, height: 68, objectFit: "cover", borderRadius: 8, cursor: "pointer", border: i === 0 ? `2px solid ${COULEURS.vert}` : "1px solid #E5E2D8" }} />
+                  <button onClick={() => retirerPhoto(i)} style={{ position: "absolute", top: -6, right: -6, background: COULEURS.rougeFonce, color: "white", border: "none", borderRadius: 99, width: 18, height: 18, fontSize: 11, cursor: "pointer", lineHeight: "18px" }}>×</button>
+                </div>
+              ))}
+            </div>
+            <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer", marginBottom: 10 }}>
+              {envoiEnCours ? "Envoi…" : "📷 Ajouter des photos"}
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => ajouterPhotos(e.target.files)} disabled={envoiEnCours} />
+            </label>
+            <input style={S.champ} placeholder="Lien vidéo (YouTube, Facebook...)" value={form.video_url} onChange={(e) => maj({ video_url: e.target.value })} />
+            <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer", marginBottom: 8 }}>
+              {form.brochure_url ? "✓ Brochure ajoutée" : "📄 Ajouter une brochure"}
+              <input type="file" accept=".pdf,image/*" hidden onChange={(e) => envoyerBrochure(e.target.files[0])} disabled={envoiEnCours} />
+            </label>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 6 }}>Autres documents (carte grise, facture...)</div>
+            {form.documents.map((d, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
+                <span>📎 {d.nom}</span>
+                <button onClick={() => retirerDocument(i)} style={{ background: "none", border: "none", color: COULEURS.rougeFonce, cursor: "pointer" }}>🗑️</button>
+              </div>
+            ))}
+            <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer" }}>
+              {envoiEnCours ? "Envoi…" : "+ Ajouter un document"}
+              <input type="file" hidden onChange={(e) => ajouterDocument(e.target.files[0])} disabled={envoiEnCours} />
+            </label>
+          </>
+        )}
+
+        {etape === 4 && (
+          <>
+            <input style={S.champ} type="number" placeholder={`Prix de vente (${devise(workspace.currency)})`} value={form.prix_vente} onChange={(e) => maj({ prix_vente: e.target.value })} />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COULEURS.gris, marginBottom: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.prix_negociable} onChange={() => bascule("prix_negociable")} />
+              Prix négociable
+            </label>
+            <input style={S.champ} placeholder="Disponibilité (ex: Immédiate)" value={form.disponibilite} onChange={(e) => maj({ disponibilite: e.target.value })} />
+          </>
+        )}
+
+        {erreur && <div style={{ background: "#FBEAE6", color: COULEURS.rougeFonce, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, margin: "8px 0" }}>{erreur}</div>}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          {etape > 0 && <button onClick={() => setEtape(etape - 1)} style={{ ...S.boutonClair, flex: 1 }}>← Précédent</button>}
+          {etape < dernierIndex && <button onClick={() => setEtape(etape + 1)} style={{ ...S.bouton, flex: 1 }}>Suivant →</button>}
+          {etape === dernierIndex && <button disabled={enCours} onClick={enregistrer} style={{ ...S.bouton, flex: 1, opacity: enCours ? 0.6 : 1 }}>{enCours ? "…" : "Enregistrer"}</button>}
+        </div>
+        {etape === 0 && <button onClick={onFermer} style={{ ...S.boutonClair, width: "100%", marginTop: 8 }}>Annuler</button>}
+      </div>
+    </div>
+  );
+}
+
+function FormReserverVendreVV({ workspace, vehicule, statutCible, onFermer, onEnregistre }) {
+  const [form, setForm] = useState({ acheteur_nom: vehicule.acheteur_nom || "", acheteur_tel: vehicule.acheteur_tel || "", acheteur_email: vehicule.acheteur_email || "", date_vente: ajourdhuiISO() });
+  const [erreur, setErreur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const estVente = statutCible === "vendu";
+
+  async function enregistrer() {
+    setErreur("");
+    if (!form.acheteur_nom.trim()) { setErreur("Le nom de l'acheteur est obligatoire."); return; }
+    setEnCours(true);
+    const { error } = await supabase.from("vehicules_vente").update({
+      statut: statutCible, acheteur_nom: form.acheteur_nom.trim(), acheteur_tel: form.acheteur_tel.trim() || null,
+      acheteur_email: form.acheteur_email.trim() || null, date_vente: estVente ? form.date_vente : null,
+    }).eq("id", vehicule.id);
+    setEnCours(false);
+    if (error) { setErreur("Erreur : " + error.message); return; }
+    onEnregistre();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 380 }}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{estVente ? "Marquer vendu" : "Réserver ce véhicule"}</div>
+        <div style={{ fontSize: 12.5, color: COULEURS.gris, marginBottom: 12 }}>{vehicule.nom}</div>
+        <input style={S.champ} placeholder="Nom de l'acheteur" value={form.acheteur_nom} onChange={(e) => setForm({ ...form, acheteur_nom: e.target.value })} />
+        <input style={S.champ} placeholder="Téléphone (optionnel)" value={form.acheteur_tel} onChange={(e) => setForm({ ...form, acheteur_tel: e.target.value })} />
+        <input style={S.champ} placeholder="Email (optionnel)" value={form.acheteur_email} onChange={(e) => setForm({ ...form, acheteur_email: e.target.value })} />
+        {estVente && (
+          <>
+            <label style={{ fontSize: 11.5, color: COULEURS.grisClair }}>Date de vente</label>
+            <input style={S.champ} type="date" value={form.date_vente} onChange={(e) => setForm({ ...form, date_vente: e.target.value })} />
+          </>
+        )}
+        {erreur && <div style={{ background: "#FBEAE6", color: COULEURS.rougeFonce, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, marginBottom: 8 }}>{erreur}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button disabled={enCours} onClick={enregistrer} style={{ ...S.bouton, flex: 1, opacity: enCours ? 0.6 : 1 }}>{enCours ? "…" : "Confirmer"}</button>
+          <button onClick={onFermer} style={{ ...S.boutonClair, flex: 1 }}>Annuler</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalPaiementsVV({ workspace, vehicule, onFermer, onMaj, genererRecuVenteVV }) {
+  const [paiements, setPaiements] = useState([]);
+  const [montant, setMontant] = useState("");
+  const [mode, setMode] = useState("especes");
+  const [erreur, setErreur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const reste = Math.max(0, Number(vehicule.prix_vente) - Number(vehicule.montant_recu || 0));
+
+  const charger = useCallback(async () => {
+    const { data } = await supabase.from("paiements_vehicule_vente").select("*").eq("vehicule_vente_id", vehicule.id).order("date_paiement", { ascending: false });
+    setPaiements(data || []);
+  }, [vehicule.id]);
+  useEffect(() => { charger(); }, [charger]);
+
+  async function encaisser() {
+    setErreur("");
+    const m = Number(montant);
+    if (!m || m <= 0) { setErreur("Indique un montant valide."); return; }
+    if (m > reste + 0.01) { setErreur(`Ce montant dépasse le reste à payer (${nb(reste)} ${devise(workspace.currency)}).`); return; }
+    setEnCours(true);
+    const { error } = await supabase.from("paiements_vehicule_vente").insert([{ vehicule_vente_id: vehicule.id, workspace_id: workspace.id, montant: m, mode, date_paiement: ajourdhuiISO() }]);
+    setEnCours(false);
+    if (error) { setErreur(error.message.includes("dépasse") ? error.message : "Erreur : " + error.message); return; }
+    setMontant(""); await charger(); await onMaj();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 380, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{vehicule.nom}</div>
+        <div style={{ fontSize: 12.5, color: COULEURS.gris, marginBottom: 10 }}>Prix {nb(vehicule.prix_vente)} {devise(workspace.currency)}, déjà reçu {nb(vehicule.montant_recu)} {devise(workspace.currency)}</div>
+        {reste > 0 ? (
+          <div style={{ background: "#F4F1E8", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>Encaisser (reste {nb(reste)} {devise(workspace.currency)})</div>
+            <input style={S.champ} type="number" placeholder="Montant reçu" value={montant} onChange={(e) => setMontant(e.target.value)} />
+            <select style={S.champ} value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="especes">Espèces</option><option value="mobile_money">Mobile Money</option><option value="virement">Virement</option><option value="autre">Autre</option>
+            </select>
+            <button onClick={() => setMontant(String(reste))} style={{ ...S.boutonClair, width: "100%", marginBottom: 8, padding: "8px 0", fontSize: 12 }}>Payer le solde ({nb(reste)})</button>
+            {erreur && <div style={{ color: COULEURS.rougeFonce, fontSize: 12, marginBottom: 8 }}>{erreur}</div>}
+            <button disabled={enCours} onClick={encaisser} style={{ ...S.bouton, width: "100%" }}>{enCours ? "…" : "✅ Encaisser"}</button>
+          </div>
+        ) : (
+          <div style={{ background: "#EAF7F1", color: "#1F9D6E", borderRadius: 10, padding: 10, marginBottom: 10, fontSize: 13, fontWeight: 700 }}>Ce véhicule est intégralement payé.</div>
+        )}
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Historique des paiements</div>
+        {paiements.length === 0 && <div style={{ fontSize: 12.5, color: COULEURS.grisClair }}>Aucun paiement enregistré.</div>}
+        {paiements.map((p) => (
+          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid #F1EFE8" }}>
+            <span>{new Date(p.date_paiement).toLocaleDateString("fr-FR")} · {p.mode}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontWeight: 700 }}>{nb(p.montant)} {devise(workspace.currency)}</span>
+              {genererRecuVenteVV && <button onClick={() => genererRecuVenteVV(p, vehicule)} style={{ background: "none", border: "none", color: COULEURS.vert, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>🧾 Reçu</button>}
+            </span>
+          </div>
+        ))}
+        <button onClick={onFermer} style={{ ...S.boutonClair, width: "100%", marginTop: 12 }}>Fermer</button>
+      </div>
+    </div>
+  );
+}
+
+function genererRecuVenteVehiculePDF(paiement, vehicule, workspace) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const green = [26, 122, 60];
+  doc.setFillColor(...green); doc.rect(0, 0, 210, 22, "F");
+  doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+  const estSolde = Number(paiement.montant) >= Number(vehicule.prix_vente) - Number(vehicule.montant_recu) + Number(paiement.montant) - 0.01 && Number(vehicule.montant_recu) >= Number(vehicule.prix_vente) - 0.01;
+  doc.text(estSolde ? "REÇU POUR SOLDE DE TOUT COMPTE" : "REÇU DE VENTE (ACOMPTE)", 15, 14);
+  doc.setTextColor(22, 35, 31); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+  let y = 34;
+  doc.text(`Vendeur : ${workspace.name || ""}`, 15, y); y += 7;
+  doc.text(`Véhicule : ${vehicule.nom}${vehicule.marque ? " (" + vehicule.marque + " " + (vehicule.modele || "") + ")" : ""}`, 15, y); y += 7;
+  doc.text(`Acheteur : ${vehicule.acheteur_nom || ""}${vehicule.acheteur_tel ? " — " + vehicule.acheteur_tel : ""}`, 15, y); y += 7;
+  doc.text(`Date : ${new Date(paiement.date_paiement).toLocaleDateString("fr-FR")} · Mode : ${paiement.mode || ""}`, 15, y); y += 10;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+  doc.text(`Montant reçu : ${nb(paiement.montant)} ${devise(workspace.currency)}`, 15, y); y += 10;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  doc.text(`Total payé à ce jour : ${nb(vehicule.montant_recu)} / ${nb(vehicule.prix_vente)} ${devise(workspace.currency)}`, 15, y);
+  doc.save(`recu-vente-vehicule-${(vehicule.acheteur_nom || vehicule.nom || "vehicule").replace(/\s+/g, "-")}.pdf`);
+}
+
+function genererBonVenteVehiculePDF(vehicule, workspace) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const green = [26, 122, 60], gray = [107, 113, 104], dark = [22, 35, 31];
+  doc.setFillColor(...green); doc.rect(0, 0, 210, 26, "F");
+  doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text("BON DE VENTE — VÉHICULE", 15, 17);
+  let y = 36;
+  doc.setTextColor(...dark); doc.setFontSize(10); doc.setFont("helvetica", "normal");
+  [
+    `Vendeur : ${workspace.name || ""}${workspace.country ? " (" + workspace.country + ")" : ""}`,
+    `Acheteur : ${vehicule.acheteur_nom || ""}${vehicule.acheteur_tel ? " — " + vehicule.acheteur_tel : ""}${vehicule.acheteur_email ? " — " + vehicule.acheteur_email : ""}`,
+  ].forEach((l) => { doc.text(l, 15, y, { maxWidth: 180 }); y += 7; });
+  y += 3;
+  doc.setFont("helvetica", "bold"); doc.text("1. Véhicule vendu", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  const caracs = [vehicule.marque, vehicule.modele, vehicule.annee ? `(${vehicule.annee})` : null, vehicule.kilometrage ? `${nb(vehicule.kilometrage)} km` : null].filter(Boolean).join(" ");
+  doc.text(`${vehicule.nom}${caracs ? " — " + caracs : ""}`, 15, y, { maxWidth: 180 }); y += 10;
+  doc.setFont("helvetica", "bold"); doc.text("2. Prix et modalités", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  const prix = Number(vehicule.prix_vente || 0), recu = Number(vehicule.montant_recu || 0);
+  doc.text(`Prix convenu : ${nb(prix)} ${devise(workspace.currency)}. Déjà reçu : ${nb(recu)} ${devise(workspace.currency)}${recu < prix ? `, reste ${nb(prix - recu)} ${devise(workspace.currency)}` : " (intégralement payé)"}.`, 15, y, { maxWidth: 180 }); y += 10;
+  doc.setFont("helvetica", "bold"); doc.text("3. Date de vente", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.text(vehicule.date_vente ? new Date(vehicule.date_vente).toLocaleDateString("fr-FR") : "Non renseignée.", 15, y); y += 10;
+  doc.setFont("helvetica", "bold"); doc.text("4. Conditions générales", 15, y); y += 6;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  ["L'acheteur reconnaît avoir vu et essayé (si applicable) le véhicule, et l'accepter en l'état.",
+   "Le transfert de propriété définitif intervient après paiement intégral et remise des documents (carte grise...).",
+  ].forEach((c) => { doc.text("• " + c, 15, y, { maxWidth: 180 }); y += 6; });
+  doc.setFontSize(10);
+  y += 10; doc.setDrawColor(...gray); doc.line(15, y, 85, y); doc.line(125, y, 195, y);
+  doc.setFontSize(9); doc.text("Signature du vendeur", 15, y + 5); doc.text("Signature de l'acheteur", 125, y + 5);
+  y += 20; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(...gray);
+  doc.text("Modèle indicatif — à adapter selon la réglementation locale (carte grise, contrôle technique...).", 15, y, { maxWidth: 180 });
+  doc.save(`bon-vente-vehicule-${(vehicule.acheteur_nom || vehicule.nom || "vehicule").replace(/\s+/g, "-")}.pdf`);
+}
+
+function OngletVentesVehicule({ workspace, vehiculesVente, gestionnaire, recharger }) {
+  const [filtre, setFiltre] = useState("tous");
+  const [formOuvert, setFormOuvert] = useState(null);
+  const [reservationOuverte, setReservationOuverte] = useState(null);
+  const [paiementsOuvert, setPaiementsOuvert] = useState(null);
+
+  const stats = useMemo(() => {
+    const disponibles = vehiculesVente.filter((v) => v.statut === "disponible").length;
+    const reserves = vehiculesVente.filter((v) => v.statut === "reserve").length;
+    const vendus = vehiculesVente.filter((v) => v.statut === "vendu");
+    const valeurStock = vehiculesVente.filter((v) => v.statut !== "vendu").reduce((s, v) => s + Number(v.prix_vente || 0), 0);
+    const resteAEncaisser = vendus.reduce((s, v) => s + Math.max(0, Number(v.prix_vente) - Number(v.montant_recu || 0)), 0);
+    return { disponibles, reserves, vendus: vendus.length, valeurStock, resteAEncaisser };
+  }, [vehiculesVente]);
+
+  const filtres = vehiculesVente.filter((v) => filtre === "tous" || v.statut === filtre);
+
+  return (
+    <div>
+      <div style={{ ...S.carte, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Tuile label="Disponibles" valeur={String(stats.disponibles)} />
+        <Tuile label="Réservés" valeur={String(stats.reserves)} couleur={COULEURS.ambre} />
+        <Tuile label="Vendus" valeur={String(stats.vendus)} couleur={COULEURS.vert} />
+        <Tuile label="Valeur du stock" valeur={`${nb(stats.valeurStock)} ${devise(workspace.currency)}`} />
+        {stats.resteAEncaisser > 0 && <Tuile label="Reste à encaisser" valeur={`${nb(stats.resteAEncaisser)} ${devise(workspace.currency)}`} couleur={COULEURS.rouge} />}
+      </div>
+
+      {gestionnaire && (
+        <div style={S.carte}>
+          <button onClick={() => setFormOuvert("new")} style={{ ...S.bouton, width: "100%" }}>+ Ajouter un véhicule à vendre</button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+        {[["tous", "Tous"], ["disponible", "Disponibles"], ["reserve", "Réservés"], ["vendu", "Vendus"]].map(([k, l]) => (
+          <div key={k} onClick={() => setFiltre(k)} style={{ ...S.onglet(filtre === k), flex: "1 1 auto", minWidth: 90 }}>{l}</div>
+        ))}
+      </div>
+
+      {filtres.length === 0 && <div style={{ textAlign: "center", color: COULEURS.grisClair, fontSize: 13, padding: "30px 0" }}>Aucun véhicule dans ce filtre.</div>}
+
+      {filtres.map((v) => {
+        const reste = Math.max(0, Number(v.prix_vente) - Number(v.montant_recu || 0));
+        return (
+          <div key={v.id} style={S.carte}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 10 }}>
+              {(v.photos?.[0] || v.photo_url) && <img src={v.photos?.[0] || v.photo_url} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{v.titre_annonce || v.nom}</div>
+                <div style={{ fontSize: 11.5, color: COULEURS.grisClair, marginTop: 2 }}>
+                  {[v.marque, v.modele].filter(Boolean).join(" ")}{v.annee ? ` · ${v.annee}` : ""}{v.kilometrage ? ` · ${nb(v.kilometrage)} km` : ""}
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: COULEURS.vert, marginTop: 6 }}>
+                  {nb(v.prix_vente)} {devise(workspace.currency)}{v.prix_negociable ? " (négociable)" : ""}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: FOND_STATUT_VV[v.statut], color: COULEUR_STATUT_VV[v.statut], whiteSpace: "nowrap" }}>{LIBELLE_STATUT_VV[v.statut]}</span>
+            </div>
+            {(v.statut === "reserve" || v.statut === "vendu") && (
+              <div style={{ fontSize: 12.5, color: COULEURS.vertFonce, marginBottom: 6 }}>
+                Acheteur : <strong>{v.acheteur_nom}</strong>{v.acheteur_tel ? ` · ${v.acheteur_tel}` : ""}
+                {v.statut === "vendu" && <> · Reçu {nb(v.montant_recu)}{reste > 0 && <span style={{ color: COULEURS.rougeFonce, fontWeight: 700 }}> · Reste {nb(reste)}</span>} {devise(workspace.currency)}</>}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {gestionnaire && <button onClick={() => setFormOuvert(v)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>✏️ Modifier</button>}
+              {gestionnaire && v.statut === "disponible" && <button onClick={() => setReservationOuverte({ vehicule: v, statutCible: "reserve" })} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>🤝 Réserver</button>}
+              {gestionnaire && (v.statut === "disponible" || v.statut === "reserve") && <button onClick={() => setReservationOuverte({ vehicule: v, statutCible: "vendu" })} style={{ ...S.bouton, padding: "7px 12px", fontSize: 12 }}>✅ Marquer vendu</button>}
+              {v.statut === "vendu" && <button onClick={() => setPaiementsOuvert(v)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>💰 Paiements</button>}
+              {v.statut === "vendu" && <button onClick={() => genererBonVenteVehiculePDF(v, workspace)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>📄 Bon de vente PDF</button>}
+            </div>
+            {v.statut !== "vendu" && <PanneauPublierFicheVV workspace={workspace} entite={v} onMaj={recharger} />}
+          </div>
+        );
+      })}
+
+      {formOuvert && (
+        <FormVehiculeVente workspace={workspace} vehicule={formOuvert === "new" ? null : formOuvert} onFermer={() => setFormOuvert(null)} onEnregistre={async () => { setFormOuvert(null); await recharger(); }} />
+      )}
+      {reservationOuverte && (
+        <FormReserverVendreVV workspace={workspace} vehicule={reservationOuverte.vehicule} statutCible={reservationOuverte.statutCible} onFermer={() => setReservationOuverte(null)} onEnregistre={async () => { setReservationOuverte(null); await recharger(); }} />
+      )}
+      {paiementsOuvert && (
+        <ModalPaiementsVV workspace={workspace} vehicule={vehiculesVente.find((v) => v.id === paiementsOuvert.id) || paiementsOuvert} onFermer={() => setPaiementsOuvert(null)} onMaj={recharger} genererRecuVenteVV={(p, v) => genererRecuVenteVehiculePDF(p, v, workspace)} />
+      )}
+    </div>
+  );
+}
+
+// Petite tuile de statistique — copie du composant du même nom (LocationMaison.jsx / App.jsx),
+// dupliquée volontairement (fichier autonome).
+function Tuile({ label, valeur, couleur }) {
+  return (
+    <div style={{ flex: "1 1 100px", minWidth: 100 }}>
+      <div style={{ fontSize: 10.5, color: COULEURS.grisClair, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontWeight: 700, fontSize: 14, color: couleur || COULEURS.vertFonce }}>{valeur}</div>
     </div>
   );
 }

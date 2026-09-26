@@ -692,10 +692,12 @@ export default function App() {
     if (slugGenere) {
       await supabase.from("workspaces").update({ slug: slugGenere }).eq("id", ws.id);
     }
-    const dansSeptJours = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { error: erreurAbonnement } = await supabase.from("subscriptions").insert([
-      { workspace_id: ws.id, status: "trial", trial_ends_at: dansSeptJours },
-    ]);
+    // Démarre l'essai gratuit de 7 jours via une fonction sécurisée côté base de
+    // données (plutôt qu'une écriture directe depuis le navigateur) : cette
+    // fonction est la seule autorisée à créer/réparer une ligne d'abonnement,
+    // et uniquement pour la boutique de la personne qui vient de la créer.
+    // Voir sql/lot9-securite-abonnements.sql pour le détail et la raison.
+    const { error: erreurAbonnement } = await supabase.rpc("demarrer_essai_gratuit", { p_workspace_id: ws.id });
     if (erreurAbonnement) {
       console.error("Erreur création abonnement d'essai:", erreurAbonnement.message);
     }
@@ -808,6 +810,7 @@ export default function App() {
         onChangerEspace={changerEspace}
         onDemanderAjoutEspace={() => setShowAjouterEspace(true)}
         onSupprimerBoutique={supprimerBoutique}
+        onMajAbonnement={() => loadSubscription(workspace.id)}
       />
       {showAjouterEspace && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }} onClick={() => setShowAjouterEspace(false)}>
@@ -3934,7 +3937,7 @@ function Dashboard3D({ workspace, activityType, caConfirme, commandesCount, bene
   );
 }
 
-export function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace, onSupprimerBoutique }) {
+export function WorkspaceDashboard({ workspace, session, subscription, workspacesDisponibles = [], onChangerEspace, onDemanderAjoutEspace, onSupprimerBoutique, onMajAbonnement }) {
   const estEcommerce = workspace.activity_type === "cod_ecommerce" || workspace.activity_type === "retail" || workspace.activity_type === "personnalise" || workspace.activity_type === "network_marketing" || workspace.activity_type === "location_vehicule";
   const [commandes, setCommandes] = useState([]);
   const [commandeItems, setCommandeItems] = useState([]);
@@ -7292,7 +7295,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         />
       )}
       {showReunion && <ReunionEquipeModal workspace={workspace} onClose={() => setShowReunion(false)} />}
-      {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
+      {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} onMaj={onMajAbonnement} />}
       {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={formaterDevise(workspace.currency)} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
       {showSanteMarchand && <SanteMarchandModal workspace={workspace} commandes={commandes} currency={formaterDevise(workspace.currency)} onFermer={() => setShowSanteMarchand(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
@@ -9694,12 +9697,13 @@ function TraficBoutiqueModal({ workspaceId, onClose }) {
   );
 }
 
-function AbonnementModal({ workspace, subscription, onClose }) {
+function AbonnementModal({ workspace, subscription, onClose, onMaj }) {
   const [plans, setPlans] = useState([]);
   const [demandes, setDemandes] = useState([]);
   const [loading, setLoading] = useState(null);
   const [message, setMessage] = useState("");
   const [exportEnCours, setExportEnCours] = useState(false);
+  const [annulationEnCours, setAnnulationEnCours] = useState(false);
   const [planEnAttenteInfos, setPlanEnAttenteInfos] = useState(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -9763,6 +9767,30 @@ function AbonnementModal({ workspace, subscription, onClose }) {
 
   function demander(planId) {
     setPlanEnAttenteInfos(planId);
+  }
+
+  // Le commerçant annule lui-même son abonnement. S'il a déjà payé la période en cours, l'accès
+  // continue jusqu'à sa fin (current_period_end) — voir demarrer_annulation_abonnement() côté base
+  // pour la règle exacte. Rien n'est immédiat pour un abonnement payant, pour rester juste envers
+  // quelqu'un qui a déjà payé.
+  async function annulerAbonnement() {
+    const estEssai = subscription?.status === "trial";
+    const confirmation = window.confirm(
+      estEssai
+        ? "Arrêter ton essai gratuit maintenant ? Tu perdras l'accès tout de suite."
+        : "Annuler ton abonnement ? Tu gardes l'accès jusqu'à la fin de la période déjà payée, puis ça s'arrêtera — sans nouveau prélèvement automatique."
+    );
+    if (!confirmation) return;
+    setAnnulationEnCours(true);
+    setMessage("");
+    const { error } = await supabase.rpc("demarrer_annulation_abonnement", { p_workspace_id: workspace.id });
+    setAnnulationEnCours(false);
+    if (error) {
+      setMessage("⚠️ " + (error.message || "Impossible d'annuler pour le moment."));
+      return;
+    }
+    setMessage("Abonnement annulé.");
+    if (onMaj) await onMaj();
   }
 
   async function confirmerEtPayer() {
@@ -9954,6 +9982,26 @@ function AbonnementModal({ workspace, subscription, onClose }) {
             Commandes, clients, équipe — au format que tu peux garder.
           </div>
         </div>
+
+        {workspace.role === "owner" && (subscription?.status === "active" || subscription?.status === "trial") && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={annulerAbonnement}
+              disabled={annulationEnCours}
+              style={{ width: "100%", background: "white", border: "1px solid #F0DDA8", color: "#8A6412", padding: "10px 0", borderRadius: 10, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
+            >
+              {annulationEnCours ? "..." : subscription.status === "trial" ? "Arrêter mon essai gratuit" : "Annuler mon abonnement"}
+            </button>
+          </div>
+        )}
+
+        {workspace.role === "owner" && subscription?.status === "cancelled" && (
+          <div style={{ marginTop: 12, fontSize: 11.5, color: "#8A9089", textAlign: "center" }}>
+            Abonnement annulé — {subscription.current_period_end && new Date(subscription.current_period_end) > new Date()
+              ? `accès jusqu'au ${new Date(subscription.current_period_end).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}.`
+              : "accès terminé."}
+          </div>
+        )}
         </>
         )}
       </div>

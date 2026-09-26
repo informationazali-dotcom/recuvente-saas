@@ -48,14 +48,16 @@ export default async function handler(req, res) {
     .eq("workspace_id", requete.workspace_id)
     .maybeSingle();
 
+  // rappel_renouvellement_envoye remis à false : nouvelle période payée, donc le rappel de
+  // "renouvellement proche" (api/cron-daily.js) doit pouvoir se redéclencher pour celle-ci.
   if (existant) {
     await supabaseAdmin
       .from("subscriptions")
-      .update({ plan_id: requete.plan_id, status: "active", current_period_end: periodEnd.toISOString() })
+      .update({ plan_id: requete.plan_id, status: "active", current_period_end: periodEnd.toISOString(), rappel_renouvellement_envoye: false })
       .eq("workspace_id", requete.workspace_id);
   } else {
     await supabaseAdmin.from("subscriptions").insert([
-      { workspace_id: requete.workspace_id, plan_id: requete.plan_id, status: "active", current_period_end: periodEnd.toISOString() },
+      { workspace_id: requete.workspace_id, plan_id: requete.plan_id, status: "active", current_period_end: periodEnd.toISOString(), rappel_renouvellement_envoye: false },
     ]);
   }
 

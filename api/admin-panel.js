@@ -190,6 +190,8 @@ async function gererPOST(req, res) {
     const periodeFin = new Date();
     periodeFin.setMonth(periodeFin.getMonth() + 1);
     champsMaj.current_period_end = periodeFin.toISOString();
+    // Nouvelle période : le rappel de "renouvellement proche" doit pouvoir se redéclencher.
+    champsMaj.rappel_renouvellement_envoye = false;
   }
   const { data: existant } = await supabaseAdmin
     .from("subscriptions")

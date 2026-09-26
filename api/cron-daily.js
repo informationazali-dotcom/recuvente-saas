@@ -159,6 +159,58 @@ async function verifierEssaisEtRappels() {
   return { envoyes, essaisExpiresAujourdhui: essaisExpires?.length || 0, notifAdminEnvoyee };
 }
 
+// Même principe que verifierEssaisEtRappels() ci-dessus, mais pour les abonnements PAYANTS
+// (status "active") dont la période payée (current_period_end) se termine bientôt. Nécessaire
+// depuis que l'expiration réelle des abonnements payants est appliquée (lot10) : sans ce rappel,
+// un abonné payant se retrouverait bloqué du jour au lendemain sans aucun avertissement, alors
+// que Chariow ne prélève jamais automatiquement — la personne doit repayer elle-même à temps.
+async function verifierRenouvellementsProches() {
+  const dansDeuxJours = new Date();
+  dansDeuxJours.setDate(dansDeuxJours.getDate() + 2);
+  const dansUnJour = new Date();
+  dansUnJour.setDate(dansUnJour.getDate() + 1);
+
+  const { data: subs, error } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id, workspace_id, current_period_end, status, rappel_renouvellement_envoye, workspaces(name, owner_id)")
+    .eq("status", "active")
+    .eq("rappel_renouvellement_envoye", false)
+    .lte("current_period_end", dansDeuxJours.toISOString())
+    .gte("current_period_end", dansUnJour.toISOString());
+
+  if (error) return { renouvellementsEnvoyes: 0, erreur: error.message };
+
+  let renouvellementsEnvoyes = 0;
+  if (subs && subs.length > 0) {
+    const taches = subs.map((sub) => async () => {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(sub.workspaces.owner_id);
+      const email = userData?.user?.email;
+      if (!email) return;
+      await resend.emails.send({
+        from: "RecuVente <onboarding@resend.dev>",
+        to: email,
+        subject: `Ton abonnement RecuVente se termine bientôt — ${sub.workspaces.name}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours</h1>
+            <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
+              Ta période payée sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Renouvelle ton plan pour continuer à utiliser tes commandes sans interruption — RecuVente ne prélève jamais automatiquement, c'est à toi de repayer.
+            </p>
+            <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+              Renouveler mon plan
+            </a>
+          </div>
+        `,
+      });
+      await supabaseAdmin.from("subscriptions").update({ rappel_renouvellement_envoye: true }).eq("id", sub.id);
+      renouvellementsEnvoyes++;
+    });
+    await executerParLots(taches);
+  }
+
+  return { renouvellementsEnvoyes };
+}
+
 async function verifierStockBas() {
   // Requêtes en masse (2 requêtes au total), plutôt qu'une paire de requêtes
   // par boutique — c'est ce qui permet de rester rapide même à 1000 boutiques.
@@ -677,6 +729,8 @@ export default async function handler(req, res) {
   const resultatAlertes = await genererAlertesIA(tousLesProspectsChauds);
   const sauvegardeReussie = await sauvegarderQuotidiennement();
   const resultatEssais = await verifierEssaisEtRappels();
+  let resultatRenouvellements = null;
+  try { resultatRenouvellements = await verifierRenouvellementsProches(); } catch (e) { console.error("Erreur rappels renouvellement:", e); }
   const resultatStock = await verifierStockBas();
   // Isolé dans son propre try/catch, comme les autres lots plus récents ci-dessous : une
   // erreur ici ne doit jamais empêcher le reste du cron quotidien (stock, essais, paiements...)
@@ -717,6 +771,7 @@ export default async function handler(req, res) {
     alertes: resultatAlertes,
     sauvegardeReussie,
     ...resultatEssais,
+    renouvellements: resultatRenouvellements,
     ...resultatStock,
     ecartsCaisse: resultatEcartsCaisse,
     retryCAPI: resultatRetryCAPI,

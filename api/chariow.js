@@ -137,10 +137,12 @@ export default async function handler(req, res) {
         .eq("workspace_id", workspace.id)
         .maybeSingle();
 
+      // rappel_renouvellement_envoye remis à false : nouvelle période payée, donc le rappel de
+      // "renouvellement proche" (api/cron-daily.js) doit pouvoir se redéclencher pour celle-ci.
       if (existant) {
-        await supabaseAdmin.from("subscriptions").update({ status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString() }).eq("workspace_id", workspace.id);
+        await supabaseAdmin.from("subscriptions").update({ status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString(), rappel_renouvellement_envoye: false }).eq("workspace_id", workspace.id);
       } else {
-        await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspace.id, status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString() }]);
+        await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspace.id, status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString(), rappel_renouvellement_envoye: false }]);
       }
 
       // Programme ambassadeur : si cette boutique a été parrainée, l'ambassadeur gagne sa commission (une fois par vente).

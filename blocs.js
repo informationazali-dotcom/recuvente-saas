@@ -3,7 +3,8 @@
 // ----------------------------------------------------------------------------
 // Ce fichier contient TOUT ce qui décrit une page produit :
 //   • le registre des blocs (types, valeurs par défaut, champs éditables) ;
-//   • les 3 templates de départ (COD Conversion / Premium / Storytelling) ;
+//   • les templates de départ (COD Conversion / Premium / Confiance immédiate / Storytelling /
+//     Bénéfices en un clin d'œil / Duel comparatif) — voir TEMPLATES plus bas pour la liste à jour ;
 //   • la normalisation d'une configuration (JSON) venant de la base ;
 //   • la connexion au système existant de RecuVente (bundles, complément "bump",
 //     zone de livraison) — le Builder N'A PAS son propre système de commande ;
@@ -555,7 +556,7 @@ export const REGISTRE_BLOCS = {
     defaut: () => ({ titre: "Avis clients", max: 6, afficher_photos: true, afficher_note: true }),
     champs: [
       { cle: "titre", label: "Titre", type: "texte" },
-      { cle: "max", label: "Nombre d'avis affichés", type: "nombre" },
+      { cle: "max", label: "Nombre d'avis affichés (max)", type: "nombre", aide: "Les 4 premiers s'affichent directement, le reste se déplie au clic sur « Voir plus » — la page reste légère au chargement." },
       { cle: "afficher_note", label: "Afficher la note moyenne", type: "oui_non" },
       { cle: "afficher_photos", label: "Afficher les photos clients", type: "oui_non" },
     ],
@@ -854,6 +855,48 @@ export const TEMPLATES = {
       ["reassurance"],
       ["faq"],
       ["cta"],
+    ],
+  },
+  benefices_eclair: {
+    id: "benefices_eclair",
+    nom: "Bénéfices en un clin d'œil",
+    pour: "Produits pratiques, gadgets, accessoires — quand l'avantage doit se voir avant même de lire",
+    description: "Hero → bénéfices en gros dès la 2ᵉ position → vidéo → description → étapes → preuves → offre → réassurance → FAQ : l'acheteur voit ce qu'il gagne avant tout argumentaire.",
+    theme: { fond: "blanc", police_titres: "sans", rayon: "net", espacement: "normal" },
+    blocs: [
+      ["hero"],
+      ["benefices", { titre: "Ce que vous gagnez", colonnes: "3" }],
+      ["video"],
+      ["description"],
+      ["comment_ca_marche"],
+      ["avis"],
+      ["ugc"],
+      ["offres"],
+      ["reassurance"],
+      ["livraison"],
+      ["faq"],
+      ["cross_sell"],
+    ],
+  },
+  duel_comparatif: {
+    id: "duel_comparatif",
+    nom: "Duel comparatif",
+    pour: "Produits qui gagnent à être comparés — face à une alternative plus chère, plus lente ou moins pratique",
+    description: "Hero → bénéfices → comparatif (vous vs l'alternative) placé tout en haut → preuves → démonstration → offre → réassurance → FAQ : convainc par la comparaison avant tout argumentaire long.",
+    theme: { fond: "blanc", police_titres: "sans", rayon: "net", espacement: "normal" },
+    blocs: [
+      ["hero"],
+      ["benefices", { titre: "Pourquoi celui-ci plutôt qu'un autre ?", colonnes: "3" }],
+      ["comparaison"],
+      ["avis"],
+      ["video"],
+      ["comment_ca_marche"],
+      ["description"],
+      ["ugc"],
+      ["offres"],
+      ["reassurance"],
+      ["faq"],
+      ["cross_sell"],
     ],
   },
 };

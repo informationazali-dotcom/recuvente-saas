@@ -88,6 +88,7 @@ function useDonneesLocation(workspace) {
   const [logements, setLogements] = useState([]);
   const [baux, setBaux] = useState([]);
   const [loyers, setLoyers] = useState([]);
+  const [biensVente, setBiensVente] = useState([]);
   // "chargement" ne concerne QUE le tout premier chargement : un rechargement après une action
   // (encaisser, créer un bail…) ne doit jamais démonter l'écran en cours (et perdre une modale
   // ouverte, comme celle d'encaissement) — voir l'usage de "premierChargement" plus bas.
@@ -102,12 +103,19 @@ function useDonneesLocation(workspace) {
     setLogements(log || []);
     setBaux(bx || []);
     setLoyers(ly || []);
+    // Table séparée (LOT 5, sql/lot5-vente-immobiliere.sql) : peut ne pas encore exister tant que
+    // la migration n'a pas été appliquée — dans ce cas l'onglet Ventes s'affiche juste vide au
+    // lieu de casser tout l'écran Location.
+    try {
+      const { data: bv, error: bvErr } = await supabase.from("biens_vente").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false });
+      setBiensVente(bvErr ? [] : (bv || []));
+    } catch (_) { setBiensVente([]); }
     setPremierChargement(false);
   }, [workspace.id]);
 
   useEffect(() => { recharger(); }, [recharger]);
 
-  return { logements, baux, loyers, chargement: premierChargement, recharger, setLogements, setBaux, setLoyers };
+  return { logements, baux, loyers, biensVente, chargement: premierChargement, recharger, setLogements, setBaux, setLoyers, setBiensVente };
 }
 
 // Bail actif d'un logement pour la date du jour (ou null).
@@ -664,6 +672,293 @@ function Tuile({ label, valeur, sous, couleur }) {
 }
 
 // ============================================================================
+//  Onglet 4 : Ventes immobilières (LOT 5, sql/lot5-vente-immobiliere.sql) — biens à
+//  vendre (maison, duplex, terrain…), à côté du système de location ci-dessus, dans
+//  le même espace de travail "immobilier". 100% additif : aucune table de location
+//  n'est touchée, tables séparées (biens_vente, paiements_vente).
+// ============================================================================
+
+const TYPES_BIEN_VENTE = [
+  ["maison", "Maison"], ["duplex", "Duplex"], ["appartement", "Appartement"],
+  ["villa", "Villa"], ["terrain", "Terrain"], ["autre", "Autre"],
+];
+const LIBELLE_STATUT_VENTE = { disponible: "🟢 Disponible", reserve: "🟠 Réservé", vendu: "✅ Vendu" };
+const FOND_STATUT_VENTE = { disponible: "#EAF3DE", reserve: "#FBF3E3", vendu: "#EAF7F1" };
+const COULEUR_STATUT_VENTE = { disponible: "#3B6D11", reserve: COULEURS.ambre, vendu: "#1F9D6E" };
+
+function FormBienVente({ workspace, bien, onFermer, onEnregistre }) {
+  const [form, setForm] = useState({
+    nom: bien?.nom || "", type_bien: bien?.type_bien || "maison", adresse: bien?.adresse || "",
+    superficie: bien ? String(bien.superficie || "") : "", nombre_pieces: bien ? String(bien.nombre_pieces || "") : "",
+    prix_vente: bien ? String(bien.prix_vente || "") : "", description: bien?.description || "",
+  });
+  const [erreur, setErreur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+
+  async function enregistrer() {
+    setErreur("");
+    if (!form.nom.trim() || !form.prix_vente) { setErreur("Le nom du bien et le prix de vente sont obligatoires."); return; }
+    const payload = {
+      nom: form.nom.trim(), type_bien: form.type_bien, adresse: form.adresse.trim() || null,
+      superficie: form.superficie ? Number(form.superficie) : null, nombre_pieces: form.nombre_pieces ? Number(form.nombre_pieces) : null,
+      prix_vente: Number(form.prix_vente) || 0, description: form.description.trim() || null,
+    };
+    setEnCours(true);
+    const { error } = bien
+      ? await supabase.from("biens_vente").update(payload).eq("id", bien.id)
+      : await supabase.from("biens_vente").insert([{ ...payload, workspace_id: workspace.id, statut: "disponible" }]);
+    setEnCours(false);
+    if (error) { setErreur("Erreur : " + error.message); return; }
+    onEnregistre();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 400, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12 }}>{bien ? "Modifier ce bien" : "Nouveau bien à vendre"}</div>
+        <input style={S.champ} placeholder="Nom (ex: Villa Cocody 4 pièces)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+        <select style={S.champ} value={form.type_bien} onChange={(e) => setForm({ ...form, type_bien: e.target.value })}>
+          {TYPES_BIEN_VENTE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+        <input style={S.champ} placeholder="Adresse / zone" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input style={S.champ} type="number" placeholder="Superficie (m², optionnel)" value={form.superficie} onChange={(e) => setForm({ ...form, superficie: e.target.value })} />
+          <input style={S.champ} type="number" placeholder="Nombre de pièces (optionnel)" value={form.nombre_pieces} onChange={(e) => setForm({ ...form, nombre_pieces: e.target.value })} />
+        </div>
+        <input style={S.champ} type="number" placeholder={`Prix de vente (${devise(workspace.currency)})`} value={form.prix_vente} onChange={(e) => setForm({ ...form, prix_vente: e.target.value })} />
+        <textarea style={{ ...S.champ, minHeight: 60 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        {erreur && <div style={{ background: "#FBEAE6", color: COULEURS.rougeFonce, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, marginBottom: 8 }}>{erreur}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button disabled={enCours} onClick={enregistrer} style={{ ...S.bouton, flex: 1, opacity: enCours ? 0.6 : 1 }}>{enCours ? "…" : "Enregistrer"}</button>
+          <button onClick={onFermer} style={{ ...S.boutonClair, flex: 1 }}>Annuler</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormReserverVendre({ workspace, bien, statutCible, onFermer, onEnregistre }) {
+  const [form, setForm] = useState({ acheteur_nom: bien.acheteur_nom || "", acheteur_tel: bien.acheteur_tel || "", acheteur_email: bien.acheteur_email || "", date_vente: ajourdhuiISO() });
+  const [erreur, setErreur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const estVente = statutCible === "vendu";
+
+  async function enregistrer() {
+    setErreur("");
+    if (!form.acheteur_nom.trim()) { setErreur("Le nom de l'acheteur est obligatoire."); return; }
+    setEnCours(true);
+    const { error } = await supabase.from("biens_vente").update({
+      statut: statutCible,
+      acheteur_nom: form.acheteur_nom.trim(),
+      acheteur_tel: form.acheteur_tel.trim() || null,
+      acheteur_email: form.acheteur_email.trim() || null,
+      date_vente: estVente ? form.date_vente : null,
+    }).eq("id", bien.id);
+    setEnCours(false);
+    if (error) { setErreur("Erreur : " + error.message); return; }
+    onEnregistre();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 380 }}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{estVente ? "Marquer vendu" : "Réserver ce bien"}</div>
+        <div style={{ fontSize: 12.5, color: COULEURS.gris, marginBottom: 12 }}>{bien.nom}</div>
+        <input style={S.champ} placeholder="Nom de l'acheteur" value={form.acheteur_nom} onChange={(e) => setForm({ ...form, acheteur_nom: e.target.value })} />
+        <input style={S.champ} placeholder="Téléphone (optionnel)" value={form.acheteur_tel} onChange={(e) => setForm({ ...form, acheteur_tel: e.target.value })} />
+        <input style={S.champ} placeholder="Email (optionnel)" value={form.acheteur_email} onChange={(e) => setForm({ ...form, acheteur_email: e.target.value })} />
+        {estVente && (
+          <>
+            <label style={{ fontSize: 11.5, color: COULEURS.grisClair }}>Date de vente</label>
+            <input style={S.champ} type="date" value={form.date_vente} onChange={(e) => setForm({ ...form, date_vente: e.target.value })} />
+          </>
+        )}
+        {erreur && <div style={{ background: "#FBEAE6", color: COULEURS.rougeFonce, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, marginBottom: 8 }}>{erreur}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button disabled={enCours} onClick={enregistrer} style={{ ...S.bouton, flex: 1, opacity: enCours ? 0.6 : 1 }}>{enCours ? "…" : "Confirmer"}</button>
+          <button onClick={onFermer} style={{ ...S.boutonClair, flex: 1 }}>Annuler</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalPaiementsVente({ workspace, bien, onFermer, onMaj, genererRecuVentePDF }) {
+  const [paiements, setPaiements] = useState([]);
+  const [montant, setMontant] = useState("");
+  const [mode, setMode] = useState("especes");
+  const [erreur, setErreur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+
+  const reste = Math.max(0, Number(bien.prix_vente) - Number(bien.montant_recu || 0));
+
+  const charger = useCallback(async () => {
+    const { data } = await supabase.from("paiements_vente").select("*").eq("bien_vente_id", bien.id).order("date_paiement", { ascending: false });
+    setPaiements(data || []);
+  }, [bien.id]);
+  useEffect(() => { charger(); }, [charger]);
+
+  async function encaisser() {
+    setErreur("");
+    const m = Number(montant);
+    if (!m || m <= 0) { setErreur("Indique un montant valide."); return; }
+    if (m > reste + 0.01) { setErreur(`Ce montant dépasse le reste à payer (${nb(reste)} ${devise(workspace.currency)}).`); return; }
+    setEnCours(true);
+    const { error } = await supabase.from("paiements_vente").insert([{ bien_vente_id: bien.id, workspace_id: workspace.id, montant: m, mode, date_paiement: ajourdhuiISO() }]);
+    setEnCours(false);
+    if (error) { setErreur(error.message.includes("dépasse") ? error.message : "Erreur : " + error.message); return; }
+    setMontant("");
+    await charger();
+    await onMaj();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, width: "100%", maxWidth: 380, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{bien.nom}</div>
+        <div style={{ fontSize: 12.5, color: COULEURS.gris, marginBottom: 10 }}>Prix {nb(bien.prix_vente)} {devise(workspace.currency)}, déjà reçu {nb(bien.montant_recu)} {devise(workspace.currency)}</div>
+        {reste > 0 ? (
+          <div style={{ background: "#F4F1E8", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>Encaisser (reste {nb(reste)} {devise(workspace.currency)})</div>
+            <input style={S.champ} type="number" placeholder="Montant reçu" value={montant} onChange={(e) => setMontant(e.target.value)} />
+            <select style={S.champ} value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="especes">Espèces</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="virement">Virement</option>
+              <option value="autre">Autre</option>
+            </select>
+            <button onClick={() => setMontant(String(reste))} style={{ ...S.boutonClair, width: "100%", marginBottom: 8, padding: "8px 0", fontSize: 12 }}>Payer le solde ({nb(reste)})</button>
+            {erreur && <div style={{ color: COULEURS.rougeFonce, fontSize: 12, marginBottom: 8 }}>{erreur}</div>}
+            <button disabled={enCours} onClick={encaisser} style={{ ...S.bouton, width: "100%" }}>{enCours ? "…" : "✅ Encaisser"}</button>
+          </div>
+        ) : (
+          <div style={{ background: "#EAF7F1", color: "#1F9D6E", borderRadius: 10, padding: 10, marginBottom: 10, fontSize: 13, fontWeight: 700 }}>Ce bien est intégralement payé.</div>
+        )}
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Historique des paiements</div>
+        {paiements.length === 0 && <div style={{ fontSize: 12.5, color: COULEURS.grisClair }}>Aucun paiement enregistré.</div>}
+        {paiements.map((p) => (
+          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid #F1EFE8" }}>
+            <span>{new Date(p.date_paiement).toLocaleDateString("fr-FR")} · {p.mode}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontWeight: 700 }}>{nb(p.montant)} {devise(workspace.currency)}</span>
+              {genererRecuVentePDF && <button onClick={() => genererRecuVentePDF(p, bien)} style={{ background: "none", border: "none", color: COULEURS.vert, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>🧾 Reçu</button>}
+            </span>
+          </div>
+        ))}
+        <button onClick={onFermer} style={{ ...S.boutonClair, width: "100%", marginTop: 12 }}>Fermer</button>
+      </div>
+    </div>
+  );
+}
+
+function OngletVentes({ workspace, biensVente, role, recharger, genererRecuVentePDF, genererCompromisVentePDF }) {
+  const [filtre, setFiltre] = useState("tous");
+  const [formOuvert, setFormOuvert] = useState(null); // null | "new" | bien (édition)
+  const [reservationOuverte, setReservationOuverte] = useState(null); // { bien, statutCible }
+  const [paiementsOuvert, setPaiementsOuvert] = useState(null);
+
+  const stats = useMemo(() => {
+    const disponibles = biensVente.filter((b) => b.statut === "disponible").length;
+    const reserves = biensVente.filter((b) => b.statut === "reserve").length;
+    const vendus = biensVente.filter((b) => b.statut === "vendu");
+    const valeurPortefeuille = biensVente.filter((b) => b.statut !== "vendu").reduce((s, b) => s + Number(b.prix_vente || 0), 0);
+    const encaisseSurVentes = vendus.reduce((s, b) => s + Number(b.montant_recu || 0), 0);
+    const resteAEncaisser = vendus.reduce((s, b) => s + Math.max(0, Number(b.prix_vente) - Number(b.montant_recu || 0)), 0);
+    return { disponibles, reserves, vendus: vendus.length, valeurPortefeuille, encaisseSurVentes, resteAEncaisser };
+  }, [biensVente]);
+
+  const filtres = biensVente.filter((b) => filtre === "tous" || b.statut === filtre);
+
+  return (
+    <div>
+      <div style={{ ...S.carte, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Tuile label="Disponibles" valeur={String(stats.disponibles)} />
+        <Tuile label="Réservés" valeur={String(stats.reserves)} couleur={COULEURS.ambre} />
+        <Tuile label="Vendus" valeur={String(stats.vendus)} couleur={COULEURS.vert} />
+        <Tuile label="Valeur du stock à vendre" valeur={`${nb(stats.valeurPortefeuille)} ${devise(workspace.currency)}`} />
+        {stats.resteAEncaisser > 0 && <Tuile label="Reste à encaisser (ventes en cours)" valeur={`${nb(stats.resteAEncaisser)} ${devise(workspace.currency)}`} couleur={COULEURS.rouge} />}
+      </div>
+
+      {peutEcrire(role) && (
+        <div style={S.carte}>
+          <button onClick={() => setFormOuvert("new")} style={{ ...S.bouton, width: "100%" }}>+ Ajouter un bien à vendre</button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+        {[["tous", "Tous"], ["disponible", "Disponibles"], ["reserve", "Réservés"], ["vendu", "Vendus"]].map(([k, l]) => (
+          <div key={k} onClick={() => setFiltre(k)} style={{ ...S.onglet(filtre === k), flex: "1 1 auto", minWidth: 90 }}>{l}</div>
+        ))}
+      </div>
+
+      {filtres.length === 0 && <div style={{ textAlign: "center", color: COULEURS.grisClair, fontSize: 13, padding: "30px 0" }}>Aucun bien dans ce filtre.</div>}
+
+      {filtres.map((b) => {
+        const reste = Math.max(0, Number(b.prix_vente) - Number(b.montant_recu || 0));
+        return (
+          <div key={b.id} style={S.carte}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
+                <div style={{ fontSize: 11.5, color: COULEURS.grisClair, marginTop: 2 }}>
+                  {(TYPES_BIEN_VENTE.find(([k]) => k === b.type_bien) || [, b.type_bien])[1]}{b.adresse ? ` · ${b.adresse}` : ""}{b.superficie ? ` · ${b.superficie} m²` : ""}{b.nombre_pieces ? ` · ${b.nombre_pieces} pièces` : ""}
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: COULEURS.vert, marginTop: 6 }}>
+                  {nb(b.prix_vente)} {devise(workspace.currency)}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: FOND_STATUT_VENTE[b.statut], color: COULEUR_STATUT_VENTE[b.statut], whiteSpace: "nowrap" }}>
+                {LIBELLE_STATUT_VENTE[b.statut]}
+              </span>
+            </div>
+            {(b.statut === "reserve" || b.statut === "vendu") && (
+              <div style={{ fontSize: 12.5, color: COULEURS.vertFonce, marginBottom: 6 }}>
+                Acheteur : <strong>{b.acheteur_nom}</strong>{b.acheteur_tel ? ` · ${b.acheteur_tel}` : ""}
+                {b.statut === "vendu" && <> · Reçu {nb(b.montant_recu)}{reste > 0 && <span style={{ color: COULEURS.rougeFonce, fontWeight: 700 }}> · Reste {nb(reste)}</span>} {devise(workspace.currency)}</>}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {peutEcrire(role) && <button onClick={() => setFormOuvert(b)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>✏️ Modifier</button>}
+              {peutEcrire(role) && b.statut === "disponible" && <button onClick={() => setReservationOuverte({ bien: b, statutCible: "reserve" })} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>🤝 Réserver</button>}
+              {peutEcrire(role) && (b.statut === "disponible" || b.statut === "reserve") && <button onClick={() => setReservationOuverte({ bien: b, statutCible: "vendu" })} style={{ ...S.bouton, padding: "7px 12px", fontSize: 12 }}>✅ Marquer vendu</button>}
+              {b.statut === "vendu" && <button onClick={() => setPaiementsOuvert(b)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>💰 Paiements</button>}
+              {b.statut === "vendu" && <button onClick={() => genererCompromisVentePDF(b)} style={{ ...S.boutonClair, padding: "7px 12px", fontSize: 12 }}>📄 Compromis PDF</button>}
+            </div>
+          </div>
+        );
+      })}
+
+      {formOuvert && (
+        <FormBienVente
+          workspace={workspace}
+          bien={formOuvert === "new" ? null : formOuvert}
+          onFermer={() => setFormOuvert(null)}
+          onEnregistre={async () => { setFormOuvert(null); await recharger(); }}
+        />
+      )}
+      {reservationOuverte && (
+        <FormReserverVendre
+          workspace={workspace}
+          bien={reservationOuverte.bien}
+          statutCible={reservationOuverte.statutCible}
+          onFermer={() => setReservationOuverte(null)}
+          onEnregistre={async () => { setReservationOuverte(null); await recharger(); }}
+        />
+      )}
+      {paiementsOuvert && (
+        <ModalPaiementsVente
+          workspace={workspace}
+          bien={biensVente.find((b) => b.id === paiementsOuvert.id) || paiementsOuvert}
+          onFermer={() => setPaiementsOuvert(null)}
+          onMaj={recharger}
+          genererRecuVentePDF={genererRecuVentePDF}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 //  PDF : quittance de loyer & contrat de bail (style de genererFacturePDF)
 // ============================================================================
 function genererQuittancePDF(loyer, bail, logement, workspace) {
@@ -817,10 +1112,160 @@ function genererContratPDF(bail, logement, workspace) {
 }
 
 // ============================================================================
+//  PDF : reçu de paiement & compromis de vente (LOT 5, même style que ci-dessus)
+// ============================================================================
+function genererRecuVentePDF(paiement, bien, workspace) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const green = [26, 122, 60], gray = [107, 113, 104], dark = [22, 35, 31];
+  doc.setFillColor(...green);
+  doc.rect(0, 0, 210, 32, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text((workspace.name || "").toUpperCase(), 15, 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(workspace.country || "", 15, 25);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("REÇU DE VENTE", 195, 18, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(new Date(paiement.date_paiement).toLocaleDateString("fr-FR"), 195, 25, { align: "right" });
+
+  let y = 46;
+  doc.setTextColor(...gray);
+  doc.setFontSize(9);
+  doc.text("ACHETEUR", 15, y);
+  doc.text("BIEN", 120, y);
+  y += 6;
+  doc.setTextColor(...dark);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(bien?.acheteur_nom || "", 15, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(bien?.nom || "", 120, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(...gray);
+  if (bien?.acheteur_tel) doc.text(bien.acheteur_tel, 15, y);
+  if (bien?.adresse) doc.text(bien.adresse, 120, y, { maxWidth: 75 });
+
+  y += 16;
+  doc.setFillColor(...green);
+  doc.rect(15, y, 180, 9, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("DÉTAIL", 18, y + 6);
+  doc.text("MONTANT", 190, y + 6, { align: "right" });
+  y += 9;
+  doc.setDrawColor(230, 230, 225);
+  doc.setTextColor(...dark);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.rect(15, y, 180, 12);
+  doc.text(`Paiement reçu (${paiement.mode || "espèces"})`, 18, y + 8);
+  doc.text(`${nb(paiement.montant)} ${devise(workspace.currency)}`, 190, y + 8, { align: "right" });
+
+  y += 20;
+  const prix = Number(bien?.prix_vente || 0);
+  const recu = Number(bien?.montant_recu || 0);
+  const soldePourSolde = recu >= prix;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...dark);
+  doc.text(soldePourSolde ? "REÇU POUR SOLDE DE TOUT COMPTE" : "REÇU EN ACOMPTE", 15, y);
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...gray);
+  doc.text(`Prix de vente : ${nb(prix)} ${devise(workspace.currency)} — Reçu à ce jour : ${nb(recu)} ${devise(workspace.currency)}${!soldePourSolde ? ` — Reste : ${nb(prix - recu)} ${devise(workspace.currency)}` : ""}`, 15, y, { maxWidth: 180 });
+
+  y += 20;
+  doc.setDrawColor(...gray);
+  doc.line(120, y, 195, y);
+  doc.setFontSize(9);
+  doc.text("Signature du vendeur", 120, y + 5);
+
+  doc.save(`recu-vente-${(bien?.acheteur_nom || "acheteur").replace(/\s+/g, "-")}-${paiement.date_paiement}.pdf`);
+}
+
+function genererCompromisVentePDF(bien, workspace) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const green = [26, 122, 60], gray = [107, 113, 104], dark = [22, 35, 31];
+  doc.setFillColor(...green);
+  doc.rect(0, 0, 210, 26, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("COMPROMIS DE VENTE", 15, 17);
+
+  let y = 36;
+  doc.setTextColor(...dark);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const lignes = [
+    `Entre le vendeur, ${workspace.name || "le vendeur"}${workspace.country ? " (" + workspace.country + ")" : ""},`,
+    `et l'acheteur, ${bien.acheteur_nom || ""}${bien.acheteur_tel ? " (tél. " + bien.acheteur_tel + ")" : ""}${bien.acheteur_email ? ", email " + bien.acheteur_email : ""},`,
+    "il est convenu ce qui suit :",
+  ];
+  lignes.forEach((l) => { doc.text(l, 15, y, { maxWidth: 180 }); y += 6; });
+
+  y += 4;
+  doc.setFont("helvetica", "bold");
+  doc.text("1. Bien vendu", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  const typeLabel = (TYPES_BIEN_VENTE.find(([k]) => k === bien.type_bien) || [, bien.type_bien])[1];
+  doc.text(`${bien.nom} (${typeLabel})${bien.adresse ? ", " + bien.adresse : ""}${bien.superficie ? ", " + bien.superficie + " m²" : ""}`, 15, y, { maxWidth: 180 }); y += 10;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("2. Prix et modalités", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  const prix = Number(bien.prix_vente || 0);
+  const recu = Number(bien.montant_recu || 0);
+  doc.text(`Prix de vente convenu : ${nb(prix)} ${devise(workspace.currency)}. Déjà reçu à ce jour : ${nb(recu)} ${devise(workspace.currency)}${recu < prix ? `, reste ${nb(prix - recu)} ${devise(workspace.currency)}` : " (intégralement payé)"}.`, 15, y, { maxWidth: 180 }); y += 10;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("3. Date de vente", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.text(bien.date_vente ? new Date(bien.date_vente).toLocaleDateString("fr-FR") : "Non renseignée.", 15, y, { maxWidth: 180 }); y += 10;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("4. Conditions générales", 15, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const conditions = [
+    "L'acheteur reconnaît avoir visité le bien et l'accepter en l'état.",
+    "Le transfert de propriété définitif intervient après paiement intégral du prix convenu.",
+    "Toute condition suspensive (financement, notaire...) doit être formalisée séparément selon la loi locale.",
+  ];
+  conditions.forEach((c) => { doc.text("• " + c, 15, y, { maxWidth: 180 }); y += 6; });
+  doc.setFontSize(10);
+
+  y += 10;
+  doc.setDrawColor(...gray);
+  doc.line(15, y, 85, y);
+  doc.line(125, y, 195, y);
+  doc.setFontSize(9);
+  doc.text("Signature du vendeur", 15, y + 5);
+  doc.text("Signature de l'acheteur", 125, y + 5);
+
+  y += 20;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(...gray);
+  doc.text("Modèle indicatif — à faire valider par un notaire ou un juriste selon la loi de ton pays avant usage officiel.", 15, y, { maxWidth: 180 });
+
+  doc.save(`compromis-vente-${(bien.acheteur_nom || bien.nom || "bien").replace(/\s+/g, "-")}.pdf`);
+}
+
+// ============================================================================
 //  Composant principal
 // ============================================================================
 export default function LocationMaison({ workspace, session, onClose }) {
-  const { logements, baux, loyers, chargement, recharger } = useDonneesLocation(workspace);
+  const { logements, baux, loyers, biensVente, chargement, recharger } = useDonneesLocation(workspace);
   const [onglet, setOnglet] = useState("logements");
   const [preselectionBail, setPreselectionBail] = useState(null);
 
@@ -868,16 +1313,16 @@ export default function LocationMaison({ workspace, session, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: COULEURS.fond, zIndex: 70, display: "flex", flexDirection: "column" }}>
       <div style={{ background: COULEURS.vertFonce, color: "white", padding: "16px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontWeight: 700, fontSize: 17 }}>🏠 Locataires & loyers</div>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>🏠 Immobilier — Location & Vente</div>
         <button onClick={onClose} style={{ background: "rgba(255,255,255,0.14)", border: "none", color: "white", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>✕ Fermer</button>
       </div>
 
       <div style={{ overflowY: "auto", flex: 1 }}>
         <div style={S.section}>
-          <TableauDeBord workspace={workspace} logements={logements} baux={baux} loyers={loyers} />
+          {onglet !== "ventes" && <TableauDeBord workspace={workspace} logements={logements} baux={baux} loyers={loyers} />}
 
           <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
-            {[["logements", "Logements"], ["baux", "Baux"], ["loyers", "Loyers"]].map(([k, l]) => (
+            {[["logements", "Logements"], ["baux", "Baux"], ["loyers", "Loyers"], ["ventes", "🏷️ Ventes"]].map(([k, l]) => (
               <div key={k} onClick={() => setOnglet(k)} style={{ ...S.onglet(onglet === k), flex: "1 1 auto", minWidth: 90 }}>{l}</div>
             ))}
           </div>
@@ -904,6 +1349,13 @@ export default function LocationMaison({ workspace, session, onClose }) {
                   workspace={workspace} baux={baux} loyers={loyers} logements={logements} role={workspace.role} recharger={recharger}
                   genererQuittancePDF={(l, b, lg) => genererQuittancePDF(l, b, lg, workspace)}
                   relancerWhatsApp={relancerWhatsApp}
+                />
+              )}
+              {onglet === "ventes" && (
+                <OngletVentes
+                  workspace={workspace} biensVente={biensVente} role={workspace.role} recharger={recharger}
+                  genererRecuVentePDF={(p, b) => genererRecuVentePDF(p, b, workspace)}
+                  genererCompromisVentePDF={(b) => genererCompromisVentePDF(b, workspace)}
                 />
               )}
             </>

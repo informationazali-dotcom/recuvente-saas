@@ -5047,6 +5047,14 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   }, [commandes]);
 
   const [vue, setVue] = useState("commandes");
+  // Le contenu de ce tableau de bord défile dans la page normale (pas un conteneur à défilement
+  // interne) : sans ça, changer d'écran (ex: cliquer "Accueil" depuis le bas de la liste des
+  // commandes ou de la comptabilité) gardait la page défilée là où elle était — le nouvel écran
+  // s'affichait bien, mais hors de vue en haut, ce qui donnait l'impression que le bouton ne
+  // faisait rien. On revient en haut à chaque changement d'écran, pour tous les onglets.
+  useEffect(() => {
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
+  }, [vue]);
   const [datePreset, setDatePreset] = useState("aujourdhui");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -6287,7 +6295,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                 {estAdminRecuvente && <button onClick={() => setShowAdminPanel(true)} aria-label="Administration RecuVente" style={{ flexShrink: 0, background: "rgba(232,146,10,0.3)", border: "1px solid rgba(232,146,10,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🛡️</button>}
                 {workspace.role === "owner" && <button onClick={() => setShowCroissance(true)} aria-label="Paiement en ligne et croissance" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🚀</button>}
                 {(workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowGestionLivraisonFinances(true)} aria-label="Tarifs de livraison et dépenses" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>⚙️</button>}
-                {workspace.activity_type === "location_immobiliere" && <button onClick={() => setShowLocationMaison(true)} aria-label="Locataires et loyers" style={{ flexShrink: 0, background: "rgba(26,122,60,0.3)", border: "1px solid rgba(26,122,60,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🏠</button>}
+                {workspace.activity_type === "location_immobiliere" && <button onClick={() => setShowLocationMaison(true)} aria-label="Immobilier — Location et vente" style={{ flexShrink: 0, background: "rgba(26,122,60,0.3)", border: "1px solid rgba(26,122,60,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🏠</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
                 {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowProspectsIA(true)} aria-label="Prospects IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤖</button>}

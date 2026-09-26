@@ -245,6 +245,32 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ===== Confirmation par e-mail après un remboursement (panneau Admin RecuVente) =====
+  // L'argent est rendu à la main dans Chariow (pas d'API de remboursement chez eux) — cet
+  // e-mail informe seulement le commerçant que c'est fait et que son accès s'est arrêté.
+  if (type === "remboursement_confirme") {
+    const { email, workspaceName } = req.body || {};
+    if (!email) return res.status(200).json({ ok: true });
+    try {
+      await resend.emails.send({
+        from: "RecuVente <onboarding@resend.dev>",
+        to: email,
+        subject: `Remboursement confirmé — ${workspaceName || "ta boutique"}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #16231F; font-size: 20px;">💸 Remboursement effectué</h1>
+            <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
+              Ton abonnement sur <strong>${workspaceName || ""}</strong> a été remboursé. L'accès aux commandes est maintenant arrêté.
+            </p>
+          </div>
+        `,
+      });
+    } catch (e) {
+      console.error("Erreur email remboursement:", e.message);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
   // ===== Boutique publique (sans session) : une commande vient d'être passée =====
   // Sûr sans connexion : la commande doit exister ET dater de moins de 10 minutes (impossible à
   // deviner ou à rejouer plus tard), et le texte est lu dans la base, pas envoyé par le visiteur.

@@ -132,12 +132,21 @@ async function gererGET(req, res) {
     })
   );
 
-  const mrr = enrichis.reduce((sum, ws) => {
+  // IMPORTANT (trouvé pendant l'audit sécurité des abonnements) : additionner directement les prix
+  // mélangeait des devises différentes dans un seul total (ex: des F CFA additionnés à des euros
+  // donnaient un chiffre sans aucun sens). On calcule maintenant un total PAR DEVISE — un seul
+  // nombre n'est montré que si tous les plans actifs partagent la même devise ; sinon, "mrr" reste
+  // le total de la devise la plus utilisée (comportement inchangé pour toi si tu n'as qu'une seule
+  // devise) et "mrrParDevise" donne le détail complet, honnête, sans jamais rien inventer.
+  const mrrParDevise = {};
+  enrichis.forEach((ws) => {
     if (ws.subscription?.status === "active" && ws.subscription.subscription_plans) {
-      return sum + Number(ws.subscription.subscription_plans.prix);
+      const dev = ws.subscription.subscription_plans.devise || "XOF";
+      mrrParDevise[dev] = (mrrParDevise[dev] || 0) + Number(ws.subscription.subscription_plans.prix);
     }
-    return sum;
-  }, 0);
+  });
+  const devisesTriees = Object.entries(mrrParDevise).sort((a, b) => b[1] - a[1]);
+  const mrr = devisesTriees[0]?.[1] || 0;
   const enEssai = enrichis.filter((w) => w.subscription?.status === "trial").length;
   const actifs = enrichis.filter((w) => w.subscription?.status === "active").length;
 
@@ -151,14 +160,39 @@ async function gererGET(req, res) {
     workspaceName: enrichis.find((w) => w.id === d.workspace_id)?.name || "?",
   }));
 
-  return res.status(200).json({ workspaces: enrichis, mrr, enEssai, actifs, total: enrichis.length, demandes: demandesEnrichies });
+  return res.status(200).json({ workspaces: enrichis, mrr, mrrParDevise, enEssai, actifs, total: enrichis.length, demandes: demandesEnrichies });
 }
 
 // ===== POST : suspendre / réactiver / supprimer (fusion de toggle-workspace-status.js) =====
 async function gererPOST(req, res) {
   const { workspaceId, action } = req.body;
-  if (!workspaceId || !["suspendre", "reactiver", "supprimer"].includes(action)) {
+  if (!workspaceId || !["suspendre", "reactiver", "supprimer", "rembourser"].includes(action)) {
     return res.status(400).json({ error: "Paramètres invalides" });
+  }
+
+  // Chariow ne propose aucune API ni webhook de remboursement (vérifié dans sa documentation) :
+  // l'argent est toujours rendu à la main, directement dans le tableau de bord Chariow. Ce bouton
+  // ne fait que la partie RecuVente : couper l'accès tout de suite (contrairement à une simple
+  // annulation, qui laisse l'accès jusqu'à la fin de la période payée) et garder une trace
+  // "refunded" distincte de "cancelled"/"suspended" pour ne jamais la compter dans le MRR.
+  if (action === "rembourser") {
+    const { data: ws } = await supabaseAdmin.from("workspaces").select("name, owner_id").eq("id", workspaceId).maybeSingle();
+    await supabaseAdmin.from("subscriptions").update({ status: "refunded", current_period_end: null }).eq("workspace_id", workspaceId);
+    try {
+      if (ws?.owner_id) {
+        const { data: proprietaire } = await supabaseAdmin.auth.admin.getUserById(ws.owner_id);
+        const email = proprietaire?.user?.email;
+        if (email) {
+          const origine = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://recuvente-saas.vercel.app";
+          await fetch(`${origine}/api/notifications`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "remboursement_confirme", email, workspaceName: ws.name }),
+          });
+        }
+      }
+    } catch (_) {}
+    return res.status(200).json({ success: true, status: "refunded" });
   }
 
   if (action === "supprimer") {

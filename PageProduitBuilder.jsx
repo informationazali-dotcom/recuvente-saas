@@ -1109,13 +1109,36 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
     setMessage({ ok: true, texte: "Structure appliquée. Complétez maintenant chaque bloc." });
   }
 
+  // Si la page de l'éditeur est restée ouverte longtemps (le navigateur peut mettre en pause le
+  // rafraîchissement automatique d'un onglet resté en arrière-plan), la session de connexion peut
+  // avoir expiré entre-temps. On la rafraîchit juste avant un envoi (surtout une vidéo, plus longue
+  // à envoyer qu'une image) pour éviter l'erreur technique "'exp' claim timestamp check failed".
+  async function assurerSessionFraiche() {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (session?.expires_at && session.expires_at * 1000 < Date.now() + 120000) {
+        await supabase.auth.refreshSession();
+      }
+    } catch (_) { /* si le rafraîchissement échoue, on tente quand même l'envoi normalement */ }
+  }
+
+  function messageErreurEnvoi(error) {
+    const brut = error?.message || String(error || "");
+    if (/exp.{0,20}claim|jwt expired|token expired|session.{0,10}expir/i.test(brut)) {
+      return "Votre session a expiré (vous étiez resté sur cette page trop longtemps). Rechargez la page et réessayez l'envoi.";
+    }
+    return brut;
+  }
+
   async function televerserImage(file) {
     if (!file || !file.type || !file.type.startsWith("image/")) throw new Error("Choisissez une image.");
     if (file.size > 8 * 1024 * 1024) throw new Error("Image trop lourde (max 8 Mo).");
     const reduite = await reduireImage(file);
+    await assurerSessionFraiche();
     const chemin = `${workspace.id}-page-${String(produit.id).slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.jpg`;
     const { error } = await supabase.storage.from("produits").upload(chemin, reduite, { upsert: true, contentType: "image/jpeg" });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(messageErreurEnvoi(error));
     return supabase.storage.from("produits").getPublicUrl(chemin).data.publicUrl;
   }
 
@@ -1123,10 +1146,11 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
     const ext = ((file?.name || "").split(".").pop() || "").toLowerCase();
     if (!file || !(String(file.type || "").startsWith("video/") || ["mp4", "webm", "mov", "m4v", "ogg"].includes(ext))) throw new Error("Choisissez un fichier vidéo (.mp4, .webm ou .mov).");
     if (file.size > 30 * 1024 * 1024) throw new Error("Vidéo trop lourde (max 30 Mo). Pour une vidéo plus longue, mettez-la sur YouTube et collez le lien.");
+    await assurerSessionFraiche();
     const extSure = ["mp4", "webm", "mov", "m4v", "ogg"].includes(ext) ? ext : "mp4";
     const chemin = `${workspace.id}-page-${String(produit.id).slice(0, 8)}-video-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${extSure}`;
     const { error } = await supabase.storage.from("produits").upload(chemin, file, { upsert: true, contentType: file.type || (extSure === "mov" ? "video/quicktime" : `video/${extSure}`) });
-    if (error) throw new Error("Envoi impossible : " + error.message);
+    if (error) throw new Error("Envoi impossible : " + messageErreurEnvoi(error));
     return supabase.storage.from("produits").getPublicUrl(chemin).data.publicUrl;
   }
 

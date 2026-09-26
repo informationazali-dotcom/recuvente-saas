@@ -1200,11 +1200,31 @@ const ETAPES_VV = [
   ["medias", "Photos & médias"], ["prix", "Prix & disponibilité"],
 ];
 
+// Si la fiche est restée ouverte longtemps avant l'envoi (surtout pour une vidéo, plus longue à
+// envoyer), la session de connexion peut avoir expiré entre-temps. On la rafraîchit juste avant
+// pour éviter l'erreur technique "'exp' claim timestamp check failed".
+async function assurerSessionFraicheVV() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
+    if (session?.expires_at && session.expires_at * 1000 < Date.now() + 120000) {
+      await supabase.auth.refreshSession();
+    }
+  } catch (_) { /* si le rafraîchissement échoue, on tente quand même l'envoi normalement */ }
+}
+
 async function envoyerFichierVV(file, workspaceId, prefixe) {
+  await assurerSessionFraicheVV();
   const ext = (file.name.split(".").pop() || "bin").toLowerCase();
   const chemin = `${workspaceId}/vente-vehicule-${prefixe}-${Date.now()}-${Math.round(Math.random() * 9999)}.${ext}`;
   const { error } = await supabase.storage.from("boutique").upload(chemin, file, { upsert: true, contentType: file.type || undefined });
-  if (error) throw error;
+  if (error) {
+    const brut = error?.message || String(error || "");
+    if (/exp.{0,20}claim|jwt expired|token expired|session.{0,10}expir/i.test(brut)) {
+      throw new Error("Votre session a expiré (vous étiez resté sur cette page trop longtemps). Rechargez la page et réessayez l'envoi.");
+    }
+    throw error;
+  }
   return supabase.storage.from("boutique").getPublicUrl(chemin).data.publicUrl;
 }
 

@@ -6254,7 +6254,12 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
 
       <div className="rv-saas-content">
 
-      {vue === "commandes" && (
+      {/* Le vrai "tableau de bord" (stats, accès rapide, tes espaces...) s'affichait seulement
+          sous l'onglet "Commandes" : depuis "Accueil", on ne voyait que les tâches urgentes du
+          jour, ce qui donnait l'impression que le bouton Accueil ne menait nulle part quand il
+          n'y avait rien d'urgent. On l'affiche maintenant aussi sur "Accueil", en plus du
+          résumé des urgences du jour qui reste inchangé en dessous. */}
+      {(vue === "commandes" || vue === "aujourdhui") && (
         <Dashboard3D
           workspace={workspace}
           activityType={workspace.activity_type}
@@ -6450,7 +6455,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         </div>
       )}
 
-      {(vue === "commandes" || vue === "compta") && !accesBloque && (
+      {(vue === "commandes" || vue === "compta" || vue === "aujourdhui") && !accesBloque && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 2 }}>
           {[
             { key: "aujourdhui", label: "Aujourd'hui" },
@@ -6470,7 +6475,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         </div>
       )}
 
-      {vue === "commandes" && datePreset === "personnalise" && (
+      {(vue === "commandes" || vue === "aujourdhui") && datePreset === "personnalise" && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
           <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
           <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>

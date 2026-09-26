@@ -5931,7 +5931,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
 
         {[
           { key: "aujourdhui", label: "🏠 Accueil" },
-          { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "restaurant" ? "Commandes" : "Commandes" },
+          { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "location_vehicule" ? "Réservations" : "Commandes" },
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }, { key: "tables_addition", label: "🧾 Tables & addition" }, { key: "qr_menu", label: "📲 QR & menu public" }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "🚗 Véhicules/Matériel" }] : []),
           ...(workspace.activity_type === "location_immobiliere" ? [{ key: "logements", label: "🏠 Logements" }] : []),
@@ -6592,7 +6592,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                         onClick={() => changerStatutRapide(c.id, "echouee")}
                         style={{ flex: 1, background: "#D64933", color: "white", border: "none", borderRadius: 7, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
                       >
-                        ❌ Échoué
+                        ❌ {workspace.activity_type === "location_immobiliere" ? "Impayé" : workspace.activity_type === "location_vehicule" ? "Annulée" : "Échoué"}
                       </button>
                     </div>
                   </div>
@@ -6645,15 +6645,15 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#1F9D6E", display: "inline-block" }} />
-              Confirmées <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "confirmee").length}</span>
+              {libelleStatutCommande("confirmee", workspace.activity_type)} <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "confirmee").length}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#E8A93D", display: "inline-block" }} />
-              En cours <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "en_cours").length}</span>
+              {libelleStatutCommande("en_cours", workspace.activity_type)} <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "en_cours").length}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#D64933", display: "inline-block" }} />
-              Échouées <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "echouee").length}</span>
+              {libelleStatutCommande("echouee", workspace.activity_type)} <span style={{ marginLeft: "auto", fontWeight: 600 }}>{commandesInRange.filter((c) => c.statut === "echouee").length}</span>
             </div>
           </div>
         </div>
@@ -6739,10 +6739,10 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
         {[
           { key: "toutes", label: "Toutes" },
-          { key: "echouee", label: "Échouées" },
-          { key: "en_cours", label: "En cours" },
-          { key: "confirmee", label: "Confirmées" },
-          { key: "retournee", label: "Retournées" },
+          { key: "echouee", label: libelleStatutCommande("echouee", workspace.activity_type) },
+          { key: "en_cours", label: libelleStatutCommande("en_cours", workspace.activity_type) },
+          { key: "confirmee", label: libelleStatutCommande("confirmee", workspace.activity_type) },
+          { key: "retournee", label: libelleStatutCommande("retournee", workspace.activity_type) },
         ].map((f) => (
           <button
             key={f.key}
@@ -6755,7 +6755,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontWeight: 700, fontSize: 17 }}>Commandes ({commandesAffichees.length})</div>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>{libelleSectionCommandes(workspace.activity_type)} ({commandesAffichees.length})</div>
         <button
           onClick={() => !accesBloque && !quotaAtteint && setShowAdd(true)}
           disabled={accesBloque || quotaAtteint}
@@ -6768,16 +6768,16 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       {!loaded && <SkeletonListe nombre={5} />}
       {loaded && commandes.length === 0 && (
         <EtatVide
-          icone="📦"
-          titre="Aucune commande pour l'instant"
-          description="Ajoute ta première commande pour commencer à suivre tes ventes, ou partage le lien de ta boutique pour recevoir tes premières commandes automatiquement."
-          texteBouton="➕ Ajouter ma première commande"
+          icone={workspace.activity_type === "location_immobiliere" ? "🏠" : workspace.activity_type === "location_vehicule" ? "🚗" : "📦"}
+          titre={workspace.activity_type === "location_immobiliere" ? "Aucun loyer pour l'instant" : workspace.activity_type === "location_vehicule" ? "Aucune réservation pour l'instant" : "Aucune commande pour l'instant"}
+          description={workspace.activity_type === "location_immobiliere" ? "Ajoute ton premier loyer pour commencer à suivre tes paiements de location." : workspace.activity_type === "location_vehicule" ? "Ajoute ta première réservation pour commencer à suivre tes locations." : "Ajoute ta première commande pour commencer à suivre tes ventes, ou partage le lien de ta boutique pour recevoir tes premières commandes automatiquement."}
+          texteBouton={workspace.activity_type === "location_immobiliere" ? "➕ Ajouter mon premier loyer" : workspace.activity_type === "location_vehicule" ? "➕ Ajouter ma première réservation" : "➕ Ajouter ma première commande"}
           onAction={() => !accesBloque && !quotaAtteint && setShowAdd(true)}
         />
       )}
 
       {commandesAffichees.length === 0 && commandes.length > 0 && (
-        <div style={{ textAlign: "center", padding: "30px 0", color: "#8A9089", fontSize: 13 }}>Aucune commande ne correspond.</div>
+        <div style={{ textAlign: "center", padding: "30px 0", color: "#8A9089", fontSize: 13 }}>{workspace.activity_type === "location_immobiliere" ? "Aucun loyer ne correspond." : workspace.activity_type === "location_vehicule" ? "Aucune réservation ne correspond." : "Aucune commande ne correspond."}</div>
       )}
 
       {groupedByDay.map((group, gi) => (
@@ -9969,6 +9969,20 @@ const STATUTS = {
   echouee: { label: "Échouée", color: "#D64933", bg: "#FBEAE6" },
   retournee: { label: "Retournée", color: "#8A6412", bg: "#FBF3E3" },
 };
+// Le champ "statut" d'une commande (en_cours/confirmee/echouee/retournee) et toute la logique qui
+// l'entoure restent identiques pour toutes les activités — seul le TEXTE affiché change ici, pour
+// que ça parle "loyer" côté location immobilière et "réservation" côté location de véhicules, au
+// lieu du vocabulaire de livraison ("livré", "échouée"...) qui n'a pas de sens pour ces activités.
+const LIBELLES_STATUT_PAR_ACTIVITE = {
+  location_immobiliere: { en_cours: "En attente", confirmee: "Payé", echouee: "Impayé", retournee: "Résilié" },
+  location_vehicule: { en_cours: "En attente", confirmee: "Confirmée", echouee: "Annulée", retournee: "Terminée" },
+};
+function libelleStatutCommande(statutKey, activityType) {
+  return (LIBELLES_STATUT_PAR_ACTIVITE[activityType] && LIBELLES_STATUT_PAR_ACTIVITE[activityType][statutKey]) || STATUTS[statutKey]?.label || statutKey;
+}
+function libelleSectionCommandes(activityType) {
+  return activityType === "location_immobiliere" ? "Loyers" : activityType === "location_vehicule" ? "Réservations" : "Commandes";
+}
 
 function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution, produits = [] }) {
   const [open, setOpen] = useState(false);
@@ -10009,6 +10023,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   const [montantRembourseInput, setMontantRembourseInput] = useState("");
   const [form, setForm] = useState({ client: commande.client, tel: commande.tel, produit: commande.produit, montant: commande.montant, zone: commande.zone, mode_vente: commande.mode_vente || "sur_place", montant_paye: commande.montant_paye ?? "", ville_expedition: commande.ville_expedition || "" });
   const s = STATUTS[commande.statut] || STATUTS.en_cours;
+  const sLabel = libelleStatutCommande(commande.statut, workspace?.activity_type);
 
   async function enregistrerInfos() {
     setLoading(true);
@@ -10215,7 +10230,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, fontWeight: 600, color: s.color, background: s.bg, padding: "2px 8px", borderRadius: 999, display: "inline-block" }}>
-              {s.label}
+              {sLabel}
             </span>
             {commande.livreur && (
               <span style={{ fontSize: 10.5, fontWeight: 600, color: "#1a7a3c", background: "#EAF3DE", padding: "2px 8px", borderRadius: 999 }}>🚚 {commande.livreur}</span>
@@ -10280,14 +10295,14 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             disabled={loading}
             style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
           >
-            ✅ Confirmer
+            ✅ {workspace?.activity_type === "location_immobiliere" ? "Marquer payé" : "Confirmer"}
           </button>
           <button
             onClick={() => changerStatut("echouee")}
             disabled={loading || commande.statut === "echouee"}
             style={{ flex: 1, background: commande.statut === "echouee" ? "#F0EEE6" : "#D64933", color: commande.statut === "echouee" ? "#8A9089" : "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: commande.statut === "echouee" ? "default" : "pointer" }}
           >
-            ❌ Échoué
+            ❌ {workspace?.activity_type === "location_immobiliere" ? "Impayé" : workspace?.activity_type === "location_vehicule" ? "Annulée" : "Échoué"}
           </button>
         </div>
       )}
@@ -10312,7 +10327,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                   cursor: commande.statut === key ? "default" : "pointer",
                 }}
               >
-                {val.label}
+                {libelleStatutCommande(key, workspace?.activity_type)}
               </button>
             ))}
           </div>
@@ -10334,13 +10349,13 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                   onClick={() => setShowRetourForm(true)}
                   style={{ width: "100%", background: "white", border: "1px solid #8A6412", color: "#8A6412", borderRadius: 8, padding: "9px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
                 >
-                  ↩️ Marquer comme retournée
+                  ↩️ {workspace?.activity_type === "location_immobiliere" ? "Marquer comme résilié" : "Marquer comme retournée"}
                 </button>
               ) : (
                 <>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8A6412", marginBottom: 8 }}>↩️ Enregistrer un retour</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8A6412", marginBottom: 8 }}>↩️ {workspace?.activity_type === "location_immobiliere" ? "Enregistrer une résiliation" : "Enregistrer un retour"}</div>
                   <input
-                    placeholder="Motif du retour (ex: produit défectueux)"
+                    placeholder={workspace?.activity_type === "location_immobiliere" ? "Motif de la résiliation (ex: fin de bail)" : "Motif du retour (ex: produit défectueux)"}
                     value={motifRetour}
                     onChange={(e) => setMotifRetour(e.target.value)}
                     style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #DDD8CC", fontSize: 12, marginBottom: 6, boxSizing: "border-box" }}
@@ -10358,7 +10373,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
                       disabled={loading}
                       style={{ flex: 1, background: "#8A6412", color: "white", border: "none", borderRadius: 7, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
                     >
-                      Confirmer le retour
+                      {workspace?.activity_type === "location_immobiliere" ? "Confirmer la résiliation" : "Confirmer le retour"}
                     </button>
                     <button
                       onClick={() => setShowRetourForm(false)}
@@ -10374,7 +10389,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
 
           {commande.statut === "retournee" && (
             <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: 12, marginBottom: 10, fontSize: 12, color: "#8A6412", lineHeight: 1.6 }}>
-              ↩️ Retournée le {commande.date_retour ? new Date(commande.date_retour).toLocaleDateString("fr-FR") : "—"}
+              ↩️ {workspace?.activity_type === "location_immobiliere" ? "Résilié le" : "Retournée le"} {commande.date_retour ? new Date(commande.date_retour).toLocaleDateString("fr-FR") : "—"}
               {commande.motif_retour && <><br/>Motif : {commande.motif_retour}</>}
               {commande.montant_rembourse != null && <><br/>Remboursé : {Number(commande.montant_rembourse).toLocaleString("fr-FR")} {currency}</>}
             </div>
@@ -10397,7 +10412,7 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
             </div>
           )}
 
-          {commande.mode_vente !== "expedition" && commande.statut !== "confirmee" && (
+          {workspace?.activity_type !== "location_immobiliere" && workspace?.activity_type !== "location_vehicule" && commande.mode_vente !== "expedition" && commande.statut !== "confirmee" && (
             <button
               onClick={marquerAExpedier}
               disabled={loading}

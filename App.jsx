@@ -8256,7 +8256,7 @@ function AdminPanel({ session, onClose, onOuvrirCroissance }) {
 
   if (data === undefined) return <Centered>Chargement...</Centered>;
 
-  const statusLabels = { trial: "🎁 Essai", active: "✅ Actif", suspended: "🔴 Suspendu", cancelled: "Annulé" };
+  const statusLabels = { trial: "🎁 Essai", active: "✅ Actif", suspended: "🔴 Suspendu", cancelled: "Annulé", refunded: "💸 Remboursé" };
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAF7", fontFamily: "'IBM Plex Sans', sans-serif", padding: 24 }}>
@@ -8284,7 +8284,13 @@ function AdminPanel({ session, onClose, onOuvrirCroissance }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 20 }}>
         <div style={{ background: "#16231F", color: "white", borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 11, opacity: 0.7, textTransform: "uppercase" }}>MRR estimé</div>
-          <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "#e8920a" }}>{data.mrr.toLocaleString("fr-FR")} XOF</div>
+          {data.mrrParDevise && Object.keys(data.mrrParDevise).length > 0 ? (
+            Object.entries(data.mrrParDevise).map(([dev, montant]) => (
+              <div key={dev} style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "#e8920a" }}>{Number(montant).toLocaleString("fr-FR")} {dev}</div>
+            ))
+          ) : (
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "#e8920a" }}>{data.mrr.toLocaleString("fr-FR")} XOF</div>
+          )}
         </div>
         <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 11, color: "#8A9089", textTransform: "uppercase" }}>Entreprises</div>
@@ -8492,6 +8498,19 @@ function AdminPanel({ session, onClose, onOuvrirCroissance }) {
                       style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
                     >
                       {actionEnCours === ws.id ? "..." : "✅ Activer l'accès"}
+                    </button>
+                  )}
+                  {ws.subscription?.status === "active" && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Marquer "${ws.name}" comme remboursé ?\n\nSon accès s'arrête tout de suite. N'oublie pas de rendre l'argent toi-même dans le tableau de bord Chariow — RecuVente ne le fait pas automatiquement.`)) {
+                          toggleStatus(ws.id, "rembourser");
+                        }
+                      }}
+                      disabled={actionEnCours === ws.id}
+                      style={{ background: "white", color: "#8A6412", border: "1px solid #F0DDA8", borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      💸 Rembourser
                     </button>
                   )}
                   <button

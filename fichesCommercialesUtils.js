@@ -7,11 +7,13 @@
 //  l'est déjà par LocationVoiture.jsx.
 // ============================================================================
 
-// Types d'entité gérés par le moteur générique de fiches (voir sql/lot7-fiches-commerciales.sql).
+// Types d'entité gérés par le moteur générique de fiches (voir sql/lot7-fiches-commerciales.sql
+// et sql/lot8-fiches-location.sql, qui a ajouté 'vehicule_location').
 export const TYPES_ENTITE_FICHE = {
   bien_vente: { label: "Bien immobilier à vendre" },
   vehicule_vente: { label: "Véhicule à vendre" },
   logement: { label: "Logement à louer" },
+  vehicule_location: { label: "Véhicule/matériel à louer" },
 };
 
 // Construit le lien public d'une fiche (query param, comme les autres pages publiques de l'appli).

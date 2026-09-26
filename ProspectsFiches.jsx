@@ -38,21 +38,22 @@ function useDonneesFiches(workspace) {
   const [biensVente, setBiensVente] = useState([]);
   const [vehiculesVente, setVehiculesVente] = useState([]);
   const [logements, setLogements] = useState([]);
+  const [biensLocation, setBiensLocation] = useState([]);
   const [charge, setCharge] = useState(false);
 
   const recharger = useCallback(async () => {
     if (!workspace?.id) return;
     const req = (table) => supabase.from(table).select("*").eq("workspace_id", workspace.id).then((r) => r.data || []).catch(() => []);
-    const [p, q, r, bv, vv, lg] = await Promise.all([
+    const [p, q, r, bv, vv, lg, bl] = await Promise.all([
       supabase.from("prospects_fiches").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }),
       supabase.from("questions_fiches").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }),
       supabase.from("rendez_vous_fiches").select("*").eq("workspace_id", workspace.id).order("date", { ascending: true }),
-      req("biens_vente"), req("vehicules_vente"), req("logements"),
+      req("biens_vente"), req("vehicules_vente"), req("logements"), req("biens_location"),
     ]);
     setProspects(p.data || []);
     setQuestions(q.data || []);
     setRdvs(r.data || []);
-    setBiensVente(bv); setVehiculesVente(vv); setLogements(lg);
+    setBiensVente(bv); setVehiculesVente(vv); setLogements(lg); setBiensLocation(bl);
     setCharge(true);
   }, [workspace?.id]);
 
@@ -63,8 +64,9 @@ function useDonneesFiches(workspace) {
     biensVente.forEach((b) => m.set("bien_vente:" + b.id, b));
     vehiculesVente.forEach((v) => m.set("vehicule_vente:" + v.id, v));
     logements.forEach((l) => m.set("logement:" + l.id, l));
+    biensLocation.forEach((b) => m.set("vehicule_location:" + b.id, b));
     return m;
-  }, [biensVente, vehiculesVente, logements]);
+  }, [biensVente, vehiculesVente, logements, biensLocation]);
 
   function fiche(typeEntite, entiteId) { return fichesParCle.get(`${typeEntite}:${entiteId}`) || null; }
   function nomFiche(typeEntite, entiteId) {
@@ -74,19 +76,22 @@ function useDonneesFiches(workspace) {
   function prixFiche(typeEntite, entiteId) {
     const f = fiche(typeEntite, entiteId);
     if (!f) return null;
-    return typeEntite === "logement" ? f.loyer_mensuel : f.prix_vente;
+    if (typeEntite === "logement") return f.loyer_mensuel;
+    if (typeEntite === "vehicule_location") return f.prix_jour;
+    return f.prix_vente;
   }
 
-  return { prospects, questions, rdvs, biensVente, vehiculesVente, logements, charge, recharger, fiche, nomFiche, prixFiche };
+  return { prospects, questions, rdvs, biensVente, vehiculesVente, logements, biensLocation, charge, recharger, fiche, nomFiche, prixFiche };
 }
 
 function genererBonCommandeFichePDF(prospect, fiche, typeEntite, workspace) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const green = [26, 122, 60], gray = [107, 113, 104], dark = [22, 35, 31];
-  const estVehicule = typeEntite === "vehicule_vente";
+  const estVehicule = typeEntite === "vehicule_vente" || typeEntite === "vehicule_location";
+  const estLocation = typeEntite === "logement" || typeEntite === "vehicule_location";
   doc.setFillColor(...green); doc.rect(0, 0, 210, 26, "F");
   doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  doc.text(`BON DE COMMANDE — ${estVehicule ? "VÉHICULE" : "IMMOBILIER"}`, 15, 17);
+  doc.text(`BON DE COMMANDE — ${estVehicule ? "VÉHICULE" : "IMMOBILIER"}${estLocation ? " (LOCATION)" : ""}`, 15, 17);
 
   let y = 36;
   doc.setTextColor(...dark); doc.setFontSize(10); doc.setFont("helvetica", "normal");
@@ -95,8 +100,9 @@ function genererBonCommandeFichePDF(prospect, fiche, typeEntite, workspace) {
 
   doc.setFont("helvetica", "bold"); doc.text("Bien / véhicule", 15, y); y += 6;
   doc.setFont("helvetica", "normal");
-  const prix = typeEntite === "logement" ? fiche?.loyer_mensuel : fiche?.prix_vente;
-  doc.text(`${fiche ? (fiche.titre_annonce || fiche.nom) : "—"}${prix ? " — " + nb(prix) + " " + devise(workspace.currency) + (typeEntite === "logement" ? "/mois" : "") : ""}`, 15, y, { maxWidth: 180 }); y += 10;
+  const prix = typeEntite === "logement" ? fiche?.loyer_mensuel : typeEntite === "vehicule_location" ? fiche?.prix_jour : fiche?.prix_vente;
+  const suffixePrix = typeEntite === "logement" ? "/mois" : typeEntite === "vehicule_location" ? "/jour" : "";
+  doc.text(`${fiche ? (fiche.titre_annonce || fiche.nom) : "—"}${prix ? " — " + nb(prix) + " " + devise(workspace.currency) + suffixePrix : ""}`, 15, y, { maxWidth: 180 }); y += 10;
 
   doc.setFont("helvetica", "bold"); doc.text("Acquéreur / prospect", 15, y); y += 6;
   doc.setFont("helvetica", "normal");
@@ -302,11 +308,12 @@ function OngletMesFiches({ workspace, donnees }) {
     ...donnees.biensVente.map((b) => ({ ...b, __type: "bien_vente" })),
     ...donnees.vehiculesVente.map((v) => ({ ...v, __type: "vehicule_vente" })),
     ...donnees.logements.map((l) => ({ ...l, __type: "logement" })),
+    ...donnees.biensLocation.map((b) => ({ ...b, __type: "vehicule_location" })),
   ];
   const liste = toutes.filter((f) => filtreType === "tous" || f.__type === filtreType);
 
   async function changerStatutFiche(f) {
-    const table = f.__type === "bien_vente" ? "biens_vente" : f.__type === "vehicule_vente" ? "vehicules_vente" : "logements";
+    const table = f.__type === "bien_vente" ? "biens_vente" : f.__type === "vehicule_vente" ? "vehicules_vente" : f.__type === "vehicule_location" ? "biens_location" : "logements";
     const ordre = ["brouillon", "active", "archivee"];
     const suivant = ordre[(ordre.indexOf(f.statut_fiche) + 1) % ordre.length];
     await supabase.from(table).update({ statut_fiche: suivant, publie: suivant === "active" }).eq("id", f.id);
@@ -316,7 +323,7 @@ function OngletMesFiches({ workspace, donnees }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
-        {[["tous", "Toutes"], ["bien_vente", "Immobilier vente"], ["vehicule_vente", "Véhicules vente"], ["logement", "Location"]].map(([k, l]) => (
+        {[["tous", "Toutes"], ["bien_vente", "Immobilier vente"], ["vehicule_vente", "Véhicules vente"], ["logement", "Location maison"], ["vehicule_location", "Véhicules/matériel location"]].map(([k, l]) => (
           <div key={k} onClick={() => setFiltreType(k)} style={{ ...S.onglet(filtreType === k), flex: "0 0 auto" }}>{l}</div>
         ))}
       </div>
@@ -328,7 +335,9 @@ function OngletMesFiches({ workspace, donnees }) {
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{f.titre_annonce || f.nom}</div>
               <div style={{ fontSize: 11.5, color: COULEURS.grisClair, marginTop: 2 }}>
                 {TYPES_ENTITE_FICHE[f.__type]?.label}
-                {f.__type === "logement" ? ` · ${nb(f.loyer_mensuel)} ${devise(workspace.currency)}/mois · ${f.disponible ? "Libre" : "Occupé"}` : ` · ${nb(f.prix_vente)} ${devise(workspace.currency)} · ${f.statut}`}
+                {f.__type === "logement" ? ` · ${nb(f.loyer_mensuel)} ${devise(workspace.currency)}/mois · ${f.disponible ? "Libre" : "Occupé"}`
+                  : f.__type === "vehicule_location" ? ` · ${nb(f.prix_jour)} ${devise(workspace.currency)}/jour · ${f.disponible ? "Disponible" : "Indisponible"}`
+                  : ` · ${nb(f.prix_vente)} ${devise(workspace.currency)} · ${f.statut}`}
               </div>
             </div>
             <span onClick={() => changerStatutFiche(f)} style={{ cursor: "pointer", fontSize: 10.5, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: f.statut_fiche === "active" ? "#EAF3DE" : f.statut_fiche === "archivee" ? "#F1EFE8" : "#FBF3E3", color: f.statut_fiche === "active" ? "#3B6D11" : f.statut_fiche === "archivee" ? COULEURS.grisClair : COULEURS.ambre }}>

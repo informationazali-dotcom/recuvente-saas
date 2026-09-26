@@ -16,6 +16,7 @@ import TunnelAdmin from "./network/TunnelAdmin.jsx";
 import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import * as XLSX from "xlsx";
 import { verifierChevauchement, messageChevauchement } from "./locationVehiculeUtils.js";
+import { urlFichePublique, urlQrFiche, messageWhatsAppPartageFiche } from "./fichesCommercialesUtils.js";
 // Product Page Builder : éditeur chargé À LA DEMANDE (n'alourdit ni la boutique publique ni le tableau de bord).
 const PageProduitBuilder = React.lazy(() => import("./PageProduitBuilder.jsx"));
 // Croissance (paiement en ligne optionnel, réseau anti-refus, annuaire, ambassadeur) : chargée à la demande.
@@ -4120,16 +4121,42 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   }
 
   async function addBienLocation(form) {
-    const { couleurs_texte, ...formSansCouleurs } = form;
+    const { couleurs_texte, options_texte, documents_disponibles_texte, ...formSansCouleurs } = form;
     const couleurs_disponibles = couleurs_texte ? couleurs_texte.split(",").map((c) => c.trim()).filter(Boolean) : null;
-    await supabase.from("biens_location").insert([{ ...formSansCouleurs, workspace_id: workspace.id, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0, prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null, couleurs_disponibles }]);
+    const listeDepuisTexteBL = (t) => (t ? t.split(",").map((s) => s.trim()).filter(Boolean) : []);
+    const nbBL = (v) => (v === "" || v === undefined || v === null) ? null : Number(v);
+    await supabase.from("biens_location").insert([{
+      ...formSansCouleurs, workspace_id: workspace.id,
+      prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0,
+      prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null,
+      annee: nbBL(form.annee), kilometrage: nbBL(form.kilometrage), nombre_places: nbBL(form.nombre_places),
+      nombre_portes: nbBL(form.nombre_portes), latitude: nbBL(form.latitude), longitude: nbBL(form.longitude),
+      premiere_mise_circulation: form.premiere_mise_circulation || null,
+      carburant: form.carburant || null, boite_vitesse: form.boite_vitesse || null, etat: form.etat || null,
+      options: listeDepuisTexteBL(options_texte), documents_disponibles: listeDepuisTexteBL(documents_disponibles_texte),
+      caracteristiques_personnalisees: (form.caracteristiques_personnalisees || []).filter((c) => c.libelle && c.libelle.trim()),
+      couleurs_disponibles,
+    }]);
     await loadBiensLocation();
   }
 
   async function updateBienLocation(id, form) {
-    const { couleurs_texte, ...formSansCouleurs } = form;
+    const { couleurs_texte, options_texte, documents_disponibles_texte, ...formSansCouleurs } = form;
     const couleurs_disponibles = couleurs_texte ? couleurs_texte.split(",").map((c) => c.trim()).filter(Boolean) : null;
-    await supabase.from("biens_location").update({ ...formSansCouleurs, prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0, prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null, couleurs_disponibles }).eq("id", id);
+    const listeDepuisTexteBL = (t) => (t ? t.split(",").map((s) => s.trim()).filter(Boolean) : []);
+    const nbBL = (v) => (v === "" || v === undefined || v === null) ? null : Number(v);
+    await supabase.from("biens_location").update({
+      ...formSansCouleurs,
+      prix_jour: Number(form.prix_jour) || 0, caution_suggeree: Number(form.caution_suggeree) || 0,
+      prix_vente_direct: form.prix_vente_direct ? Number(form.prix_vente_direct) : null,
+      annee: nbBL(form.annee), kilometrage: nbBL(form.kilometrage), nombre_places: nbBL(form.nombre_places),
+      nombre_portes: nbBL(form.nombre_portes), latitude: nbBL(form.latitude), longitude: nbBL(form.longitude),
+      premiere_mise_circulation: form.premiere_mise_circulation || null,
+      carburant: form.carburant || null, boite_vitesse: form.boite_vitesse || null, etat: form.etat || null,
+      options: listeDepuisTexteBL(options_texte), documents_disponibles: listeDepuisTexteBL(documents_disponibles_texte),
+      caracteristiques_personnalisees: (form.caracteristiques_personnalisees || []).filter((c) => c.libelle && c.libelle.trim()),
+      couleurs_disponibles,
+    }).eq("id", id);
     await loadBiensLocation();
   }
 
@@ -6818,11 +6845,13 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           biensLocation={biensLocation}
           currency={formaterDevise(workspace.currency)}
           workspaceId={workspace.id}
+          workspace={workspace}
           estLucirica={workspace.slug === "luxury-car"}
           onAdd={addBienLocation}
           onUpdate={updateBienLocation}
           onToggleDisponibilite={toggleDisponibiliteBien}
           onDelete={deleteBienLocation}
+          onReload={loadBiensLocation}
         />
       )}
 
@@ -16359,14 +16388,121 @@ function BatchRelanceModalSaas({ orders, currency, onClose, onLog }) {
   );
 }
 
-function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, onAdd, onUpdate, onToggleDisponibilite, onDelete }) {
-  const [form, setForm] = useState({
-    nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "",
-    mode_location: true, mode_commander: false, mode_payer_maintenant: false,
-    prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "",
-  });
+// Ces caractéristiques ne concernent vraiment que les véhicules (pas un groupe électrogène ou un
+// engin de chantier) : une option vide en tête laisse le champ non renseigné plutôt que d'imposer
+// une valeur par défaut trompeuse sur un bien qui n'est pas un véhicule.
+const CARBURANTS_BL = [["", "— (non précisé)"], ["essence", "Essence"], ["diesel", "Diesel"], ["hybride", "Hybride"], ["electrique", "Électrique"], ["autre", "Autre"]];
+const BOITES_BL = [["", "— (non précisé)"], ["manuelle", "Manuelle"], ["automatique", "Automatique"]];
+const ETATS_BL = [["", "— (non précisé)"], ["neuf", "Neuf"], ["occasion", "Occasion"]];
+const champBL = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 13, marginBottom: 8, boxSizing: "border-box" };
+
+// Si la fiche est restée ouverte longtemps avant l'envoi (surtout pour une vidéo, plus longue à
+// envoyer), la session de connexion peut avoir expiré entre-temps. On la rafraîchit juste avant
+// pour éviter l'erreur technique "'exp' claim timestamp check failed".
+async function assurerSessionFraicheBL() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
+    if (session?.expires_at && session.expires_at * 1000 < Date.now() + 120000) {
+      await supabase.auth.refreshSession();
+    }
+  } catch (_) { /* si le rafraîchissement échoue, on tente quand même l'envoi normalement */ }
+}
+
+async function envoyerFichierBienLocation(file, workspaceId, prefixe) {
+  await assurerSessionFraicheBL();
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+  const chemin = `${workspaceId}/location-bien-${prefixe}-${Date.now()}-${Math.round(Math.random() * 9999)}.${ext}`;
+  const { error } = await supabase.storage.from("boutique").upload(chemin, file, { upsert: true, contentType: file.type || undefined });
+  if (error) {
+    const brut = error?.message || String(error || "");
+    if (/exp.{0,20}claim|jwt expired|token expired|session.{0,10}expir/i.test(brut)) {
+      throw new Error("Votre session a expiré (vous étiez resté sur cette page trop longtemps). Rechargez la page et réessayez l'envoi.");
+    }
+    throw error;
+  }
+  return supabase.storage.from("boutique").getPublicUrl(chemin).data.publicUrl;
+}
+
+// Publication d'une fiche publique — copie volontaire de PanneauPublierFiche (LocationMaison.jsx) :
+// ce module est autonome et n'importe pas les composants d'un autre fichier plein écran (seuls
+// les petits utilitaires de fichesCommercialesUtils.js sont importés, comme convenu).
+function PanneauPublierFicheBienLocation({ workspace, entite, currency, onMaj }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [enCours, setEnCours] = useState(false);
+  const lien = urlFichePublique("vehicule_location", entite.id);
+
+  async function basculerPublie() {
+    setEnCours(true);
+    const nouveauPublie = !entite.publie;
+    await supabase.from("biens_location").update({ publie: nouveauPublie, statut_fiche: nouveauPublie ? "active" : "brouillon" }).eq("id", entite.id);
+    setEnCours(false);
+    await onMaj();
+  }
+
+  useEffect(() => {
+    if (!ouvert || !entite.publie) return;
+    supabase.rpc("stats_fiche_commerciale", { p_workspace_id: workspace.id, p_type_entite: "vehicule_location", p_entite_id: entite.id })
+      .then(({ data }) => setStats(data || null));
+  }, [ouvert, entite.publie, entite.id]);
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <button onClick={() => setOuvert(!ouvert)} style={{ background: "none", border: "1px solid #DDD8CC", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", color: "#344239" }}>
+        🔗 {entite.publie ? "Fiche publique" : "Publier"}
+      </button>
+      {ouvert && (
+        <div style={{ background: "#F4F1E8", borderRadius: 10, padding: 12, marginTop: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer", marginBottom: entite.publie ? 10 : 0 }}>
+            <input type="checkbox" checked={!!entite.publie} disabled={enCours} onChange={basculerPublie} />
+            Publier cette fiche (visible publiquement, sans compte)
+          </label>
+          {entite.publie && (
+            <>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                <img src={urlQrFiche(lien)} alt="QR code de la fiche" style={{ width: 84, height: 84, borderRadius: 8, background: "white" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, color: "#8A9089", wordBreak: "break-all", marginBottom: 6 }}>{lien}</div>
+                  <a href={messageWhatsAppPartageFiche(entite.titre_annonce || entite.nom, entite.prix_jour, currency, lien)} target="_blank" rel="noopener noreferrer" style={{ background: "#25d366", color: "white", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>💬 Partager sur WhatsApp</a>
+                </div>
+              </div>
+              {stats && (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, color: "#6B7168" }}>
+                  <span>👁️ {stats.vues} vues</span><span>👤 {stats.prospects} prospects</span>
+                  <span>❓ {stats.questions} questions</span><span>📅 {stats.rendez_vous} RDV</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const CHAMPS_VIDES_BIEN_LOCATION = {
+  nom: "", categorie: "Véhicule", prix_jour: "", caution_suggeree: "", description: "",
+  mode_location: true, mode_commander: false, mode_payer_maintenant: false,
+  prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "",
+  reference: "", titre_annonce: "", prix_negociable: false,
+  marque: "", modele: "", version: "", annee: "", kilometrage: "", carburant: "", boite_vitesse: "",
+  transmission: "", puissance: "", couleur: "", nombre_places: "", nombre_portes: "", etat: "",
+  premiere_mise_circulation: "", origine: "", entretien: "", garantie: "", assurance: "", controle_technique: "",
+  options_texte: "", documents_disponibles_texte: "", caracteristiques_personnalisees: [],
+  pays: "", ville: "", commune: "", quartier: "", adresse_precise: "", points_de_repere: "",
+  adresse_publique_visible: false, latitude: "", longitude: "",
+  photos: [], video_url: "", documents: [],
+};
+
+function BiensLocationView({ biensLocation, currency, workspaceId, workspace, estLucirica, onAdd, onUpdate, onToggleDisponibilite, onDelete, onReload }) {
+  const [form, setForm] = useState(CHAMPS_VIDES_BIEN_LOCATION);
   const [envoiPhotoEnCours, setEnvoiPhotoEnCours] = useState(false);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [bienEnEditionId, setBienEnEditionId] = useState(null);
+
+  function maj(champs) { setForm((f) => ({ ...f, ...champs })); }
+  function bascule(cle) { setForm((f) => ({ ...f, [cle]: !f[cle] })); }
 
   const nbDisponibles = biensLocation.filter((b) => b.disponible).length;
   const nbLoues = biensLocation.length - nbDisponibles;
@@ -16385,9 +16521,43 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
     setEnvoiPhotoEnCours(false);
   }
 
+  async function ajouterPhotosGalerie(fichiers) {
+    if (!fichiers || fichiers.length === 0) return;
+    setEnvoiEnCours(true);
+    try {
+      const urls = [];
+      for (const f of Array.from(fichiers)) {
+        const compresse = await compresserImage(f);
+        urls.push(await envoyerFichierBienLocation(compresse, workspaceId, "photo"));
+      }
+      setForm((fo) => ({ ...fo, photos: [...fo.photos, ...urls] }));
+    } catch (_) { /* affichage d'erreur non bloquant, comme ailleurs dans ce fichier */ }
+    setEnvoiEnCours(false);
+  }
+  function retirerPhotoGalerie(i) { setForm((f) => ({ ...f, photos: f.photos.filter((_, idx) => idx !== i) })); }
+
+  async function ajouterDocumentBL(fichier) {
+    if (!fichier) return;
+    setEnvoiEnCours(true);
+    try {
+      const url = await envoyerFichierBienLocation(fichier, workspaceId, "doc");
+      setForm((f) => ({ ...f, documents: [...f.documents, { nom: fichier.name, url }] }));
+    } catch (_) { /* affichage d'erreur non bloquant, comme ailleurs dans ce fichier */ }
+    setEnvoiEnCours(false);
+  }
+  function retirerDocumentBL(i) { setForm((f) => ({ ...f, documents: f.documents.filter((_, idx) => idx !== i) })); }
+
+  function ajouterCaracPersoBL() {
+    setForm((f) => ({ ...f, caracteristiques_personnalisees: [...f.caracteristiques_personnalisees, { libelle: "", valeur: "" }] }));
+  }
+  function majCaracPersoBL(i, champ, valeur) {
+    setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.map((c, idx) => idx === i ? { ...c, [champ]: valeur } : c) }));
+  }
+  function retirerCaracPersoBL(i) { setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.filter((_, idx) => idx !== i) })); }
+
   function reinitialiserForm() {
     setBienEnEditionId(null);
-    setForm({ nom: "", categorie: form.categorie, prix_jour: "", caution_suggeree: "", description: "", mode_location: true, mode_commander: false, mode_payer_maintenant: false, prix_vente_direct: "", delai_commande_estime: "", photo_url: "", couleurs_texte: "" });
+    setForm({ ...CHAMPS_VIDES_BIEN_LOCATION, categorie: form.categorie });
   }
 
   function demarrerEdition(b) {
@@ -16397,6 +16567,21 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
       description: b.description || "", mode_location: !!b.mode_location, mode_commander: !!b.mode_commander, mode_payer_maintenant: !!b.mode_payer_maintenant,
       prix_vente_direct: b.prix_vente_direct ?? "", delai_commande_estime: b.delai_commande_estime || "", photo_url: b.photo_url || "",
       couleurs_texte: Array.isArray(b.couleurs_disponibles) ? b.couleurs_disponibles.join(", ") : "",
+      reference: b.reference || "", titre_annonce: b.titre_annonce || "", prix_negociable: b.prix_negociable || false,
+      marque: b.marque || "", modele: b.modele || "", version: b.version || "", annee: b.annee != null ? String(b.annee) : "",
+      kilometrage: b.kilometrage != null ? String(b.kilometrage) : "", carburant: b.carburant || "", boite_vitesse: b.boite_vitesse || "",
+      transmission: b.transmission || "", puissance: b.puissance || "", couleur: b.couleur || "",
+      nombre_places: b.nombre_places != null ? String(b.nombre_places) : "", nombre_portes: b.nombre_portes != null ? String(b.nombre_portes) : "",
+      etat: b.etat || "", premiere_mise_circulation: b.premiere_mise_circulation || "",
+      origine: b.origine || "", entretien: b.entretien || "", garantie: b.garantie || "", assurance: b.assurance || "", controle_technique: b.controle_technique || "",
+      options_texte: Array.isArray(b.options) ? b.options.join(", ") : "",
+      documents_disponibles_texte: Array.isArray(b.documents_disponibles) ? b.documents_disponibles.join(", ") : "",
+      caracteristiques_personnalisees: Array.isArray(b.caracteristiques_personnalisees) ? b.caracteristiques_personnalisees : [],
+      pays: b.pays || "", ville: b.ville || "", commune: b.commune || "", quartier: b.quartier || "",
+      adresse_precise: b.adresse_precise || "", points_de_repere: b.points_de_repere || "",
+      adresse_publique_visible: b.adresse_publique_visible || false,
+      latitude: b.latitude != null && b.latitude !== "" ? String(b.latitude) : "", longitude: b.longitude != null && b.longitude !== "" ? String(b.longitude) : "",
+      photos: Array.isArray(b.photos) ? b.photos : [], video_url: b.video_url || "", documents: Array.isArray(b.documents) ? b.documents : [],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -16425,6 +16610,110 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
         <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FAFAF7", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 14 }}>
           {envoiPhotoEnCours ? "Envoi..." : "📷 " + (form.photo_url ? "Changer la photo" : "Ajouter une photo")}
           <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => envoyerPhoto(e.target.files?.[0])} />
+        </label>
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168", margin: "4px 0" }}>Pour la fiche publique (optionnel)</div>
+        <input placeholder="Référence interne (optionnel)" value={form.reference} onChange={(e) => maj({ reference: e.target.value })} style={champBL} />
+        <input placeholder="Titre de l'annonce (ex: Toyota Land Cruiser 2022 — location/jour)" value={form.titre_annonce} onChange={(e) => maj({ titre_annonce: e.target.value })} style={champBL} />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#6B7168", marginBottom: 10, cursor: "pointer" }}>
+          <input type="checkbox" checked={form.prix_negociable} onChange={() => bascule("prix_negociable")} />
+          Prix négociable
+        </label>
+
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7168", margin: "6px 0 4px" }}>Caractéristiques du véhicule (optionnel — surtout utile si c'est un véhicule)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Marque" value={form.marque} onChange={(e) => maj({ marque: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input placeholder="Modèle" value={form.modele} onChange={(e) => maj({ modele: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Version (optionnel)" value={form.version} onChange={(e) => maj({ version: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input type="number" placeholder="Année" value={form.annee} onChange={(e) => maj({ annee: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <select value={form.carburant} onChange={(e) => maj({ carburant: e.target.value })} style={{ ...champBL, flex: 1 }}>{CARBURANTS_BL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          <select value={form.boite_vitesse} onChange={(e) => maj({ boite_vitesse: e.target.value })} style={{ ...champBL, flex: 1 }}>{BOITES_BL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input type="number" placeholder="Kilométrage" value={form.kilometrage} onChange={(e) => maj({ kilometrage: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <select value={form.etat} onChange={(e) => maj({ etat: e.target.value })} style={{ ...champBL, flex: 1 }}>{ETATS_BL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Transmission (traction/propulsion/4x4)" value={form.transmission} onChange={(e) => maj({ transmission: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input placeholder="Puissance" value={form.puissance} onChange={(e) => maj({ puissance: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Couleur" value={form.couleur} onChange={(e) => maj({ couleur: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input type="number" placeholder="Places" value={form.nombre_places} onChange={(e) => maj({ nombre_places: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input type="number" placeholder="Portes" value={form.nombre_portes} onChange={(e) => maj({ nombre_portes: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <input type="date" placeholder="1ère mise en circulation" value={form.premiere_mise_circulation} onChange={(e) => maj({ premiere_mise_circulation: e.target.value })} style={champBL} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Origine" value={form.origine} onChange={(e) => maj({ origine: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input placeholder="Entretien" value={form.entretien} onChange={(e) => maj({ entretien: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Garantie" value={form.garantie} onChange={(e) => maj({ garantie: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input placeholder="Assurance" value={form.assurance} onChange={(e) => maj({ assurance: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <input placeholder="Contrôle technique" value={form.controle_technique} onChange={(e) => maj({ controle_technique: e.target.value })} style={champBL} />
+        <input placeholder="Options (séparées par des virgules)" value={form.options_texte} onChange={(e) => maj({ options_texte: e.target.value })} style={champBL} />
+        <input placeholder="Documents disponibles (séparés par des virgules, ex: Carte grise, Assurance)" value={form.documents_disponibles_texte} onChange={(e) => maj({ documents_disponibles_texte: e.target.value })} style={champBL} />
+
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7168", margin: "6px 0 4px" }}>Autres caractéristiques (optionnel)</div>
+        {form.caracteristiques_personnalisees.map((c, i) => (
+          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <input placeholder="Ex: Carte grise" value={c.libelle} onChange={(e) => majCaracPersoBL(i, "libelle", e.target.value)} style={{ ...champBL, marginBottom: 0, flex: 1 }} />
+            <input placeholder="Ex: Disponible" value={c.valeur} onChange={(e) => majCaracPersoBL(i, "valeur", e.target.value)} style={{ ...champBL, marginBottom: 0, flex: 1 }} />
+            <button onClick={() => retirerCaracPersoBL(i)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer", fontSize: 15 }}>🗑️</button>
+          </div>
+        ))}
+        <button onClick={ajouterCaracPersoBL} style={{ width: "100%", background: "none", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "7px 0", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 10 }}>+ Ajouter une caractéristique</button>
+
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7168", margin: "6px 0 4px" }}>Localisation (optionnel)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Pays" value={form.pays} onChange={(e) => maj({ pays: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input placeholder="Ville" value={form.ville} onChange={(e) => maj({ ville: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Commune" value={form.commune} onChange={(e) => maj({ commune: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input placeholder="Quartier" value={form.quartier} onChange={(e) => maj({ quartier: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7168", margin: "6px 0 4px" }}>Localisation précise (équipe seulement, jamais publiée sans ton accord)</div>
+        <input placeholder="Adresse précise" value={form.adresse_precise} onChange={(e) => maj({ adresse_precise: e.target.value })} style={champBL} />
+        <input placeholder="Points de repère" value={form.points_de_repere} onChange={(e) => maj({ points_de_repere: e.target.value })} style={champBL} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input type="number" step="any" placeholder="Latitude (optionnel)" value={form.latitude} onChange={(e) => maj({ latitude: e.target.value })} style={{ ...champBL, flex: 1 }} />
+          <input type="number" step="any" placeholder="Longitude (optionnel)" value={form.longitude} onChange={(e) => maj({ longitude: e.target.value })} style={{ ...champBL, flex: 1 }} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#6B7168", marginTop: 4, marginBottom: 10, cursor: "pointer" }}>
+          <input type="checkbox" checked={form.adresse_publique_visible} onChange={() => bascule("adresse_publique_visible")} />
+          Autoriser à montrer l'adresse précise publiquement plus tard
+        </label>
+
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7168", margin: "6px 0 4px" }}>Galerie photos, vidéo & documents (optionnel)</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {form.photos.map((url, i) => (
+            <div key={i} style={{ position: "relative" }}>
+              <img src={url} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8 }} />
+              <button onClick={() => retirerPhotoGalerie(i)} style={{ position: "absolute", top: -6, right: -6, background: "#D64933", color: "white", border: "none", borderRadius: 99, width: 16, height: 16, fontSize: 10, cursor: "pointer", lineHeight: "16px" }}>×</button>
+            </div>
+          ))}
+        </div>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FAFAF7", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 8 }}>
+          {envoiEnCours ? "Envoi..." : "📷 Ajouter des photos à la galerie"}
+          <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => ajouterPhotosGalerie(e.target.files)} disabled={envoiEnCours} />
+        </label>
+        <input placeholder="Lien vidéo (optionnel)" value={form.video_url} onChange={(e) => maj({ video_url: e.target.value })} style={champBL} />
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7168", marginBottom: 6 }}>Documents (permis, carte grise, etc.)</div>
+        {form.documents.map((d, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
+            <span>📎 {d.nom}</span>
+            <button onClick={() => retirerDocumentBL(i)} style={{ background: "none", border: "none", color: "#D64933", cursor: "pointer" }}>🗑️</button>
+          </div>
+        ))}
+        <label style={{ display: "block", textAlign: "center", background: "#FAFAF7", border: "1px dashed #DDD8CC", borderRadius: 8, padding: "8px 0", fontSize: 12, color: "#6B7168", cursor: "pointer", marginBottom: 14 }}>
+          {envoiEnCours ? "Envoi..." : "+ Ajouter un document"}
+          <input type="file" style={{ display: "none" }} onChange={(e) => ajouterDocumentBL(e.target.files?.[0])} disabled={envoiEnCours} />
         </label>
 
         {estLucirica ? (
@@ -16520,6 +16809,9 @@ function BiensLocationView({ biensLocation, currency, workspaceId, estLucirica, 
             >
               {b.disponible ? "✅ Disponible" : "🚫 Actuellement indisponible"}
             </button>
+            {workspace && (
+              <PanneauPublierFicheBienLocation workspace={workspace} entite={b} currency={currency} onMaj={onReload} />
+            )}
           </div>
         ))}
         {biensLocation.length === 0 && <div style={{ textAlign: "center", color: "#8A9089", fontSize: 13, padding: "30px 0" }}>Aucun bien pour l'instant.</div>}

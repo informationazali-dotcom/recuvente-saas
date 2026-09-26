@@ -48,16 +48,34 @@ function caracteristiquesAffichees(f) {
       ["Contrôle technique", f.controle_technique],
     ].filter(([, v]) => v !== null && v !== undefined && v !== "");
   }
+  if (f.type_entite === "vehicule_location") {
+    return [
+      ["Marque", f.marque], ["Modèle", f.modele], ["Version", f.version], ["Année", f.annee],
+      ["Kilométrage", f.kilometrage ? `${nb(f.kilometrage)} km` : null], ["Carburant", f.carburant],
+      ["Boîte de vitesse", f.boite_vitesse], ["Transmission", f.transmission], ["Puissance", f.puissance],
+      ["Couleur", f.couleur], ["Places", f.nombre_places], ["Portes", f.nombre_portes], ["État", f.etat],
+      ["1ère mise en circulation", f.premiere_mise_circulation ? new Date(f.premiere_mise_circulation).toLocaleDateString("fr-FR") : null],
+      ["Origine", f.origine], ["Entretien", f.entretien], ["Garantie", f.garantie], ["Assurance", f.assurance],
+      ["Contrôle technique", f.controle_technique],
+    ].filter(([, v]) => v !== null && v !== undefined && v !== "");
+  }
   // logement (location)
   return [
-    ["Superficie", f.superficie ? `${f.superficie} m²` : null], ["Pièces", f.nombre_pieces],
-    ["Chambres", f.nombre_chambres], ["Salles de bain", f.nombre_salles_bain],
+    ["Superficie", f.superficie ? `${f.superficie} m²` : null], ["Superficie du terrain", f.superficie_terrain ? `${f.superficie_terrain} m²` : null],
+    ["Pièces", f.nombre_pieces], ["Chambres", f.nombre_chambres], ["Salles de bain", f.nombre_salles_bain],
+    ["Toilettes", f.nombre_toilettes], ["Étages", f.nombre_etages],
+    ["Salon", f.salon ? "Oui" : null], ["Salle à manger", f.salle_a_manger ? "Oui" : null],
+    ["Cuisine équipée", f.cuisine_equipee ? "Oui" : null], ["Garage", f.garage ? "Oui" : null],
+    ["Parking", f.parking ? "Oui" : null], ["Balcon", f.balcon ? "Oui" : null], ["Terrasse", f.terrasse ? "Oui" : null],
+    ["Jardin", f.jardin ? "Oui" : null], ["Piscine", f.piscine ? "Oui" : null], ["Dépendance", f.dependance ? "Oui" : null],
+    ["Clôture", f.cloture ? "Oui" : null], ["Portail", f.portail ? "Oui" : null], ["Sécurité", f.securite ? "Oui" : null],
   ].filter(([, v]) => v !== null && v !== undefined && v !== 0 && v !== "");
 }
 
 function prixAffiche(f, wsDevise) {
   const d = devise(wsDevise);
-  if (f.type_entite === "logement") return `${nb(f.loyer_mensuel)} ${d} / mois`;
+  if (f.type_entite === "logement") return `${nb(f.loyer_mensuel)} ${d} / mois${f.loyer_negociable ? " (négociable)" : ""}`;
+  if (f.type_entite === "vehicule_location") return `${nb(f.prix_jour)} ${d} / jour${f.prix_negociable ? " (négociable)" : ""}`;
   return `${nb(f.prix_vente)} ${d}${f.prix_negociable ? " (négociable)" : ""}`;
 }
 
@@ -65,7 +83,7 @@ function ligneStatsClef(f) {
   if (f.type_entite === "bien_vente") {
     return [f.nombre_chambres ? `${f.nombre_chambres} chambres` : null, f.nombre_salles_bain ? `${f.nombre_salles_bain} SDB` : null, f.superficie ? `${f.superficie} m²` : null].filter(Boolean).join(" • ");
   }
-  if (f.type_entite === "vehicule_vente") {
+  if (f.type_entite === "vehicule_vente" || f.type_entite === "vehicule_location") {
     return [f.annee, f.kilometrage ? `${nb(f.kilometrage)} km` : null, f.boite_vitesse === "automatique" ? "Automatique" : f.boite_vitesse === "manuelle" ? "Manuelle" : null, f.carburant].filter(Boolean).join(" • ");
   }
   return [f.nombre_chambres ? `${f.nombre_chambres} chambres` : null, f.superficie ? `${f.superficie} m²` : null].filter(Boolean).join(" • ");
@@ -166,7 +184,7 @@ export default function FichePublique({ ficheId, typeEntite }) {
           <button onClick={() => { setFormulaireOuvert("interesse"); suivre("clic_interesse", "bouton_interesse"); }} style={{ flex: "1 1 160px", background: COULEURS.vert, color: "white", border: "none", borderRadius: 10, padding: "12px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>✅ Je suis intéressé</button>
           <button onClick={() => setFormulaireOuvert("rdv")} style={{ flex: "1 1 160px", background: "white", color: COULEURS.vertFonce, border: `1px solid ${COULEURS.bordure}`, borderRadius: 10, padding: "12px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>📅 Prendre rendez-vous</button>
           <button onClick={() => setFormulaireOuvert("question")} style={{ flex: "1 1 160px", background: "white", color: COULEURS.vertFonce, border: `1px solid ${COULEURS.bordure}`, borderRadius: 10, padding: "12px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>❓ Poser une question</button>
-          <a onClick={() => suivre("partage_whatsapp", "bouton_partage")} href={messageWhatsAppPartageFiche(fiche.titre_annonce, fiche.prix_vente ?? fiche.loyer_mensuel, devise(fiche.devise), lienPage)} target="_blank" rel="noopener noreferrer" style={{ flex: "1 1 160px", background: "#25d366", color: "white", borderRadius: 10, padding: "12px 14px", fontWeight: 700, fontSize: 13.5, textAlign: "center", textDecoration: "none" }}>💬 Partager sur WhatsApp</a>
+          <a onClick={() => suivre("partage_whatsapp", "bouton_partage")} href={messageWhatsAppPartageFiche(fiche.titre_annonce, fiche.prix_vente ?? fiche.loyer_mensuel ?? fiche.prix_jour, devise(fiche.devise), lienPage)} target="_blank" rel="noopener noreferrer" style={{ flex: "1 1 160px", background: "#25d366", color: "white", borderRadius: 10, padding: "12px 14px", fontWeight: 700, fontSize: 13.5, textAlign: "center", textDecoration: "none" }}>💬 Partager sur WhatsApp</a>
         </div>
 
         {fiche.description && (
@@ -267,7 +285,7 @@ function EnveloppeFormulaire({ titre, onFermer, enfants }) {
 
 function FormulaireInteresse({ fiche, typeEntite, ficheId, onFermer }) {
   const champ = ChampStyle();
-  const [f, setF] = useState({ nom: "", telephone: "", whatsapp: "", email: "", ville: "", quartier: "", type_demande: fiche.type_entite === "logement" ? "louer" : "acheter", budget: "", date_visite: "", commentaire: "" });
+  const [f, setF] = useState({ nom: "", telephone: "", whatsapp: "", email: "", ville: "", quartier: "", type_demande: (fiche.type_entite === "logement" || fiche.type_entite === "vehicule_location") ? "louer" : "acheter", budget: "", date_visite: "", commentaire: "" });
   const [statut, setStatut] = useState(null); // null | "envoi" | "ok" | erreur-texte
   async function envoyer() {
     if (!f.nom.trim() || !f.telephone.trim()) { setStatut("Indique ton nom et ton téléphone."); return; }
@@ -339,7 +357,7 @@ function FormulaireQuestion({ fiche, typeEntite, ficheId, onFermer }) {
 
 function FormulaireRdv({ fiche, typeEntite, ficheId, onFermer }) {
   const champ = ChampStyle();
-  const typesParEntite = fiche.type_entite === "vehicule_vente" ? [["visite", "Voir le véhicule"], ["essai", "Essai routier"], ["rencontre", "Rencontrer le vendeur"]] : [["visite", "Visiter"], ["rencontre", "Rencontrer l'agent"]];
+  const typesParEntite = (fiche.type_entite === "vehicule_vente" || fiche.type_entite === "vehicule_location") ? [["visite", "Voir le véhicule"], ["essai", "Essai routier"], ["rencontre", "Rencontrer le vendeur"]] : [["visite", "Visiter"], ["rencontre", "Rencontrer l'agent"]];
   const [f, setF] = useState({ nom: "", telephone: "", type_demande: typesParEntite[0][0], date: "", heure: "", commentaire: "" });
   const [statut, setStatut] = useState(null);
   async function envoyer() {

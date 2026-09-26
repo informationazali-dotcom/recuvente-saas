@@ -130,12 +130,22 @@ function bailActifPour(baux, logementId) {
 // ============================================================================
 function OngletLogements({ workspace, logements, baux, loyers, role, recharger, ouvrirBail }) {
   const [edition, setEdition] = useState(null); // id du logement en édition, ou "new"
-  const [form, setForm] = useState({
-    nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "",
-    ville: "", quartier: "", superficie: "", nombre_pieces: "", nombre_chambres: "", nombre_salles_bain: "",
-    video_url: "", photos: [],
-  });
+  const champsVidesLogement = {
+    nom: "", type_bien: "maison", reference: "", adresse: "", loyer_mensuel: "", loyer_negociable: false,
+    caution_suggeree: "", description: "", titre_annonce: "",
+    ville: "", quartier: "", superficie: "", superficie_terrain: "", nombre_pieces: "", nombre_chambres: "",
+    nombre_salles_bain: "", nombre_toilettes: "", nombre_etages: "",
+    salon: false, salle_a_manger: false, cuisine_equipee: false, garage: false, parking: false, balcon: false,
+    terrasse: false, jardin: false, piscine: false, dependance: false, cloture: false, portail: false, securite: false,
+    caracteristiques_personnalisees: [],
+    adresse_precise: "", points_de_repere: "", adresse_publique_visible: false, latitude: "", longitude: "",
+    video_url: "", photos: [], plan_url: "", brochure_url: "", documents: [],
+  };
+  const [form, setForm] = useState(champsVidesLogement);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  function maj(champs) { setForm((f) => ({ ...f, ...champs })); }
+  function bascule(cle) { setForm((f) => ({ ...f, [cle]: !f[cle] })); }
 
   async function ajouterPhotosLogement(fichiers) {
     if (!fichiers || fichiers.length === 0) return;
@@ -152,6 +162,36 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
   }
   function retirerPhotoLogement(i) { setForm((f) => ({ ...f, photos: f.photos.filter((_, idx) => idx !== i) })); }
 
+  async function envoyerFichierUniqueLogement(fichier, champ) {
+    if (!fichier) return;
+    setEnvoiEnCours(true);
+    try {
+      const source = champ === "plan_url" ? await compresserImageBien(fichier) : fichier;
+      const url = await envoyerFichierBienVente(source, workspace.id, champ.replace("_url", ""));
+      maj({ [champ]: url });
+    } catch (_) { /* affichage d'erreur non bloquant, comme ailleurs dans ce fichier */ }
+    setEnvoiEnCours(false);
+  }
+
+  async function ajouterDocumentLogement(fichier) {
+    if (!fichier) return;
+    setEnvoiEnCours(true);
+    try {
+      const url = await envoyerFichierBienVente(fichier, workspace.id, "doc");
+      setForm((f) => ({ ...f, documents: [...f.documents, { nom: fichier.name, url }] }));
+    } catch (_) { /* affichage d'erreur non bloquant, comme ailleurs dans ce fichier */ }
+    setEnvoiEnCours(false);
+  }
+  function retirerDocumentLogement(i) { setForm((f) => ({ ...f, documents: f.documents.filter((_, idx) => idx !== i) })); }
+
+  function ajouterCaracPersoLogement() {
+    setForm((f) => ({ ...f, caracteristiques_personnalisees: [...f.caracteristiques_personnalisees, { libelle: "", valeur: "" }] }));
+  }
+  function majCaracPersoLogement(i, champ, valeur) {
+    setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.map((c, idx) => idx === i ? { ...c, [champ]: valeur } : c) }));
+  }
+  function retirerCaracPersoLogement(i) { setForm((f) => ({ ...f, caracteristiques_personnalisees: f.caracteristiques_personnalisees.filter((_, idx) => idx !== i) })); }
+
   const lignes = useMemo(() => logements.map((l) => {
     const bail = bailActifPour(baux, l.id);
     let prochaine = null;
@@ -165,26 +205,47 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
   function commencerEdition(l) {
     setEdition(l.id);
     setForm({
-      nom: l.nom || "", adresse: l.adresse || "", loyer_mensuel: String(l.loyer_mensuel || ""), caution_suggeree: String(l.caution_suggeree || ""), description: l.description || "",
-      ville: l.ville || "", quartier: l.quartier || "", superficie: String(l.superficie || ""), nombre_pieces: String(l.nombre_pieces || ""),
-      nombre_chambres: String(l.nombre_chambres || ""), nombre_salles_bain: String(l.nombre_salles_bain || ""),
+      nom: l.nom || "", type_bien: l.type_bien || "maison", reference: l.reference || "", adresse: l.adresse || "",
+      loyer_mensuel: String(l.loyer_mensuel || ""), loyer_negociable: l.loyer_negociable || false,
+      caution_suggeree: String(l.caution_suggeree || ""), description: l.description || "", titre_annonce: l.titre_annonce || "",
+      ville: l.ville || "", quartier: l.quartier || "", superficie: String(l.superficie || ""), superficie_terrain: String(l.superficie_terrain || ""),
+      nombre_pieces: String(l.nombre_pieces || ""), nombre_chambres: String(l.nombre_chambres || ""), nombre_salles_bain: String(l.nombre_salles_bain || ""),
+      nombre_toilettes: String(l.nombre_toilettes || ""), nombre_etages: String(l.nombre_etages || ""),
+      salon: l.salon || false, salle_a_manger: l.salle_a_manger || false, cuisine_equipee: l.cuisine_equipee || false,
+      garage: l.garage || false, parking: l.parking || false, balcon: l.balcon || false, terrasse: l.terrasse || false,
+      jardin: l.jardin || false, piscine: l.piscine || false, dependance: l.dependance || false, cloture: l.cloture || false,
+      portail: l.portail || false, securite: l.securite || false,
+      caracteristiques_personnalisees: Array.isArray(l.caracteristiques_personnalisees) ? l.caracteristiques_personnalisees : [],
+      adresse_precise: l.adresse_precise || "", points_de_repere: l.points_de_repere || "", adresse_publique_visible: l.adresse_publique_visible || false,
+      latitude: l.latitude != null && l.latitude !== "" ? String(l.latitude) : "", longitude: l.longitude != null && l.longitude !== "" ? String(l.longitude) : "",
       video_url: l.video_url || "", photos: Array.isArray(l.photos) ? l.photos : [],
+      plan_url: l.plan_url || "", brochure_url: l.brochure_url || "", documents: Array.isArray(l.documents) ? l.documents : [],
     });
   }
   function commencerAjout() {
     setEdition("new");
-    setForm({ nom: "", adresse: "", loyer_mensuel: "", caution_suggeree: "", description: "", ville: "", quartier: "", superficie: "", nombre_pieces: "", nombre_chambres: "", nombre_salles_bain: "", video_url: "", photos: [] });
+    setForm(champsVidesLogement);
   }
 
   async function enregistrer() {
     if (!form.nom.trim() || !form.loyer_mensuel) return;
     const nb = (v) => v === "" ? null : Number(v);
     const payload = {
-      nom: form.nom.trim(), adresse: form.adresse.trim() || null, loyer_mensuel: Number(form.loyer_mensuel) || 0,
-      caution_suggeree: Number(form.caution_suggeree) || 0, description: form.description.trim() || null,
+      nom: form.nom.trim(), type_bien: form.type_bien, reference: form.reference.trim() || null,
+      adresse: form.adresse.trim() || null, loyer_mensuel: Number(form.loyer_mensuel) || 0, loyer_negociable: !!form.loyer_negociable,
+      caution_suggeree: Number(form.caution_suggeree) || 0, description: form.description.trim() || null, titre_annonce: form.titre_annonce.trim() || null,
       ville: form.ville.trim() || null, quartier: form.quartier.trim() || null,
-      superficie: nb(form.superficie), nombre_pieces: nb(form.nombre_pieces), nombre_chambres: nb(form.nombre_chambres),
-      nombre_salles_bain: nb(form.nombre_salles_bain), video_url: form.video_url.trim() || null, photos: form.photos,
+      superficie: nb(form.superficie), superficie_terrain: nb(form.superficie_terrain),
+      nombre_pieces: nb(form.nombre_pieces), nombre_chambres: nb(form.nombre_chambres),
+      nombre_salles_bain: nb(form.nombre_salles_bain), nombre_toilettes: nb(form.nombre_toilettes), nombre_etages: nb(form.nombre_etages),
+      salon: form.salon, salle_a_manger: form.salle_a_manger, cuisine_equipee: form.cuisine_equipee,
+      garage: form.garage, parking: form.parking, balcon: form.balcon, terrasse: form.terrasse, jardin: form.jardin,
+      piscine: form.piscine, dependance: form.dependance, cloture: form.cloture, portail: form.portail, securite: form.securite,
+      caracteristiques_personnalisees: form.caracteristiques_personnalisees.filter((c) => c.libelle.trim()),
+      adresse_precise: form.adresse_precise.trim() || null, points_de_repere: form.points_de_repere.trim() || null,
+      adresse_publique_visible: !!form.adresse_publique_visible, latitude: nb(form.latitude), longitude: nb(form.longitude),
+      video_url: form.video_url.trim() || null, photos: form.photos,
+      plan_url: form.plan_url || null, brochure_url: form.brochure_url || null, documents: form.documents,
     };
     if (edition === "new") {
       await supabase.from("logements").insert([{ ...payload, workspace_id: workspace.id, disponible: true }]);
@@ -209,23 +270,72 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
           ) : (
             <>
               <div style={S.titre}>{edition === "new" ? "Nouveau logement" : "Modifier ce logement"}</div>
-              <input style={S.champ} placeholder="Nom (ex: Appartement 2, Villa Cocody)" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
-              <input style={S.champ} placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} />
-              <input style={S.champ} type="number" placeholder={`Loyer mensuel (${devise(workspace.currency)})`} value={form.loyer_mensuel} onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })} />
-              <input style={S.champ} type="number" placeholder={`Caution suggérée (${devise(workspace.currency)}, optionnel)`} value={form.caution_suggeree} onChange={(e) => setForm({ ...form, caution_suggeree: e.target.value })} />
-              <textarea style={{ ...S.champ, minHeight: 55 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <input style={S.champ} placeholder="Nom (ex: Appartement 2, Villa Cocody)" value={form.nom} onChange={(e) => maj({ nom: e.target.value })} />
+              <select style={S.champ} value={form.type_bien} onChange={(e) => maj({ type_bien: e.target.value })}>
+                {TYPES_BIEN_VENTE.map(([k, lbl]) => <option key={k} value={k}>{lbl}</option>)}
+              </select>
+              <input style={S.champ} placeholder="Référence interne (optionnel)" value={form.reference} onChange={(e) => maj({ reference: e.target.value })} />
+              <input style={S.champ} placeholder="Titre de l'annonce (ex: Villa moderne 5 pièces — Riviera)" value={form.titre_annonce} onChange={(e) => maj({ titre_annonce: e.target.value })} />
+              <input style={S.champ} placeholder="Adresse" value={form.adresse} onChange={(e) => maj({ adresse: e.target.value })} />
+              <input style={S.champ} type="number" placeholder={`Loyer mensuel (${devise(workspace.currency)})`} value={form.loyer_mensuel} onChange={(e) => maj({ loyer_mensuel: e.target.value })} />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COULEURS.gris, marginBottom: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={form.loyer_negociable} onChange={() => bascule("loyer_negociable")} />
+                Loyer négociable
+              </label>
+              <input style={S.champ} type="number" placeholder={`Caution suggérée (${devise(workspace.currency)}, optionnel)`} value={form.caution_suggeree} onChange={(e) => maj({ caution_suggeree: e.target.value })} />
+              <textarea style={{ ...S.champ, minHeight: 55 }} placeholder="Description (optionnel)" value={form.description} onChange={(e) => maj({ description: e.target.value })} />
+
               <div style={{ fontSize: 11, fontWeight: 700, color: COULEURS.grisClair, margin: "4px 0" }}>Pour la fiche publique (optionnel)</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <input style={S.champ} placeholder="Ville" value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} />
-                <input style={S.champ} placeholder="Quartier" value={form.quartier} onChange={(e) => setForm({ ...form, quartier: e.target.value })} />
+                <input style={S.champ} placeholder="Ville" value={form.ville} onChange={(e) => maj({ ville: e.target.value })} />
+                <input style={S.champ} placeholder="Quartier" value={form.quartier} onChange={(e) => maj({ quartier: e.target.value })} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <input style={S.champ} type="number" placeholder="Superficie (m²)" value={form.superficie} onChange={(e) => setForm({ ...form, superficie: e.target.value })} />
-                <input style={S.champ} type="number" placeholder="Pièces" value={form.nombre_pieces} onChange={(e) => setForm({ ...form, nombre_pieces: e.target.value })} />
-                <input style={S.champ} type="number" placeholder="Chambres" value={form.nombre_chambres} onChange={(e) => setForm({ ...form, nombre_chambres: e.target.value })} />
-                <input style={S.champ} type="number" placeholder="SDB" value={form.nombre_salles_bain} onChange={(e) => setForm({ ...form, nombre_salles_bain: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Superficie (m²)" value={form.superficie} onChange={(e) => maj({ superficie: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Superficie terrain (m²)" value={form.superficie_terrain} onChange={(e) => maj({ superficie_terrain: e.target.value })} />
               </div>
-              <input style={S.champ} placeholder="Lien vidéo (optionnel)" value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <input style={S.champ} type="number" placeholder="Pièces" value={form.nombre_pieces} onChange={(e) => maj({ nombre_pieces: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Chambres" value={form.nombre_chambres} onChange={(e) => maj({ nombre_chambres: e.target.value })} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input style={S.champ} type="number" placeholder="SDB" value={form.nombre_salles_bain} onChange={(e) => maj({ nombre_salles_bain: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Toilettes" value={form.nombre_toilettes} onChange={(e) => maj({ nombre_toilettes: e.target.value })} />
+                <input style={S.champ} type="number" placeholder="Étages" value={form.nombre_etages} onChange={(e) => maj({ nombre_etages: e.target.value })} />
+              </div>
+
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0 4px" }}>
+                {CARACS_BIEN_VENTE.map(([cle, label]) => (
+                  <div key={cle} onClick={() => bascule(cle)} style={{
+                    fontSize: 11.5, fontWeight: 600, padding: "6px 10px", borderRadius: 99, cursor: "pointer",
+                    background: form[cle] ? "#EAF3DE" : "#F5F5F0", color: form[cle] ? "#3B6D11" : COULEURS.gris,
+                    border: `1px solid ${form[cle] ? COULEURS.vert : "#E5E2D8"}`,
+                  }}>{form[cle] ? "✓ " : ""}{label}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, margin: "10px 0 4px" }}>Autres caractéristiques (optionnel)</div>
+              {form.caracteristiques_personnalisees.map((c, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <input style={{ ...S.champ, marginBottom: 0, flex: 1 }} placeholder="Ex: Titre foncier" value={c.libelle} onChange={(e) => majCaracPersoLogement(i, "libelle", e.target.value)} />
+                  <input style={{ ...S.champ, marginBottom: 0, flex: 1 }} placeholder="Ex: Disponible" value={c.valeur} onChange={(e) => majCaracPersoLogement(i, "valeur", e.target.value)} />
+                  <button onClick={() => retirerCaracPersoLogement(i)} style={{ background: "none", border: "none", color: COULEURS.rougeFonce, cursor: "pointer", fontSize: 15 }}>🗑️</button>
+                </div>
+              ))}
+              <button onClick={ajouterCaracPersoLogement} style={{ ...S.boutonClair, width: "100%", padding: "7px 0", fontSize: 12, marginBottom: 8 }}>+ Ajouter une caractéristique</button>
+
+              <div style={{ fontSize: 11, fontWeight: 700, color: COULEURS.grisClair, margin: "10px 0 4px" }}>Localisation précise (équipe seulement, jamais publiée sans ton accord)</div>
+              <input style={S.champ} placeholder="Adresse précise" value={form.adresse_precise} onChange={(e) => maj({ adresse_precise: e.target.value })} />
+              <input style={S.champ} placeholder="Points de repère" value={form.points_de_repere} onChange={(e) => maj({ points_de_repere: e.target.value })} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <input style={S.champ} type="number" step="any" placeholder="Latitude (optionnel)" value={form.latitude} onChange={(e) => maj({ latitude: e.target.value })} />
+                <input style={S.champ} type="number" step="any" placeholder="Longitude (optionnel)" value={form.longitude} onChange={(e) => maj({ longitude: e.target.value })} />
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COULEURS.gris, marginTop: 4, marginBottom: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={form.adresse_publique_visible} onChange={() => bascule("adresse_publique_visible")} />
+                Autoriser à montrer l'adresse précise publiquement plus tard
+              </label>
+
+              <input style={S.champ} placeholder="Lien vidéo (optionnel)" value={form.video_url} onChange={(e) => maj({ video_url: e.target.value })} />
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                 {form.photos.map((url, i) => (
                   <div key={i} style={{ position: "relative" }}>
@@ -238,6 +348,28 @@ function OngletLogements({ workspace, logements, baux, loyers, role, recharger, 
                 {envoiEnCours ? "Envoi…" : "📷 Ajouter des photos"}
                 <input type="file" accept="image/*" multiple hidden onChange={(e) => ajouterPhotosLogement(e.target.files)} disabled={envoiEnCours} />
               </label>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <label style={{ ...S.boutonClair, flex: 1, textAlign: "center", cursor: "pointer", fontSize: 12 }}>
+                  {form.plan_url ? "✓ Plan ajouté" : "🗺️ Ajouter un plan"}
+                  <input type="file" accept="image/*,.pdf" hidden onChange={(e) => envoyerFichierUniqueLogement(e.target.files[0], "plan_url")} disabled={envoiEnCours} />
+                </label>
+                <label style={{ ...S.boutonClair, flex: 1, textAlign: "center", cursor: "pointer", fontSize: 12 }}>
+                  {form.brochure_url ? "✓ Brochure ajoutée" : "📄 Ajouter une brochure"}
+                  <input type="file" accept=".pdf,image/*" hidden onChange={(e) => envoyerFichierUniqueLogement(e.target.files[0], "brochure_url")} disabled={envoiEnCours} />
+                </label>
+              </div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: COULEURS.grisClair, marginBottom: 6 }}>Autres documents</div>
+              {form.documents.map((d, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
+                  <span>📎 {d.nom}</span>
+                  <button onClick={() => retirerDocumentLogement(i)} style={{ background: "none", border: "none", color: COULEURS.rougeFonce, cursor: "pointer" }}>🗑️</button>
+                </div>
+              ))}
+              <label style={{ ...S.boutonClair, display: "block", textAlign: "center", cursor: "pointer", marginBottom: 8 }}>
+                {envoiEnCours ? "Envoi…" : "+ Ajouter un document"}
+                <input type="file" hidden onChange={(e) => ajouterDocumentLogement(e.target.files[0])} disabled={envoiEnCours} />
+              </label>
+
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={enregistrer} style={{ ...S.bouton, flex: 1 }}>Enregistrer</button>
                 <button onClick={() => setEdition(null)} style={{ ...S.boutonClair, flex: 1 }}>Annuler</button>

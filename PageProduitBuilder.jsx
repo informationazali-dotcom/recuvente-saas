@@ -601,6 +601,29 @@ function Modale({ titre, onClose, children, large = false }) {
   );
 }
 
+// Premier écran vu à la création d'une page produit : le choix entre générer automatiquement
+// (l'IA propose une structure à partir de quelques infos ou de la description déjà écrite) et
+// créer soi-même (choisir un template puis remplir chaque bloc à la main) doit être VU tout de
+// suite -- pas juste un bouton perdu plus bas dans la liste des blocs.
+function ModaleChoixDepart({ onGenererIA, onCreerMoiMeme, onClose }) {
+  return (
+    <Modale titre="Comment veux-tu créer cette page ?" onClose={onClose} large>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+        <button type="button" onClick={onGenererIA} style={{ textAlign: "left", border: `2px solid ${VERT}`, background: "#EAF3DE", borderRadius: 14, padding: 18, cursor: "pointer" }}>
+          <div style={{ fontSize: 26, marginBottom: 8 }}>✨</div>
+          <div style={{ fontWeight: 800, fontSize: 15.5, marginBottom: 6 }}>Générer automatiquement avec l'IA</div>
+          <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>Réponds à quelques questions (ou laisse l'IA se baser sur la description déjà écrite dans ta fiche produit) : elle propose la structure la plus efficace. Tu gardes la main pour tout modifier ensuite.</div>
+        </button>
+        <button type="button" onClick={onCreerMoiMeme} style={{ textAlign: "left", border: `1px solid ${BORD}`, background: "#fff", borderRadius: 14, padding: 18, cursor: "pointer" }}>
+          <div style={{ fontSize: 26, marginBottom: 8 }}>✍️</div>
+          <div style={{ fontWeight: 800, fontSize: 15.5, marginBottom: 6 }}>Créer moi-même</div>
+          <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>Choisis un template de départ, puis remplis chaque bloc à ton rythme.</div>
+        </button>
+      </div>
+    </Modale>
+  );
+}
+
 function ModaleTemplates({ actuel, onChoisir, onClose, premiereFois }) {
   return (
     <Modale titre={premiereFois ? "Choisissez un point de départ" : "Changer de template"} onClose={onClose} large>
@@ -651,21 +674,50 @@ function ModaleAjoutBloc({ config, onAjouter, onClose }) {
   );
 }
 
-function ModaleIA({ produit, produits, nbAvis, onAppliquer, onClose }) {
+function ModaleIA({ produit, produits, nbAvis, onAppliquer, onClose, workspaceId, produitDescription }) {
   const [brief, setBrief] = useState({
     produit: produit.nom, prix: produit.prix_vente, categorie: "autre", cible: "", mode: "cod", objectif: "commandes_confirmees",
     aVideo: false, aUGC: false, aOffres: Array.isArray(produit.bundles) && produit.bundles.length > 0, aComplementaires: produits.length > 1,
   });
   const [proposition, setProposition] = useState(null);
+  const [deductionEnCours, setDeductionEnCours] = useState(false);
+  const [deductionErreur, setDeductionErreur] = useState("");
+  const [deductionFaite, setDeductionFaite] = useState(false);
   const set = (k, v) => setBrief((b) => ({ ...b, [k]: v }));
   function proposer() {
     setProposition(proposerStructure({ ...brief, nbAvisReels: nbAvis, nbProduitsCatalogue: produits.length }));
+  }
+  async function deduireDepuisDescription() {
+    setDeductionEnCours(true);
+    setDeductionErreur("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const reponse = await fetch("/api/admin-panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.session?.access_token}` },
+        body: JSON.stringify({ action: "deduire_brief_page_ia", workspace_id: workspaceId, nom_produit: produit.nom, description: produitDescription }),
+      });
+      const resultat = await reponse.json();
+      if (!reponse.ok) { setDeductionErreur(resultat?.error || "Erreur, réessaie."); return; }
+      setBrief((b) => ({ ...b, categorie: resultat.categorie || b.categorie, cible: resultat.cible || b.cible, objectif: resultat.objectif || b.objectif }));
+      setDeductionFaite(true);
+    } catch (e) {
+      setDeductionErreur("Connexion impossible, réessaie.");
+    } finally {
+      setDeductionEnCours(false);
+    }
   }
   return (
     <Modale titre="✨ Créer ma page avec l'IA" onClose={onClose} large>
       {!proposition ? (
         <>
           <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5, marginBottom: 14 }}>Répondez en quelques champs : l'assistant propose la <b>structure</b> de la page (quels blocs, dans quel ordre). Il n'invente <b>jamais</b> d'avis, de témoignage, de résultat, de chiffre, de stock, de compte à rebours ni de prix.</div>
+          <button type="button" onClick={deduireDepuisDescription} disabled={deductionEnCours} style={btn({ width: "100%", borderStyle: "dashed", opacity: deductionEnCours ? 0.6 : 1, marginBottom: 6 })}>
+            {deductionEnCours ? "✨ Lecture de la description…" : deductionFaite ? "✨ Relire ma description" : "✨ Se baser sur la description déjà écrite dans ma fiche produit"}
+          </button>
+          {deductionErreur && <div style={{ fontSize: 11.5, color: "#B33A2A", marginBottom: 8, lineHeight: 1.4 }}>{deductionErreur}</div>}
+          {deductionFaite && !deductionErreur && <div style={{ fontSize: 11.5, color: "#3B6D11", marginBottom: 8, lineHeight: 1.4 }}>✅ Catégorie, client visé et objectif préremplis à partir de ta description — vérifie et ajuste si besoin ci-dessous.</div>}
+          <div style={{ fontSize: 11.5, color: MUTED, margin: "0 0 10px" }}>— ou remplis toi-même les champs ci-dessous —</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "0 14px" }}>
             <Etiquette label="Produit"><input style={champ} value={brief.produit} onChange={(e) => set("produit", e.target.value)} /></Etiquette>
             <Etiquette label="Prix" aide="Lu depuis votre catalogue."><input style={{ ...champ, background: "#F4F3EE" }} value={Number(brief.prix || 0).toLocaleString("fr-FR")} readOnly /></Etiquette>
@@ -823,7 +875,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
         setSelection(h ? h.id : null);
       } else {
         setPremiereFois(true);
-        setModale("templates");
+        setModale("choix");
       }
       setChargement(false);
     })();
@@ -1017,8 +1069,12 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
   const hauteurApercu = Math.max(320, zone.h - 24);
 
   // -- Rendu -------------------------------------------------------------
+  // Le choix « générer avec l'IA » vs « créer moi-même » doit être vu tout de suite, sans avoir à
+  // descendre dans la liste des blocs (sinon un marchand qui ne fait pas défiler ne le voit jamais) :
+  // ces deux boutons sont donc tout en haut du panneau, avant même le template.
   const listeStructure = (
     <div style={{ padding: 12 }}>
+      <button type="button" onClick={() => setModale("ia")} style={btnPlein({ width: "100%", padding: "12px 12px", marginBottom: 8, fontSize: 13.5 })}>✨ Générer automatiquement ma page avec l'IA</button>
       <button type="button" onClick={() => { setPremiereFois(false); setModale("templates"); }} style={{ width: "100%", textAlign: "left", border: `1px solid ${BORD}`, background: "#fff", borderRadius: 10, padding: "9px 12px", marginBottom: 12, cursor: "pointer" }}>
         <div style={{ fontSize: 10.5, fontWeight: 800, color: MUTED, textTransform: "uppercase", letterSpacing: ".05em" }}>Template</div>
         <div style={{ fontWeight: 800, fontSize: 14 }}>{TEMPLATES[config.template]?.nom || config.template} <span style={{ fontSize: 12, color: VERT, fontWeight: 700 }}>· changer</span></div>
@@ -1061,7 +1117,6 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
           </button>
         );
       })()}
-      <button type="button" onClick={() => setModale("ia")} style={btn({ width: "100%", padding: "11px 12px", marginTop: 8 })}>✨ Créer ma page avec l'IA</button>
     </div>
   );
 
@@ -1184,9 +1239,10 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
         {(large || panneau === "proprietes") && <div style={{ overflowY: "auto", background: "#fff", borderLeft: large ? `1px solid ${BORD}` : "none" }}>{panneauProprietes}</div>}
       </div>
 
+      {modale === "choix" && <ModaleChoixDepart onGenererIA={() => setModale("ia")} onCreerMoiMeme={() => setModale("templates")} onClose={() => { setModale(null); setPremiereFois(false); }} />}
       {modale === "templates" && <ModaleTemplates actuel={config.template} premiereFois={premiereFois && !ligne} onChoisir={choisirTemplate} onClose={() => { setModale(null); setPremiereFois(false); }} />}
       {modale === "ajout" && <ModaleAjoutBloc config={config} onAjouter={ajouterBloc} onClose={() => setModale(null)} />}
-      {modale === "ia" && <ModaleIA produit={produit} produits={produits} nbAvis={avis.length} onAppliquer={appliquerIA} onClose={() => setModale(null)} />}
+      {modale === "ia" && <ModaleIA produit={produit} produits={produits} nbAvis={avis.length} onAppliquer={appliquerIA} onClose={() => setModale(null)} workspaceId={workspace.id} produitDescription={produit.description} />}
     </div>,
     document.body
   );

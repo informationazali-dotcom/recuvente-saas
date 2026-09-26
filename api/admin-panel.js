@@ -1284,6 +1284,9 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
   }
 
   let nom = null, imageUrl = null, prix = null, devisePrix = null;
+  // Toutes les images du produit trouvées sur la page (pas seulement la première) — servira à
+  // remplir directement la galerie du produit, en plus de sa photo principale.
+  let imagesTrouvees = [];
 
   // 1) Priorité aux données structurées (JSON-LD "Product") — la source la plus fiable quand
   // elle existe, car conçue justement pour décrire un produit sans ambiguïté.
@@ -1298,7 +1301,9 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
           if (item && (item["@type"] === "Product" || (Array.isArray(item["@type"]) && item["@type"].includes("Product")))) {
             nom = nom || item.name || null;
             const img = item.image;
-            imageUrl = imageUrl || (Array.isArray(img) ? img[0] : img) || null;
+            const imgsItem = (Array.isArray(img) ? img : img ? [img] : []).filter((u) => typeof u === "string" && u);
+            imagesTrouvees.push(...imgsItem);
+            imageUrl = imageUrl || imgsItem[0] || null;
             const offre = Array.isArray(item.offers) ? item.offers[0] : item.offers;
             if (offre && offre.price) {
               prix = Number(offre.price) || null;
@@ -1318,36 +1323,46 @@ async function gererExtraireProduitDepuisLien(req, res, user) {
   }
   if (!imageUrl) {
     const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    if (m) imageUrl = m[1];
+    if (m) { imageUrl = m[1]; imagesTrouvees.push(m[1]); }
   }
 
   if (!nom && !imageUrl) {
     return res.status(400).json({ error: "Aucune information exploitable trouvée sur cette page. Utilise plutôt \"Identifier depuis une photo\" — colle une capture d'écran du produit." });
   }
 
-  // Rapatrie la photo chez nous plutôt que de garder un lien direct vers le site d'origine —
-  // plus fiable dans le temps, et cohérent avec le reste du catalogue.
+  // Dédoublonne (une même image apparaît souvent plusieurs fois dans le JSON-LD) en gardant
+  // l'ordre d'origine, et garde la photo principale en première position.
+  const imagesUniques = [imageUrl, ...imagesTrouvees].filter((u, i, arr) => u && arr.indexOf(u) === i);
+
+  // Rapatrie les photos chez nous plutôt que de garder des liens directs vers le site d'origine —
+  // plus fiable dans le temps, et cohérent avec le reste du catalogue. On héberge jusqu'à 6 images
+  // au total (la limite déjà en place sur la galerie produit) : la première devient la photo
+  // principale, les suivantes remplissent directement la galerie.
+  const imagesAHeberger = imagesUniques.slice(0, 6);
   let photoHebergeeUrl = null;
-  if (imageUrl) {
+  const photosGalerieHebergees = [];
+  for (let i = 0; i < imagesAHeberger.length; i++) {
     try {
-      const reponseImage = await fetch(imageUrl);
+      const reponseImage = await fetch(imagesAHeberger[i]);
       if (reponseImage.ok) {
         const buffer = Buffer.from(await reponseImage.arrayBuffer());
         const typeContenu = reponseImage.headers.get("content-type") || "image/jpeg";
         const extension = typeContenu.includes("png") ? "png" : typeContenu.includes("webp") ? "webp" : "jpg";
-        const chemin = `${workspace_id}-lien-${Date.now()}.${extension}`;
+        const chemin = `${workspace_id}-lien-${Date.now()}-${i}.${extension}`;
         const { error: erreurUpload } = await supabaseAdmin.storage.from("produits").upload(chemin, buffer, { contentType: typeContenu, upsert: true });
         if (!erreurUpload) {
           const { data: dataUrl } = supabaseAdmin.storage.from("produits").getPublicUrl(chemin);
-          photoHebergeeUrl = dataUrl.publicUrl;
+          if (i === 0) photoHebergeeUrl = dataUrl.publicUrl;
+          else photosGalerieHebergees.push(dataUrl.publicUrl);
         }
       }
-    } catch (e) { /* pas grave si la photo échoue à être rapatriée, le nom reste utile seul */ }
+    } catch (e) { /* pas grave si une photo échoue à être rapatriée, les autres restent utiles */ }
   }
 
   return res.status(200).json({
     nom: nom ? nom.trim().slice(0, 150) : null,
     photo_url: photoHebergeeUrl,
+    photos_galerie: photosGalerieHebergees,
     prix_trouve: prix,
     devise_prix_trouve: devisePrix,
   });

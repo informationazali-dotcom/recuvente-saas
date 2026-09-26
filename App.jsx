@@ -3977,6 +3977,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const [showTeam, setShowTeam] = useState(false);
   const [showAbonnement, setShowAbonnement] = useState(false);
   const [showRapportHebdo, setShowRapportHebdo] = useState(false);
+  const [showSanteMarchand, setShowSanteMarchand] = useState(false);
   const [showLivreurs, setShowLivreurs] = useState(false);
   const [showClosers, setShowClosers] = useState(false);
   const [showCampagne, setShowCampagne] = useState(false);
@@ -6271,6 +6272,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                   </>
                 )}
                 <button onClick={() => setShowRapportHebdo(true)} aria-label="Ma semaine" style={{ flexShrink: 0, background: "rgba(232,146,10,0.25)", border: "1px solid rgba(232,146,10,0.4)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>
+                <button onClick={() => setShowSanteMarchand(true)} aria-label="Santé de la boutique" style={{ flexShrink: 0, background: "rgba(26,122,60,0.25)", border: "1px solid rgba(26,122,60,0.4)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🩺</button>
                 {estEcommerce && <button onClick={() => setShowProduits(true)} aria-label="Catalogue" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📦</button>}
                 {workspace.activity_type === "retail" && <button onClick={() => setShowCaisse(true)} aria-label="Caisse" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧾</button>}
                 <button onClick={() => setVue("rapprochement")} aria-label="Rapprochement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🔗</button>
@@ -7238,6 +7240,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       {showReunion && <ReunionEquipeModal workspace={workspace} onClose={() => setShowReunion(false)} />}
       {showAbonnement && <AbonnementModal workspace={workspace} subscription={subscription} onClose={() => setShowAbonnement(false)} />}
       {showRapportHebdo && <RapportHebdomadaireModal commandes={commandes} currency={formaterDevise(workspace.currency)} workspaceName={workspace.name} onFermer={() => setShowRapportHebdo(false)} />}
+      {showSanteMarchand && <SanteMarchandModal workspace={workspace} commandes={commandes} currency={formaterDevise(workspace.currency)} onFermer={() => setShowSanteMarchand(false)} />}
       {showCampagne && <CampagneModalSaas clients={clients} workspace={workspace} onClose={() => setShowCampagne(false)} />}
       {showCroissance && <React.Suspense fallback={null}><CroissanceModal workspace={workspace} onClose={() => setShowCroissance(false)} /></React.Suspense>}
       {showGestionLivraisonFinances && <React.Suspense fallback={null}><GestionLivraisonFinancesModal workspace={workspace} produits={produits} onClose={() => setShowGestionLivraisonFinances(false)} /></React.Suspense>}
@@ -18096,6 +18099,105 @@ function CarteLivreursSaas({ livreurs }) {
     </div>
   );
 }
+// Tableau de santé marchand — Problem Engine appliqué à l'existant (Blueprint, partie 3/29) :
+// aucune nouvelle donnée, seulement une lecture des commandes déjà chargées (+ une lecture des
+// paiements en ligne déjà enregistrés) pour donner 4 indicateurs qu'aucun autre écran ne réunit
+// aujourd'hui au même endroit. Le taux d'encaissement réel couvre aussi le "décalage de
+// trésorerie" (partie 4 du Blueprint) : plutôt qu'une alerte email de plus (qui recouperait
+// l'alerte dépôt de caisse déjà existante côté livreurs), c'est ici un chiffre consultable à la
+// demande — c'est exactement la case "Solution" que le Blueprint donne pour ce problème-là.
+function SanteMarchandModal({ workspace, commandes, currency, onFermer }) {
+  const [paiementsEnLigne, setPaiementsEnLigne] = useState(null);
+  useEffect(() => {
+    let vivant = true;
+    supabase
+      .from("paiements_en_ligne")
+      .select("commande_id, montant_paye")
+      .eq("workspace_id", workspace.id)
+      .eq("statut", "paye")
+      .then(({ data, error }) => { if (vivant) setPaiementsEnLigne(error ? [] : (data || [])); })
+      .catch(() => { if (vivant) setPaiementsEnLigne([]); });
+    return () => { vivant = false; };
+  }, [workspace.id]);
+
+  const s = useMemo(() => {
+    const maintenant = Date.now();
+    const il30j = new Date(maintenant - 30 * 86400000);
+    const il60j = new Date(maintenant - 60 * 86400000);
+
+    const fenetre = commandes.filter((c) => new Date(c.created_at) >= il30j);
+    const fenetrePrecedente = commandes.filter((c) => { const d = new Date(c.created_at); return d >= il60j && d < il30j; });
+
+    // 1) Tendance du volume de commandes (30 derniers jours vs 30 jours précédents)
+    const volumeActuel = fenetre.length;
+    const volumePrecedent = fenetrePrecedente.length;
+    const evolutionVolume = volumePrecedent > 0 ? Math.round(((volumeActuel - volumePrecedent) / volumePrecedent) * 100) : null;
+
+    // 2) Taux de réussite de livraison (sur les commandes tranchées : confirmée, échouée ou retournée — pas "en cours")
+    const traitees = fenetre.filter((c) => c.statut === "confirmee" || c.statut === "echouee" || c.statut === "retournee");
+    const confirmeesFenetre = traitees.filter((c) => c.statut === "confirmee");
+    const tauxReussite = traitees.length > 0 ? Math.round((confirmeesFenetre.length / traitees.length) * 100) : null;
+
+    // 3) Taux d'encaissement réel = argent réellement récupéré (montant_paye sur la commande, OU
+    // paiement en ligne enregistré, le plus grand des deux pour ne jamais compter deux fois la
+    // même somme) ÷ chiffre d'affaires confirmé, sur les commandes confirmées de la fenêtre.
+    const paiementsParCommande = {};
+    (paiementsEnLigne || []).forEach((p) => { paiementsParCommande[p.commande_id] = (paiementsParCommande[p.commande_id] || 0) + Number(p.montant_paye || 0); });
+    const venteConfirmee = confirmeesFenetre.reduce((acc, c) => acc + Number(c.montant || 0), 0);
+    const encaisseReel = confirmeesFenetre.reduce((acc, c) => {
+      const paye = Math.max(Number(c.montant_paye || 0), Number(paiementsParCommande[c.id] || 0));
+      return acc + Math.min(Number(c.montant || 0), paye);
+    }, 0);
+    const tauxEncaissement = venteConfirmee > 0 ? Math.round((encaisseReel / venteConfirmee) * 100) : null;
+    const ecartTresorerie = Math.max(0, venteConfirmee - encaisseReel);
+
+    // 4) Clients récurrents = numéros avec 2 commandes confirmées ou plus, sur tout l'historique
+    // chargé (pas seulement la fenêtre de 30 jours — la récurrence se voit sur la durée).
+    const confirmeesTout = commandes.filter((c) => c.statut === "confirmee" && c.tel && c.tel.trim());
+    const compteParTel = {};
+    confirmeesTout.forEach((c) => { const t = c.tel.trim(); compteParTel[t] = (compteParTel[t] || 0) + 1; });
+    const telsUniques = Object.keys(compteParTel);
+    const telsRecurrents = telsUniques.filter((t) => compteParTel[t] >= 2);
+    const tauxRecurrence = telsUniques.length > 0 ? Math.round((telsRecurrents.length / telsUniques.length) * 100) : null;
+
+    return { volumeActuel, evolutionVolume, tauxReussite, traitees: traitees.length, tauxEncaissement, ecartTresorerie, venteConfirmee, tauxRecurrence, telsUniques: telsUniques.length, chargementPaiements: paiementsEnLigne === null };
+  }, [commandes, paiementsEnLigne]);
+
+  const carte = (icone, titre, valeur, sousTexte) => (
+    <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ fontSize: 11.5, color: "#8A9089", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 4 }}>{icone} {titre}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: "#16231F" }}>{valeur}</div>
+      {sousTexte && <div style={{ fontSize: 12, color: "#6B7168", marginTop: 3, lineHeight: 1.4 }}>{sousTexte}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 90 }} onClick={onFermer}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, padding: "22px 22px 18px", width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
+        <button onClick={onFermer} aria-label="Fermer" style={{ position: "absolute", top: 14, right: 16, background: "none", border: "none", color: "#8A9089", fontSize: 22, cursor: "pointer" }}>×</button>
+        <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 2 }}>🩺 Santé de la boutique</div>
+        <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 16 }}>4 indicateurs calculés à partir de tes vraies commandes — rien d'estimé.</div>
+
+        {s.volumeActuel === 0 ? (
+          <div style={{ fontSize: 13, color: "#8A9089", lineHeight: 1.5 }}>Pas encore de commande sur les 30 derniers jours — reviens ici une fois que les ventes auront commencé.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {carte("📦", "Volume (30j)", s.volumeActuel, s.evolutionVolume === null ? "Pas de période précédente à comparer" : `${s.evolutionVolume >= 0 ? "+" : ""}${s.evolutionVolume}% vs les 30j d'avant`)}
+            {carte("🚚", "Taux de réussite", s.tauxReussite === null ? "—" : `${s.tauxReussite}%`, s.traitees > 0 ? `sur ${s.traitees} commande${s.traitees > 1 ? "s" : ""} tranchée${s.traitees > 1 ? "s" : ""}` : "Aucune commande tranchée sur la période")}
+            {carte(
+              "💰", "Taux d'encaissement",
+              s.chargementPaiements ? "…" : (s.tauxEncaissement === null ? "—" : `${s.tauxEncaissement}%`),
+              s.chargementPaiements ? "Chargement…" : (s.ecartTresorerie > 0 ? `${Math.round(s.ecartTresorerie).toLocaleString("fr-FR")} ${currency} vendus mais pas encore encaissés` : (s.venteConfirmee > 0 ? "Tout est encaissé — bien joué" : "Aucune vente confirmée sur la période"))
+            )}
+            {carte("🔁", "Clients récurrents", s.tauxRecurrence === null ? "—" : `${s.tauxRecurrence}%`, s.telsUniques > 0 ? `sur ${s.telsUniques} client${s.telsUniques > 1 ? "s" : ""} identifié${s.telsUniques > 1 ? "s" : ""} (tout l'historique)` : "Pas encore de client identifié par téléphone")}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: "#8A9089", marginTop: 16, lineHeight: 1.5 }}>« Taux d'encaissement » compare le chiffre d'affaires confirmé à l'argent réellement reçu (paiement noté sur la commande ou paiement en ligne enregistré) — c'est un chiffre de suivi, pas un jugement : un écart normal se résorbe avec les dépôts de caisse habituels.</div>
+      </div>
+    </div>
+  );
+}
+
 function RapportHebdomadaireModal({ commandes, currency, workspaceName, onFermer }) {
   const rapport = useMemo(() => {
     const maintenant = new Date();

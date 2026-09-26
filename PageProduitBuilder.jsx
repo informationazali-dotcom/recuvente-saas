@@ -517,6 +517,143 @@ const LIBELLES_EVENEMENTS = [
   ["upsell_accepte", "Complément accepté"], ["commande_creee", "Commandes créées"],
 ];
 
+// ---------------------------------------------------------------------------
+// Radar de fiabilité de commande — deuxième détection du Problem Engine (Blueprint,
+// addendum après la partie 19). Lit les VRAIES commandes de CE produit (zone, statut,
+// heure de création, motif de retour réellement saisi) et ne montre une recommandation
+// que si un écart réel et mesurable apparaît. Silence total si le volume est trop faible
+// pour être fiable — c'est le comportement correct, pas un manque. Rien n'est inventé :
+// si les motifs de retour ne sont pas assez renseignés, le résumé le dit au lieu d'en
+// fabriquer un. Purement client (RLS déjà en place sur commandes/commande_items) : aucune
+// nouvelle route API, aucune nouvelle fonction serverless, aucun appel IA.
+// ---------------------------------------------------------------------------
+
+const SEUIL_RADAR_ORDRES = 12; // en dessous, aucune zone/heure n'est comparée (pas assez de recul)
+const SEUIL_RADAR_ECART_PTS = 15; // écart minimum (points de %) avec la moyenne du produit pour signaler
+
+function tauxEchecRadar(cmds) {
+  const resolues = cmds.filter((c) => c.statut === "confirmee" || c.statut === "echouee" || c.statut === "retournee");
+  if (resolues.length === 0) return null;
+  const echecs = resolues.filter((c) => c.statut === "echouee" || c.statut === "retournee").length;
+  return { total: resolues.length, echecs, taux: echecs / resolues.length };
+}
+
+function trancheHeureRadar(iso) {
+  const h = new Date(iso).getHours();
+  if (h >= 19 || h < 6) return "soir/nuit (19h–6h)";
+  if (h >= 12) return "après-midi (12h–19h)";
+  return "matin (6h–12h)";
+}
+
+function RadarFiabilite({ workspaceId, produitId }) {
+  const [etat, setEtat] = useState({ chargement: true, erreur: "", cmds: null });
+  useEffect(() => {
+    let annule = false;
+    setEtat({ chargement: true, erreur: "", cmds: null });
+    (async () => {
+      try {
+        const { data: items, error: e1 } = await supabase
+          .from("commande_items")
+          .select("commande_id")
+          .eq("workspace_id", workspaceId)
+          .eq("produit_id", produitId)
+          .limit(2000);
+        if (e1) throw e1;
+        const ids = [...new Set((items || []).map((i) => i.commande_id))].slice(0, 1000);
+        if (ids.length === 0) { if (!annule) setEtat({ chargement: false, erreur: "", cmds: [] }); return; }
+        const { data: cmds, error: e2 } = await supabase
+          .from("commandes")
+          .select("id, zone, statut, created_at, motif_retour")
+          .in("id", ids);
+        if (e2) throw e2;
+        if (!annule) setEtat({ chargement: false, erreur: "", cmds: cmds || [] });
+      } catch (e) {
+        if (!annule) setEtat({ chargement: false, erreur: e.message || "Erreur de lecture", cmds: null });
+      }
+    })();
+    return () => { annule = true; };
+  }, [workspaceId, produitId]);
+
+  const analyse = useMemo(() => {
+    const cmds = etat.cmds;
+    if (!cmds) return null;
+    const global = tauxEchecRadar(cmds);
+    if (!global || global.total < SEUIL_RADAR_ORDRES) return { insuffisant: true, total: global?.total || 0 };
+
+    const parZone = {};
+    cmds.forEach((c) => { const z = (c.zone || "").trim() || "(zone non renseignée)"; (parZone[z] ||= []).push(c); });
+    let meilleurSignalZone = null;
+    Object.entries(parZone).forEach(([zone, liste]) => {
+      const t = tauxEchecRadar(liste);
+      if (!t || t.total < SEUIL_RADAR_ORDRES) return;
+      const ecartPts = (t.taux - global.taux) * 100;
+      if (ecartPts >= SEUIL_RADAR_ECART_PTS && (!meilleurSignalZone || ecartPts > meilleurSignalZone.ecartPts)) {
+        meilleurSignalZone = { zone, ...t, ecartPts };
+      }
+    });
+
+    const parHeure = {};
+    cmds.forEach((c) => { const h = trancheHeureRadar(c.created_at); (parHeure[h] ||= []).push(c); });
+    let meilleurSignalHeure = null;
+    Object.entries(parHeure).forEach(([tranche, liste]) => {
+      const t = tauxEchecRadar(liste);
+      if (!t || t.total < SEUIL_RADAR_ORDRES) return;
+      const ecartPts = (t.taux - global.taux) * 100;
+      if (ecartPts >= SEUIL_RADAR_ECART_PTS && (!meilleurSignalHeure || ecartPts > meilleurSignalHeure.ecartPts)) {
+        meilleurSignalHeure = { tranche, ...t, ecartPts };
+      }
+    });
+
+    const echecs = cmds.filter((c) => c.statut === "echouee" || c.statut === "retournee");
+    const motifsRenseignes = echecs.filter((c) => (c.motif_retour || "").trim().length > 2);
+    const motifsComptes = {};
+    motifsRenseignes.forEach((c) => { const m = c.motif_retour.trim(); motifsComptes[m] = (motifsComptes[m] || 0) + 1; });
+    const topMotifs = Object.entries(motifsComptes).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    return { global, meilleurSignalZone, meilleurSignalHeure, echecsTotal: echecs.length, motifsRenseignes: motifsRenseignes.length, topMotifs };
+  }, [etat.cmds]);
+
+  if (etat.chargement || etat.erreur || !analyse) return null;
+
+  return (
+    <div style={{ marginTop: 16, borderTop: `1px solid ${BORD}`, paddingTop: 14 }}>
+      <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 6 }}>🔎 Radar de fiabilité de commande</div>
+      {analyse.insuffisant ? (
+        <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
+          Pas encore assez de commandes pour ce produit ({analyse.total}/{SEUIL_RADAR_ORDRES} nécessaires) pour comparer les zones ou les horaires de façon fiable. C'est normal pour un produit récent ou peu vendu — rien à faire pour l'instant.
+        </div>
+      ) : (
+        <>
+          {!analyse.meilleurSignalZone && !analyse.meilleurSignalHeure && (
+            <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
+              Aucun écart marquant détecté entre zones ou horaires sur {analyse.global.total} commande{analyse.global.total > 1 ? "s" : ""} analysée{analyse.global.total > 1 ? "s" : ""} (taux d'échec/retour global : {Math.round(analyse.global.taux * 100)}%). C'est bon signe — pas de zone ni d'horaire visiblement problématique.
+            </div>
+          )}
+          {analyse.meilleurSignalZone && (
+            <div style={{ fontSize: 12.5, background: "#FBF3E3", border: "1px solid #E8D9B0", borderRadius: 9, padding: "9px 11px", marginBottom: 8, lineHeight: 1.5 }}>
+              ⚠️ <b>{Math.round(analyse.meilleurSignalZone.taux * 100)}%</b> des commandes de ce produit sont échouées/retournées en zone <b>{analyse.meilleurSignalZone.zone}</b> ({analyse.meilleurSignalZone.echecs} sur {analyse.meilleurSignalZone.total}), contre {Math.round(analyse.global.taux * 100)}% en moyenne sur ce produit. Envisage une confirmation téléphonique obligatoire pour cette zone avant d'envoyer un livreur.
+            </div>
+          )}
+          {analyse.meilleurSignalHeure && (
+            <div style={{ fontSize: 12.5, background: "#FBF3E3", border: "1px solid #E8D9B0", borderRadius: 9, padding: "9px 11px", marginBottom: 8, lineHeight: 1.5 }}>
+              ⚠️ <b>{Math.round(analyse.meilleurSignalHeure.taux * 100)}%</b> des commandes passées {analyse.meilleurSignalHeure.tranche} sont échouées/retournées ({analyse.meilleurSignalHeure.echecs} sur {analyse.meilleurSignalHeure.total}), contre {Math.round(analyse.global.taux * 100)}% en moyenne.
+            </div>
+          )}
+          {analyse.motifsRenseignes >= 5 && analyse.motifsRenseignes / Math.max(1, analyse.echecsTotal) >= 0.4 ? (
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 6 }}>
+              Motifs de retour les plus fréquents réellement saisis ({analyse.motifsRenseignes} sur {analyse.echecsTotal} échec{analyse.echecsTotal > 1 ? "s" : ""}/retour{analyse.echecsTotal > 1 ? "s" : ""}) : {analyse.topMotifs.map(([m, n]) => `« ${m} » (${n})`).join(", ")}.
+            </div>
+          ) : analyse.echecsTotal > 0 ? (
+            <div style={{ fontSize: 12, color: "#8A9089", marginTop: 6 }}>
+              Motif de retour pas assez renseigné ({analyse.motifsRenseignes}/{analyse.echecsTotal}) pour un résumé fiable — pense à le noter au moment du retour, ça permettra un jour d'avoir ce résumé automatiquement.
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 function PanneauPerformance({ workspaceId, produitId, devise }) {
   const [jours, setJours] = useState(30);
   const [etat, setEtat] = useState({ chargement: true, erreur: "", data: null });
@@ -574,6 +711,7 @@ function PanneauPerformance({ workspaceId, produitId, devise }) {
           <div style={{ fontSize: 11, color: "#8A9089", marginTop: 14, lineHeight: 1.5 }}>« Confirmées » et « échouées » sont lues directement dans vos commandes (statut mis à jour par le closer / le livreur) : aucune donnée n'est estimée.</div>
         </>
       )}
+      <RadarFiabilite workspaceId={workspaceId} produitId={produitId} />
     </div>
   );
 }

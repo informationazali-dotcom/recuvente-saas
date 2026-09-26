@@ -48,11 +48,24 @@ export default async function handler(req, res) {
   // ===== CAS 1 : Chariow nous notifie d'un paiement (Pulse webhook) =====
   // Reconnu par la présence du champ "event" envoyé automatiquement par Chariow
   if (req.body?.event) {
-    const { event, data } = req.body;
+    const { event } = req.body;
 
-    if (event === "sale.completed") {
-      const emailClient = data?.customer?.email;
-      const chariowProductId = data?.product?.id;
+    // IMPORTANT (trouvé pendant l'audit sécurité des abonnements) : la documentation officielle
+    // de Chariow (guide "Pulses") nomme cet événement "successful.sale", et place "customer",
+    // "product" et "sale" directement à la racine du corps reçu — PAS "sale.completed" avec un
+    // champ "data" imbriqué comme le code le vérifiait jusqu'ici. Avec l'ancienne condition, un
+    // vrai paiement Chariow ne pouvait jamais correspondre : chaque abonnement payé aurait
+    // silencieusement échoué à s'activer tout seul (retour "données incomplètes" à chaque fois,
+    // nécessitant une activation manuelle via le panneau admin). On accepte maintenant les deux
+    // noms d'événement et les deux emplacements de champs, par prudence (au cas où l'ancienne
+    // forme aurait un jour été correcte pour ce compte) : ça ne peut rien casser, seulement
+    // reconnaître plus de cas.
+    if (event === "successful.sale" || event === "sale.completed") {
+      const data = req.body?.data; // ancienne forme imbriquée, gardée uniquement en repli
+      const emailClient = req.body?.customer?.email || data?.customer?.email;
+      const chariowProductId = req.body?.product?.id || data?.product?.id;
+      const idBrutVente = req.body?.sale?.id || data?.id || data?.sale_id || data?.sale?.id || req.body?.id;
+      const dateBrute = req.body?.sale?.created_at || data?.created_at;
 
       if (!emailClient || !chariowProductId) {
         return res.status(200).json({ recu: true, ignore: "données incomplètes" });
@@ -65,7 +78,7 @@ export default async function handler(req, res) {
         if (!utilisateurPack) return res.status(200).json({ recu: true, ignore: "client introuvable" });
         const { data: wsPack } = await supabaseAdmin.from("workspaces").select("id").eq("owner_id", utilisateurPack.id).maybeSingle();
         if (!wsPack) return res.status(200).json({ recu: true, ignore: "espace introuvable" });
-        const idVente = String(data?.id || data?.sale_id || data?.sale?.id || req.body?.id || `${emailClient}:${chariowProductId}:${data?.created_at || ""}`).slice(0, 80);
+        const idVente = String(idBrutVente || `${emailClient}:${chariowProductId}:${dateBrute || ""}`).slice(0, 80);
         const typeAchat = `achat:${idVente}`;
         const { data: dejaCompte } = await supabaseAdmin.from("ia_usage").select("id").eq("workspace_id", wsPack.id).eq("type", typeAchat).maybeSingle();
         if (dejaCompte) return res.status(200).json({ recu: true, ignore: "vente déjà comptée" });
@@ -111,7 +124,13 @@ export default async function handler(req, res) {
 
       if (!workspace) return res.status(200).json({ recu: true, ignore: "espace introuvable" });
 
-      // Active l'abonnement automatiquement, sans intervention humaine
+      // Active l'abonnement automatiquement, sans intervention humaine.
+      // current_period_end : fixe la prochaine échéance à 1 mois (même règle que la confirmation
+      // manuelle dans api/confirmer-paiement.js), pour que l'accès s'arrête vraiment si la personne
+      // ne repaie pas — voir sql/lot10-expiration-abonnements.sql pour la vérification côté base.
+      const periodeFin = new Date();
+      periodeFin.setMonth(periodeFin.getMonth() + 1);
+
       const { data: existant } = await supabaseAdmin
         .from("subscriptions")
         .select("id")
@@ -119,14 +138,14 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (existant) {
-        await supabaseAdmin.from("subscriptions").update({ status: "active", plan_id: plan.id }).eq("workspace_id", workspace.id);
+        await supabaseAdmin.from("subscriptions").update({ status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString() }).eq("workspace_id", workspace.id);
       } else {
-        await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspace.id, status: "active", plan_id: plan.id }]);
+        await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspace.id, status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString() }]);
       }
 
       // Programme ambassadeur : si cette boutique a été parrainée, l'ambassadeur gagne sa commission (une fois par vente).
       try {
-        const idVenteAbo = String(data?.id || data?.sale_id || data?.sale?.id || req.body?.id || `${emailClient}:${chariowProductId}:${data?.created_at || ""}`).slice(0, 100);
+        const idVenteAbo = String(idBrutVente || `${emailClient}:${chariowProductId}:${dateBrute || ""}`).slice(0, 100);
         await (await import("../lib/croissance.js")).enregistrerCommission({ workspaceId: workspace.id, venteRef: idVenteAbo, montantVente: plan.prix, devise: plan.devise });
       } catch (_) {}
 

@@ -181,15 +181,25 @@ async function gererPOST(req, res) {
   }
 
   const nouveauStatut = action === "suspendre" ? "suspended" : "active";
+  // En réactivant à la main, on redonne aussi 1 mois d'accès (même règle que les paiements
+  // automatiques) : sinon une réactivation manuelle donnerait un accès illimité pour toujours,
+  // ce que la vérification d'expiration ajoutée en base (lot10) ne permet plus pour les paiements
+  // normaux — voir sql/lot10-expiration-abonnements.sql.
+  const champsMaj = { status: nouveauStatut };
+  if (nouveauStatut === "active") {
+    const periodeFin = new Date();
+    periodeFin.setMonth(periodeFin.getMonth() + 1);
+    champsMaj.current_period_end = periodeFin.toISOString();
+  }
   const { data: existant } = await supabaseAdmin
     .from("subscriptions")
     .select("id")
     .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (existant) {
-    await supabaseAdmin.from("subscriptions").update({ status: nouveauStatut }).eq("workspace_id", workspaceId);
+    await supabaseAdmin.from("subscriptions").update(champsMaj).eq("workspace_id", workspaceId);
   } else {
-    await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspaceId, status: nouveauStatut }]);
+    await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspaceId, ...champsMaj }]);
   }
   return res.status(200).json({ success: true, status: nouveauStatut });
 }

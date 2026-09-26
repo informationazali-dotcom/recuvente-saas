@@ -13444,6 +13444,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
   const [nouvellePhotoFichier, setNouvellePhotoFichier] = useState(null);
   const [nouvellePhotoApercu, setNouvellePhotoApercu] = useState("");
   const [photoDejaHebergeeUrl, setPhotoDejaHebergeeUrl] = useState(null);
+  const [photosGalerieViaLien, setPhotosGalerieViaLien] = useState([]);
   const [prixTrouveViaLien, setPrixTrouveViaLien] = useState(null);
   const [lienProduit, setLienProduit] = useState("");
   const [extractionEnCours, setExtractionEnCours] = useState(false);
@@ -13715,6 +13716,12 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
       } catch (e) { /* la photo est un plus, pas bloquant si elle échoue */ }
     }
 
+    // Photos supplémentaires trouvées sur la page d'origine (au-delà de la photo principale) —
+    // déjà hébergées chez nous par le serveur, on les ajoute directement à la galerie du produit.
+    if (photosGalerieViaLien.length > 0) {
+      try { await onUpdateGalerie(resultat.id, photosGalerieViaLien); } catch (e) {}
+    }
+
     // Le prix trouvé sur la page d'origine (souvent en dollars sur AliExpress) n'est JAMAIS
     // appliqué automatiquement comme prix de vente — l'appliquer tel quel en F CFA afficherait
     // un prix complètement faux sur la boutique. Il reste seulement affiché comme référence
@@ -13807,6 +13814,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
     setNouvellePhotoFichier(null);
     setNouvellePhotoApercu("");
     setPhotoDejaHebergeeUrl(null);
+    setPhotosGalerieViaLien([]);
     setPrixTrouveViaLien(null);
     setLienProduit("");
     setFicheIAPreGeneree(null);
@@ -14018,6 +14026,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                           } else {
                             if (resultat.nom) setNouveauNom(resultat.nom);
                             if (resultat.photo_url) { setPhotoDejaHebergeeUrl(resultat.photo_url); setNouvellePhotoApercu(resultat.photo_url); setNouvellePhotoFichier(null); }
+                            setPhotosGalerieViaLien(Array.isArray(resultat.photos_galerie) ? resultat.photos_galerie : []);
                             if (resultat.prix_trouve) setPrixTrouveViaLien({ montant: resultat.prix_trouve, devise: resultat.devise_prix_trouve || "USD" });
                             if (!resultat.nom && !resultat.photo_url) setExtractionErreur("Rien d'exploitable trouvé sur cette page.");
                           }
@@ -14039,6 +14048,11 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                     </div>
                   )}
                   <div style={{ fontSize: 10, color: "#8A8098", marginTop: 6 }}>Le nom et la photo se remplissent automatiquement s'ils sont trouvés — rien n'est deviné.</div>
+                  {photosGalerieViaLien.length > 0 && (
+                    <div style={{ fontSize: 11, color: "#3B6D11", marginTop: 6, fontWeight: 600 }}>
+                      📸 {photosGalerieViaLien.length} photo{photosGalerieViaLien.length > 1 ? "s" : ""} supplémentaire{photosGalerieViaLien.length > 1 ? "s" : ""} trouvée{photosGalerieViaLien.length > 1 ? "s" : ""} sur la page — elle{photosGalerieViaLien.length > 1 ? "s" : ""} seront ajoutée{photosGalerieViaLien.length > 1 ? "s" : ""} à la galerie du produit à la création.
+                    </div>
+                  )}
                 </div>
 
 
@@ -14047,7 +14061,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                     <div style={{ position: "relative", display: "inline-block" }}>
                       <img src={nouvellePhotoApercu} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: "1px solid #DDD8CC" }} />
                       <button
-                        onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); setPhotoDejaHebergeeUrl(null); setFicheIAPreGeneree(null); }}
+                        onClick={() => { setNouvellePhotoFichier(null); setNouvellePhotoApercu(""); setPhotoDejaHebergeeUrl(null); setPhotosGalerieViaLien([]); setFicheIAPreGeneree(null); }}
                         style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#D64933", color: "white", border: "none", fontSize: 12, cursor: "pointer" }}
                       >
                         ×
@@ -14108,6 +14122,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                         setNouvellePhotoFichier(fichier);
                         setNouvellePhotoApercu(URL.createObjectURL(fichier));
                         setPhotoDejaHebergeeUrl(null);
+                        setPhotosGalerieViaLien([]);
                       }}
                     />
                   </label>

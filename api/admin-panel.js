@@ -999,6 +999,60 @@ IMPORTANT : reformule uniquement ce qui est déjà dans la description donnée �
   return res.status(200).json({ benefices });
 }
 
+// ===== POST "deduire_brief_page_ia" : dans le Product Page Builder, quand le marchand choisit
+// « se baser sur ma description » plutôt que de retaper les infos, cette action lit la description
+// DÉJÀ écrite dans la fiche produit et en déduit seulement 3 réglages de formulaire (catégorie,
+// client visé, objectif de la page) -- jamais un contenu de preuve (avis, chiffre, stock, prix) :
+// ces réglages ne font que choisir QUELS BLOCS proposer et dans quel ordre (voir proposerStructure
+// côté client), rien n'est affiché tel quel sur la page publique.
+const CATEGORIES_PRODUIT_VALIDES = ["bien_etre", "beaute", "mode", "luxe", "electronique", "maison", "professionnel", "autre"];
+const OBJECTIFS_PAGE_VALIDES = ["commandes_confirmees", "panier_moyen", "lancement", "expliquer", "image_marque"];
+async function gererDeduireBriefPageIA(req, res, user) {
+  const { nom_produit, description } = req.body;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return res.status(500).json({ error: "Intégration requise : ANTHROPIC_API_KEY non configurée côté serveur" });
+
+  const texteDescription = htmlVersTexteSimple(description);
+  if (!texteDescription || texteDescription.length < 20) {
+    return res.status(400).json({ error: "La description de ce produit est vide ou trop courte pour en déduire quoi que ce soit. Écris d'abord ta description dans la fiche produit, ou réponds aux questions toi-même ci-dessous." });
+  }
+
+  const prompt = `Tu prépares 3 réglages d'un formulaire pour choisir la STRUCTURE (quels blocs, dans quel ordre -- jamais leur contenu) d'une page produit e-commerce (paiement à la livraison, Afrique de l'Ouest), à partir de la description déjà écrite par le marchand.
+
+Nom du produit : "${(nom_produit || "").trim() || "(non précisé)"}"
+Description déjà rédigée par le marchand : "${texteDescription}"
+
+Réponds UNIQUEMENT avec un objet JSON, dans ce format exact :
+{ "categorie": "...", "cible": "...", "objectif": "..." }
+
+"categorie" doit être EXACTEMENT une de ces valeurs (recopie-la telle quelle, sans traduction) : ${CATEGORIES_PRODUIT_VALIDES.join(", ")}.
+"objectif" doit être EXACTEMENT une de ces valeurs : ${OBJECTIFS_PAGE_VALIDES.join(", ")}.
+"cible" est une très courte phrase (moins de 60 caractères) décrivant le client visé, UNIQUEMENT si la description le suggère clairement (ex: "femmes 25-45 ans", "professionnels du BTP") -- sinon renvoie une chaîne vide "".
+
+IMPORTANT : ne déduis QUE ces 3 réglages, à partir du ton et du contenu réel de la description. N'invente et ne mentionne aucun prix, stock, avis, chiffre, promesse ou caractéristique qui n'y figure pas. Réponds uniquement le JSON, sans texte autour, sans balises \`\`\`json.`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 300, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ error: data?.error?.message || "Erreur API Claude" });
+  const texteBrut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+
+  let brief;
+  try {
+    const jsonMatch = texteBrut.match(/\{[\s\S]*\}/);
+    brief = JSON.parse(jsonMatch ? jsonMatch[0] : texteBrut);
+  } catch (e) {
+    return res.status(400).json({ error: "Réponse IA non exploitable, réessaie." });
+  }
+  const categorie = CATEGORIES_PRODUIT_VALIDES.includes(brief?.categorie) ? brief.categorie : "autre";
+  const objectif = OBJECTIFS_PAGE_VALIDES.includes(brief?.objectif) ? brief.objectif : "commandes_confirmees";
+  const cible = String(brief?.cible || "").trim().slice(0, 60);
+
+  return res.status(200).json({ categorie, cible, objectif });
+}
+
 // ===== POST "renommer_produit" : le nom d'un produit était jusqu'ici verrouillé dans l'éditeur
 // (Catalogue → produit) car les statistiques de vente et les commandes le retrouvent PAR SON NOM,
 // pas par son id — un simple UPDATE produits.nom côté client aurait "perdu" l'historique de ventes
@@ -1821,7 +1875,7 @@ async function gererCreerCompteFilleul(req, res) {
 // Limites réglables sans toucher au code : variables Vercel IA_LIMITE_ESSAI (défaut 20) et IA_LIMITE_ABONNE (défaut 100).
 // Packs de crédits achetables (Chariow) : variable Vercel CHARIOW_PACKS_IA = [{"id":"<id produit Chariow>","credits":100,"prix":2000,"devise":"XOF","nom":"Pack 100 crédits"}]
 // Comptage dans la table ia_usage : lignes d'usage (type = l'action), « achat:… » (crédits achetés) et « pack_conso » (crédits de pack dépensés).
-const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1, avis_aliexpress: 2, benefices: 1 };
+const POIDS_IA = { fiche: 1, config: 1, boutique_complete: 3, extraire_lien: 2, photo: 2, ecole: 1, coaching: 1, avis_aliexpress: 2, benefices: 1, brief_page: 1 };
 const memoireUsageIA = new Map(); // repli si la table ia_usage n'existe pas encore (compte par instance serveur)
 function limiteIA(nom, defaut) { const n = Number(process.env[nom]); return Number.isFinite(n) && n >= 0 ? n : defaut; }
 function packsIA() {
@@ -1977,6 +2031,12 @@ export default async function handler(req, res) {
     if (!userMembre) return;
     if (!(await autoriserUsageIA(req, res, userMembre, "benefices"))) return;
     return gererGenererBeneficesIA(req, res, userMembre);
+  }
+  if (req.method === "POST" && req.body?.action === "deduire_brief_page_ia") {
+    const userMembre = await verifierMembreWorkspace(req, res);
+    if (!userMembre) return;
+    if (!(await autoriserUsageIA(req, res, userMembre, "brief_page"))) return;
+    return gererDeduireBriefPageIA(req, res, userMembre);
   }
   if (req.method === "POST" && req.body?.action === "generer_configuration_boutique_ia") {
     const userMembre = await verifierMembreWorkspace(req, res);

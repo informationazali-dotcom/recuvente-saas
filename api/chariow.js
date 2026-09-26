@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       // Retrouve le plan correspondant à ce produit Chariow
       const { data: plan } = await supabaseAdmin
         .from("subscription_plans")
-        .select("id, prix, devise")
+        .select("id, nom, prix, devise")
         .eq("chariow_product_id", chariowProductId)
         .maybeSingle();
 
@@ -118,7 +118,7 @@ export default async function handler(req, res) {
 
       const { data: workspace } = await supabaseAdmin
         .from("workspaces")
-        .select("id")
+        .select("id, name")
         .eq("owner_id", utilisateur.id)
         .maybeSingle();
 
@@ -149,6 +149,16 @@ export default async function handler(req, res) {
       try {
         const idVenteAbo = String(idBrutVente || `${emailClient}:${chariowProductId}:${dateBrute || ""}`).slice(0, 100);
         await (await import("../lib/croissance.js")).enregistrerCommission({ workspaceId: workspace.id, venteRef: idVenteAbo, montantVente: plan.prix, devise: plan.devise });
+      } catch (_) {}
+
+      // Reçu par e-mail (jamais bloquant : le paiement reste confirmé même si l'e-mail échoue).
+      try {
+        const origine = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://recuvente-saas.vercel.app";
+        await fetch(`${origine}/api/notifications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "recu_abonnement", email: emailClient, workspaceName: workspace.name, planName: plan.nom, montant: plan.prix, devise: plan.devise, periodeFin: periodeFin.toISOString() }),
+        });
       } catch (_) {}
 
       return res.status(200).json({ success: true, active: true });

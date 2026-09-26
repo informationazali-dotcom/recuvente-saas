@@ -61,5 +61,25 @@ export default async function handler(req, res) {
     ]);
   }
 
+  // Reçu par e-mail (jamais bloquant : le paiement reste confirmé même si l'e-mail échoue).
+  try {
+    const [{ data: ws }, { data: plan }] = await Promise.all([
+      supabaseAdmin.from("workspaces").select("name, owner_id").eq("id", requete.workspace_id).maybeSingle(),
+      supabaseAdmin.from("subscription_plans").select("nom, prix, devise").eq("id", requete.plan_id).maybeSingle(),
+    ]);
+    if (ws?.owner_id) {
+      const { data: proprietaire } = await supabaseAdmin.auth.admin.getUserById(ws.owner_id);
+      const email = proprietaire?.user?.email;
+      if (email) {
+        const origine = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://recuvente-saas.vercel.app";
+        await fetch(`${origine}/api/notifications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "recu_abonnement", email, workspaceName: ws.name, planName: plan?.nom, montant: plan?.prix, devise: plan?.devise, periodeFin: periodEnd.toISOString() }),
+        });
+      }
+    }
+  } catch (_) {}
+
   return res.status(200).json({ success: true });
 }

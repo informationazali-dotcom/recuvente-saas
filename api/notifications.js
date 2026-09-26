@@ -1,10 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { Resend } from "resend";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+// Même fournisseur d'e-mail que les rappels automatiques (api/cron-daily.js).
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Configure web-push avec la paire de clés VAPID (la clé publique doit être EXACTEMENT
 // la même que celle utilisée côté client dans App.jsx, sinon les envois échouent).
@@ -183,13 +186,62 @@ export default async function handler(req, res) {
   const { type } = req.body || {};
 
   // ===== Email de bienvenue à la création d'un espace =====
+  // IMPORTANT (trouvé pendant l'audit sécurité des abonnements) : cette section ne faisait
+  // qu'écrire dans les journaux du serveur ("console.log"), invisible pour la personne —
+  // aucun e-mail de bienvenue n'a donc jamais été réellement envoyé. Corrigé ici avec le même
+  // fournisseur d'e-mail (Resend) déjà utilisé par les rappels automatiques.
   if (type === "welcome") {
     const { email, workspaceName } = req.body;
-    // Envoi de l'email de bienvenue — comportement existant, inchangé.
-    // (Si un vrai fournisseur d'email — Resend, SendGrid... — était déjà branché ici,
-    // remets-le à cet endroit exact : cette section a été reconstruite de mémoire et
-    // doit être vérifiée contre ton fichier réel avant déploiement.)
-    console.log(`Email de bienvenue à envoyer à ${email} pour l'espace "${workspaceName}"`);
+    if (!email) return res.status(200).json({ ok: true });
+    try {
+      await resend.emails.send({
+        from: "RecuVente <onboarding@resend.dev>",
+        to: email,
+        subject: `Bienvenue sur RecuVente, ${workspaceName} !`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #1a7a3c; font-size: 20px;">🎉 Bienvenue !</h1>
+            <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
+              Ta boutique <strong>${workspaceName}</strong> est prête. Tu as 7 jours d'essai gratuit pour découvrir RecuVente — gestion des commandes, livreurs, stock et bien plus.
+            </p>
+            <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+              Ouvrir mon espace
+            </a>
+          </div>
+        `,
+      });
+    } catch (e) {
+      console.error("Erreur email de bienvenue:", e.message);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ===== Reçu par e-mail après un paiement d'abonnement confirmé =====
+  // Manquait entièrement jusqu'ici : aucune confirmation écrite n'était envoyée après un
+  // paiement (webhook Chariow ou confirmation manuelle) — appelé depuis api/chariow.js et
+  // api/confirmer-paiement.js juste après l'activation, sans jamais bloquer si l'e-mail échoue.
+  if (type === "recu_abonnement") {
+    const { email, workspaceName, planName, montant, devise, periodeFin } = req.body || {};
+    if (!email) return res.status(200).json({ ok: true });
+    try {
+      const dateFin = periodeFin ? new Date(periodeFin).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
+      await resend.emails.send({
+        from: "RecuVente <onboarding@resend.dev>",
+        to: email,
+        subject: `Reçu de paiement — ${workspaceName || "ta boutique"}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #1a7a3c; font-size: 20px;">✅ Paiement confirmé</h1>
+            <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
+              Merci ! Ton abonnement${planName ? ` <strong>${planName}</strong>` : ""} sur <strong>${workspaceName || ""}</strong> est actif${montant ? ` (${Number(montant).toLocaleString("fr-FR")} ${libelleDevise(devise)})` : ""}.
+            </p>
+            ${dateFin ? `<p style="color: #6B7168; font-size: 13.5px;">Accès garanti jusqu'au <strong>${dateFin}</strong>.</p>` : ""}
+          </div>
+        `,
+      });
+    } catch (e) {
+      console.error("Erreur reçu paiement:", e.message);
+    }
     return res.status(200).json({ ok: true });
   }
 

@@ -442,6 +442,21 @@ function genererEventId(prefixe = "ev") {
   return `${prefixe}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Mêmes clés que MarketingPublicTracker.jsx (qui tourne sur la même page) : on relit ici le
+// visiteur/session déjà enregistrés, pour rattacher nos événements de parcours (vue produit,
+// panier, clic sur "Commander") à la même session déjà connue côté tableau de bord marketing.
+function idsMarketingCourants() {
+  if (typeof window === "undefined") return { visitorId: null, sessionId: null };
+  try {
+    return {
+      visitorId: localStorage.getItem("rv_marketing_visitor_id") || null,
+      sessionId: sessionStorage.getItem("rv_marketing_session_id") || null,
+    };
+  } catch (_) {
+    return { visitorId: null, sessionId: null };
+  }
+}
+
 // Marketing de réseau : conserve le code du filleul (?ref=) tout au long du
 // parcours client, exactement comme sourceCampagne ci-dessus — un nouveau
 // ?ref= valide écrase l'ancien (dernier referral valide = attribution),
@@ -1326,6 +1341,31 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   }
 
   const EVENEMENTS_DOUBLES = ["ViewContent", "AddToCart", "InitiateCheckout"];
+  // Nom interne (tableau de bord "Parcours client" / rapport_marketing_cod) pour chaque événement Facebook doublé.
+  const NOMS_EVENEMENT_PARCOURS = { ViewContent: "view_content", AddToCart: "add_to_cart", InitiateCheckout: "initiate_checkout" };
+
+  // Enregistre l'événement dans marketing_events (même table que les sessions déjà suivies par
+  // MarketingPublicTracker.jsx) pour que le tableau de bord marketing interne (colonnes "Vue produit",
+  // "Panier", "Checkout") reflète le vrai parcours du client sur la fiche produit — jusqu'ici, seuls
+  // Facebook/TikTok recevaient ces événements, jamais le tableau de bord interne.
+  function enregistrerEvenementParcours(nomInterne, params, eventID) {
+    if (!workspaceId || !nomInterne) return;
+    const { visitorId, sessionId } = idsMarketingCourants();
+    if (!sessionId) return;
+    try {
+      supabase.rpc("enregistrer_evenement_marketing_public", {
+        p_workspace_id: workspaceId,
+        p_event_name: nomInterne,
+        p_event_id: eventID || genererEventId(nomInterne),
+        p_session_id: sessionId,
+        p_visitor_id: visitorId,
+        p_produit_id: params?.content_ids?.[0] || null,
+        p_value: params?.value != null ? Number(params.value) : null,
+        p_currency: params?.currency || "XOF",
+        p_metadata: { content_name: params?.content_name || null },
+      }).catch(() => {});
+    } catch (_) {}
+  }
 
   function trackEvenement(nom, params = {}, options = {}) {
     // eventID est indispensable lorsqu'un même événement est envoyé par le navigateur
@@ -1340,7 +1380,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         window.fbq("track", nom, params);
       }
     }
-    if (doubler) envoyerEvenementServeur(nom, params, eventID);
+    if (doubler) {
+      envoyerEvenementServeur(nom, params, eventID);
+      enregistrerEvenementParcours(NOMS_EVENEMENT_PARCOURS[nom], params, eventID);
+    }
     if (window.ttq) {
       window.ttq.track(nom, {
         content_id: params?.content_ids?.[0],

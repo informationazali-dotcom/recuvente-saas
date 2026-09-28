@@ -783,6 +783,13 @@ function InfoProduit({ p, ctx, blocOffres }) {
         <div style={{ display: "inline-block", fontSize: 12.5, fontWeight: 700, color: "#1F9D6E", background: "#EAF7F1", padding: "4px 10px", borderRadius: 999, margin: "2px 0 8px" }}>{lib("livraisonGratuite", "🎁 Livraison gratuite")}</div>
       ) : liv.frais > 0 && !liv.aChoix ? (
         <div style={{ fontSize: 13, color: "var(--pp-muted)", margin: "2px 0 8px" }}>🚚 + {formaterMontant(liv.frais, devise)} {lib("deFraisLivraison", "de frais de livraison")}</div>
+      ) : liv.aChoix && (liv.frais > 0 || liv.fraisExpedition > 0) ? (
+        // Deux modes de livraison (ex. Dakar / Autre ville) : les frais s'affichent dès le prix,
+        // comme sur la fiche catalogue — le client ne découvre plus le total dans le formulaire.
+        <div className="rvpp-liv-choix" style={{ fontSize: 13, color: "var(--pp-muted)", margin: "2px 0 8px", lineHeight: 1.5 }}>
+          🚚 {liv.labelLocal || lib("livraisonRapide", "Livraison")} : <b style={{ color: "var(--pp-ink)" }}>+ {formaterMontant(liv.frais, devise)}</b>
+          {liv.fraisExpedition > 0 && <> · {liv.labelExpedition || "Expédition"} : <b style={{ color: "var(--pp-ink)" }}>+ {formaterMontant(liv.fraisExpedition, devise)}</b></>}
+        </div>
       ) : null}
 
       {p.afficher_stock && stock > 0 && stock <= 5 && (
@@ -1245,12 +1252,50 @@ function BlocLivraison({ bloc, ctx }) {
   );
 }
 
+// Vidéos insérées dans la description : au lieu de toutes les télécharger et les lancer dès
+// l'ouverture de la page (lourd en 3G/4G), on neutralise l'autoplay dans le HTML puis on ne
+// lance chaque vidéo (son coupé) que lorsqu'elle arrive à l'écran. Le HTML enregistré n'est
+// pas modifié — seulement la façon dont il est affiché.
+function htmlDescriptionVideosDifferees(html) {
+  if (!html || typeof html !== "string" || !/<video/i.test(html)) return html;
+  return html.replace(/<video\b([^>]*)>/gi, (tout, attrs) => {
+    const avaitAutoplay = /\sautoplay\b/i.test(attrs);
+    let a = attrs.replace(/\sautoplay(=("[^"]*"|'[^']*'|[^\s>]*))?/gi, "").replace(/\spreload(=("[^"]*"|'[^']*'|[^\s>]*))?/gi, "");
+    a += ' preload="none"';
+    if (avaitAutoplay) a += " data-rv-autoplay";
+    return `<video${a}>`;
+  });
+}
+
 function BlocDescription({ bloc, ctx }) {
   const p = bloc.props;
+  const refDesc = useRef(null);
+  const htmlAffiche = useMemo(() => htmlDescriptionVideosDifferees(ctx.descriptionReste), [ctx.descriptionReste]);
+  useEffect(() => {
+    const racine = refDesc.current;
+    if (!racine || typeof IntersectionObserver === "undefined") return undefined;
+    const videos = Array.from(racine.querySelectorAll("video[data-rv-autoplay]"));
+    if (videos.length === 0) return undefined;
+    const obs = new IntersectionObserver((entrees) => {
+      entrees.forEach((e) => {
+        const v = e.target;
+        if (e.isIntersecting) {
+          v.muted = true;
+          v.setAttribute("playsinline", "");
+          const pr = v.play();
+          if (pr && pr.catch) pr.catch(() => {});
+        } else if (!v.paused) {
+          v.pause();
+        }
+      });
+    }, { threshold: 0.4 });
+    videos.forEach((v) => obs.observe(v));
+    return () => obs.disconnect();
+  }, [htmlAffiche]);
   return (
     <div style={{ maxWidth: 760, margin: "0 auto" }}>
       {(p.titre || "").trim() && <h2 className="rvpp-h2" style={{ marginBottom: 14 }}>{p.titre}</h2>}
-      <div className="rvpp-desc" dangerouslySetInnerHTML={{ __html: ctx.descriptionReste }} />
+      <div ref={refDesc} className="rvpp-desc" dangerouslySetInnerHTML={{ __html: htmlAffiche }} />
     </div>
   );
 }

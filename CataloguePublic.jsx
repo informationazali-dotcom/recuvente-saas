@@ -547,10 +547,10 @@ const TRADUCTIONS = {
     modeLivraison: "Mode de livraison",
     choisisMode: "Choisis un mode de livraison pour continuer.",
     ajouteProduit: "➕ Ajoute un produit à ta commande",
-    engagement: "⚠️ En confirmant, tu t'engages à réceptionner ce colis. Merci de ne pas commander \"pour voir\" si tu n'es pas certain(e) d'être intéressé(e).",
+    engagement: "📦 Le livreur se déplace exprès pour toi : merci de commander seulement si tu es prêt(e) à recevoir ton colis.",
     telIncomplet: "⚠️ Ce numéro de téléphone semble incomplet. Vérifie-le avant de continuer.",
     dovaisCocherEngagement: "⚠️ Merci de cocher la case de confirmation avant d'envoyer ta commande.",
-    caseEngagement: "Je confirme que je veux vraiment recevoir ce produit et que je répondrai à l'appel de confirmation.",
+    caseEngagement: "Oui, je veux recevoir ce produit et je répondrai à l'appel de confirmation.",
     onVaAppeler: "📞 Notre équipe t'appellera dans les prochaines heures pour confirmer ta commande — merci de répondre, même à un numéro que tu ne connais pas.",
     confirmer: "Confirmer",
     envoiEnCours: "Envoi...",
@@ -1217,6 +1217,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [erreurEnvoi, setErreurEnvoi] = useState("");
   const [engagementCoche, setEngagementCoche] = useState(false);
   const [codePromoInput, setCodePromoInput] = useState("");
+  // Champ code promo replié derrière un petit lien : un champ vide bien visible pousse
+  // le client à quitter la page pour « chercher un code » au lieu de confirmer.
+  const [codePromoOuvert, setCodePromoOuvert] = useState(false);
   const [codePromoApplique, setCodePromoApplique] = useState(null);
   const [codePromoMessage, setCodePromoMessage] = useState("");
   const [verificationCodePromoEnCours, setVerificationCodePromoEnCours] = useState(false);
@@ -2766,10 +2769,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                     <span style={{ fontSize: 12, color: "#1F9D6E", fontWeight: 700 }}>✅ {codePromoMessage}</span>
                     <button onClick={() => { setCodePromoApplique(null); setCodePromoInput(""); setCodePromoMessage(""); }} style={{ background: "none", border: "none", color: "#1F9D6E", fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Retirer</button>
                   </div>
+                ) : !codePromoOuvert && !codePromoInput ? (
+                  <button
+                    type="button"
+                    onClick={() => setCodePromoOuvert(true)}
+                    style={{ background: "none", border: "none", padding: 0, color: "#6B7168", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    🏷️ J'ai un code promo
+                  </button>
                 ) : (
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
                       className="rv-cmd-input"
+                      autoFocus={codePromoOuvert}
                       placeholder="Code promo (optionnel)"
                       value={codePromoInput}
                       onChange={(e) => setCodePromoInput(e.target.value)}

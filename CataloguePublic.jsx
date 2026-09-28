@@ -5956,16 +5956,41 @@ function descriptionAUnContenu(html) {
 
 function PointsFortsListe({ points, couleur }) {
   if (!points || points.length === 0) return null;
-  // Style repris de la palette de la boutique (pas un gris neutre générique) : fond teinté
-  // très légèrement de la couleur du marchand, pastille de coche remplie de cette même couleur,
-  // texte en gras pour se voir au premier coup d'œil sous le prix — demande explicite du user
-  // ("plus gras, plus joli... la police ne suit pas le thème").
-  const texteSurCouleur = couleurTextePourFond(couleur || "#16231F");
+  // Effet "carte" avec un peu de relief (dégradé doux + ombre teintée + liseré clair en haut,
+  // façon carte légèrement surélevée) au lieu d'un simple aplat — demande explicite du user
+  // ("plus gras, plus joli, un peu futuriste, qui frappe à l'œil"). Reste volontairement léger
+  // en poids (dégradé + ombre CSS, aucune image, aucune lib) pour ne pas ralentir l'affichage
+  // sur les téléphones d'entrée de gamme de nos clients COD.
+  const c = couleur || "#16231F";
+  const texteSurCouleur = couleurTextePourFond(c);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 16px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "14px 0 16px" }}>
       {points.map((tx, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: `${couleur}12`, border: `1px solid ${couleur}35`, borderRadius: 10, padding: "10px 13px", fontSize: 14, lineHeight: 1.4, color: "#16231F", fontWeight: 700 }}>
-          <span aria-hidden="true" style={{ flexShrink: 0, width: 19, height: 19, marginTop: 1, borderRadius: "50%", color: texteSurCouleur, background: couleur || "#16231F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 900, lineHeight: 1 }}>✓</span>
+        <div
+          key={i}
+          style={{
+            display: "flex", alignItems: "center", gap: 11,
+            background: `linear-gradient(155deg, ${c}1f 0%, ${c}0a 60%, ${c}05 100%)`,
+            border: `1px solid ${c}30`,
+            borderRadius: 12,
+            padding: "11px 14px",
+            fontSize: 14, lineHeight: 1.4, color: "#16231F", fontWeight: 700,
+            boxShadow: `0 1px 1px rgba(255,255,255,0.6) inset, 0 2px 4px rgba(20,20,15,0.04), 0 6px 14px ${c}17`,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
+              color: texteSurCouleur,
+              background: `linear-gradient(155deg, ${c}f2 0%, ${c} 55%, ${c}cc 100%)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12, fontWeight: 900, lineHeight: 1,
+              boxShadow: `0 2px 5px ${c}55, 0 1px 0 rgba(255,255,255,0.35) inset`,
+            }}
+          >
+            ✓
+          </span>
           <span>{tx}</span>
         </div>
       ))}

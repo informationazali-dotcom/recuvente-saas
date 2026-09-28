@@ -5980,6 +5980,13 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           />
         )}
 
+        {/* Menu regroupé par secteur (Général / Réseau / Performance / Produits / Personnalisation /
+            IA / Équipe & paramètres) au lieu d'une liste plate mélangée — demande explicite du user
+            ("il faut que ça soit vraiment bien structuré... même une personne qui ne connaît rien,
+            quand il voit, il sait où se diriger"). Chaque bouton garde EXACTEMENT sa condition
+            d'accès d'origine (rôle, type d'activité, e-commerce ou non, email) : rien n'a été
+            supprimé ni rendu visible à un rôle qui n'y avait pas accès avant — seul l'ordre et les
+            titres de section ont changé. */}
         {[
           { key: "aujourdhui", label: "🏠 Accueil" },
           { key: "commandes", label: workspace.activity_type === "retail" ? "Ventes" : workspace.activity_type === "location_immobiliere" ? "Loyers" : workspace.activity_type === "location_vehicule" ? "Réservations" : "Commandes" },
@@ -5988,7 +5995,35 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           ...(workspace.activity_type === "location_immobiliere" ? [{ key: "logements", label: "🏠 Logements" }] : []),
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
-          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "produits_vue", label: "📦 Produits" }] : []),
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setVue(t.key)}
+            style={{
+              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
+              background: vue === t.key ? "rgba(255,255,255,0.1)" : "transparent",
+              color: vue === t.key ? "white" : "rgba(255,255,255,0.6)",
+              fontSize: 14, fontWeight: vue === t.key ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+        {workspace.activity_type === "retail" && (
+          <button
+            onClick={() => setShowCaisse(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🧾 Caisse
+          </button>
+        )}
+
+        {workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+            🟣 Réseau
+          </div>
+        )}
+        {[
           ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "reseau", label: "🟣 Réseau" }] : []),
           ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "recrutement", label: "📋 Recrutement" }] : []),
           ...(workspace.activity_type === "network_marketing" && (workspace.role === "owner" || workspace.role === "admin") ? [{ key: "school", label: "🎓 School" }] : []),
@@ -6010,7 +6045,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
 
         {(workspace.role === "owner" || workspace.role === "admin") && (
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
-            Pilotage financier
+            📊 Performance
           </div>
         )}
         {[
@@ -6035,18 +6070,69 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         ))}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
+            onClick={() => setShowVisiteursEnLigne(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🟢 Visiteurs en ligne
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowTraficBoutique(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            📊 Trafic de ma boutique
+          </button>
+        )}
+
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+            📦 Produits
+          </div>
+        )}
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setVue("produits_vue")}
+            style={{
+              display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none",
+              background: vue === "produits_vue" ? "rgba(255,255,255,0.1)" : "transparent",
+              color: vue === "produits_vue" ? "white" : "rgba(255,255,255,0.6)",
+              fontSize: 14, fontWeight: vue === "produits_vue" ? 600 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer",
+            }}
+          >
+            📦 Produits
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
             onClick={() => setShowProduits(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             📦 Catalogue
           </button>
         )}
-        {workspace.activity_type === "retail" && (
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
           <button
-            onClick={() => setShowCaisse(true)}
+            onClick={() => setShowCollections(true)}
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
-            🧾 Caisse
+            📁 Collections
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowCodesPromo(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🏷️ Codes promo
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowPaniersAbandonnes(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🛒 Paniers abandonnés
           </button>
         )}
         {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
@@ -6056,6 +6142,42 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           >
             ⭐ Avis clients
           </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowTemoignages(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            💬 Témoignages
+          </button>
+        )}
+
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+            🎨 Personnalisation
+          </div>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && workspace.slug === "azaliexpress" && (
+          <button
+            onClick={() => setShowAzaliDesign(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            🎨 Personnaliser ma boutique
+          </button>
+        )}
+        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
+          <button
+            onClick={() => setShowPages(true)}
+            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            📄 Pages
+          </button>
+        )}
+
+        {session?.user?.email === "oulipaiexpress@gmail.com" && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+            🤖 Intelligence artificielle
+          </div>
         )}
         {session?.user?.email === "oulipaiexpress@gmail.com" && (
           <button
@@ -6119,73 +6241,65 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
             </button>
           </>
         )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowTemoignages(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            💬 Témoignages
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowCollections(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            📁 Collections
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowPages(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            📄 Pages
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && workspace.slug === "azaliexpress" && (
-          <button
-            onClick={() => setShowAzaliDesign(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            🎨 Personnaliser ma boutique
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowVisiteursEnLigne(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            🟢 Visiteurs en ligne
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowTraficBoutique(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            📊 Trafic de ma boutique
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowCodesPromo(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            🏷️ Codes promo
-          </button>
-        )}
-        {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && (
-          <button
-            onClick={() => setShowPaniersAbandonnes(true)}
-            style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-          >
-            🛒 Paniers abandonnés
-          </button>
-        )}
+
         {workspace.role === "owner" && (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px" }} />
+            {estEcommerce && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "6px 12px 6px" }}>
+                🛍️ Boutique en ligne
+              </div>
+            )}
+            {estEcommerce && (
+              <button
+                onClick={() => setShowStoreBuilder(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🛍️ Ma Boutique
+              </button>
+            )}
+            {estEcommerce && (
+              <a
+                href={`${window.location.origin}/?theme-studio=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer", textDecoration: "none" }}
+              >
+                🎨 Theme Studio (Beta)
+              </a>
+            )}
+            {(workspace.activity_type === "location_immobiliere" || workspace.activity_type === "location_vehicule") && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+                📍 Location
+              </div>
+            )}
+            {workspace.activity_type === "location_immobiliere" && (
+              <button
+                onClick={() => setShowLocationMaison(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(26,122,60,0.18)", color: "#7fd6a3", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🏠 Locataires & loyers
+              </button>
+            )}
+            {workspace.activity_type === "location_vehicule" && (
+              <button
+                onClick={() => setShowLocationVoiture(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                🚗 Calendrier & locations
+              </button>
+            )}
+            {(workspace.activity_type === "location_immobiliere" || workspace.activity_type === "location_vehicule") && (
+              <button
+                onClick={() => setShowProspectsFiches(true)}
+                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(36,82,232,0.15)", color: "#6f8cf0", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+              >
+                📋 Prospects & fiches
+              </button>
+            )}
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+              ⚙️ Équipe & paramètres
+            </div>
             <button
               onClick={() => setShowTeam(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
@@ -6212,48 +6326,6 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
             >
               🚀 Paiement en ligne & croissance
             </button>
-            {workspace.activity_type === "location_immobiliere" && (
-              <button
-                onClick={() => setShowLocationMaison(true)}
-                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(26,122,60,0.18)", color: "#7fd6a3", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-              >
-                🏠 Locataires & loyers
-              </button>
-            )}
-            {workspace.activity_type === "location_vehicule" && (
-              <button
-                onClick={() => setShowLocationVoiture(true)}
-                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-              >
-                🚗 Calendrier & locations
-              </button>
-            )}
-            {(workspace.activity_type === "location_immobiliere" || workspace.activity_type === "location_vehicule") && (
-              <button
-                onClick={() => setShowProspectsFiches(true)}
-                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(36,82,232,0.15)", color: "#6f8cf0", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-              >
-                📋 Prospects & fiches
-              </button>
-            )}
-            {estEcommerce && (
-              <button
-                onClick={() => setShowStoreBuilder(true)}
-                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(232,146,10,0.15)", color: "#e8920a", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
-              >
-                🛍️ Ma Boutique
-              </button>
-            )}
-            {estEcommerce && (
-              <a
-                href={`${window.location.origin}/?theme-studio=1`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontSize: 14, fontWeight: 600, textAlign: "left", marginBottom: 3, cursor: "pointer", textDecoration: "none" }}
-              >
-                🎨 Theme Studio (Beta)
-              </a>
-            )}
             <button
               onClick={() => setShowAbonnement(true)}
               style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}

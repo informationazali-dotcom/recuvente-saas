@@ -3,11 +3,48 @@
 // une entreprise d'envoyer des commandes dans l'espace d'une autre.
 
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+// Désactive le découpage automatique du corps par Vercel : la vérification de signature Shopify
+// (ci-dessous) a besoin du corps BRUT, exactement comme envoyé, avant tout JSON.parse — sinon la
+// signature ne correspond jamais. On reparse nous-mêmes ce corps brut en JSON juste après l'avoir
+// lu (même principe que api/chariow.js, verifierSignatureChariow).
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+function lireCorpsBrut(req) {
+  return new Promise((resolve, reject) => {
+    const morceaux = [];
+    req.on("data", (c) => morceaux.push(c));
+    req.on("end", () => resolve(Buffer.concat(morceaux)));
+    req.on("error", reject);
+  });
+}
+
+// Vérifie la signature d'un webhook Shopify : en-tête "X-Shopify-Hmac-Sha256" = base64 de
+// HMAC-SHA256(corps brut, clé de signature des webhooks — visible dans Shopify Admin →
+// Paramètres → Notifications, tout en bas de la page), comparée en temps constant. Tant que le
+// marchand n'a pas encore collé cette clé dans "🛍️ Ma Boutique" (workspace.shopify_hmac_secret
+// non renseigné), on laisse passer sans vérifier (verifie:false) plutôt que de bloquer par
+// erreur — mêmes principes que verifierSignatureChariow dans api/chariow.js : mieux vaut ne pas
+// encore protéger que de casser silencieusement la réception des commandes Shopify existantes.
+function verifierSignatureShopify(corpsBrut, signatureRecue, secret) {
+  if (!secret) return { ok: true, verifie: false };
+  if (!signatureRecue) return { ok: false, verifie: true };
+  const attendu = crypto.createHmac("sha256", secret).update(corpsBrut).digest("base64");
+  const bufAttendu = Buffer.from(attendu);
+  const bufRecu = Buffer.from(signatureRecue);
+  if (bufAttendu.length !== bufRecu.length) return { ok: false, verifie: true };
+  return { ok: crypto.timingSafeEqual(bufAttendu, bufRecu), verifie: true };
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -18,7 +55,7 @@ export default async function handler(req, res) {
   // Retrouve l'entreprise correspondant à ce secret précis
   const { data: workspace, error: wsError } = await supabaseAdmin
     .from("workspaces")
-    .select("id")
+    .select("id, shopify_hmac_secret")
     .eq("webhook_secret", webhookSecret)
     .single();
 
@@ -26,8 +63,23 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: "Aucune entreprise ne correspond à ce lien. Vérifie l'URL." });
   }
 
+  // Le découpage automatique du corps est désactivé (voir "config" en haut du fichier) : on le
+  // lit nous-mêmes ici, une seule fois, puis on le reparse en JSON pour que tout le code plus bas
+  // continue de fonctionner exactement comme avant.
+  const corpsBrut = await lireCorpsBrut(req);
+
+  const signature = verifierSignatureShopify(corpsBrut, req.headers["x-shopify-hmac-sha256"], workspace.shopify_hmac_secret);
+  if (!signature.ok) {
+    return res.status(401).json({ error: "Signature invalide. Vérifie la clé de signature des webhooks dans « 🛍️ Ma Boutique »." });
+  }
+
   try {
-    const order = req.body;
+    let order;
+    try {
+      order = JSON.parse(corpsBrut.toString("utf8") || "{}");
+    } catch (_) {
+      return res.status(400).json({ error: "Corps de la requête invalide (JSON attendu)." });
+    }
 
     const client = order.customer
       ? `${order.customer.first_name || ""} ${order.customer.last_name || ""}`.trim()

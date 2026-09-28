@@ -13831,6 +13831,14 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
     );
   }
 
+  // Avant, il fallait cliquer sur "Générer les variantes" pour voir apparaître les champs prix/stock/photo :
+  // on régénère donc automatiquement dès que les options changent (avec un petit délai pour ne pas
+  // recalculer à chaque lettre tapée), sans supprimer le bouton manuel juste en dessous.
+  useEffect(() => {
+    const delai = setTimeout(() => { regenererVariantes(); }, 500);
+    return () => clearTimeout(delai);
+  }, [optionsProduit]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
     if (fichier.size > 5 * 1024 * 1024) {
@@ -14774,7 +14782,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                 {/* --- Carte Variantes --- */}
                 <Carte titre="🎨 Variantes">
                   <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.5 }}>
-                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Laisse un prix vide pour garder le prix de vente par défaut.
+                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Dès qu'un nom et des valeurs sont remplis, les champs prix/stock/photo apparaissent automatiquement ci-dessous. Laisse un prix vide pour garder le prix de vente par défaut.
                   </div>
                   <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
                     {optionsProduit.map((o, i) => (
@@ -14785,7 +14793,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                     ))}
                   </div>
                   <button onClick={regenererVariantes} style={{ border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 14 }}>
-                    🔄 Générer les variantes
+                    🔄 Actualiser maintenant
                   </button>
 
                   {variantesListe.length > 0 && (

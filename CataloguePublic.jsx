@@ -716,6 +716,15 @@ function couleurTexteLisible(hex) {
 
 // Pour un texte posé sur un fond de la couleur choisie : blanc si le fond est
 // foncé, sombre si le fond est clair — jamais de texte invisible.
+// Teinte très claire d'une couleur de boutique (#rgb ou #rrggbb) — pour les fonds d'encadrés.
+function teinteClaire(hex, alpha = 0.08) {
+  const h = String(hex || "").trim().replace("#", "");
+  const plein = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(plein)) return `rgba(26,122,60,${alpha})`;
+  const n = parseInt(plein, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
 function couleurTextePourFond(hexFond) {
   return luminance(hexFond) > 0.6 ? "#16231F" : "#ffffff";
 }
@@ -2849,19 +2858,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   (au lieu de 3 encadrés de couleurs différentes empilés). Mêmes textes, même case. */}
               <div
                 id="rv-cmd-engagement"
-                style={{ border: `1.5px solid ${engagementCoche ? couleur : champEnErreur === "engagement" ? "#D64933" : "#E4E1D5"}`, background: champEnErreur === "engagement" && !engagementCoche ? "#FFF5F3" : "#FFFFFF", borderRadius: 14, marginBottom: 12, overflow: "hidden", scrollMarginTop: 80, transition: "border-color .15s ease" }}
+                style={{ border: `2px solid ${champEnErreur === "engagement" && !engagementCoche ? "#D64933" : couleur}`, background: champEnErreur === "engagement" && !engagementCoche ? "#FFF5F3" : "#FFFFFF", borderRadius: 14, marginBottom: 12, overflow: "hidden", scrollMarginTop: 80, transition: "border-color .15s ease" }}
               >
                 <div style={{ padding: "12px 14px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12.5, color: "#3D4540", lineHeight: 1.5 }}>
-                    <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📞</span>
+                    <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: "50%", background: teinteClaire(couleur, 0.14), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📞</span>
                     <span>{t("onVaAppeler").replace(/^📞\s*/, "")}</span>
                   </div>
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12, color: "#6B7168", lineHeight: 1.5 }}>
-                    <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: "50%", background: "#F4F1E8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📦</span>
+                    <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: "50%", background: teinteClaire(couleur, 0.14), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📦</span>
                     <span>{t("engagement").replace(/^(📦|⚠️)\s*/, "")}</span>
                   </div>
                 </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "12px 14px", borderTop: "1px solid #EFECE3", background: engagementCoche ? "#EAF3DE" : "#FAFAF7", fontSize: 13, fontWeight: 600, color: "#16231F", lineHeight: 1.45, transition: "background .15s ease" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "12px 14px", borderTop: `1px solid ${teinteClaire(couleur, 0.25)}`, background: teinteClaire(couleur, engagementCoche ? 0.16 : 0.06), fontSize: 13, fontWeight: 600, color: "#16231F", lineHeight: 1.45, transition: "background .15s ease" }}>
                   <input
                     type="checkbox"
                     checked={engagementCoche}

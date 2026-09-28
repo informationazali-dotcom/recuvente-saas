@@ -22,7 +22,7 @@ import {
   REGISTRE_BLOCS, CATEGORIES_BLOCS, TEMPLATES, IDS_TEMPLATES, creerConfig, creerBloc, dupliquerBloc, deplacerElement,
   appliquerTemplate, normaliserConfig, proposerStructure, appliquerProposition, CATEGORIES_PRODUIT, OBJECTIFS_PAGE,
   MODES_VENTE, calculerOffresAffichees, idAleatoire, libelleDevise, formaterMontant, packsRapides, offreParDefaut,
-  extrairePointsDescription, textePlat, CTA_TEXTE_DEFAUT,
+  extrairePointsDescription, textePlat, CTA_TEXTE_DEFAUT, evaluerPageProduit,
 } from "./blocs.js";
 
 const VERT = "#1a7a3c";
@@ -717,6 +717,39 @@ function PanneauPerformance({ workspaceId, produitId, devise }) {
 }
 
 // ---------------------------------------------------------------------------
+// Conseils pour cette page — moteur de règles déterministe (voir evaluerPageProduit
+// dans blocs.js) : aucun appel réseau, aucun appel IA, recalculé à chaque modification
+// de la page dans le builder. Ton volontairement calme ("suggestions"), pas alarmiste —
+// vide quand la page n'a rien à signaler.
+// ---------------------------------------------------------------------------
+
+function PanneauConseils({ config, produit, avis }) {
+  const conseils = useMemo(() => evaluerPageProduit(config, produit, avis), [config, produit, avis]);
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Conseils pour cette page</div>
+      <div style={{ fontSize: 12, color: MUTED, marginBottom: 14, lineHeight: 1.45 }}>
+        Vérifications automatiques (pas d'IA) sur la structure de cette page — recalculées à chaque modification.
+      </div>
+      {conseils.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: MUTED, background: "#FAFAF7", border: `1px solid ${BORD}`, borderRadius: 9, padding: "10px 12px", lineHeight: 1.5 }}>
+          ✅ Rien à signaler pour l'instant : cette page couvre les points de base (preuve sociale, bénéfices, FAQ, paiement à la livraison…).
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {conseils.map((c) => (
+            <div key={c.id} style={{ fontSize: 12.5, background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 9, padding: "9px 11px", lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700, marginBottom: 2 }}>💡 {c.titre}</div>
+              <div style={{ color: "#3B6D11" }}>{c.texte}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modales : templates, ajout de bloc, IA
 // ---------------------------------------------------------------------------
 
@@ -1285,7 +1318,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
   const panneauProprietes = (
     <div>
       <div style={{ display: "flex", borderBottom: `1px solid ${BORD}`, position: "sticky", top: 0, background: "#fff", zIndex: 2 }}>
-        {[["bloc", "Bloc"], ["page", "Page"], ["perf", "Performance"]].map(([k, l]) => (
+        {[["bloc", "Bloc"], ["page", "Page"], ["conseils", "Conseils"], ["perf", "Performance"]].map(([k, l]) => (
           <button key={k} type="button" onClick={() => setOnglet(k)} style={{ flex: 1, padding: "12px 6px", background: "none", border: "none", borderBottom: `3px solid ${onglet === k ? VERT : "transparent"}`, fontWeight: 800, fontSize: 13, color: onglet === k ? VERT : MUTED, cursor: "pointer" }}>{l}</button>
         ))}
       </div>
@@ -1306,6 +1339,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
         />
       )}
       {onglet === "page" && <PanneauPage config={config} onChange={(c) => modifier(() => c, "page")} couleurBoutique={couleurBoutique} />}
+      {onglet === "conseils" && <PanneauConseils config={config} produit={produit} avis={avis} />}
       {onglet === "perf" && <PanneauPerformance workspaceId={workspace.id} produitId={produit.id} devise={devise} />}
     </div>
   );

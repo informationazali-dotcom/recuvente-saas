@@ -763,6 +763,109 @@ export function blocsActifs(config) {
 }
 
 // ---------------------------------------------------------------------------
+// Conseils de page (moteur de règles, sans IA) — détecte des lacunes RÉELLES et
+// concrètes dans la configuration de LA page en cours d'édition (aucune donnée
+// inventée, aucun appel réseau, aucun appel IA : tout est déjà en mémoire dans le
+// builder au moment où on modifie un bloc). Volontairement silencieux quand rien
+// de notable n'est détecté — même philosophie que le Radar de fiabilité de
+// commande (PageProduitBuilder.jsx) : mieux vaut ne rien dire que suggérer à
+// tort. Première brique du « moteur de règles » (voir échanges avec le
+// marchand sur l'architecture RecuVente) : des vérifications déterministes,
+// gratuites, qui tournent à chaque page — l'IA reste réservée à ce que ces
+// règles ne peuvent pas faire (rédiger un vrai argumentaire, par exemple).
+// ---------------------------------------------------------------------------
+
+export function evaluerPageProduit(config, produit, avis = []) {
+  const blocs = blocsActifs(config);
+  const types = new Set(blocs.map((b) => b.type));
+  const blocInfo = blocs.find((b) => b.type === "hero" || b.type === "info_produit");
+  const propsInfo = blocInfo?.props || {};
+  const conseils = [];
+
+  // 1) Preuve sociale (avis / contenus clients)
+  const aDesAvis = Array.isArray(avis) && avis.length > 0;
+  if (!types.has("avis") && !types.has("ugc")) {
+    conseils.push({
+      id: "preuve_sociale",
+      titre: "Aucune preuve sociale sur la page",
+      texte: aDesAvis
+        ? "Tu as déjà de vrais avis clients, mais ils ne sont affichés nulle part sur cette page — ajoute le bloc « Avis clients »."
+        : "Ajoute le bloc « Avis clients » (dès que tu auras de vrais avis) ou « Photos / vidéos clients » — la preuve sociale rassure avant l'achat, surtout en paiement à la livraison.",
+    });
+  }
+
+  // 2) Bénéfices mis en avant
+  const beneficesHero = Array.isArray(propsInfo.benefices) ? propsInfo.benefices.filter((b) => (b?.texte || "").trim()) : [];
+  if (!types.has("benefices") && beneficesHero.length === 0) {
+    conseils.push({
+      id: "benefices",
+      titre: "Les bénéfices du produit ne sont pas mis en avant",
+      texte: "Ajoute le bloc « Bénéfices » (ou remplis la liste « Bénéfices principaux » dans le bloc Hero) : dis clairement ce que le client y gagne, pas seulement ce que c'est.",
+    });
+  }
+
+  // 3) FAQ (répond aux objections, génère aussi les données FAQ pour Google)
+  if (!types.has("faq")) {
+    conseils.push({
+      id: "faq",
+      titre: "Pas de questions fréquentes",
+      texte: "Le bloc « FAQ » répond aux objections avant qu'elles ne fassent fuir un client, et génère en plus les données qui aident Google à mieux afficher ta page.",
+    });
+  }
+
+  // 4) Paiement à la livraison expliqué quelque part sur la page
+  const codViaHero = !!blocInfo && propsInfo.afficher_cod !== false;
+  if (!types.has("livraison") && !types.has("reassurance") && !codViaHero) {
+    conseils.push({
+      id: "cod",
+      titre: "Le paiement à la livraison n'est pas expliqué",
+      texte: "Ajoute le bloc « Réassurance » ou « Informations de livraison » : rappelle qu'on paie à la réception, comment se passe la confirmation, et les délais — ça lève une hésitation fréquente à l'achat.",
+    });
+  }
+
+  // 5) Bouton collant sur mobile (levier de conversion connu, réglage existant déjà)
+  if (config?.sticky?.mobile === false) {
+    conseils.push({
+      id: "sticky_mobile",
+      titre: "Le bouton de commande n'est pas fixé en bas de l'écran sur mobile",
+      texte: "Active « Bouton collant » sur mobile (onglet Page) : la grande majorité de tes visiteurs sont sur téléphone, et un bouton toujours visible réduit les abandons pendant qu'ils font défiler la page.",
+    });
+  }
+
+  // 6) Nombre de photos du produit
+  const nbPhotos = [produit?.photo_url, ...((produit?.photos_galerie) || [])].filter(Boolean).length;
+  if (nbPhotos < 3) {
+    conseils.push({
+      id: "photos",
+      titre: `Seulement ${nbPhotos} photo${nbPhotos > 1 ? "s" : ""} pour ce produit`,
+      texte: "3 à 6 photos sous plusieurs angles (dont une avec le produit utilisé/en situation) donnent bien plus confiance qu'une seule photo — ajoute-en depuis la fiche produit.",
+    });
+  }
+
+  // 7) Description du produit
+  const descPlate = textePlat(produit?.description || "").trim();
+  const aBlocContenu = types.has("description") || types.has("texte") || types.has("image_texte");
+  if (descPlate.length < 40 && !aBlocContenu) {
+    conseils.push({
+      id: "description",
+      titre: "La description du produit est vide ou très courte",
+      texte: "Écris quelques phrases qui expliquent le produit et son usage (depuis la fiche produit), ou ajoute un bloc « Texte personnalisé »/« Image + Texte » — une page presque sans texte convertit mal et se référence mal sur Google.",
+    });
+  }
+
+  // 8) Titre / description SEO de la page
+  if (!(config?.seo?.titre || "").trim() && !(config?.seo?.description || "").trim()) {
+    conseils.push({
+      id: "seo",
+      titre: "Titre et description pour Google non renseignés",
+      texte: "Dans l'onglet Page, remplis le titre et la description SEO de cette page — c'est ce que Google et les réseaux sociaux affichent quand ta page est partagée. Ça ne bloque rien, mais c'est une occasion manquée.",
+    });
+  }
+
+  return conseils;
+}
+
+// ---------------------------------------------------------------------------
 // Thème & réglages globaux
 // ---------------------------------------------------------------------------
 

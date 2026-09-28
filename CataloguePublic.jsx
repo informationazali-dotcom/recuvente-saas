@@ -1815,6 +1815,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         setErreurEnvoi("⚠️ Cette variante est en rupture de stock.");
         return;
       }
+      if (Number(quantite) > Number(varianteEnvoi.stock)) {
+        setErreurEnvoi(`⚠️ Il ne reste que ${varianteEnvoi.stock} en stock pour cette variante — merci de réduire la quantité.`);
+        return;
+      }
     }
     const livraisonGratuiteV = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
     const fraisExpeditionV = livraisonGratuiteV ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
@@ -2527,13 +2531,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   <div style={{ fontWeight: 800, fontSize: 16, minWidth: 20, textAlign: "center" }}>{quantite}</div>
                   <button
                     className="rv-cmd-stepper"
-                    onClick={() => { setQuantite((q) => q + 1); setBundleChoisiId(null); }}
-                    style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: "pointer" }}
+                    disabled={stockVarianteActive != null && stockVarianteActive > 0 && quantite >= stockVarianteActive}
+                    onClick={() => { setQuantite((q) => (stockVarianteActive != null && stockVarianteActive > 0 ? Math.min(stockVarianteActive, q + 1) : q + 1)); setBundleChoisiId(null); }}
+                    style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #DDD8CC", background: "white", fontSize: 17, fontWeight: 700, color: "#16231F", cursor: (stockVarianteActive != null && stockVarianteActive > 0 && quantite >= stockVarianteActive) ? "not-allowed" : "pointer", opacity: (stockVarianteActive != null && stockVarianteActive > 0 && quantite >= stockVarianteActive) ? 0.4 : 1 }}
                   >
                     +
                   </button>
                 </div>
               </div>
+              {stockVarianteActive != null && stockVarianteActive > 0 && quantite >= stockVarianteActive && (
+                <div style={{ fontSize: 11.5, color: "#8A6412", marginTop: -8, marginBottom: 14 }}>
+                  ⚡ Quantité maximum disponible pour cette variante ({stockVarianteActive}).
+                </div>
+              )}
 
               {produitOuvert.livraison_gratuite_qte_min && !produitOuvert.livraison_gratuite && (
                 Number(quantite) >= Number(produitOuvert.livraison_gratuite_qte_min) ? (

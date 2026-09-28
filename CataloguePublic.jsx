@@ -2779,8 +2779,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button
                 className="rv-cmd-submit"
                 onClick={envoyerCommande}
-                disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 14, padding: "16px 0", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", boxShadow: "0 8px 20px -6px rgba(22,35,31,0.35)", cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
+                disabled={envoi || !engagementCoche || (aChoixLivraison && !typeLivraisonChoisi) || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
+                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 14, padding: "16px 0", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", boxShadow: "0 8px 20px -6px rgba(22,35,31,0.35)", cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (aChoixLivraison && !typeLivraisonChoisi) || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
                 {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${montantAffiche(totalAffiche)} ${formaterDevise(entreprise.devise)}`}
               </button>

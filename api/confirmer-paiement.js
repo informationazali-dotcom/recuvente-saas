@@ -38,15 +38,22 @@ export default async function handler(req, res) {
     .update({ statut: "confirmee", confirmed_at: new Date().toISOString() })
     .eq("id", requestId);
 
-  // Active (ou crée) l'abonnement du workspace concerné
-  const periodEnd = new Date();
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
-
+  // Active (ou crée) l'abonnement du workspace concerné.
+  // IMPORTANT (audit sécurité/facturation) : la nouvelle échéance part de la fin de l'abonnement
+  // EN COURS si elle est encore dans le futur, pas de "maintenant" — sinon un commerçant qui paie
+  // en avance (avant l'échéance) perdait les jours déjà payés qu'il lui restait. Elle part de
+  // "maintenant" seulement si l'abonnement était déjà expiré (ou inexistant).
   const { data: existant } = await supabaseAdmin
     .from("subscriptions")
-    .select("id")
+    .select("id, current_period_end")
     .eq("workspace_id", requete.workspace_id)
     .maybeSingle();
+
+  const maintenant = new Date();
+  const finActuelle = existant?.current_period_end ? new Date(existant.current_period_end) : null;
+  const depart = finActuelle && finActuelle > maintenant ? finActuelle : maintenant;
+  const periodEnd = new Date(depart);
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
 
   // rappel_renouvellement_envoye remis à false : nouvelle période payée, donc le rappel de
   // "renouvellement proche" (api/cron-daily.js) doit pouvoir se redéclencher pour celle-ci.

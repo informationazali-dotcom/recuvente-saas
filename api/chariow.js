@@ -183,18 +183,35 @@ export default async function handler(req, res) {
 
       if (!workspace) return res.status(200).json({ recu: true, ignore: "espace introuvable" });
 
-      // Active l'abonnement automatiquement, sans intervention humaine.
-      // current_period_end : fixe la prochaine échéance à 1 mois (même règle que la confirmation
-      // manuelle dans api/confirmer-paiement.js), pour que l'accès s'arrête vraiment si la personne
-      // ne repaie pas — voir sql/lot10-expiration-abonnements.sql pour la vérification côté base.
-      const periodeFin = new Date();
-      periodeFin.setMonth(periodeFin.getMonth() + 1);
+      // Identifiant de cette vente précise (utilisé pour la déduplication ET la commission
+      // ambassadeur ci-dessous) — calculé une seule fois, avant toute écriture.
+      const idVenteAbo = String(idBrutVente || `${emailClient}:${chariowProductId}:${dateBrute || ""}`).slice(0, 100);
 
+      // Déduplication (audit sécurité/facturation) : Chariow peut redélivrer une notification déjà
+      // traitée (retry réseau, double envoi). Sans ce garde-fou, chaque redélivrance repousserait
+      // encore l'échéance d'un mois de plus, gratuitement. Même mécanisme que les packs de crédits
+      // IA plus haut (table ia_usage, déjà utilisée comme registre "vente traitée une seule fois").
+      const typeAboTraite = `abonnement_boutique:${idVenteAbo}`;
+      const { data: aboDejaTraite } = await supabaseAdmin.from("ia_usage").select("id").eq("workspace_id", workspace.id).eq("type", typeAboTraite).maybeSingle();
+      if (aboDejaTraite) return res.status(200).json({ recu: true, ignore: "abonnement déjà activé pour cette vente" });
+
+      // Active l'abonnement automatiquement, sans intervention humaine.
+      // current_period_end : la nouvelle échéance part de la fin de l'abonnement EN COURS si elle
+      // est encore dans le futur (pas de "maintenant") — sinon un commerçant qui paie en avance
+      // perdait les jours déjà payés qu'il lui restait. Elle part de "maintenant" seulement si
+      // l'abonnement était déjà expiré ou inexistant — voir sql/lot10-expiration-abonnements.sql
+      // pour la vérification côté base.
       const { data: existant } = await supabaseAdmin
         .from("subscriptions")
-        .select("id")
+        .select("id, current_period_end")
         .eq("workspace_id", workspace.id)
         .maybeSingle();
+
+      const maintenantAbo = new Date();
+      const finActuelleAbo = existant?.current_period_end ? new Date(existant.current_period_end) : null;
+      const departAbo = finActuelleAbo && finActuelleAbo > maintenantAbo ? finActuelleAbo : maintenantAbo;
+      const periodeFin = new Date(departAbo);
+      periodeFin.setMonth(periodeFin.getMonth() + 1);
 
       // rappel_renouvellement_envoye remis à false : nouvelle période payée, donc le rappel de
       // "renouvellement proche" (api/cron-daily.js) doit pouvoir se redéclencher pour celle-ci.
@@ -204,9 +221,11 @@ export default async function handler(req, res) {
         await supabaseAdmin.from("subscriptions").insert([{ workspace_id: workspace.id, status: "active", plan_id: plan.id, current_period_end: periodeFin.toISOString(), rappel_renouvellement_envoye: false }]);
       }
 
+      // Marque cette vente comme traitée (poids: 0 — ce n'est pas un crédit IA, juste un registre de déduplication).
+      await supabaseAdmin.from("ia_usage").insert([{ workspace_id: workspace.id, type: typeAboTraite, poids: 0 }]);
+
       // Programme ambassadeur : si cette boutique a été parrainée, l'ambassadeur gagne sa commission (une fois par vente).
       try {
-        const idVenteAbo = String(idBrutVente || `${emailClient}:${chariowProductId}:${dateBrute || ""}`).slice(0, 100);
         await (await import("../lib/croissance.js")).enregistrerCommission({ workspaceId: workspace.id, venteRef: idVenteAbo, montantVente: plan.prix, devise: plan.devise });
       } catch (_) {}
 

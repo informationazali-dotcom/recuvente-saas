@@ -19219,6 +19219,9 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const [whatsappSaved, setWhatsappSaved] = useState(false);
   const webhookUrl = `${window.location.origin}/api/shopify-webhook?secret=${workspace.webhook_secret}`;
+  const [shopifyHmacSecret, setShopifyHmacSecret] = useState(workspace.shopify_hmac_secret || "");
+  const [savingShopifyHmac, setSavingShopifyHmac] = useState(false);
+  const [shopifyHmacSaved, setShopifyHmacSaved] = useState(false);
   const lienCommande = `${window.location.origin}/?commander=${workspace.id}`;
   const lienCatalogue = workspace.slug ? `${window.location.origin}/${workspace.slug}?_t=${Date.now()}` : `${window.location.origin}/?catalogue=${workspace.id}&_t=${Date.now()}`;
 
@@ -19246,6 +19249,17 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
     setSavingWhatsapp(false);
     setWhatsappSaved(true);
     setTimeout(() => setWhatsappSaved(false), 2000);
+  }
+
+  // Sécurise le webhook Shopify : tant que cette clé n'est pas enregistrée, le lien
+  // fonctionne exactement comme avant (aucune vérification de signature) — voir
+  // api/shopify-webhook.js, verifierSignatureShopify.
+  async function sauvegarderShopifyHmac() {
+    setSavingShopifyHmac(true);
+    await supabase.from("workspaces").update({ shopify_hmac_secret: shopifyHmacSecret.trim() || null }).eq("id", workspace.id);
+    setSavingShopifyHmac(false);
+    setShopifyHmacSaved(true);
+    setTimeout(() => setShopifyHmacSaved(false), 2000);
   }
 
   return (
@@ -20079,6 +20093,28 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
 
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "10px 12px", marginTop: 16, fontSize: 12, color: "#8A6412" }}>
           ⚠️ Ce lien est unique à ton entreprise — les commandes créées via ce lien arrivent uniquement dans ton espace, jamais chez une autre entreprise.
+        </div>
+
+        <div style={{ background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 12, padding: 16, marginTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>🔒 Sécuriser ce lien (recommandé)</div>
+          <div style={{ fontSize: 12, color: "#6B7168", marginBottom: 10, lineHeight: 1.5 }}>
+            Colle ici la « clé de signature des webhooks » de ta boutique (Shopify Admin → Paramètres → Notifications, tout en bas de la page). Sans elle, le lien fonctionne quand même normalement.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={shopifyHmacSecret}
+              onChange={(e) => setShopifyHmacSecret(e.target.value)}
+              placeholder="Clé de signature des webhooks"
+              style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5, fontFamily: "monospace" }}
+            />
+            <button
+              onClick={sauvegarderShopifyHmac}
+              disabled={savingShopifyHmac}
+              style={{ background: shopifyHmacSaved ? "#1F9D6E" : "#3B6D11", color: "white", border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              {shopifyHmacSaved ? "✅" : savingShopifyHmac ? "..." : "Enregistrer"}
+            </button>
+          </div>
         </div>
 
         {workspace.role === "owner" && onSupprimerBoutique && <ZoneSuppressionBoutique workspace={workspace} onSupprimer={onSupprimerBoutique} onFermer={onClose} />}

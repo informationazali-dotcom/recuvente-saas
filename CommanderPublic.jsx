@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -75,6 +75,140 @@ function eventId(prefix = "evt") {
   return `${prefix}_${crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
 }
 
+// --- Pixel Facebook / TikTok + Conversions API (§ audit P1 : ce lien de commande directe
+// enregistrait déjà tout dans le tableau de bord interne, mais n'envoyait RIEN à Meta/TikTok —
+// aucune commande passée par ici ne pouvait donc servir à optimiser une publicité. Même code que
+// CataloguePublic.jsx (chargerPixelFacebook / chargerPixelTiktok / envoyerEvenementServeur /
+// envoyerEvenementCapi), copié tel quel pour rester strictement cohérent avec le tracking déjà en
+// production sur le catalogue.
+function chargerPixelFacebook(pixelId, pixelFbRef) {
+  if (!pixelId) return;
+  pixelFbRef.current = pixelId;
+  if (window.fbq) {
+    if (window.__RV_FB && window.__RV_FB !== pixelId) {
+      window.fbq("init", pixelId);
+      window.fbq("trackSingle", pixelId, "PageView");
+      window.__RV_FB = pixelId;
+    }
+    return;
+  }
+  !(function (f, b, e, v, n, t, s) {
+    if (f.fbq) return;
+    n = f.fbq = function () {
+      n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+    };
+    if (!f._fbq) f._fbq = n;
+    n.push = n;
+    n.loaded = !0;
+    n.version = "2.0";
+    n.queue = [];
+    t = b.createElement(e);
+    t.async = !0;
+    t.src = v;
+    s = b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t, s);
+  })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+  window.__RV_FB = pixelId;
+  window.fbq("init", pixelId);
+  window.fbq("track", "PageView");
+}
+
+function chargerPixelTiktok(pixelId) {
+  if (!pixelId || window.ttq) return;
+  (function (w, d, t) {
+    w.TiktokAnalyticsObject = t;
+    var ttq = (w[t] = w[t] || []);
+    ttq.methods = ["page", "track", "identify", "instances", "debug", "on", "off", "once", "ready", "alias", "group", "enableCookie", "disableCookie", "holdConsent", "revokeConsent", "grantConsent"];
+    ttq.setAndDefer = function (t, e) {
+      t[e] = function () {
+        t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+      };
+    };
+    for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+    ttq.instance = function (t) {
+      var e = ttq._i[t] || [];
+      for (var n = 0; n < ttq.methods.length; n++) ttq.setAndDefer(e, ttq.methods[n]);
+      return e;
+    };
+    ttq.load = function (e, n) {
+      var i = "https://analytics.tiktok.com/i18n/pixel/events.js";
+      ttq._i = ttq._i || {};
+      ttq._i[e] = [];
+      ttq._i[e]._u = i;
+      ttq._t = ttq._t || {};
+      ttq._t[e] = +new Date();
+      ttq._o = ttq._o || {};
+      ttq._o[e] = n || {};
+      var o = d.createElement("script");
+      o.type = "text/javascript";
+      o.async = !0;
+      o.src = i + "?sdkid=" + e + "&lib=" + t;
+      var a = d.getElementsByTagName("script")[0];
+      a.parentNode.insertBefore(o, a);
+    };
+    ttq.load(pixelId);
+    ttq.page();
+  })(window, document, "ttq");
+}
+
+// Copie « serveur » (Conversions API) de l'InitiateCheckout : sur iPhone, dans le navigateur
+// intégré de Facebook/Instagram ou avec un bloqueur de publicités, le Pixel du navigateur est
+// souvent bloqué ou retardé. Le même eventID est envoyé des deux côtés pour que Meta déduplique.
+function envoyerEvenementServeur(workspaceId, pixelFbRef, meta, nom, params, eventID) {
+  if (!workspaceId || !pixelFbRef.current) return;
+  try {
+    fetch("/api/facebook-capi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workspaceId,
+        nom,
+        eventId: eventID,
+        fbp: meta.fbp,
+        fbc: meta.fbc,
+        url: window.location.href,
+        params: {
+          value: params?.value,
+          currency: params?.currency,
+          content_type: params?.content_type,
+          content_name: params?.content_name,
+          num_items: params?.num_items,
+        },
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch (_) {}
+}
+
+// Purchase, envoyé UNIQUEMENT côté serveur (le serveur retrouve lui-même le Pixel/jeton CAPI de
+// la boutique à partir de commandeId — pas besoin du Pixel ID ici) — même fonction que
+// CataloguePublic.jsx.
+async function envoyerEvenementCapi(commandeId) {
+  if (!commandeId) return false;
+  const cle = `rv_capi_purchase_${commandeId}`;
+  try {
+    if (sessionStorage.getItem(cle) === "sent") return true;
+  } catch (_) {}
+
+  for (let tentative = 0; tentative < 3; tentative++) {
+    try {
+      const reponse = await fetch("/api/facebook-capi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commandeId }),
+        keepalive: true,
+      });
+      const resultat = await reponse.json().catch(() => ({}));
+      if (reponse.ok && (resultat.envoye || resultat.raison === "Déjà envoyé précédemment pour cette commande")) {
+        try { sessionStorage.setItem(cle, "sent"); } catch (_) {}
+        return true;
+      }
+    } catch (_) {}
+    if (tentative < 2) await new Promise((resolve) => setTimeout(resolve, 500 * (tentative + 1)));
+  }
+  return false;
+}
+
 export default function CommanderPublic({ workspaceId }) {
   const [entreprise, setEntreprise] = useState(undefined);
   const [erreur, setErreur] = useState(null);
@@ -91,11 +225,35 @@ export default function CommanderPublic({ workspaceId }) {
   const visitorId = getVisitorId();
   const sessionId = getSessionId();
   const meta = getMetaIds();
+  const pixelFbRef = useRef(null);
+
+  const EVENEMENTS_DOUBLES = ["InitiateCheckout"];
+  function trackEvenement(nom, params = {}, options = {}) {
+    let eventID = options.eventID;
+    const doubler = EVENEMENTS_DOUBLES.includes(nom);
+    if (doubler && !eventID) eventID = eventId(nom.toLowerCase());
+    if (window.fbq) {
+      if (eventID) window.fbq("track", nom, params, { eventID });
+      else window.fbq("track", nom, params);
+    }
+    if (doubler) envoyerEvenementServeur(workspaceId, pixelFbRef, meta, nom, params, eventID);
+    if (window.ttq) {
+      window.ttq.track(nom, {
+        content_type: params?.content_type || "product",
+        content_name: params?.content_name,
+        value: params?.value,
+        currency: params?.currency,
+        quantity: params?.num_items,
+      });
+    }
+  }
 
   useEffect(() => {
     supabase.rpc("info_entreprise_publique", { p_workspace_id: workspaceId }).then(({ data, error }) => {
-      if (error || !data || data.length === 0) setErreur("Ce lien de commande est invalide.");
-      else setEntreprise(data[0]);
+      if (error || !data || data.length === 0) { setErreur("Ce lien de commande est invalide."); return; }
+      setEntreprise(data[0]);
+      chargerPixelFacebook(data[0].facebook_pixel_id, pixelFbRef);
+      chargerPixelTiktok(data[0].tiktok_pixel_id);
     });
   }, [workspaceId]);
 
@@ -147,6 +305,16 @@ export default function CommanderPublic({ workspaceId }) {
       p_metadata: { product_text: form.produit },
     }).catch(() => {});
 
+    // Signal envoyé à Meta/TikTok pour la première fois sur ce lien (voir audit P1) : jusqu'ici
+    // ce formulaire était invisible aux deux, malgré le tracking interne ci-dessus.
+    trackEvenement("InitiateCheckout", {
+      content_type: "product",
+      content_name: form.produit,
+      value: Number(form.montant),
+      currency: entreprise?.devise || "XOF",
+      num_items: 1,
+    });
+
     const { data, error } = await supabase.rpc("creer_commande_multi_publique_v3", {
       p_workspace_id: workspaceId,
       p_client: form.client,
@@ -178,6 +346,19 @@ export default function CommanderPublic({ workspaceId }) {
     try {
       const idNouvelleCommande = data[0].commande_id || data[0].id;
       if (idNouvelleCommande) fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "nouvelle_commande", commandeId: idNouvelleCommande }), keepalive: true }).catch(() => {});
+      // Purchase envoyé à Meta/TikTok (même principe que CataloguePublic.jsx : CAPI côté serveur
+      // + événement navigateur avec le même eventID, pour que Meta déduplique au lieu de compter
+      // deux achats).
+      if (idNouvelleCommande) {
+        trackEvenement("Purchase", {
+          content_type: "product",
+          content_name: form.produit,
+          value: Number(form.montant),
+          currency: entreprise?.devise || "XOF",
+          num_items: 1,
+        }, { eventID: `commande-${idNouvelleCommande}` });
+        envoyerEvenementCapi(idNouvelleCommande);
+      }
     } catch (_) {}
       setEnvoye(true);
     }

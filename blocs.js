@@ -467,19 +467,37 @@ export const REGISTRE_BLOCS = {
   hero: {
     label: "Hero", icone: "🏠", categorie: "structure", unique: true,
     description: "Galerie à gauche, informations et offres à droite (desktop) — galerie puis infos (mobile).",
-    defaut: () => ({ ...PROPS_INFO_DEFAUT(), video_url: "", ratio_galerie: "carre" }),
+    defaut: () => ({ ...PROPS_INFO_DEFAUT(), video_url: "", ratio_galerie: "carre", mode_lecture: "clic" }),
     champs: [
       ...CHAMPS_INFO_COMMUNS,
       { cle: "video_url", label: "Vidéo dans la galerie", type: "video", aide: "Collez un lien (YouTube, Vimeo, .mp4) ou envoyez une vidéo depuis votre ordinateur." },
+      {
+        cle: "mode_lecture", label: "Lecture de la vidéo", type: "choix",
+        options: [
+          { v: "clic", l: "Le client clique pour lancer la vidéo (avec le son)" },
+          { v: "auto_muet", l: "Lecture automatique dès l'arrivée, sans le son" },
+          { v: "auto_son", l: "Lecture automatique sans le son, avec un bouton pour activer le son" },
+        ],
+        aide: "« Le client clique » charge la vidéo seulement au clic (le plus léger). Les 2 options automatiques démarrent dès que le client arrive sur la page.",
+      },
       { cle: "ratio_galerie", label: "Format de la galerie", type: "choix", options: [{ v: "carre", l: "Carré" }, { v: "portrait", l: "Portrait (4:5)" }] },
     ],
   },
   galerie: {
     label: "Galerie produit", icone: "🖼️", categorie: "structure", unique: true,
     description: "Grande galerie seule : image principale, miniatures, zoom, vidéo, plein écran.",
-    defaut: () => ({ video_url: "", ratio_galerie: "carre", afficher_miniatures: true, zoom: true }),
+    defaut: () => ({ video_url: "", ratio_galerie: "carre", afficher_miniatures: true, zoom: true, mode_lecture: "clic" }),
     champs: [
       { cle: "video_url", label: "Vidéo", type: "video", aide: "Collez un lien (YouTube, Vimeo, .mp4) ou envoyez une vidéo depuis votre ordinateur." },
+      {
+        cle: "mode_lecture", label: "Lecture de la vidéo", type: "choix",
+        options: [
+          { v: "clic", l: "Le client clique pour lancer la vidéo (avec le son)" },
+          { v: "auto_muet", l: "Lecture automatique dès l'arrivée, sans le son" },
+          { v: "auto_son", l: "Lecture automatique sans le son, avec un bouton pour activer le son" },
+        ],
+        aide: "« Le client clique » charge la vidéo seulement au clic (le plus léger). Les 2 options automatiques démarrent dès que le client arrive sur la page.",
+      },
       { cle: "ratio_galerie", label: "Format", type: "choix", options: [{ v: "carre", l: "Carré" }, { v: "portrait", l: "Portrait (4:5)" }] },
       { cle: "afficher_miniatures", label: "Afficher les miniatures", type: "oui_non" },
       { cle: "zoom", label: "Autoriser le zoom / plein écran", type: "oui_non" },

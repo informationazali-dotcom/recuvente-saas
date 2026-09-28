@@ -345,6 +345,9 @@ function VideoFacade({ url, titre, ratioClasse = "", modeLecture = "clic" }) {
   const [lecture, setLecture] = useState(auto);
   const [sonActif, setSonActif] = useState(false);
   const refVideo = useRef(null);
+  // Suit en direct le réglage « Lecture de la vidéo » choisi dans l'éditeur : dans l'aperçu, changer
+  // le mode active/coupe l'autoplay immédiatement, sans avoir à recharger la page.
+  useEffect(() => { setLecture(auto); setSonActif(false); }, [auto]);
   if (!video) return null;
   const activerSon = () => {
     setSonActif(true);
@@ -371,7 +374,7 @@ function VideoFacade({ url, titre, ratioClasse = "", modeLecture = "clic" }) {
   );
 }
 
-function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom = true, accent }) {
+function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom = true, accent, modeLecture = "clic" }) {
   const items = useMemo(() => {
     const liste = (photos || []).filter(Boolean).map((url) => ({ type: "img", url }));
     const v = analyserVideo(video);
@@ -379,19 +382,29 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
     return liste;
   }, [photos, video]);
   const nb = items.length;
+  const auto = modeLecture === "auto_muet" || modeLecture === "auto_son";
   const [i, setI] = useState(0);
-  const [lecture, setLecture] = useState(false);
+  const [lecture, setLecture] = useState(auto);
+  const [sonActif, setSonActif] = useState(false);
   const [plein, setPlein] = useState(false);
   const [loupe, setLoupe] = useState(null);
   const departX = useRef(null);
+  const refVideoFichier = useRef(null);
   // Revient à la 1ère photo quand le jeu de photos change réellement (ex : le client choisit une
   // variante qui a sa propre photo) — sinon la galerie restait bloquée sur l'ancienne photo cliquée
   // et le client ne voyait jamais la photo de la variante qu'il venait de choisir.
   const clePhotos = (photos || []).filter(Boolean).join("|");
   useEffect(() => { setI(0); }, [clePhotos]);
+  // Suit en direct le réglage « Lecture de la vidéo » choisi dans l'éditeur : dans l'aperçu, changer
+  // le mode active/coupe l'autoplay immédiatement, sans avoir à recharger la page.
+  useEffect(() => { setLecture(auto); setSonActif(false); }, [auto]);
   const idx = nb > 0 ? Math.min(Math.max(i, 0), nb - 1) : 0;
   const courant = items[idx];
-  const aller = (n) => { if (nb > 1) { setI((n + nb) % nb); setLecture(false); setLoupe(null); } };
+  const activerSon = () => {
+    setSonActif(true);
+    if (courant?.video?.type === "fichier" && refVideoFichier.current) refVideoFichier.current.muted = false;
+  };
+  const aller = (n) => { if (nb > 1) { setI((n + nb) % nb); setLecture(auto); setSonActif(false); setLoupe(null); } };
   const ratioCss = ratio === "portrait" ? "4 / 5" : "1 / 1";
   const peutZoomer = zoom && courant?.type === "img";
 
@@ -448,7 +461,12 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
         {courant?.type === "video" && (
           <div style={{ position: "absolute", inset: 0, background: "#101512" }} className="rvpp-video-in" onClick={(e) => e.stopPropagation()}>
             {lecture ? (
-              <div style={{ position: "absolute", inset: 0 }} className="rvpp-video"><ContenuVideo video={courant.video} titre={alt} /></div>
+              <div style={{ position: "absolute", inset: 0 }} className="rvpp-video">
+                <ContenuVideo video={courant.video} titre={alt} autoplay muet={auto && !sonActif} controles={!auto} refVideoFichier={refVideoFichier} />
+                {auto && modeLecture === "auto_son" && !sonActif && (
+                  <button type="button" className="rvpp-son" onClick={activerSon} aria-label="Activer le son">🔇</button>
+                )}
+              </div>
             ) : (
               <>
                 {courant.url && <img src={courant.url} alt="" loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -835,7 +853,7 @@ function BlocHero({ bloc, ctx }) {
   return (
     <div className="rvpp-hero-grid">
       <div className="rvpp-gal-col">
-        <Galerie photos={ctx.photos} video={p.video_url} alt={ctx.produit.produit_nom} ratio={p.ratio_galerie} accent={ctx.accent} />
+        <Galerie photos={ctx.photos} video={p.video_url} alt={ctx.produit.produit_nom} ratio={p.ratio_galerie} accent={ctx.accent} modeLecture={p.mode_lecture || "clic"} />
       </div>
       <div className="rvpp-info-col"><InfoProduit p={p} ctx={ctx} blocOffres={ctx.blocOffres} /></div>
     </div>
@@ -844,7 +862,7 @@ function BlocHero({ bloc, ctx }) {
 
 function BlocGalerie({ bloc, ctx }) {
   const p = bloc.props;
-  return <div style={{ maxWidth: 640, margin: "0 auto" }}><Galerie photos={ctx.photos} video={p.video_url} alt={ctx.produit.produit_nom} ratio={p.ratio_galerie} miniatures={p.afficher_miniatures !== false} zoom={p.zoom !== false} accent={ctx.accent} /></div>;
+  return <div style={{ maxWidth: 640, margin: "0 auto" }}><Galerie photos={ctx.photos} video={p.video_url} alt={ctx.produit.produit_nom} ratio={p.ratio_galerie} miniatures={p.afficher_miniatures !== false} zoom={p.zoom !== false} accent={ctx.accent} modeLecture={p.mode_lecture || "clic"} /></div>;
 }
 
 function BlocInfo({ bloc, ctx }) {

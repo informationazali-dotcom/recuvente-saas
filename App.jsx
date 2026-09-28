@@ -367,6 +367,15 @@ function numeroFacture(commande) {
   return `F-${y}${m}-${short}`;
 }
 
+// toLocaleString("fr-FR") sépare les milliers avec une espace fine insécable (ex : "2 500").
+// C'est correct à l'écran, mais les polices standards de jsPDF (Helvetica/Times/Courier) ne
+// savent pas afficher ce caractère et le remplacent par un symbole parasite dans le PDF — ce qui
+// donnait par exemple "2/500 FCFA" au lieu de "2 500 FCFA" sur les factures. On la remplace donc
+// par une espace normale avant d'écrire un montant dans un PDF.
+function montantPourPdf(valeur) {
+  return Number(valeur || 0).toLocaleString("fr-FR").replace(/[   -   　]/g, " ");
+}
+
 async function genererFacturePDF(commande, workspace) {
   // Réutilise le numéro existant si cette commande a déjà été facturée, sinon en génère un nouveau
   let numeroReel;
@@ -443,7 +452,7 @@ async function genererFacturePDF(commande, workspace) {
   doc.setFontSize(10.5);
   doc.rect(15, y, 180, 12);
   doc.text(commande.produit || "", 18, y + 8, { maxWidth: 130 });
-  const montantTxt = `${Number(commande.montant).toLocaleString("fr-FR")} ${formaterDevise(workspace.currency)}`;
+  const montantTxt = `${montantPourPdf(commande.montant)} ${formaterDevise(workspace.currency)}`;
   doc.text(montantTxt, 190, y + 8, { align: "right" });
 
   y += 20;
@@ -476,7 +485,7 @@ async function genererFacturePDF(commande, workspace) {
     doc.setTextColor(...dark);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Déjà payé : ${Number(commande.montant_paye).toLocaleString("fr-FR")} ${workspace.currency} — Solde restant : ${soldeRestant.toLocaleString("fr-FR")} ${workspace.currency}`, 15, y + 16);
+    doc.text(`Déjà payé : ${montantPourPdf(commande.montant_paye)} ${workspace.currency} — Solde restant : ${montantPourPdf(soldeRestant)} ${workspace.currency}`, 15, y + 16);
     y += 8;
   }
 
@@ -8819,8 +8828,8 @@ function genererPdfFactureBusiness(f, nomEmetteur) {
     const totalLigne = (Number(ligne.quantite) || 0) * (Number(ligne.prix_unitaire) || 0);
     doc.text(String(ligne.description || ""), 18, y, { maxWidth: 105 });
     doc.text(String(ligne.quantite || 0), 130, y);
-    doc.text(Number(ligne.prix_unitaire || 0).toLocaleString("fr-FR"), 150, y);
-    doc.text(totalLigne.toLocaleString("fr-FR"), 178, y, { align: "right" });
+    doc.text(montantPourPdf(ligne.prix_unitaire), 150, y);
+    doc.text(montantPourPdf(totalLigne), 178, y, { align: "right" });
     y += 8;
   });
 
@@ -8832,14 +8841,14 @@ function genererPdfFactureBusiness(f, nomEmetteur) {
   if (Number(f.remise) > 0) {
     doc.setFontSize(9.5);
     doc.text("Remise", 150, y);
-    doc.text(`− ${Number(f.remise).toLocaleString("fr-FR")}`, 178, y, { align: "right" });
+    doc.text(`− ${montantPourPdf(f.remise)}`, 178, y, { align: "right" });
     y += 7;
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Total", 150, y);
-  doc.text(`${calculerTotalFacture(f).toLocaleString("fr-FR")} FCFA`, 178, y, { align: "right" });
+  doc.text(`${montantPourPdf(calculerTotalFacture(f))} FCFA`, 178, y, { align: "right" });
 
   if (f.notes) {
     y += 16;

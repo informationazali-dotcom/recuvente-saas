@@ -118,9 +118,9 @@ const CSS_PAGE = `
 .rvpp-price{font-size:28px;font-weight:800;color:var(--pp-accent-ink)}
 .rvpp-price-old{font-size:16px;color:#8A9089;text-decoration:line-through}
 .rvpp-save{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:6px;background:#EAF3DE;color:#3B6D11;text-transform:uppercase}
-.rvpp-check{display:flex;flex-direction:column;gap:8px;margin:14px 0 16px}
-.rvpp-check-i{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.45;background:var(--pp-alt);border-radius:10px;padding:9px 12px}
-.rvpp-check-i b{flex:0 0 auto;width:18px;height:18px;margin-top:1px;border-radius:5px;background:var(--pp-accent);color:var(--pp-accent-txt);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.rvpp-check{display:flex;flex-direction:column;gap:10px;margin:14px 0 16px}
+.rvpp-check-i{display:flex;gap:11px;align-items:center;font-size:14.5px;line-height:1.4;font-weight:700;color:var(--pp-ink);border-radius:var(--pp-radius);padding:11px 14px;background:linear-gradient(155deg,color-mix(in srgb,var(--pp-accent) 13%,#fff) 0%,color-mix(in srgb,var(--pp-accent) 5%,#fff) 60%,color-mix(in srgb,var(--pp-accent) 2%,#fff) 100%);border:1px solid color-mix(in srgb,var(--pp-accent) 20%,transparent);box-shadow:0 1px 1px rgba(255,255,255,.6) inset,0 2px 4px rgba(20,20,15,.04),0 6px 14px color-mix(in srgb,var(--pp-accent-shadow) 45%,transparent)}
+.rvpp-check-i b{flex:0 0 auto;width:22px;height:22px;margin-top:0;border-radius:50%;background:linear-gradient(155deg,var(--pp-accent) 0%,var(--pp-accent) 55%,color-mix(in srgb,var(--pp-accent) 80%,#000) 100%);color:var(--pp-accent-txt);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;box-shadow:0 2px 5px var(--pp-accent-shadow),0 1px 0 rgba(255,255,255,.35) inset}
 .rvpp-listen{display:inline-flex;align-items:center;gap:7px;background:none;border:1.5px solid var(--pp-accent);color:var(--pp-accent-ink);border-radius:999px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;margin:2px 0 12px;touch-action:manipulation}
 .rvpp-listen-active{display:inline-flex;align-items:center;gap:8px;background:var(--pp-accent-soft);border:1.5px solid var(--pp-accent);border-radius:999px;padding:6px 8px 6px 16px;margin:2px 0 12px}
 .rvpp-listen-active span{font-size:12px;font-weight:700;color:var(--pp-accent-ink)}

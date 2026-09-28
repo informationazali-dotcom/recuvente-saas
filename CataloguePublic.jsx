@@ -2951,8 +2951,6 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
             )}
             <h1 style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.15, margin: "0 0 4px", color: "#16231F", overflowWrap: "anywhere" }}>{produitOuvert.produit_nom}</h1>
 
-            <PointsFortsListe points={structureDescription.points} couleur={couleur} />
-
             {(() => {
               const prixVenteNum = Number(produitOuvert.prix_vente);
               const prixBarreNum = Number(produitOuvert.prix_barre);
@@ -2976,6 +2974,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 </div>
               );
             })()}
+
+            {/* Points forts juste après le prix (façon Shopify) : un coup d'œil sur le prix suffit
+                à voir aussi les principaux bénéfices, sans avoir à ouvrir la description. */}
+            <PointsFortsListe points={structureDescription.points} couleur={couleur} />
 
             {(() => {
               // Étoiles juste après le prix : vrais avis d'abord ; sinon la note/le
@@ -5915,7 +5917,8 @@ const CSS_FORMULAIRE_COMMANDE = `
 // ---------------------------------------------------------------------------
 
 // Sépare la description riche en deux : la liste de « points forts » (affichée en cases
-// à cocher sous le titre) et le reste (affiché dans l'accordéon « Description »).
+// à cocher juste après le prix, façon Shopify) et le reste (affiché dans l'accordéon
+// « Description »).
 // 1) Si le marchand a inséré un bloc « ⭐ Points forts » dans l'éditeur, c'est celui-là.
 // 2) Sinon, on prend la première liste à puces du texte (2 à 8 lignes courtes).
 // Rien n'est supprimé : la liste est seulement déplacée vers le haut de la page.

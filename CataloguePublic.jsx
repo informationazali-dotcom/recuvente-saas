@@ -2537,12 +2537,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       <>
               <style>{CSS_FORMULAIRE_COMMANDE}</style>
               {!enLigne && (<>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ fontWeight: 800, fontSize: 17.5, color: "#16231F", letterSpacing: "-0.01em" }}>📝 {t("tesCoordonnees")}</div>
-                <button onClick={() => setAfficherFormulaire(false)} style={{ background: "#F4F1E8", border: "none", width: 30, height: 30, borderRadius: "50%", fontSize: 17, cursor: "pointer", color: "#6B7168", lineHeight: 1 }}>×</button>
-              </div>
-              <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 18 }}>
-                {t("pourTeContacter")}
+              {/* En-tête aux couleurs de la boutique : le bon de commande est tout de suite identifiable. */}
+              <div style={{ margin: "-20px -18px 16px", padding: "16px 18px 14px", background: `linear-gradient(135deg, ${couleur} 0%, ${couleur} 60%, ${teinteClaire(couleur, 0.85)} 100%)`, color: couleurTextePourFond(couleur), borderRadius: "16px 16px 0 0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.01em" }}>📝 {t("tesCoordonnees")}</div>
+                  <button onClick={() => setAfficherFormulaire(false)} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.22)", border: "none", width: 30, height: 30, borderRadius: "50%", fontSize: 17, cursor: "pointer", color: "inherit", lineHeight: 1 }}>×</button>
+                </div>
+                <div style={{ fontSize: 12.5, opacity: 0.9 }}>
+                  {t("pourTeContacter")}
+                </div>
               </div>
               </>)}
 
@@ -3455,7 +3458,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto" }}
+              // Contour lumineux aux couleurs de la boutique : le bon de commande se détache
+              // nettement de la page et attire l'œil (bordure + halo de la couleur de la boutique).
+              style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", padding: "20px 18px 24px", maxHeight: "80vh", overflowY: "auto", border: `4px solid ${couleur}`, borderBottom: "none", boxShadow: `0 0 0 6px ${teinteClaire(couleur, 0.35)}, 0 -10px 60px ${teinteClaire(couleur, 0.9)}` }}
             >
               {rendreFormulaireCommande(false)}
             </div>

@@ -1495,7 +1495,7 @@ export function PageProduitPublique({
 
   const ctx = {
     ...ctxBase, accent, accentTxt, devise, deviseCode, etat: etatComplet, liv, t, preview, libelleCta, optionsManquantes,
-    photos: [produit?.photo_url, ...((produit && produit.photos_galerie) || [])].filter(Boolean),
+    photos: [etatComplet.varianteActive?.image, produit?.photo_url, ...((produit && produit.photos_galerie) || [])].filter((url, idx, arr) => Boolean(url) && arr.indexOf(url) === idx),
     actions: {
       ...actionsCompletes,
       onChoisirOffre: (o) => { actionsCompletes.onChoisirOffre(o); evenement("offre_selectionnee", { offre_id: o ? o.id : "base" }); },

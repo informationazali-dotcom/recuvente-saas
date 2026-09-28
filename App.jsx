@@ -11412,13 +11412,21 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     const url = prompt("Colle le lien de la vidéo (YouTube, Vimeo, ou lien direct .mp4) :");
     if (!url || !url.trim()) return;
     const lien = url.trim();
+    // Lecture automatique : toujours sans le son au départ (obligatoire pour que les navigateurs
+    // l'autorisent) — le client garde la main pour l'activer via l'icône son du lecteur (native
+    // sur YouTube/Vimeo/vidéo fichier, pas besoin d'un bouton personnalisé ici).
+    const auto = confirm("Lecture automatique dès que le client arrive sur cette partie de la page (sans le son au départ — il pourra l'activer avec l'icône son du lecteur) ?\n\nOK = lecture automatique, sans le son au départ\nAnnuler = le client clique d'abord pour lancer la vidéo, avec le son");
     const ytMatch = lien.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
     const vimeoMatch = lien.match(/vimeo\.com\/(\d+)/);
     let html;
     if (ytMatch) {
-      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
+      const params = auto ? "?autoplay=1&mute=1&playsinline=1" : "";
+      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}${params}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
     } else if (vimeoMatch) {
-      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
+      const params = auto ? "?autoplay=1&muted=1&playsinline=1" : "";
+      html = `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;border-radius:8px;overflow:hidden;"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}${params}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
+    } else if (auto) {
+      html = `<video controls autoplay muted playsinline style="max-width:100%;border-radius:8px;margin:12px 0;display:block;"><source src="${lien}" /></video>`;
     } else {
       html = `<video controls style="max-width:100%;border-radius:8px;margin:12px 0;display:block;"><source src="${lien}" /></video>`;
     }
@@ -11431,6 +11439,8 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
       alert("La vidéo est trop lourde (max 30 Mo). Pour une vidéo plus longue, mets-la sur YouTube et colle le lien à la place.");
       return;
     }
+    // Demandé avant l'envoi (qui peut prendre un moment) plutôt qu'après, comme pour le lien vidéo.
+    const auto = confirm("Lecture automatique dès que le client arrive sur cette partie de la page (sans le son au départ — il pourra l'activer avec l'icône son du lecteur) ?\n\nOK = lecture automatique, sans le son au départ\nAnnuler = le client clique d'abord pour lancer la vidéo, avec le son");
     const plageAuMomentDuClic = positionCurseurRef.current ? positionCurseurRef.current.cloneRange() : null;
     setEnvoiVideo(true);
     const extension = fichier.name.split(".").pop();
@@ -11445,6 +11455,15 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     const video = document.createElement("video");
     video.controls = true;
     video.src = data.publicUrl;
+    video.setAttribute("playsinline", "");
+    if (auto) {
+      // Attributs posés directement (et pas seulement la propriété JS `.muted`, qui ne se
+      // reflète PAS dans le HTML enregistré) pour que la lecture automatique en silence
+      // survive bien à l'enregistrement et à l'affichage sur la page publique.
+      video.setAttribute("autoplay", "");
+      video.setAttribute("muted", "");
+      video.muted = true;
+    }
     video.style.cssText = "max-width:100%;border-radius:8px;margin:12px 0;display:block;";
 
     const editeur = editeurRef.current;

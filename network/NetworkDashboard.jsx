@@ -885,6 +885,10 @@ function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, curre
   const [note, setNote] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState("");
+  // Clé d'idempotence : générée une seule fois à l'ouverture, régénérée seulement après un
+  // paiement RÉUSSI — un double-clic ou un retry réseau sur le même essai réutilise la même
+  // clé, donc la RPC payer_commissions_filleul le reconnaît et ne paie jamais deux fois.
+  const [cleIdempotence, setCleIdempotence] = useState(() => crypto.randomUUID());
 
   async function enregistrer() {
     const montantNombre = Number(montant);
@@ -892,43 +896,28 @@ function EnregistrerPaiementModal({ filleul, workspace, montantDisponible, curre
     setEnCours(true);
     setErreur("");
 
-    const { data: sessionData } = await supabase.auth.getSession();
+    // Le montant, la répartition FIFO des commissions et l'écriture du paiement sont désormais
+    // vérifiés et exécutés en une seule transaction côté serveur (voir migration
+    // 202609280020_lot_l_securiser_paiement_commissions_filleul.sql) — le comportement pour le
+    // marchand est identique, seule l'exécution est sécurisée (plafond réel, atomique, idempotente).
+    const { error: erreurPaiement } = await supabase.rpc("payer_commissions_filleul", {
+      p_workspace_id: workspace.id,
+      p_filleul_id: filleul.id,
+      p_cible: cible,
+      p_montant: montantNombre,
+      p_methode: methode,
+      p_reference: reference.trim() || null,
+      p_note: note.trim() || null,
+      p_idempotency_key: cleIdempotence,
+    });
 
-    const { error: erreurPaiement } = await supabase.from("filleuls_paiements_commissions").insert([{
-      workspace_id: workspace.id,
-      filleul_id: filleul.id,
-      montant: montantNombre,
-      methode,
-      reference: reference.trim() || null,
-      note: note.trim() || null,
-      cree_par: sessionData?.session?.user?.id || null,
-      type_paiement: cible,
-    }]);
-    if (erreurPaiement) { setErreur(erreurPaiement.message || "Impossible d'enregistrer le paiement."); setEnCours(false); return; }
-
-    // Marque les commissions disponibles comme payées, de la plus ancienne à la plus
-    // récente, jusqu'à couverture du montant versé. Pour la part leader, on filtre sur
-    // leader_id + statut_leader (des lignes appartenant à d'AUTRES filleuls, ceux que
-    // ce leader a parrainés) plutôt que filleul_id + statut.
-    const requete = estLeader
-      ? supabase.from("filleuls_commissions").select("id, montant_commission_leader").eq("leader_id", filleul.id).in("statut_leader", ["validated", "available"]).order("created_at", { ascending: true })
-      : supabase.from("filleuls_commissions").select("id, montant_commission").eq("filleul_id", filleul.id).in("statut", ["validated", "available"]).order("created_at", { ascending: true });
-    const { data: commissionsDisponibles } = await requete;
-
-    let reste = montantNombre;
-    const idsAPayer = [];
-    for (const c of commissionsDisponibles || []) {
-      if (reste <= 0) break;
-      idsAPayer.push(c.id);
-      reste -= Number(estLeader ? c.montant_commission_leader : c.montant_commission);
-    }
-    if (idsAPayer.length > 0) {
-      const maj = estLeader
-        ? { statut_leader: "paid", updated_at: new Date().toISOString() }
-        : { statut: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-      await supabase.from("filleuls_commissions").update(maj).in("id", idsAPayer);
+    if (erreurPaiement) {
+      setErreur(erreurPaiement.message?.includes("montant_superieur_au_disponible") ? "Ce montant dépasse ce qui est réellement disponible." : erreurPaiement.message || "Impossible d'enregistrer le paiement.");
+      setEnCours(false);
+      return;
     }
 
+    setCleIdempotence(crypto.randomUUID());
     setEnCours(false);
     onPaye();
   }

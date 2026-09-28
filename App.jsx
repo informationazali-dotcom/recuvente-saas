@@ -11443,6 +11443,11 @@ function EditeurRiche({ valeur, onChange, workspaceId, placeholder }) {
     const auto = confirm("Lecture automatique dès que le client arrive sur cette partie de la page (sans le son au départ — il pourra l'activer avec l'icône son du lecteur) ?\n\nOK = lecture automatique, sans le son au départ\nAnnuler = le client clique d'abord pour lancer la vidéo, avec le son");
     const plageAuMomentDuClic = positionCurseurRef.current ? positionCurseurRef.current.cloneRange() : null;
     setEnvoiVideo(true);
+    // La boîte de confirmation ci-dessus bloque le navigateur : si elle est restée ouverte
+    // longtemps et que la session était sur le point d'expirer, le rafraîchissement automatique
+    // du jeton n'a pas pu se faire pendant ce temps. On revérifie ici avant l'envoi (getSession
+    // rafraîchit lui-même le jeton s'il a expiré) pour éviter une erreur d'envoi liée à la session.
+    try { await supabase.auth.getSession(); } catch (_) { /* si ça échoue, l'envoi ci-dessous échouera avec un message clair */ }
     const extension = fichier.name.split(".").pop();
     const chemin = `${workspaceId}-desc-video-${Date.now()}.${extension}`;
     const { error } = await supabase.storage.from("produits").upload(chemin, fichier, { upsert: true, contentType: fichier.type || undefined });

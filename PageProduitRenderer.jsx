@@ -183,6 +183,7 @@ const CSS_PAGE = `
 .rvpp-video iframe,.rvpp-video video,.rvpp-video img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover}
 .rvpp-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer}
 .rvpp-play span{width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.94);color:#16231F;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.35);padding-left:5px}
+.rvpp-son{position:absolute;right:10px;bottom:10px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(16,21,18,.68);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 .rvpp-rev{padding:16px;text-align:left}
 .rvpp-rev-h{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px}
 .rvpp-rev-h b{font-size:14px}
@@ -301,15 +302,30 @@ const CSS_PAGE = `
 // Galerie (image principale, miniatures, flèches, balayage tactile, zoom, plein écran, vidéo)
 // ---------------------------------------------------------------------------
 
-function ContenuVideo({ video, titre, autoplay = true }) {
+// Ajoute les paramètres de lecture (autoplay / son coupé) à l'URL d'un lecteur YouTube ou Vimeo —
+// chacun a sa propre façon de désigner « son coupé » (mute=1 pour YouTube, muted=1 pour Vimeo).
+function urlAvecParamsLecture(src, { autoplay, muet }) {
+  const estVimeo = /vimeo\.com/.test(src);
+  const params = ["playsinline=1"];
+  if (autoplay) params.push("autoplay=1");
+  params.push(estVimeo ? `muted=${muet ? 1 : 0}` : `mute=${muet ? 1 : 0}`);
+  const sep = src.includes("?") ? "&" : "?";
+  return `${src}${sep}${params.join("&")}`;
+}
+
+function ContenuVideo({ video, titre, autoplay = true, muet = false, controles = true, refVideoFichier }) {
   if (!video) return null;
   if (video.type === "fichier") {
-    return <video src={video.src} controls playsInline autoPlay={autoplay} preload="metadata" title={titre || ""} />;
+    return <video ref={refVideoFichier} src={video.src} controls={controles} playsInline autoPlay={autoplay} muted={muet} preload="metadata" title={titre || ""} />;
   }
-  const sep = video.src.includes("?") ? "&" : "?";
   return (
     <iframe
-      src={`${video.src}${autoplay ? `${sep}autoplay=1` : ""}`}
+      // Change de clé quand on active le son : un lecteur YouTube/Vimeo ne peut pas passer du
+      // muet au son après coup sans son SDK propriétaire (script tiers en plus, moins fiable sur
+      // les connexions faibles) — on recharge donc simplement le lecteur avec le son activé,
+      // ce qui relance la vidéo depuis le début, avec le son cette fois.
+      key={muet ? "muet" : "son"}
+      src={urlAvecParamsLecture(video.src, { autoplay, muet })}
       title={titre || "Vidéo"}
       loading="lazy"
       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -318,15 +334,31 @@ function ContenuVideo({ video, titre, autoplay = true }) {
   );
 }
 
-// Vidéo "façade" : rien n'est chargé (ni iframe, ni script tiers) avant le clic.
-function VideoFacade({ url, titre, ratioClasse = "" }) {
+// Vidéo "façade" : rien n'est chargé (ni iframe, ni script tiers) avant le clic — sauf si le
+// marchand a choisi un des 2 modes de lecture automatique pour ce bloc précis (réglage
+// « Lecture de la vidéo »), auquel cas la vidéo démarre dès l'arrivée sur la page, TOUJOURS sans
+// le son au départ (les navigateurs l'exigent pour l'autoplay) — avec ou sans bouton pour
+// l'activer ensuite, selon le mode choisi. Le mode par défaut, « clic », reste inchangé.
+function VideoFacade({ url, titre, ratioClasse = "", modeLecture = "clic" }) {
   const video = useMemo(() => analyserVideo(url), [url]);
-  const [lecture, setLecture] = useState(false);
+  const auto = modeLecture === "auto_muet" || modeLecture === "auto_son";
+  const [lecture, setLecture] = useState(auto);
+  const [sonActif, setSonActif] = useState(false);
+  const refVideo = useRef(null);
   if (!video) return null;
+  const activerSon = () => {
+    setSonActif(true);
+    if (video.type === "fichier" && refVideo.current) refVideo.current.muted = false;
+  };
   return (
     <div className={`rvpp-video ${ratioClasse}`}>
       {lecture ? (
-        <ContenuVideo video={video} titre={titre} />
+        <>
+          <ContenuVideo video={video} titre={titre} autoplay muet={auto && !sonActif} controles={!auto} refVideoFichier={refVideo} />
+          {auto && modeLecture === "auto_son" && !sonActif && (
+            <button type="button" className="rvpp-son" onClick={activerSon} aria-label="Activer le son">🔇</button>
+          )}
+        </>
       ) : (
         <>
           {video.poster && <img src={video.poster} alt="" loading="lazy" decoding="async" />}
@@ -845,7 +877,7 @@ function BlocVideo({ bloc }) {
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
       <TitreSection titre={p.titre} sous={p.sous_titre} />
-      <VideoFacade url={p.url} titre={p.titre} />
+      <VideoFacade url={p.url} titre={p.titre} modeLecture={p.mode_lecture || "clic"} />
       {(p.legende || "").trim() && <p className="rvpp-sub rvpp-center" style={{ marginTop: 10, marginBottom: 0, fontSize: 13.5 }}>{p.legende}</p>}
     </div>
   );

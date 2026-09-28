@@ -509,12 +509,21 @@ export const REGISTRE_BLOCS = {
   },
   video: {
     label: "Vidéo / démonstration", icone: "🎬", categorie: "contenu",
-    description: "Démonstration du produit (lien YouTube / Vimeo, ou fichier envoyé depuis votre ordinateur). Chargée seulement au clic.",
-    defaut: () => ({ titre: "Voir le produit en action", sous_titre: "", url: "", legende: "" }),
+    description: "Démonstration du produit (lien YouTube / Vimeo, ou fichier envoyé depuis votre ordinateur).",
+    defaut: () => ({ titre: "Voir le produit en action", sous_titre: "", url: "", legende: "", mode_lecture: "clic" }),
     champs: [
       { cle: "titre", label: "Titre", type: "texte" },
       { cle: "sous_titre", label: "Sous-titre", type: "texte" },
       { cle: "url", label: "Vidéo", type: "video", aide: "Collez un lien (YouTube, Vimeo, .mp4) OU envoyez un fichier depuis votre ordinateur. Sans vidéo, le bloc n'apparaît pas sur la page publique." },
+      {
+        cle: "mode_lecture", label: "Lecture de la vidéo", type: "choix",
+        options: [
+          { v: "clic", l: "Le client clique pour lancer la vidéo (avec le son)" },
+          { v: "auto_muet", l: "Lecture automatique dès l'arrivée, sans le son" },
+          { v: "auto_son", l: "Lecture automatique sans le son, avec un bouton pour activer le son" },
+        ],
+        aide: "« Le client clique » charge la vidéo seulement au clic (le plus léger). Les 2 options automatiques démarrent dès que le client arrive sur la page.",
+      },
       { cle: "legende", label: "Légende", type: "texte" },
     ],
   },

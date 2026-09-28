@@ -1215,6 +1215,23 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [envoye, setEnvoye] = useState(false);
   const [idCommandeEnvoyee, setIdCommandeEnvoyee] = useState(null);
   const [erreurEnvoi, setErreurEnvoi] = useState("");
+  // Champ du bon de commande à corriger (client, tel, zone, pays, options, mode-livraison,
+  // engagement). Le bouton Confirmer reste toujours actif : un clic avec un oubli affiche
+  // un message rouge sous le bon champ et y ramène le client, au lieu d'un bouton grisé muet.
+  const [champEnErreur, setChampEnErreur] = useState(null);
+  function signalerChamp(cle, message) {
+    setErreurEnvoi(message);
+    setChampEnErreur(cle);
+    setTimeout(() => {
+      const el = document.getElementById(`rv-cmd-${cle}`) || (cle === "options" ? document.getElementById("rvpp-options") : null);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el.tagName === "INPUT" && el.type !== "checkbox") setTimeout(() => { try { el.focus({ preventScroll: true }); } catch (_) {} }, 400);
+    }, 30);
+  }
+  function effacerErreurChamp(cle) {
+    if (champEnErreur === cle) { setChampEnErreur(null); setErreurEnvoi(""); }
+  }
   const [engagementCoche, setEngagementCoche] = useState(false);
   const [codePromoInput, setCodePromoInput] = useState("");
   // Champ code promo replié derrière un petit lien : un champ vide bien visible pousse
@@ -1823,46 +1840,32 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setErreurEnvoi("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
       return;
     }
-    if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
-      setErreurEnvoi("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
-      return;
-    }
+    if (!form.client.trim()) { signalerChamp("client", "⚠️ Écris ton nom ici."); return; }
+    if (paysClient.multi && !paysClient.effectif) { signalerChamp("pays", t("choisirPaysErreur")); return; }
+    if (!form.tel.trim()) { signalerChamp("tel", "⚠️ Écris ton numéro de téléphone ici."); return; }
     const chiffresTelEnvoi = form.tel.replace(/\D/g, "");
-    if (chiffresTelEnvoi.length < 8) {
-      setErreurEnvoi(t("telIncomplet"));
-      return;
-    }
-    if (paysClient.multi && !paysClient.effectif) {
-      setErreurEnvoi(t("choisirPaysErreur"));
-      return;
-    }
+    if (chiffresTelEnvoi.length < 8) { signalerChamp("tel", t("telIncomplet")); return; }
     const verifTel = validerTelephone(form.tel, paysClient.effectif);
-    if (!verifTel.valide) {
-      setErreurEnvoi(verifTel.message);
-      return;
-    }
-    if (!engagementCoche) {
-      setErreurEnvoi(t("dovaisCocherEngagement"));
-      return;
-    }
+    if (!verifTel.valide) { signalerChamp("tel", verifTel.message); return; }
+    if (!form.zone.trim()) { signalerChamp("zone", "⚠️ Écris ta ville et ton quartier ici."); return; }
     const optionsProduitEnvoi = Array.isArray(produitOuvert.options) ? produitOuvert.options : [];
     if (optionsProduitEnvoi.length > 0) {
       const toutesChoisiesEnvoi = optionsProduitEnvoi.every((o) => optionsChoisies[o.nom]);
       if (!toutesChoisiesEnvoi) {
-        setErreurEnvoi(`⚠️ Merci de choisir ${optionsProduitEnvoi.map((o) => o.nom.toLowerCase()).join(", ")} avant de confirmer.`);
+        signalerChamp("options", `⚠️ Merci de choisir ${optionsProduitEnvoi.map((o) => o.nom.toLowerCase()).join(", ")} avant de confirmer.`);
         return;
       }
       const varianteEnvoi = (Array.isArray(produitOuvert.variantes) ? produitOuvert.variantes : []).find((v) => optionsProduitEnvoi.every((o) => v.combinaison[o.nom] === optionsChoisies[o.nom]));
       if (!varianteEnvoi) {
-        setErreurEnvoi("⚠️ Cette combinaison n'est pas disponible.");
+        signalerChamp("options", "⚠️ Cette combinaison n'est pas disponible.");
         return;
       }
       if (Number(varianteEnvoi.stock ?? 0) <= 0) {
-        setErreurEnvoi("⚠️ Cette variante est en rupture de stock.");
+        signalerChamp("options", "⚠️ Cette variante est en rupture de stock.");
         return;
       }
       if (Number(quantite) > Number(varianteEnvoi.stock)) {
-        setErreurEnvoi(`⚠️ Il ne reste que ${varianteEnvoi.stock} en stock pour cette variante — merci de réduire la quantité.`);
+        signalerChamp("options", `⚠️ Il ne reste que ${varianteEnvoi.stock} en stock pour cette variante — merci de réduire la quantité.`);
         return;
       }
     }
@@ -1870,12 +1873,16 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const fraisExpeditionV = livraisonGratuiteV ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
     const aChoixLivraisonV = !livraisonGratuiteV && fraisExpeditionV > 0;
     if (aChoixLivraisonV && !typeLivraisonChoisi) {
-      setErreurEnvoi("⚠️ Merci de choisir un mode de livraison ci-dessus avant de confirmer.");
-      document.getElementById("rv-cmd-mode-livraison")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      signalerChamp("mode-livraison", "⚠️ Choisis ton mode de livraison ici.");
+      return;
+    }
+    if (!engagementCoche) {
+      signalerChamp("engagement", "⚠️ Coche cette case pour valider ta commande.");
       return;
     }
     setEnvoi(true);
     setErreurEnvoi("");
+    setChampEnErreur(null);
     const bundleActifEnvoi = optionsProduitEnvoi.length > 0 ? null : (Array.isArray(produitOuvert.bundles) ? produitOuvert.bundles : []).find((b) => b.id === bundleChoisiId) || null;
     const varianteChoisieEnvoi = optionsProduitEnvoi.length > 0
       ? (Array.isArray(produitOuvert.variantes) ? produitOuvert.variantes : []).find((v) => optionsProduitEnvoi.every((o) => v.combinaison[o.nom] === optionsChoisies[o.nom]))
@@ -1978,6 +1985,26 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     setIdCommandeEnvoyee(idCommandeCreee || null);
     setEnvoye(true);
   }
+
+  // Mode de livraison pré-choisi d'après la ville tapée : si le libellé de la livraison locale
+  // nomme une ville (ex. « Livraison Dakar ») et que le client écrit cette ville dans « Ta ville
+  // et ton quartier », on coche ce mode pour lui — un clic de moins. Le client garde la main :
+  // un choix fait à la main n'est jamais écrasé, et le pré-choix s'annule s'il change de ville.
+  const livraisonAutoRef = useRef(false);
+  useEffect(() => {
+    const libelle = (entreprise?.labelLivraisonLocale || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const motsVille = libelle.split(/[^a-z0-9-]+/).filter((m) => m.length >= 4 && !["livraison", "locale", "domicile", "rapide", "express", "dans", "ville", "zone"].includes(m));
+    if (motsVille.length === 0) return;
+    const zone = (form.zone || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const correspond = motsVille.some((m) => zone.includes(m));
+    if (correspond && !typeLivraisonChoisi) {
+      livraisonAutoRef.current = true;
+      setTypeLivraisonChoisi("livraison");
+    } else if (!correspond && livraisonAutoRef.current && typeLivraisonChoisi === "livraison") {
+      livraisonAutoRef.current = false;
+      setTypeLivraisonChoisi(null);
+    }
+  }, [form.zone, entreprise?.labelLivraisonLocale]);
 
   // Détecte un panier abandonné : dès que le client a tapé un numéro de téléphone valide sur
   // une fiche produit et qu'il reste 5 secondes sans finaliser, on l'enregistre discrètement —
@@ -2492,6 +2519,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const pageBlocsActifs = pageConfig ? blocsActifs(pageConfig) : [];
     const pageAOffres = pageBlocsActifs.some((b) => b.type === "offres" || ((b.type === "hero" || b.type === "info_produit") && b.props.afficher_offres !== false));
     const pageAOptions = pageBlocsActifs.some((b) => b.type === "hero" || b.type === "info_produit");
+    // Bordure rouge + message rouge juste sous le champ oublié (voir signalerChamp).
+    const styleChamp = (cle, base = inputStyle) => (champEnErreur === cle ? { ...base, border: "1.5px solid #D64933", background: "#FFF5F3" } : base);
+    const messageChamp = (cle) => (champEnErreur === cle && erreurEnvoi ? (
+      <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, margin: "-4px 0 10px", lineHeight: 1.4 }}>{erreurEnvoi}</div>
+    ) : null);
     const rendreFormulaireCommande = (enLigne = false) => (
       <>
               <style>{CSS_FORMULAIRE_COMMANDE}</style>
@@ -2518,32 +2550,41 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
               <input
                 className="rv-cmd-input"
+                id="rv-cmd-client"
                 placeholder={t("tonNom")}
                 value={form.client}
-                onChange={(e) => setForm({ ...form, client: e.target.value })}
+                onChange={(e) => { setForm({ ...form, client: e.target.value }); effacerErreurChamp("client"); }}
                 autoFocus={!enLigne}
                 autoComplete="name"
-                style={inputStyle}
+                style={styleChamp("client")}
               />
-              <SelecteurPays pays={paysClient} langue={entreprise.langue} style={inputStyle} />
+              {messageChamp("client")}
+              <div id="rv-cmd-pays" onChange={() => effacerErreurChamp("pays")} onClick={() => effacerErreurChamp("pays")}>
+                <SelecteurPays pays={paysClient} langue={entreprise.langue} style={styleChamp("pays")} />
+              </div>
+              {messageChamp("pays")}
               <input
                 className="rv-cmd-input"
+                id="rv-cmd-tel"
                 placeholder={t("tonTelephone")}
                 value={form.tel}
-                onChange={(e) => { setForm({ ...form, tel: e.target.value }); paysClient.detecter(e.target.value); }}
+                onChange={(e) => { setForm({ ...form, tel: e.target.value }); paysClient.detecter(e.target.value); effacerErreurChamp("tel"); }}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                style={inputStyle}
+                style={styleChamp("tel")}
               />
+              {messageChamp("tel")}
               <input
                 className="rv-cmd-input"
+                id="rv-cmd-zone"
                 placeholder={t("taVille")}
                 value={form.zone}
-                onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                onChange={(e) => { setForm({ ...form, zone: e.target.value }); effacerErreurChamp("zone"); }}
                 autoComplete="address-level2"
-                style={inputStyle}
+                style={styleChamp("zone")}
               />
+              {messageChamp("zone")}
               {pageConfig?.formulaire?.commune && (
                 <input
                   className="rv-cmd-input"
@@ -2605,7 +2646,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               )}
 
               {optionsProduitListe.length > 0 && !(enLigne && pageAOptions) && (
-                <div style={{ marginBottom: 14 }}>
+                <div id="rv-cmd-options" style={{ marginBottom: 14, scrollMarginTop: 80 }} onClick={() => effacerErreurChamp("options")}>
                   {optionsProduitListe.map((o) => (
                     <div key={o.nom} style={{ marginBottom: 10 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{o.nom} <span style={{ color: "#D64933" }}>*</span></div>
@@ -2633,6 +2674,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   )}
                 </div>
               )}
+              {!(optionsProduitListe.length > 0 && !(enLigne && pageAOptions)) ? null : messageChamp("options")}
 
               {optionsProduitListe.length === 0 && bundlesProduit.length > 0 && !(enLigne && pageAOffres) && (
                 <div style={{ marginBottom: 14 }}>
@@ -2670,25 +2712,27 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               )}
 
               {aChoixLivraison && (
-                <div id="rv-cmd-mode-livraison" style={{ marginBottom: 14 }}>
+                <div id="rv-cmd-mode-livraison" style={{ marginBottom: 14, scrollMarginTop: 80, ...(champEnErreur === "mode-livraison" ? { outline: "1.5px solid #D64933", outlineOffset: 4, borderRadius: 10 } : {}) }} onClick={() => effacerErreurChamp("mode-livraison")}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#16231F", marginBottom: 6 }}>{t("modeLivraison")} <span style={{ color: "#D64933" }}>*</span></div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
-                      onClick={() => setTypeLivraisonChoisi("livraison")}
+                      onClick={() => { livraisonAutoRef.current = false; setTypeLivraisonChoisi("livraison"); }}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ {entreprise.labelLivraisonLocale}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)}</div>
                     </button>
                     <button
-                      onClick={() => setTypeLivraisonChoisi("expedition")}
+                      onClick={() => { livraisonAutoRef.current = false; setTypeLivraisonChoisi("expedition"); }}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 {entreprise.labelLivraisonExpedition}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisExpeditionEffectif)} {formaterDevise(entreprise.devise)}</div>
                     </button>
                   </div>
-                  {!typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
+                  {champEnErreur === "mode-livraison" && erreurEnvoi
+                    ? <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, marginTop: 6 }}>{erreurEnvoi}</div>
+                    : !typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
                   {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                       💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
@@ -2697,7 +2741,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 </div>
               )}
 
-              {erreurEnvoi && <div style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
+              {erreurEnvoi && !champEnErreur && <div role="alert" style={{ color: "#D64933", fontSize: 12.5, marginBottom: 10 }}>{erreurEnvoi}</div>}
 
               {(() => {
                 const bumpProduit = produitOuvert.bump_produit_id ? produits.find((p) => p.produit_id === produitOuvert.bump_produit_id) : null;
@@ -2809,15 +2853,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 {t("engagement")}
               </div>
 
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, cursor: "pointer", fontSize: 12, color: "#16231F", lineHeight: 1.5 }}>
+              <label id="rv-cmd-engagement" style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14, cursor: "pointer", fontSize: 12.5, color: "#16231F", lineHeight: 1.5, padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${engagementCoche ? couleur : champEnErreur === "engagement" ? "#D64933" : "#DDD8CC"}`, background: engagementCoche ? "#EAF3DE" : champEnErreur === "engagement" ? "#FFF5F3" : "white", scrollMarginTop: 80 }}>
                 <input
                   type="checkbox"
                   checked={engagementCoche}
-                  onChange={(e) => setEngagementCoche(e.target.checked)}
-                  style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, cursor: "pointer" }}
+                  onChange={(e) => { setEngagementCoche(e.target.checked); if (e.target.checked) effacerErreurChamp("engagement"); }}
+                  style={{ marginTop: 1, width: 22, height: 22, flexShrink: 0, cursor: "pointer", accentColor: couleur }}
                 />
                 <span>{t("caseEngagement")}</span>
               </label>
+              {champEnErreur === "engagement" && erreurEnvoi && (
+                <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, margin: "-8px 0 12px" }}>{erreurEnvoi}</div>
+              )}
 
               <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 14, paddingTop: 10, borderTop: "1px solid #ECE8DC" }}>
                 {[
@@ -2835,8 +2882,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               <button
                 className="rv-cmd-submit"
                 onClick={envoyerCommande}
-                disabled={envoi || !engagementCoche || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))}
-                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 14, padding: "16px 0", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", boxShadow: "0 8px 20px -6px rgba(22,35,31,0.35)", cursor: envoi ? "default" : "pointer", opacity: (envoi || !engagementCoche || (aChoixLivraison && !typeLivraisonChoisi) || (optionsProduitListe.length > 0 && (!toutesOptionsChoisies || !varianteActive || varianteEnRupture))) ? 0.5 : 1, marginTop: 4, touchAction: "manipulation" }}
+                // Toujours actif (sauf pendant l'envoi) : un oubli est signalé en rouge sous le
+                // bon champ, et l'écran y ramène le client (voir signalerChamp / envoyerCommande).
+                disabled={envoi}
+                style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 14, padding: "16px 0", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", boxShadow: "0 8px 20px -6px rgba(22,35,31,0.35)", cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.6 : 1, marginTop: 4, touchAction: "manipulation" }}
               >
                 {envoi ? t("envoiEnCours") : `${t("confirmer")} — ${montantAffiche(totalAffiche)} ${formaterDevise(entreprise.devise)}`}
               </button>

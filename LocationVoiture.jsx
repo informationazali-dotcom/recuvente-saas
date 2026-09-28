@@ -28,8 +28,11 @@ const COULEURS = {
 function devise(code) {
   return code === "XOF" || code === "XAF" ? "F CFA" : (code || "F CFA");
 }
+// toLocaleString("fr-FR") sépare les milliers avec une espace fine insécable, que les polices
+// standards de jsPDF n'affichent pas correctement (ça devenait un "/" dans les PDF de contrat,
+// reçu, bon de vente...) — on la remplace par une espace normale, invisible à l'écran.
 function nb(x) {
-  return Number(x || 0).toLocaleString("fr-FR");
+  return Number(x || 0).toLocaleString("fr-FR").replace(/[   -   　]/g, " ");
 }
 function cleanPhoneForWhatsApp(tel) {
   let digits = String(tel || "").replace(/\D/g, "");

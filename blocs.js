@@ -127,22 +127,30 @@ export function arrondiLocalBase(n) {
   return arrondiLocal(v * MONNAIE.taux, MONNAIE.devise) / MONNAIE.taux;
 }
 
+// toLocaleString("fr-FR") sépare les milliers avec une espace fine insécable (U+202F), invisible
+// à l'écran mais que les polices standards de jsPDF (Helvetica/Times/Courier) ne savent pas
+// dessiner — elle s'affichait comme un caractère parasite ("/") dans les PDF (reçus, factures...).
+// On la remplace systématiquement par une espace normale, ce qui ne change rien à l'écran.
+function espaceMillierSure(txt) {
+  return String(txt).replace(/[   -   　]/g, " ");
+}
+
 // Nombre déjà converti et arrondi, formaté à la française (utilisé à la place de .toLocaleString("fr-FR")).
 export function montantAffiche(n) {
   const v = Number(n);
-  if (!MONNAIE) return v.toLocaleString("fr-FR");
+  if (!MONNAIE) return espaceMillierSure(v.toLocaleString("fr-FR"));
   if (!Number.isFinite(v)) return String(v);
   const local = arrondiLocal(Math.round(v * MONNAIE.taux * 1e6) / 1e6, MONNAIE.devise);
   const entier = Math.abs(local - Math.round(local)) < 1e-9;
   const d = entier ? 0 : MONNAIE.decimales;
-  return (Math.round(local * 10 ** d) / 10 ** d).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return espaceMillierSure((Math.round(local * 10 ** d) / 10 ** d).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }));
 }
 
 export function formaterMontant(n, devise) {
   const v = Number(n);
   if (!Number.isFinite(v)) return "";
   if (MONNAIE) return `${montantAffiche(v)} ${MONNAIE.libelle}`.trim();
-  return `${Math.round(v).toLocaleString("fr-FR")} ${devise || ""}`.trim();
+  return espaceMillierSure(`${Math.round(v).toLocaleString("fr-FR")} ${devise || ""}`.trim());
 }
 
 function luminance(hex) {

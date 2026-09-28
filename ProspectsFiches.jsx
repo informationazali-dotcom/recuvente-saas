@@ -19,7 +19,10 @@ const COULEURS = {
   bordure: "#ECE8DC", ambre: "#e8920a", rouge: "#D64933", rougeFonce: "#B23A26",
   gris: "#6B7168", grisClair: "#8A9089",
 };
-function nb(x) { return Number(x || 0).toLocaleString("fr-FR"); }
+// toLocaleString("fr-FR") sépare les milliers avec une espace fine insécable, que les polices
+// standards de jsPDF n'affichent pas correctement (ça devenait un "/" dans le PDF de fiche) —
+// on la remplace par une espace normale, invisible à l'écran.
+function nb(x) { return Number(x || 0).toLocaleString("fr-FR").replace(/[   -   　]/g, " "); }
 function devise(code) { return code === "XOF" || code === "XAF" ? "F CFA" : (code || "F CFA"); }
 function peutEcrire(role) { return role === "owner" || role === "admin" || role === "comptable"; }
 

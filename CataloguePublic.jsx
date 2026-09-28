@@ -5956,12 +5956,16 @@ function descriptionAUnContenu(html) {
 
 function PointsFortsListe({ points, couleur }) {
   if (!points || points.length === 0) return null;
-  const teinte = couleurTexteLisible(couleur);
+  // Style repris de la palette de la boutique (pas un gris neutre générique) : fond teinté
+  // très légèrement de la couleur du marchand, pastille de coche remplie de cette même couleur,
+  // texte en gras pour se voir au premier coup d'œil sous le prix — demande explicite du user
+  // ("plus gras, plus joli... la police ne suit pas le thème").
+  const texteSurCouleur = couleurTextePourFond(couleur || "#16231F");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "14px 0 16px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 16px" }}>
       {points.map((tx, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#F1F2EF", borderRadius: 8, padding: "9px 12px", fontSize: 13.5, lineHeight: 1.45, color: "#16231F" }}>
-          <span aria-hidden="true" style={{ flexShrink: 0, width: 18, height: 18, marginTop: 1, borderRadius: 4, border: `1.5px solid ${teinte}`, color: teinte, background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>
+        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: `${couleur}12`, border: `1px solid ${couleur}35`, borderRadius: 10, padding: "10px 13px", fontSize: 14, lineHeight: 1.4, color: "#16231F", fontWeight: 700 }}>
+          <span aria-hidden="true" style={{ flexShrink: 0, width: 19, height: 19, marginTop: 1, borderRadius: "50%", color: texteSurCouleur, background: couleur || "#16231F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 900, lineHeight: 1 }}>✓</span>
           <span>{tx}</span>
         </div>
       ))}

@@ -2732,7 +2732,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   </div>
                   {champEnErreur === "mode-livraison" && erreurEnvoi
                     ? <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, marginTop: 6 }}>{erreurEnvoi}</div>
-                    : !typeLivraisonChoisi && <div style={{ fontSize: 11, color: "#8A6412", marginTop: 6 }}>{t("choisisMode")}</div>}
+                    : !typeLivraisonChoisi && <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 6 }}>{t("choisisMode")}</div>}
                   {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                       💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
@@ -2791,7 +2791,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 })()}
                 {fraisLivraisonActuel > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
-                    <span>🚚 {aChoixLivraison && typeLivraisonChoisi === "expedition" ? entreprise.labelLivraisonExpedition : entreprise.labelLivraisonLocale}</span>
+                    <span>{aChoixLivraison && typeLivraisonChoisi === "expedition" ? `🚛 ${entreprise.labelLivraisonExpedition}` : `🏍️ ${entreprise.labelLivraisonLocale}`}</span>
                     <span>+ {montantAffiche(fraisLivraisonActuel)} {formaterDevise(entreprise.devise)}</span>
                   </div>
                 )}
@@ -2845,37 +2845,45 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 )}
               </div>
 
-              <div style={{ background: "#EAF3DE", border: "1px solid #C7DDA3", borderRadius: 10, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#3B6D11", lineHeight: 1.5 }}>
-                {t("onVaAppeler")}
+              {/* Dernière étape : infos d'appel + engagement réunis dans UNE seule carte sobre
+                  (au lieu de 3 encadrés de couleurs différentes empilés). Mêmes textes, même case. */}
+              <div
+                id="rv-cmd-engagement"
+                style={{ border: `1.5px solid ${engagementCoche ? couleur : champEnErreur === "engagement" ? "#D64933" : "#E4E1D5"}`, background: champEnErreur === "engagement" && !engagementCoche ? "#FFF5F3" : "#FFFFFF", borderRadius: 14, marginBottom: 12, overflow: "hidden", scrollMarginTop: 80, transition: "border-color .15s ease" }}
+              >
+                <div style={{ padding: "12px 14px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12.5, color: "#3D4540", lineHeight: 1.5 }}>
+                    <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: "50%", background: "#EAF3DE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📞</span>
+                    <span>{t("onVaAppeler").replace(/^📞\s*/, "")}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12, color: "#6B7168", lineHeight: 1.5 }}>
+                    <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: "50%", background: "#F4F1E8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📦</span>
+                    <span>{t("engagement").replace(/^(📦|⚠️)\s*/, "")}</span>
+                  </div>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "12px 14px", borderTop: "1px solid #EFECE3", background: engagementCoche ? "#EAF3DE" : "#FAFAF7", fontSize: 13, fontWeight: 600, color: "#16231F", lineHeight: 1.45, transition: "background .15s ease" }}>
+                  <input
+                    type="checkbox"
+                    checked={engagementCoche}
+                    onChange={(e) => { setEngagementCoche(e.target.checked); if (e.target.checked) effacerErreurChamp("engagement"); }}
+                    style={{ width: 22, height: 22, flexShrink: 0, cursor: "pointer", accentColor: couleur, margin: 0 }}
+                  />
+                  <span>{t("caseEngagement")}</span>
+                </label>
               </div>
-
-              <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 10, padding: "9px 12px", marginBottom: 10, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-                {t("engagement")}
-              </div>
-
-              <label id="rv-cmd-engagement" style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14, cursor: "pointer", fontSize: 12.5, color: "#16231F", lineHeight: 1.5, padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${engagementCoche ? couleur : champEnErreur === "engagement" ? "#D64933" : "#DDD8CC"}`, background: engagementCoche ? "#EAF3DE" : champEnErreur === "engagement" ? "#FFF5F3" : "white", scrollMarginTop: 80 }}>
-                <input
-                  type="checkbox"
-                  checked={engagementCoche}
-                  onChange={(e) => { setEngagementCoche(e.target.checked); if (e.target.checked) effacerErreurChamp("engagement"); }}
-                  style={{ marginTop: 1, width: 22, height: 22, flexShrink: 0, cursor: "pointer", accentColor: couleur }}
-                />
-                <span>{t("caseEngagement")}</span>
-              </label>
               {champEnErreur === "engagement" && erreurEnvoi && (
-                <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, margin: "-8px 0 12px" }}>{erreurEnvoi}</div>
+                <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, margin: "-4px 0 12px" }}>{erreurEnvoi}</div>
               )}
 
-              <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 14, paddingTop: 10, borderTop: "1px solid #ECE8DC" }}>
+              <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
                 {[
                   { icone: "💵", texte: t("badgePaiement2") },
                   { icone: "🚚", texte: t("badgeLivraison2") },
                   { icone: "✅", texte: t("badgeVerifie") },
                 ].map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 14 }}>{item.icone}</span>
-                    <span style={{ fontSize: 10, color: "#6B7168", fontWeight: 600 }}>{item.texte}</span>
-                  </div>
+                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: 999, background: "#F4F6F2", fontSize: 10.5, color: "#4A5A4E", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    <span aria-hidden="true" style={{ fontSize: 12 }}>{item.icone}</span>{item.texte}
+                  </span>
                 ))}
               </div>
 

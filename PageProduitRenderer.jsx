@@ -352,6 +352,11 @@ function Galerie({ photos, video, alt, ratio = "carre", miniatures = true, zoom 
   const [plein, setPlein] = useState(false);
   const [loupe, setLoupe] = useState(null);
   const departX = useRef(null);
+  // Revient à la 1ère photo quand le jeu de photos change réellement (ex : le client choisit une
+  // variante qui a sa propre photo) — sinon la galerie restait bloquée sur l'ancienne photo cliquée
+  // et le client ne voyait jamais la photo de la variante qu'il venait de choisir.
+  const clePhotos = (photos || []).filter(Boolean).join("|");
+  useEffect(() => { setI(0); }, [clePhotos]);
   const idx = nb > 0 ? Math.min(Math.max(i, 0), nb - 1) : 0;
   const courant = items[idx];
   const aller = (n) => { if (nb > 1) { setI((n + nb) % nb); setLecture(false); setLoupe(null); } };

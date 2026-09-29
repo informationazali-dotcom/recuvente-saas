@@ -20,6 +20,8 @@ function formaterDevise(code) {
   // Client d'un autre pays avec un taux de change saisi par le commerçant : libellé de SA monnaie.
   const m = monnaieAffichage();
   if (m) return m.libelle;
+  if (code === "EUR") return "€";
+  if (code === "GBP") return "£";
   return code === "XOF" || code === "XAF" ? "F CFA" : code;
 }
 
@@ -757,7 +759,123 @@ function urlEmbedVideo(url) {
 
 function creerTraducteur(langue) {
   const dict = TRADUCTIONS[langue] || TRADUCTIONS.fr;
+  // Boutique « marché Europe » : textes adaptés (vouvoiement, paiement par carte, adresse postale,
+  // retour 14 jours) à la place des textes « paiement à la livraison » — l'Afrique ne change pas.
+  if (MARCHE_BOUTIQUE === "europe") {
+    const eu = TEXTES_EUROPE[langue] || TEXTES_EUROPE.fr;
+    return (cle) => eu[cle] || dict[cle] || TRADUCTIONS.fr[cle] || cle;
+  }
   return (cle) => dict[cle] || TRADUCTIONS.fr[cle] || cle;
+}
+
+// Marché de la boutique affichée ('afrique' par défaut). Réglé à chaque rendu de la boutique
+// (même principe que definirMonnaieAffichage) : tous les sous-composants le voient.
+let MARCHE_BOUTIQUE = "afrique";
+function definirMarcheBoutique(m) { MARCHE_BOUTIQUE = m === "europe" ? "europe" : "afrique"; }
+
+const TEXTES_EUROPE = {
+  fr: {
+    badgePaiement: "💳 Paiement sécurisé par carte",
+    badgePaiement2: "Paiement sécurisé",
+    badgeLivraison: "🚚 Livraison à domicile suivie",
+    badgeLivraison2: "Livraison suivie",
+    badgeVerifie: "Retour sous 14 jours",
+    paiementLivraison: "Paiement sécurisé par carte",
+    ctaEnLigneSous: "paiement sécurisé par carte",
+    merciCommander: "🔒 Paiement 100 % sécurisé — Visa, Mastercard, Apple Pay, Google Pay",
+    fraisAChoisir: "🚚 Frais de livraison calculés à la commande",
+    offresDispo: "🔥 Offres quantité disponibles — choisissez votre pack dans le formulaire de commande",
+    tesCoordonnees: "Livraison & paiement",
+    pourTeContacter: "Votre adresse de livraison, puis paiement sécurisé par carte.",
+    tonNom: "Nom et prénom",
+    tonTelephone: "Téléphone (pour le livreur)",
+    taVille: "Ville",
+    modeLivraison: "Mode de livraison",
+    choisisMode: "Choisissez un mode de livraison pour continuer.",
+    ajouteProduit: "➕ Ajoutez un produit à votre commande",
+    telIncomplet: "⚠️ Ce numéro de téléphone semble incomplet. Vérifiez-le avant de continuer.",
+    choisirPays: "Pays de livraison",
+    choisirPaysErreur: "⚠️ Choisissez votre pays de livraison.",
+    commandeEnvoyee: "Commande enregistrée !",
+    merciMerci: "Merci",
+    vaTeContacter: "Votre commande est enregistrée. Contact livraison :",
+    pourConfirmer: "— réglez-la par carte ci-dessous pour lancer l'expédition.",
+    etMaintenant: "Et ensuite ?",
+    etape1: "Vous réglez en ligne par carte, en toute sécurité",
+    etape2: "Nous préparons et expédions votre colis",
+    etape3: "Vous êtes livré(e) à domicile — retour possible sous 14 jours",
+    uneQuestion: "💬 Une question ? Contactez-nous",
+    continuerAchats: "← Continuer mes achats",
+    tuPourraisAimer: "Vous aimerez aussi",
+    confirmer: "🔒 Payer par carte",
+    envoiEnCours: "Ouverture du paiement sécurisé…",
+    aucunResultat: "Aucun produit ne correspond à votre recherche.",
+    erreurGenerique: "Une erreur est survenue, réessayez.",
+    aucunAvis: "Aucun avis pour le moment. Soyez le premier !",
+    resteInforme: "Restez informé(e)",
+    ecouterDescription: "🔊 Écoutez la description et les conseils d'utilisation, ou lisez-la",
+    offresQuantite: "🔥 OFFRES QUANTITÉ",
+  },
+  en: {
+    badgePaiement: "💳 Secure card payment",
+    badgePaiement2: "Secure payment",
+    badgeLivraison: "🚚 Tracked home delivery",
+    badgeLivraison2: "Tracked delivery",
+    badgeVerifie: "14-day returns",
+    paiementLivraison: "Secure card payment",
+    ctaEnLigneSous: "secure card payment",
+    merciCommander: "🔒 100% secure payment — Visa, Mastercard, Apple Pay, Google Pay",
+    tesCoordonnees: "Delivery & payment",
+    pourTeContacter: "Your delivery address, then secure card payment.",
+    tonNom: "Full name",
+    tonTelephone: "Phone (for the courier)",
+    taVille: "City",
+    choisirPays: "Delivery country",
+    commandeEnvoyee: "Order saved!",
+    vaTeContacter: "Your order is saved. Delivery contact:",
+    pourConfirmer: "— pay by card below to start shipping.",
+    etape1: "You pay online by card, securely",
+    etape2: "We prepare and ship your parcel",
+    etape3: "Delivered to your door — 14-day returns",
+    confirmer: "🔒 Pay by card",
+    envoiEnCours: "Opening secure payment…",
+  },
+};
+
+// Paiement par carte (Stripe) juste après la création de la commande — marché Europe.
+// Renvoie true si le navigateur part vers la page de paiement, sinon un message d'erreur.
+async function lancerPaiementCarte(commandeId, workspaceId, email) {
+  try {
+    const base = `${window.location.origin}${window.location.pathname}`;
+    const retour = `${base}?suivi=${encodeURIComponent(commandeId)}&paye=1`;
+    const r = await fetch("/api/admin-panel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "creer_session_paiement_stripe",
+        commandeId,
+        workspace_id: workspaceId,
+        email: email && EMAIL_VALIDE.test(email) ? email : undefined,
+        successUrl: `${retour}&session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${base}?suivi=${encodeURIComponent(commandeId)}`,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.url) { window.location.href = j.url; return true; }
+    return j.error || "Paiement par carte indisponible pour l'instant.";
+  } catch (_) {
+    return "Connexion impossible. Réessayez dans un instant.";
+  }
+}
+
+const EMAIL_VALIDE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Adresse postale européenne envoyée dans le champ « zone » existant (aucun changement de base).
+function composerAdresseEurope(form) {
+  const ligne1 = String(form.adresse || "").trim();
+  const complement = String(form.complement || "").trim();
+  const cpVille = [String(form.codePostal || "").trim(), String(form.ville || "").trim()].filter(Boolean).join(" ");
+  const email = String(form.email || "").trim();
+  return [ligne1, complement, cpVille].filter(Boolean).join(", ") + (email ? ` — ✉️ ${email}` : "");
 }
 
 // Règles vérifiées précisément (réformes récentes des plans de numérotation) :
@@ -1228,6 +1346,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [idCommandeEnvoyee, setIdCommandeEnvoyee] = useState(null);
+  const [erreurPaiementCarte, setErreurPaiementCarte] = useState("");
   const [erreurEnvoi, setErreurEnvoi] = useState("");
   // Champ du bon de commande à corriger (client, tel, zone, pays, options, mode-livraison,
   // engagement). Le bouton Confirmer reste toujours actif : un clic avec un oubli affiche
@@ -1610,6 +1729,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         // Le parcours COD existant est strictement identique quelle que soit cette valeur.
         marche: data[0].marche || "afrique",
       });
+      // La mise à jour 37 a recréé catalogue_public SANS la colonne « marche » : la boutique
+      // retombait toujours sur « afrique ». Petite lecture dédiée (migration 202609300002) qui
+      // donne le vrai marché, sans toucher à catalogue_public.
+      if (!data[0].marche) {
+        supabase.rpc("marche_boutique_public", { p_workspace_id: workspaceId }).then(({ data: m, error: em }) => {
+          const ligne = !em && Array.isArray(m) ? m[0] : null;
+          if (ligne && ligne.marche === "europe") setEntreprise((e) => (e ? { ...e, marche: "europe" } : e));
+        }, () => {});
+      }
       // Identité mise en cache pour la prochaine visite de cette boutique : la fois
       // suivante, le bon logo/couleur/nom s'affichent dès l'ouverture de la page,
       // sans attendre cette requête réseau.
@@ -1896,14 +2024,20 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       setErreurEnvoi("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
       return;
     }
-    if (!form.client.trim()) { signalerChamp("client", "⚠️ Écris ton nom ici."); return; }
+    if (!form.client.trim()) { signalerChamp("client", entreprise?.marche === "europe" ? "⚠️ Indiquez votre nom et prénom." : "⚠️ Écris ton nom ici."); return; }
     if (paysClient.multi && !paysClient.effectif) { signalerChamp("pays", t("choisirPaysErreur")); return; }
-    if (!form.tel.trim()) { signalerChamp("tel", "⚠️ Écris ton numéro de téléphone ici."); return; }
+    if (!form.tel.trim()) { signalerChamp("tel", entreprise?.marche === "europe" ? "⚠️ Indiquez votre numéro de téléphone (pour le livreur)." : "⚠️ Écris ton numéro de téléphone ici."); return; }
     const chiffresTelEnvoi = form.tel.replace(/\D/g, "");
     if (chiffresTelEnvoi.length < 8) { signalerChamp("tel", t("telIncomplet")); return; }
     const verifTel = validerTelephone(form.tel, paysClient.effectif);
     if (!verifTel.valide) { signalerChamp("tel", verifTel.message); return; }
-    if (!form.zone.trim()) { signalerChamp("zone", "⚠️ Écris ta ville et ton quartier ici."); return; }
+    if (entreprise?.marche === "europe") {
+      // Marché Europe : adresse postale complète + email (reçu de paiement), pas de « quartier ».
+      if (!EMAIL_VALIDE.test(String(form.email || "").trim())) { signalerChamp("email", "⚠️ Indiquez une adresse email valide (pour votre confirmation de paiement)."); return; }
+      if (String(form.adresse || "").trim().length < 4) { signalerChamp("adresse", "⚠️ Indiquez votre adresse (numéro et rue)."); return; }
+      if (String(form.codePostal || "").trim().length < 3) { signalerChamp("codePostal", "⚠️ Indiquez votre code postal."); return; }
+      if (!String(form.ville || "").trim()) { signalerChamp("ville", "⚠️ Indiquez votre ville."); return; }
+    } else if (!form.zone.trim()) { signalerChamp("zone", "⚠️ Écris ta ville et ton quartier ici."); return; }
     const optionsProduitEnvoi = Array.isArray(produitOuvert.options) ? produitOuvert.options : [];
     if (optionsProduitEnvoi.length > 0) {
       const toutesChoisiesEnvoi = optionsProduitEnvoi.every((o) => optionsChoisies[o.nom]);
@@ -1935,7 +2069,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       return;
     }
     if (!engagementCoche) {
-      signalerChamp("engagement", "⚠️ Coche cette case pour valider ta commande.");
+      signalerChamp("engagement", entreprise?.marche === "europe" ? "⚠️ Cochez cette case pour accepter les conditions de vente." : "⚠️ Coche cette case pour valider ta commande.");
       return;
     }
     setEnvoi(true);
@@ -1980,7 +2114,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
-      p_zone: composerZoneMultiPays(composerZoneLivraison(form), paysClient, totalCommandeRef.current),
+      p_zone: entreprise?.marche === "europe"
+        ? composerZoneMultiPays(composerAdresseEurope(form), paysClient, 0)
+        : composerZoneMultiPays(composerZoneLivraison(form), paysClient, totalCommandeRef.current),
       p_items: items,
       p_type_livraison: (() => {
         const livraisonGratuiteP = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
@@ -1994,12 +2130,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_source_campagne: sourceCampagne,
       ...(referralActifCommande ? { p_referral_code: referralActifCommande } : {}),
     });
-    setEnvoi(false);
     const resultat = data && data[0];
     if (error || !resultat?.succes) {
+      setEnvoi(false);
       setErreurEnvoi(resultat?.message || t("erreurGenerique"));
       return;
     }
+    if (entreprise?.marche !== "europe") setEnvoi(false);
     // Signal immédiat à Facebook, dès la commande passée — comme Shopify. Le tableau de bord
     // renverra le même signal à la confirmation si celui-ci échoue pour une raison quelconque
     // (le serveur ignore les doublons automatiquement, jamais compté deux fois).
@@ -2042,6 +2179,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     suivrePage("commande_creee", { commande_id: idCommandeCreee, offre_id: bundleChoisiId ?? "base", montant: valeurCommande });
     setIdCommandeEnvoyee(idCommandeCreee || null);
     setAchatValideA(Date.now());
+    // Marché Europe : on part directement sur la page de paiement sécurisée (carte, Apple Pay,
+    // Google Pay…). Si elle ne peut pas s'ouvrir, l'écran de fin propose « Payer par carte ».
+    if (entreprise?.marche === "europe" && idCommandeCreee) {
+      const res = await lancerPaiementCarte(idCommandeCreee, workspaceId, String(form.email || "").trim());
+      if (res === true) return;
+      setErreurPaiementCarte(typeof res === "string" ? res : "");
+      setEnvoi(false);
+    }
     setEnvoye(true);
   }
 
@@ -2224,6 +2369,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   // Style des cartes produits choisi par le marchand dans le Store Builder.
   appliquerStyleCarte(entreprise?.storeConfig);
   definirBoutonsPerso(entreprise?.storeConfig);
+  definirMarcheBoutique(entreprise?.marche);
+  const estEurope = entreprise?.marche === "europe";
   const t = creerTraducteur(entreprise?.langue);
   // Ambiance animée choisie dans le Store Builder (aurore, cristal, or, futuriste, étoiles) : elle doit
   // aussi se voir sur la fiche produit, pas seulement sur l'accueil.
@@ -2501,7 +2648,12 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               </div>
             </div>
 
-            <BoutonPayerEnLigne commandeId={idCommandeEnvoyee} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
+            {entreprise.marche !== "europe" && <BoutonPayerEnLigne commandeId={idCommandeEnvoyee} couleur={couleur} devise={formaterDevise(entreprise.devise)} />}
+            {entreprise.marche === "europe" && erreurPaiementCarte && (
+              <div role="alert" style={{ background: "#FDECEA", border: "1px solid #F2B8B0", color: "#8A2A1E", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, marginBottom: 12, textAlign: "left" }}>
+                ⚠️ La page de paiement n'a pas pu s'ouvrir : {erreurPaiementCarte}
+              </div>
+            )}
             {entreprise.marche === "europe" && (
               <BoutonPayerStripe commandeId={idCommandeEnvoyee} workspaceId={workspaceId} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
             )}
@@ -2640,6 +2792,29 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 style={styleChamp("tel")}
               />
               {messageChamp("tel")}
+              {estEurope ? (<>
+                {/* 🇪🇺 Bon de commande Europe : email + adresse postale complète */}
+                <input className="rv-cmd-input" id="rv-cmd-email" type="email" inputMode="email" autoComplete="email" placeholder="Email (confirmation de commande et de paiement)"
+                  value={form.email || ""} onChange={(e) => { setForm({ ...form, email: e.target.value }); effacerErreurChamp("email"); }} style={styleChamp("email")} />
+                {messageChamp("email")}
+                <input className="rv-cmd-input" id="rv-cmd-adresse" autoComplete="address-line1" placeholder="Adresse (numéro et rue)"
+                  value={form.adresse || ""} onChange={(e) => { setForm({ ...form, adresse: e.target.value }); effacerErreurChamp("adresse"); }} style={styleChamp("adresse")} />
+                {messageChamp("adresse")}
+                <input className="rv-cmd-input" autoComplete="address-line2" placeholder="Complément : bâtiment, étage, digicode… (facultatif)"
+                  value={form.complement || ""} onChange={(e) => setForm({ ...form, complement: e.target.value })} style={inputStyle} />
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 0.8fr) minmax(0, 1.2fr)", gap: 8 }}>
+                  <div>
+                    <input className="rv-cmd-input" id="rv-cmd-codePostal" autoComplete="postal-code" inputMode="text" placeholder="Code postal"
+                      value={form.codePostal || ""} onChange={(e) => { setForm({ ...form, codePostal: e.target.value }); effacerErreurChamp("codePostal"); }} style={styleChamp("codePostal")} />
+                    {messageChamp("codePostal")}
+                  </div>
+                  <div>
+                    <input className="rv-cmd-input" id="rv-cmd-ville" autoComplete="address-level2" placeholder="Ville"
+                      value={form.ville || ""} onChange={(e) => { setForm({ ...form, ville: e.target.value, zone: e.target.value }); effacerErreurChamp("ville"); }} style={styleChamp("ville")} />
+                    {messageChamp("ville")}
+                  </div>
+                </div>
+              </>) : (<>
               <input
                 className="rv-cmd-input"
                 id="rv-cmd-zone"
@@ -2650,7 +2825,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 style={styleChamp("zone")}
               />
               {messageChamp("zone")}
-              {pageConfig?.formulaire?.commune && (
+              </>)}
+              {!estEurope && pageConfig?.formulaire?.commune && (
                 <input
                   className="rv-cmd-input"
                   placeholder="Commune / quartier (optionnel)"
@@ -2663,7 +2839,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               {pageConfig?.formulaire?.instructions && (
                 <textarea
                   className="rv-cmd-input"
-                  placeholder="Instructions de livraison : repère, étage, point de rencontre… (optionnel)"
+                  placeholder={estEurope ? "Instructions pour le livreur (facultatif)" : "Instructions de livraison : repère, étage, point de rencontre… (optionnel)"}
                   value={form.instructions || ""}
                   onChange={(e) => setForm({ ...form, instructions: e.target.value })}
                   rows={2}
@@ -2786,21 +2962,21 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       onClick={() => { livraisonAutoRef.current = false; setTypeLivraisonChoisi("livraison"); }}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🏍️ {entreprise.labelLivraisonLocale}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>{estEurope ? "📦" : "🏍️"} {estEurope && entreprise.labelLivraisonLocale === "Livraison locale" ? "Livraison standard" : entreprise.labelLivraisonLocale}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)}</div>
                     </button>
                     <button
                       onClick={() => { livraisonAutoRef.current = false; setTypeLivraisonChoisi("expedition"); }}
                       style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "expedition" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "expedition" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>🚛 {entreprise.labelLivraisonExpedition}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>{estEurope ? "🚀" : "🚛"} {estEurope && entreprise.labelLivraisonExpedition === "Autre ville" ? "Livraison express" : entreprise.labelLivraisonExpedition}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisExpeditionEffectif)} {formaterDevise(entreprise.devise)}</div>
                     </button>
                   </div>
                   {champEnErreur === "mode-livraison" && erreurEnvoi
                     ? <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, marginTop: 6 }}>{erreurEnvoi}</div>
                     : !typeLivraisonChoisi && <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 6 }}>{t("choisisMode")}</div>}
-                  {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && (
+                  {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && !estEurope && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                       💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
                     </div>
@@ -2858,7 +3034,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 })()}
                 {fraisLivraisonActuel > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7168" }}>
-                    <span>{aChoixLivraison && typeLivraisonChoisi === "expedition" ? `🚛 ${entreprise.labelLivraisonExpedition}` : `🏍️ ${entreprise.labelLivraisonLocale}`}</span>
+                    <span>{estEurope ? (aChoixLivraison && typeLivraisonChoisi === "expedition" ? "🚀 Livraison express" : "📦 Livraison") : aChoixLivraison && typeLivraisonChoisi === "expedition" ? `🚛 ${entreprise.labelLivraisonExpedition}` : `🏍️ ${entreprise.labelLivraisonLocale}`}</span>
                     <span>+ {montantAffiche(fraisLivraisonActuel)} {formaterDevise(entreprise.devise)}</span>
                   </div>
                 )}
@@ -2914,6 +3090,29 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
               {/* Dernière étape : infos d'appel + engagement réunis dans UNE seule carte sobre
                   (au lieu de 3 encadrés de couleurs différentes empilés). Mêmes textes, même case. */}
+              {estEurope ? (
+                /* 🇪🇺 Paiement sécurisé par carte + acceptation des conditions de vente (obligatoire en Europe) */
+                <div id="rv-cmd-engagement" style={{ border: `2px solid ${champEnErreur === "engagement" && !engagementCoche ? "#D64933" : couleur}`, background: champEnErreur === "engagement" && !engagementCoche ? "#FFF5F3" : "#FFFFFF", borderRadius: 14, marginBottom: 12, overflow: "hidden", scrollMarginTop: 80 }}>
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#16231F", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Paiement</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, border: `1.5px solid ${couleur}`, background: teinteClaire(couleur, 0.08), borderRadius: 10, padding: "10px 12px" }}>
+                      <span style={{ width: 18, height: 18, borderRadius: "50%", border: `5px solid ${couleur}`, background: "white", flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#16231F" }}>💳 Carte bancaire</div>
+                        <div style={{ fontSize: 11.5, color: "#6B7168" }}>Visa, Mastercard, CB, Apple Pay, Google Pay…</div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1F9D6E", whiteSpace: "nowrap" }}>🔒 Sécurisé</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "#6B7168", marginTop: 8, lineHeight: 1.5 }}>
+                      Vous serez redirigé(e) vers la page de paiement sécurisée (Stripe). Vos données bancaires ne transitent jamais par la boutique.
+                    </div>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "12px 14px", borderTop: `1px solid ${teinteClaire(couleur, 0.25)}`, background: teinteClaire(couleur, engagementCoche ? 0.16 : 0.06), fontSize: 12.5, fontWeight: 600, color: "#16231F", lineHeight: 1.45 }}>
+                    <input type="checkbox" checked={engagementCoche} onChange={(e) => { setEngagementCoche(e.target.checked); if (e.target.checked) effacerErreurChamp("engagement"); }} style={{ width: 22, height: 22, flexShrink: 0, cursor: "pointer", accentColor: couleur, margin: 0 }} />
+                    <span>J'accepte les conditions générales de vente et la politique de retour (droit de rétractation de 14 jours).</span>
+                  </label>
+                </div>
+              ) : (
               <div
                 id="rv-cmd-engagement"
                 style={{ border: `2px solid ${champEnErreur === "engagement" && !engagementCoche ? "#D64933" : couleur}`, background: champEnErreur === "engagement" && !engagementCoche ? "#FFF5F3" : "#FFFFFF", borderRadius: 14, marginBottom: 12, overflow: "hidden", scrollMarginTop: 80, transition: "border-color .15s ease" }}
@@ -2938,15 +3137,16 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   <span>{t("caseEngagement")}</span>
                 </label>
               </div>
+              )}
               {champEnErreur === "engagement" && erreurEnvoi && (
                 <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, margin: "-4px 0 12px" }}>{erreurEnvoi}</div>
               )}
 
               <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
                 {[
-                  { icone: "💵", texte: t("badgePaiement2") },
+                  { icone: estEurope ? "🔒" : "💵", texte: t("badgePaiement2") },
                   { icone: "🚚", texte: t("badgeLivraison2") },
-                  { icone: "✅", texte: t("badgeVerifie") },
+                  { icone: estEurope ? "↩️" : "✅", texte: t("badgeVerifie") },
                 ].map((item, i) => (
                   <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: 999, background: "#F4F6F2", fontSize: 10.5, color: "#4A5A4E", fontWeight: 600, whiteSpace: "nowrap" }}>
                     <span aria-hidden="true" style={{ fontSize: 12 }}>{item.icone}</span>{item.texte}
@@ -3153,7 +3353,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
               </div>
             ) : aChoixLivraison ? (
               <div style={{ fontSize: 12.5, color: "#8A9089", marginBottom: 12 }}>
-                {t("fraisAChoisir")} ({entreprise.labelLivraisonLocale} : {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)} — {entreprise.labelLivraisonExpedition} : {montantAffiche(fraisExpeditionEffectif)} {formaterDevise(entreprise.devise)})
+                {t("fraisAChoisir")} ({estEurope && entreprise.labelLivraisonLocale === "Livraison locale" ? "Standard" : entreprise.labelLivraisonLocale} : {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)} — {estEurope && entreprise.labelLivraisonExpedition === "Autre ville" ? "Express" : entreprise.labelLivraisonExpedition} : {montantAffiche(fraisExpeditionEffectif)} {formaterDevise(entreprise.devise)})
               </div>
             ) : (
               fraisLivraisonEffectif > 0 && (
@@ -3185,11 +3385,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   style={{ width: "100%", ...styleBouton(couleur, couleurTextePourFond(couleur)), border: "none", borderRadius: 12, padding: "14px 16px", cursor: "pointer", touchAction: "manipulation", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, boxShadow: "0 6px 18px rgba(0,0,0,0.16)" }}
                 >
                   <span style={{ fontWeight: 800, fontSize: 16, lineHeight: 1.25 }}>{t("ctaEnLigneTitre")}</span>
-                  <span style={{ fontWeight: 500, fontSize: 12.5, opacity: 0.92 }}>💵 {t("ctaEnLigneSous")}</span>
+                  <span style={{ fontWeight: 500, fontSize: 12.5, opacity: 0.92 }}>{estEurope ? "🔒" : "💵"} {t("ctaEnLigneSous")}</span>
                 </button>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 16 }}>
                   {[
-                    { icone: "💵", texte: t("badgePaiement2") },
+                    { icone: estEurope ? "🔒" : "💵", texte: t("badgePaiement2") },
                     { icone: "🚚", texte: t("badgeLivraison2") },
                     { icone: "✅", texte: t("badgeVerifie") },
                   ].map((item, i) => (
@@ -4045,7 +4245,13 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       setErreur("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
       return;
     }
-    if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
+    const europePanier = entreprise?.marche === "europe";
+    if (europePanier) {
+      if (!form.client.trim() || !form.tel.trim()) { setErreur("⚠️ Indiquez votre nom et votre téléphone."); return; }
+      if (!EMAIL_VALIDE.test(String(form.email || "").trim())) { setErreur("⚠️ Indiquez une adresse email valide (pour votre confirmation de paiement)."); return; }
+      if (String(form.adresse || "").trim().length < 4 || String(form.codePostal || "").trim().length < 3 || !String(form.ville || "").trim()) { setErreur("⚠️ Indiquez votre adresse complète : numéro et rue, code postal et ville."); return; }
+      if (!form.cgv) { setErreur("⚠️ Cochez la case pour accepter les conditions de vente."); return; }
+    } else if (!form.client.trim() || !form.tel.trim() || !form.zone.trim()) {
       setErreur("Merci de renseigner ton nom, ton téléphone et ta ville/quartier.");
       return;
     }
@@ -4075,7 +4281,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       p_workspace_id: workspaceId,
       p_client: form.client,
       p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal),
-      p_zone: composerZoneMultiPays(form.zone, paysClient, totalAvecLivraison),
+      p_zone: europePanier ? composerZoneMultiPays(composerAdresseEurope(form), paysClient, 0) : composerZoneMultiPays(form.zone, paysClient, totalAvecLivraison),
       p_items: items,
       p_type_livraison: aChoixLivraison ? typeLivraisonChoisi : "livraison",
       p_fbp: obtenirAttributionMeta().fbp,
@@ -4110,6 +4316,14 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
     if (onCommandeValidee) onCommandeValidee();
     onViderPanier();
     setIdCommandePayer(idCommandePanier || null);
+    // Marché Europe : direction la page de paiement sécurisée par carte.
+    if (europePanier && idCommandePanier) {
+      setEnvoi(true);
+      const res = await lancerPaiementCarte(idCommandePanier, workspaceId, String(form.email || "").trim());
+      if (res === true) return;
+      setEnvoi(false);
+      setErreur(typeof res === "string" ? res : "");
+    }
     setEtape("envoye");
   }
 
@@ -4125,10 +4339,17 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <div style={{ fontSize: 46, marginBottom: 10 }}>🎉</div>
             <div style={{ fontSize: 14, color: "#16231F", fontWeight: 700, marginBottom: 6 }}>Merci {form.client.split(" ")[0]} 🙏</div>
+            {entreprise.marche === "europe" ? (
+              <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.6, marginBottom: 20 }}>
+                Votre commande est enregistrée. Réglez-la par carte ci-dessous pour lancer l'expédition.
+                {erreur && <div role="alert" style={{ marginTop: 8, color: "#8A2A1E", fontWeight: 700 }}>⚠️ {erreur}</div>}
+              </div>
+            ) : (
             <div style={{ fontSize: 13, color: "#6B7168", lineHeight: 1.6, marginBottom: 20 }}>
               Ta commande est bien enregistrée. Un conseiller va t'appeler au <strong>{form.tel}</strong> très bientôt — merci de répondre, c'est indispensable pour valider ta livraison.
             </div>
-            <BoutonPayerEnLigne commandeId={idCommandePayer} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
+            )}
+            {entreprise.marche !== "europe" && <BoutonPayerEnLigne commandeId={idCommandePayer} couleur={couleur} devise={formaterDevise(entreprise.devise)} />}
             {entreprise.marche === "europe" && (
               <BoutonPayerStripe commandeId={idCommandePayer} workspaceId={workspaceId} couleur={couleur} devise={formaterDevise(entreprise.devise)} />
             )}
@@ -4190,7 +4411,28 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
             <input placeholder="Ton nom complet" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} autoComplete="name" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
             <SelecteurPays pays={paysClient} langue={entreprise.langue} style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
             <input placeholder="Ton numéro de téléphone" value={form.tel} onChange={(e) => { setForm({ ...form, tel: e.target.value }); paysClient.detecter(e.target.value); }} type="tel" inputMode="tel" autoComplete="tel" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" }} />
+            {entreprise.marche === "europe" ? (() => {
+              const st = { width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 10, boxSizing: "border-box" };
+              return (<>
+                <input placeholder="Email (confirmation de paiement)" type="email" inputMode="email" autoComplete="email" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} style={st} />
+                <input placeholder="Adresse (numéro et rue)" autoComplete="address-line1" value={form.adresse || ""} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={st} />
+                <input placeholder="Complément : bâtiment, étage… (facultatif)" autoComplete="address-line2" value={form.complement || ""} onChange={(e) => setForm({ ...form, complement: e.target.value })} style={st} />
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 0.8fr) minmax(0, 1.2fr)", gap: 8 }}>
+                  <input placeholder="Code postal" autoComplete="postal-code" value={form.codePostal || ""} onChange={(e) => setForm({ ...form, codePostal: e.target.value })} style={st} />
+                  <input placeholder="Ville" autoComplete="address-level2" value={form.ville || ""} onChange={(e) => setForm({ ...form, ville: e.target.value, zone: e.target.value })} style={st} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, border: `1.5px solid ${couleur}`, borderRadius: 10, padding: "10px 12px", margin: "4px 0 10px" }}>
+                  <span style={{ fontSize: 18 }}>💳</span>
+                  <div style={{ flex: 1, fontSize: 12.5 }}><b>Paiement par carte</b><div style={{ color: "#6B7168", fontSize: 11.5 }}>Visa, Mastercard, CB, Apple Pay, Google Pay — 🔒 sécurisé par Stripe</div></div>
+                </div>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 12, color: "#16231F", marginBottom: 14, cursor: "pointer", lineHeight: 1.45 }}>
+                  <input type="checkbox" checked={!!form.cgv} onChange={(e) => setForm({ ...form, cgv: e.target.checked })} style={{ width: 18, height: 18, marginTop: 1, accentColor: couleur }} />
+                  <span>J'accepte les conditions générales de vente et la politique de retour (rétractation 14 jours).</span>
+                </label>
+              </>);
+            })() : (
             <input placeholder="Ville / quartier" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} autoComplete="address-level2" style={{ width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid #DDD8CC", fontSize: 16, marginBottom: 14, boxSizing: "border-box" }} />
+            )}
 
             {aChoixLivraison && (
               <div style={{ marginBottom: 14 }}>
@@ -4217,7 +4459,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
             {erreur && <div style={{ background: "#FBEAE6", color: "#D64933", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12.5 }}>{erreur}</div>}
 
             <button onClick={envoyerCommandePanier} disabled={envoi} style={{ width: "100%", ...styleBouton(couleur), border: "none", borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: envoi ? 0.7 : 1 }}>
-              {envoi ? "Envoi..." : "Confirmer ma commande"}
+              {envoi ? (entreprise.marche === "europe" ? "Ouverture du paiement sécurisé…" : "Envoi...") : entreprise.marche === "europe" ? `🔒 Payer ${montantAffiche(totalAvecLivraison)} ${formaterDevise(entreprise.devise)} par carte` : "Confirmer ma commande"}
             </button>
           </>
         )}
@@ -5898,7 +6140,7 @@ function PiedDePage({ entreprise, onOuvrirPolitique, onOuvrirPagePerso, collecti
       <div className="rv-ft-in rv-ft-badges">
         {[
           { icone: "🚚", texte: t("livraisonRapide") },
-          { icone: "💵", texte: t("paiementLivraison") },
+          { icone: MARCHE_BOUTIQUE === "europe" ? "💳" : "💵", texte: t("paiementLivraison") },
           { icone: "🔄", texte: t("retourFacile") },
           { icone: "🛡️", texte: t("achatSecurise") },
         ].map((badge, i) => (
@@ -6605,13 +6847,18 @@ function SectionsAzaliExpress({ collectionsManuelles, produits, devise, couleur,
 
       <div style={{ background: "white", padding: "20px 16px", borderTop: "1px solid #ECE8DC" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-          {[
+          {(MARCHE_BOUTIQUE === "europe" ? [
+            { icone: "💳", nom: "Visa / Mastercard / CB" },
+            { icone: "📱", nom: "Apple Pay" },
+            { icone: "📱", nom: "Google Pay" },
+            { icone: "🔒", nom: "Paiement sécurisé Stripe" },
+          ] : [
             { icone: "💸", nom: "Wave" },
             { icone: "📱", nom: "Orange Money" },
             { icone: "📱", nom: "MTN MoMo" },
             { icone: "💳", nom: "Visa / Mastercard" },
             { icone: "💵", nom: "Paiement à la livraison" },
-          ].map((m, i) => (
+          ]).map((m, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FAFAF7", border: "1px solid #ECE8DC", borderRadius: 8, padding: "8px 14px", fontSize: 11.5, fontWeight: 600, color: "#16231F" }}>
               <span style={{ fontSize: 14 }}>{m.icone}</span> {m.nom}
             </div>

@@ -852,11 +852,11 @@ function InfoProduit({ p, ctx, blocOffres }) {
       <div style={{ margin: "16px 0 0" }}>
         <button id="rvpp-cta-principal" type="button" className="rvpp-cta" disabled={etat.varianteEnRupture} onClick={() => ctx.cliquerCta("hero")}>
           <span className="rvpp-cta-t">{libCta}</span>
-          {p.afficher_cod !== false && <span className="rvpp-cta-s">💵 {lib("badgePaiement2", "Paiement à la livraison")}</span>}
+          {p.afficher_cod !== false && <span className="rvpp-cta-s">{entreprise?.marche === "europe" ? "🔒" : "💵"} {lib("badgePaiement2", "Paiement à la livraison")}</span>}
         </button>
         {p.afficher_reassurance !== false && (
           <div className="rvpp-trio">
-            <div><i>💵</i>{lib("badgePaiement2", "Paiement à la livraison")}</div>
+            <div><i>{entreprise?.marche === "europe" ? "🔒" : "💵"}</i>{lib("badgePaiement2", "Paiement à la livraison")}</div>
             <div><i>🚚</i>{lib("badgeLivraison2", "Livraison rapide")}</div>
             <div><i>✅</i>{lib("badgeVerifie", "Vérifiez avant de payer")}</div>
           </div>

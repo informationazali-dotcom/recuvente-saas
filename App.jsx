@@ -20451,6 +20451,10 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
                   if (opt.v === (workspace.marche || "afrique")) return;
                   if (opt.v === "europe" && !window.confirm("Passer au marché Europe ajoute le paiement par carte (Stripe) sur ton formulaire de commande public. Tes réglages actuels (paiement à la livraison) restent disponibles. Continuer ?")) return;
                   await supabase.from("workspaces").update({ marche: opt.v }).eq("id", workspace.id);
+                  // Marché Europe = paiement en euros : on propose de passer la boutique en € tout de suite.
+                  if (opt.v === "europe" && String(workspace.currency || "").toUpperCase() !== "EUR" && window.confirm(`Ta boutique est en ${workspace.currency || "?"}. Le marché Europe se paie en euros (€).\n\nPasser la monnaie de la boutique en EUR ?\n(Les prix ne sont pas convertis automatiquement : vérifie ensuite tes prix en euros.)`)) {
+                    await supabase.from("workspaces").update({ currency: "EUR" }).eq("id", workspace.id);
+                  }
                   window.location.reload();
                 }}
                 style={{
@@ -20471,7 +20475,22 @@ function IntegrationsModal({ workspace, onClose, onSupprimerBoutique }) {
           </div>
           {(workspace.marche || "afrique") === "europe" && (
             <div style={{ background: "#FBF3E3", border: "1px solid #F0DDB0", borderRadius: 8, padding: "9px 12px", fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
-              ⚠️ Le formulaire de commande public de ta boutique propose maintenant le paiement par carte en plus du paiement à la livraison.
+              ⚠️ Le bon de commande public de ta boutique est maintenant le bon de commande Europe : adresse postale, email et paiement obligatoire par carte (Stripe).
+            </div>
+          )}
+          {(workspace.marche || "afrique") === "europe" && String(workspace.currency || "").toUpperCase() !== "EUR" && (
+            <div style={{ background: "#FDECEA", border: "1px solid #F2B8B0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#8A2A1E", lineHeight: 1.5, marginTop: 8 }}>
+              🔴 Ta boutique est encore en <b>{workspace.currency}</b> : les clients européens paieraient dans cette monnaie.
+              <button
+                onClick={async () => {
+                  if (!window.confirm("Passer la monnaie de la boutique en EUR (€) ?\nLes prix ne sont pas convertis automatiquement : vérifie ensuite tes prix en euros.")) return;
+                  await supabase.from("workspaces").update({ currency: "EUR" }).eq("id", workspace.id);
+                  window.location.reload();
+                }}
+                style={{ display: "block", marginTop: 8, background: "#1a7a3c", color: "white", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+              >
+                💶 Passer la boutique en euros (€)
+              </button>
             </div>
           )}
         </div>

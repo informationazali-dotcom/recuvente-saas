@@ -138,7 +138,8 @@ function espaceMillierSure(txt) {
 // Nombre déjà converti et arrondi, formaté à la française (utilisé à la place de .toLocaleString("fr-FR")).
 export function montantAffiche(n) {
   const v = Number(n);
-  if (!MONNAIE) return espaceMillierSure(v.toLocaleString("fr-FR"));
+  // Montant à centimes (boutique en euros…) : toujours 2 décimales (29,90 et non 29,9).
+  if (!MONNAIE) return espaceMillierSure(Number.isFinite(v) && Math.abs(v - Math.round(v)) > 1e-9 ? v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toLocaleString("fr-FR"));
   if (!Number.isFinite(v)) return String(v);
   const local = arrondiLocal(Math.round(v * MONNAIE.taux * 1e6) / 1e6, MONNAIE.devise);
   const entier = Math.abs(local - Math.round(local)) < 1e-9;

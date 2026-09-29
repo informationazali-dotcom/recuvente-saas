@@ -845,13 +845,28 @@ function audioVente() {
   }
   return audioVenteEl;
 }
+// Contexte audio partagé pour le son de secours : un contexte créé hors d'un geste de
+// l'utilisateur démarre « suspendu » (donc muet) — on le crée et on le réveille au toucher.
+let ctxSonVente = null;
+function contexteSonVente() {
+  if (!ctxSonVente && typeof window !== "undefined") {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (C) { try { ctxSonVente = new C(); } catch (_) {} }
+  }
+  return ctxSonVente;
+}
+let sonVenteDebloque = false;
 function debloquerSonVente() {
+  const ctx = contexteSonVente();
+  if (ctx && ctx.state !== "running") { try { ctx.resume().catch(() => {}); } catch (_) {} }
   const a = audioVente();
   if (!a) return;
+  // Ne jamais couper un « ka-ching » en cours de lecture.
+  if (!a.paused && !a.muted) return;
   try {
     a.muted = true;
     const p = a.play();
-    const fin = () => { try { a.pause(); a.currentTime = 0; } catch (_) {} a.muted = false; };
+    const fin = () => { try { a.pause(); a.currentTime = 0; } catch (_) {} a.muted = false; sonVenteDebloque = true; };
     if (p && p.then) p.then(fin).catch(() => { a.muted = false; }); else fin();
   } catch (_) {}
 }
@@ -4828,7 +4843,9 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
 
   function playNotifSoundSecours() {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = contexteSonVente();
+      if (!ctx) return;
+      if (ctx.state !== "running") { try { ctx.resume().catch(() => {}); } catch (_) {} }
       function jouerChaChing(decalage) {
         const notes = [
           { freq: 987.77, start: decalage, dur: 0.16, vol: 0.55 },
@@ -4989,10 +5006,44 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           debounceNouvellesCommandes.current = setTimeout(() => loadCommandes(), 700);
         }
       )
-      .subscribe();
+      .subscribe((statut) => {
+        // Connexion temps réel coupée (réseau, mise en veille…) : on revérifie tout de suite
+        // les commandes pour ne pas rater le « ka-ching » d'une vente arrivée pendant la coupure.
+        if (statut === "CHANNEL_ERROR" || statut === "TIMED_OUT" || statut === "CLOSED") {
+          clearTimeout(debounceNouvellesCommandes.current);
+          debounceNouvellesCommandes.current = setTimeout(() => loadCommandes(), 1500);
+        }
+      });
+
+    // Filet de sécurité si le temps réel rate une commande : toutes les 45 s, une requête très
+    // légère (l'identifiant de la dernière commande seulement). Si elle est inconnue, on recharge
+    // — ce qui déclenche le son et le bandeau comme d'habitude.
+    let verificationEnCours = false;
+    async function verifierDerniereCommande() {
+      if (verificationEnCours || knownOrderIds.current === null) return;
+      verificationEnCours = true;
+      try {
+        const { data } = await supabase.from("commandes").select("id").eq("workspace_id", workspace.id).order("created_at", { ascending: false }).limit(1);
+        const derniere = data && data[0];
+        if (derniere && !knownOrderIds.current.has(derniere.id)) {
+          clearTimeout(debounceNouvellesCommandes.current);
+          loadCommandes();
+        }
+      } catch (_) {}
+      verificationEnCours = false;
+    }
+    const intervalleVerif = setInterval(verifierDerniereCommande, 45000);
+    const auRetour = () => { if (document.visibilityState === "visible") verifierDerniereCommande(); };
+    document.addEventListener("visibilitychange", auRetour);
+    window.addEventListener("online", verifierDerniereCommande);
+    window.addEventListener("focus", verifierDerniereCommande);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(intervalleVerif);
+      document.removeEventListener("visibilitychange", auRetour);
+      window.removeEventListener("online", verifierDerniereCommande);
+      window.removeEventListener("focus", verifierDerniereCommande);
     };
   }, []);
 
@@ -5000,8 +5051,10 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   // push arrive alors que l'app est ouverte (même en arrière-plan), le service worker nous prévient :
   // on recharge les commandes tout de suite (le son et le bandeau partent alors comme d'habitude).
   useEffect(() => {
+    // Débloque le son à CHAQUE toucher/clic (pas seulement le premier) : sur téléphone, le
+    // navigateur peut re-verrouiller l'audio quand l'app passe en arrière-plan puis revient.
     const debloquer = () => debloquerSonVente();
-    ["pointerdown", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, debloquer, { once: true, passive: true }));
+    ["pointerdown", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, debloquer, { passive: true }));
     let ecouteur = null;
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       ecouteur = (e) => {

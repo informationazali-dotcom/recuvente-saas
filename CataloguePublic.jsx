@@ -4,7 +4,7 @@ import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
 import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
-import { PageProduitPublique, PageProduitSquelette } from "./PageProduitRenderer.jsx";
+import { PageProduitPublique, PageProduitSquelette, imageVarianteChoisie, imageValeurOption } from "./PageProduitRenderer.jsx";
 import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS, construireResumeVocal, analyserVideo } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
@@ -1496,8 +1496,25 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     : produitOuvert ? "produit" : "navigue";
   const etapeRef = useRef(etapeVisiteur);
   etapeRef.current = etapeVisiteur;
+  // « Rappeler pendant qu'il hésite » : dès que le client a tapé un numéro complet dans le bon de
+  // commande, le commerçant (et lui seul, membre de la boutique) peut le voir dans sa Vue en direct
+  // et l'appeler / lui écrire sur WhatsApp s'il ne valide pas. Même information que le panier
+  // abandonné déjà enregistré par RecuVente — simplement disponible tout de suite.
+  const contactVisiteur = (() => {
+    const chiffres = String(form.tel || "").replace(/\D/g, "");
+    if (chiffres.length < 8 || etapeVisiteur === "valide") return null;
+    let tel = "";
+    try {
+      const code = paysClient.effectif || paysClient.principal || "";
+      const local = normaliserTelephoneLocal(form.tel, code);
+      tel = String(local || "").startsWith("+") ? local : INDICATIFS_PAYS_TEL[code] ? "+" + INDICATIFS_PAYS_TEL[code] + (PAYS_SANS_ZERO_INTERNATIONAL.has(code) ? String(local).replace(/^0/, "") : local) : String(local || chiffres);
+    } catch (_) { tel = chiffres; }
+    return { tel: tel.slice(0, 20), nom: String(form.client || "").trim().slice(0, 60) || null, produit: produitOuvert?.produit_nom ? String(produitOuvert.produit_nom).slice(0, 80) : (panier[0]?.produit_nom || null) };
+  })();
+  const contactRef = useRef(contactVisiteur);
+  contactRef.current = contactVisiteur;
   const pingRef = useRef(null);
-  useEffect(() => { if (pingRef.current) pingRef.current(); }, [etapeVisiteur]);
+  useEffect(() => { if (pingRef.current) pingRef.current(); }, [etapeVisiteur, contactVisiteur ? contactVisiteur.tel : ""]);
   useEffect(() => {
     if (!workspaceId) return;
     let sid = "";
@@ -1509,7 +1526,15 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         // Signal complémentaire avec la ville (Vue en direct). Sans effet si la migration SQL n'est pas appliquée.
         const geo = cachePaysVisiteur.geo;
         // (envoyé même sans ville connue : l'étape du parcours reste utile au commerçant)
-        try { supabase.rpc("ping_visiteur_geo", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null, p_ville: geo ? geo.ville : null, p_lat: geo ? geo.lat : null, p_lon: geo ? geo.lon : null, p_etape: etapeRef.current }).then(() => {}, () => {}); } catch (_) {}
+        try {
+          const base = { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null, p_ville: geo ? geo.ville : null, p_lat: geo ? geo.lat : null, p_lon: geo ? geo.lon : null, p_etape: etapeRef.current };
+          const avecContact = { ...base, p_tel: contactRef.current ? contactRef.current.tel : null, p_nom: contactRef.current ? contactRef.current.nom : null, p_produit: contactRef.current ? contactRef.current.produit : null };
+          // Tant que la migration 202609290004 n'est pas appliquée, on retombe sur l'ancien ping (rien ne casse).
+          if (window.__rvPingSansContact) supabase.rpc("ping_visiteur_geo", base).then(() => {}, () => {});
+          else supabase.rpc("ping_visiteur_geo", avecContact).then(({ error }) => {
+            if (error) { window.__rvPingSansContact = true; supabase.rpc("ping_visiteur_geo", base).then(() => {}, () => {}); }
+          }, () => {});
+        } catch (_) {}
       });
     };
     pingRef.current = ping;
@@ -2431,6 +2456,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       : prixUnitairePourBundle(produitOuvert.prix_vente, bundleActif);
     const stockVarianteActive = varianteActive ? Number(varianteActive.stock ?? 0) : null;
     const varianteEnRupture = varianteActive && stockVarianteActive <= 0;
+    // Photo propre à la variante choisie (ex. couleur rouge) : elle passe en premier dans la galerie.
+    const photoVariante = (varianteActive && varianteActive.image) || imageVarianteChoisie(variantesProduit, optionsChoisies);
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);
     // Montants arrondis « propres » (boutique multi-monnaies) puis additionnés : prix + livraison = total affiché, et
     // c'est ce total exact qui est noté « À encaisser ». Sans conversion, ces fonctions ne changent rien.
@@ -2450,8 +2477,8 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
             <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 14, padding: 16, textAlign: "left", marginBottom: 18 }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid #ECE8DC" }}>
-                {produitOuvert.photo_url ? (
-                  <img src={produitOuvert.photo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                {photoVariante || produitOuvert.photo_url ? (
+                  <img src={photoVariante || produitOuvert.photo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
                 ) : (
                   <div style={{ width: 48, height: 48, borderRadius: 8, background: "#EEF0EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📦</div>
                 )}
@@ -2688,12 +2715,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {o.valeurs.map((val) => {
                           const actif = optionsChoisies[o.nom] === val;
+                          const imgValeur = imageValeurOption(variantesProduit, o.nom, val);
                           return (
                             <button
                               key={val}
-                              onClick={() => setOptionsChoisies((c) => ({ ...c, [o.nom]: val }))}
-                              style={{ border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", color: "#16231F", borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                              onClick={() => { setOptionsChoisies((c) => ({ ...c, [o.nom]: val })); if (imgValeur) setPhotoActive(0); }}
+                              style={{ border: `1.5px solid ${actif ? couleur : "#DDD8CC"}`, background: actif ? "#EAF3DE" : "white", color: "#16231F", borderRadius: 999, padding: imgValeur ? "4px 14px 4px 4px" : "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}
                             >
+                              {imgValeur && <img src={imgValeur} alt="" loading="lazy" style={{ width: 30, height: 30, borderRadius: 999, objectFit: "cover", border: "1px solid #ECE8DC" }} />}
                               {val}
                             </button>
                           );
@@ -3011,7 +3040,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         <div className="rv-shop-produit-wrap">
           <div className="rv-shop-produit-photo-col" style={{ position: "relative", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
             <GaleriePhotosProduit
-              photos={[produitOuvert.photo_url, ...(produitOuvert.photos_galerie || [])].filter(Boolean)}
+              photos={[photoVariante, produitOuvert.photo_url, ...(produitOuvert.photos_galerie || [])].filter((url, idx, arr) => Boolean(url) && arr.indexOf(url) === idx)}
               alt={produitOuvert.produit_nom}
               couleur={couleur}
               index={photoActive}

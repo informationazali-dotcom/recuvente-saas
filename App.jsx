@@ -14187,6 +14187,37 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
     );
   }
 
+  // Photo propre à une variante (ex. la couleur Rouge) : envoyée dans le même stockage que les
+  // photos produit ; elle s'affiche sur la boutique quand le client choisit cette variante.
+  const [photoVarianteEnvoi, setPhotoVarianteEnvoi] = useState(null);
+  async function envoyerPhotoVariante(produitId, varianteId, fichier) {
+    if (!fichier) return;
+    if (fichier.size > 5 * 1024 * 1024) {
+      alert("L'image est trop lourde (max 5 Mo). Choisis une photo plus légère.");
+      return;
+    }
+    setPhotoVarianteEnvoi(varianteId);
+    try {
+      const fichierCompresse = await compresserImage(fichier);
+      const extension = fichierCompresse.name.split(".").pop();
+      const chemin = `${produitId}-variante-${String(varianteId).replace(/[^a-zA-Z0-9_-]/g, "")}-${Date.now()}.${extension}`;
+      const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+      if (erreurUpload) { alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message); return; }
+      const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+      try { televerserVignetteProduit("produits", chemin, fichier); } catch (_) {}
+      setVariantesListe((liste) => liste.map((x) => (x.id === varianteId ? { ...x, image: data.publicUrl } : x)));
+    } finally {
+      setPhotoVarianteEnvoi(null);
+    }
+  }
+  // Même photo pour toutes les variantes d'une valeur (ex. toutes les tailles du Rouge).
+  function appliquerPhotoAValeur(v) {
+    if (!v.image) return;
+    const [premiereOption, valeur] = Object.entries(v.combinaison || {})[0] || [];
+    if (!premiereOption) return;
+    setVariantesListe((liste) => liste.map((x) => (x.combinaison && x.combinaison[premiereOption] === valeur ? { ...x, image: v.image } : x)));
+  }
+
   async function envoyerPhoto(produitId, fichier) {
     if (!fichier) return;
     if (fichier.size > 5 * 1024 * 1024) {
@@ -15101,7 +15132,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                 {/* --- Carte Variantes --- */}
                 <Carte titre="🎨 Variantes">
                   <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.5 }}>
-                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Laisse un prix vide pour garder le prix de vente par défaut.
+                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Laisse un prix vide pour garder le prix de vente par défaut. Touche 📷 pour donner une photo à chaque variante : elle s'affiche quand le client la choisit.
                   </div>
                   <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
                     {optionsProduit.map((o, i) => (
@@ -15118,8 +15149,26 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                   {variantesListe.length > 0 && (
                     <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
                       {variantesListe.map((v, i) => (
-                        <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #ECE8DC", borderRadius: 9, padding: "8px 10px" }}>
-                          <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "#16231F" }}>{Object.values(v.combinaison).join(" / ")}</div>
+                        <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #ECE8DC", borderRadius: 9, padding: "8px 10px", flexWrap: "wrap" }}>
+                          <label title={v.image ? "Changer la photo de cette variante" : "Ajouter une photo à cette variante"} style={{ position: "relative", width: 46, height: 46, borderRadius: 8, flexShrink: 0, cursor: "pointer", overflow: "hidden", border: v.image ? "1px solid #DDD8CC" : "1.5px dashed #9fb5a5", background: "#f7faf7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#1a7a3c", textAlign: "center", lineHeight: 1.1 }}>
+                            {photoVarianteEnvoi === v.id ? "⏳" : v.image ? <img src={v.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span>📷<br />Photo</span>}
+                            <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; envoyerPhotoVariante(selected.id, v.id, f); }} />
+                          </label>
+                          <div style={{ flex: 1, minWidth: 110, fontSize: 12, fontWeight: 700, color: "#16231F" }}>
+                            {Object.values(v.combinaison).join(" / ")}
+                            {v.image && (
+                              <div style={{ display: "flex", gap: 8, marginTop: 3, fontWeight: 600 }}>
+                                {Object.keys(v.combinaison || {}).length > 1 && (
+                                  <button type="button" onClick={() => appliquerPhotoAValeur(v)} style={{ border: "none", background: "none", padding: 0, fontSize: 11, color: "#1a7a3c", cursor: "pointer", textDecoration: "underline" }}>
+                                    Même photo pour tout « {Object.values(v.combinaison)[0]} »
+                                  </button>
+                                )}
+                                <button type="button" onClick={() => setVariantesListe((liste) => liste.map((x) => (x.id === v.id ? { ...x, image: null } : x)))} style={{ border: "none", background: "none", padding: 0, fontSize: 11, color: "#B33A2A", cursor: "pointer", textDecoration: "underline" }}>
+                                  Retirer
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <input type="number" placeholder={`Prix (${currency})`} value={v.prix} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, prix: e.target.value } : x)))} style={{ width: 100, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
                           <input type="number" placeholder="Stock" value={v.stock} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, stock: e.target.value } : x)))} style={{ width: 70, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
                         </div>
@@ -15133,7 +15182,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                         setErreurEnreg(null);
                         const res = await onUpdateLivraisonBundles(selected.id, {
                           options: optionsProduit.filter((o) => o.nom.trim() && o.valeursTexte.trim()).map((o) => ({ nom: o.nom.trim(), valeurs: o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean) })),
-                          variantes: variantesListe.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: v.stock === "" ? 0 : Number(v.stock) })),
+                          variantes: variantesListe.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: v.stock === "" ? 0 : Number(v.stock), ...(v.image ? { image: v.image } : {}) })),
                         });
                         if (res && !res.ok) setErreurEnreg({ zone: "variantes", echecs: res.echecs });
                         else flash("variantes");

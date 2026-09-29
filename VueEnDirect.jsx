@@ -147,7 +147,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       // (migration SQL pas appliquée), on retombe sur la liste par pays, comme avant.
       const lireGeo = () => supabase.rpc("visiteurs_en_ligne_geo", { p_workspace: workspace.id }).then(({ data, error }) => {
         if (error || !Array.isArray(data)) throw error || new Error("indisponible");
-        return data.map((v) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: v.sid, ville: v.ville || null, lat: Number.isFinite(v.lat) ? v.lat : null, lon: Number.isFinite(v.lon) ? v.lon : null, etape: v.etape || "navigue", etapeDepuis: v.etape_depuis ? new Date(v.etape_depuis).getTime() : null }));
+        return data.map((v) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: v.sid, ville: v.ville || null, lat: Number.isFinite(v.lat) ? v.lat : null, lon: Number.isFinite(v.lon) ? v.lon : null, etape: v.etape || "navigue", etapeDepuis: v.etape_depuis ? new Date(v.etape_depuis).getTime() : null, tel: v.tel || null, nom: v.nom || null, produit: v.produit || null, rappelePar: v.rappele_par || null }));
       });
       const lireSimple = () => supabase.rpc("visiteurs_en_ligne", { p_workspace: workspace.id }).then(({ data, error }) => {
         if (error || !Array.isArray(data)) return null;
@@ -179,6 +179,44 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
     const h = setInterval(() => setHeure(new Date()), 1000);
     return () => { vivant = false; clearInterval(m); clearInterval(h); };
   }, [workspace.id]);
+
+  // --- 📞 Rappeler pendant qu'il hésite ---------------------------------------------------------
+  // Un client a tapé son numéro dans le bon de commande mais n'a pas validé depuis 2 min :
+  // on l'affiche avec « Appeler » / « WhatsApp » pour le rappeler pendant qu'il est encore sur la page.
+  const DELAI_HESITATION = 120000;
+  const [traites, setTraites] = useState(() => new Set());
+  const hesitants = visiteurs
+    .filter((v) => v.etape === "paiement" && v.tel && v.etapeDepuis && heure.getTime() - v.etapeDepuis >= DELAI_HESITATION && !traites.has(v.cle))
+    .sort((a, b) => a.etapeDepuis - b.etapeDepuis);
+  const annonces = useRef(new Set());
+  const clesHesitants = hesitants.map((v) => v.cle).join("|");
+  useEffect(() => {
+    hesitants.forEach((v) => {
+      if (annonces.current.has(v.cle)) return;
+      annonces.current.add(v.cle);
+      ajouterFil({ type: "hesite", texte: `⏳ Hésite depuis 2 min — ${v.nom || "Client"}${v.ville ? `, ${v.ville}` : ""}`, sous: v.produit ? `${v.produit} · à rappeler` : "à rappeler maintenant" });
+      try { if (navigator.vibrate) navigator.vibrate([120, 80, 120]); } catch (_) {}
+    });
+  }, [clesHesitants]);
+  // Anneau orange qui pulse sur le globe autour de chaque client qui hésite.
+  useEffect(() => {
+    if (!clesHesitants) return undefined;
+    const pulse = () => clesHesitants.split("|").forEach((cle) => etat.current.impulsions.push({ cle, t0: performance.now(), rgb: [251, 146, 60] }));
+    pulse();
+    const i = setInterval(pulse, 1600);
+    return () => clearInterval(i);
+  }, [clesHesitants]);
+  const telChiffres = (tel) => String(tel || "").replace(/\D/g, "");
+  const lienWhatsApp = (v) => {
+    const message = `Bonjour${v.nom ? " " + v.nom : ""}, c'est ${workspace?.name || "la boutique"} 😊 Vous étiez en train de commander${v.produit ? " « " + v.produit + " »" : ""}. Avez-vous une question ? Je peux vous aider à finaliser votre commande.`;
+    return `https://wa.me/${telChiffres(v.tel)}?text=${encodeURIComponent(message)}`;
+  };
+  const marquerTraite = (v) => {
+    setTraites((t) => { const n = new Set(t); n.add(v.cle); return n; });
+    // Partagé avec l'équipe si la migration 202609290004 est appliquée (sinon : masqué sur cet appareil).
+    try { supabase.rpc("marquer_visiteur_rappele", { p_workspace: workspace.id, p_sid: v.cle }).then(() => {}, () => {}); } catch (_) {}
+  };
+  const depuisTexte = (ms) => { const m = Math.floor(ms / 60000); const s = Math.floor((ms % 60000) / 1000); return m > 0 ? `${m} min ${String(s).padStart(2, "0")}` : `${s} s`; };
 
   function ajouterFil(evt) {
     setFil((f) => [{ ...evt, id: `${Date.now()}-${Math.random()}`, t: Date.now() }, ...f].slice(0, 7));
@@ -597,6 +635,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         @keyframes rvLive { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .45; transform: scale(.8) } }
         @keyframes rvEntre { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
         .rv-vd-scroll::-webkit-scrollbar { display: none }
+        @keyframes rvHalo { 0%,100% { box-shadow: 0 0 0 rgba(251,146,60,0), 0 10px 40px rgba(0,0,0,.35) } 50% { box-shadow: 0 0 22px rgba(251,146,60,.45), 0 10px 40px rgba(0,0,0,.35) } }
         @keyframes rvBat { 0%,100% { transform: scale(1) } 50% { transform: scale(1.12) } }
         @keyframes rvFlux { from { background-position: 0 0 } to { background-position: 200px 0 } }
         .rv-flux { background: linear-gradient(90deg, rgba(52,211,153,.15), rgba(52,211,153,.9) 20%, rgba(34,211,238,.9) 45%, rgba(192,132,252,.9) 70%, rgba(251,191,36,.9) 90%, rgba(251,191,36,.15)); background-size: 200px 2px; animation: rvFlux 2.4s linear infinite; opacity: .55; filter: drop-shadow(0 0 4px rgba(110,231,183,.6)) }
@@ -649,14 +688,43 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         </div>
       </div>
 
+      {/* 📞 À rappeler maintenant : clients qui ont tapé leur numéro mais hésitent à valider */}
+      {hesitants.length > 0 && (
+        <div className="rv-vd-scroll" style={mobile
+          ? { position: "absolute", left: 12, right: 12, top: 148, zIndex: 3, display: "flex", flexDirection: "column", gap: 6, maxHeight: "34vh", overflowY: "auto" }
+          : { position: "absolute", left: "50%", transform: "translateX(-50%)", top: 72, zIndex: 3, width: "min(380px, calc(100vw - 640px))", minWidth: 300, display: "flex", flexDirection: "column", gap: 6, maxHeight: "44vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 800, color: "#fdba74", textShadow: "0 0 12px rgba(251,146,60,.6)" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fb923c", boxShadow: "0 0 10px #fb923c", animation: "rvLive 1s ease-in-out infinite" }} />
+            📞 À rappeler maintenant · {hesitants.length}
+          </div>
+          {hesitants.slice(0, mobile ? 2 : 5).map((v) => (
+            <div key={v.cle} style={{ ...verre, padding: "10px 12px", animation: "rvEntre .35s ease, rvHalo 2s ease-in-out infinite", border: "1px solid rgba(251,146,60,0.55)", background: "linear-gradient(135deg, rgba(60,28,8,0.72), rgba(10,24,34,0.6))" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#ffedd5", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{drapeau(v.pays)} {v.nom || "Client"}{v.ville ? <span style={{ fontWeight: 600, opacity: 0.7 }}> · {v.ville}</span> : null}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: "#fb923c", flexShrink: 0 }}>⏳ {depuisTexte(heure.getTime() - v.etapeDepuis)}</div>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}>{v.tel}</span>{v.produit ? ` · ${v.produit}` : ""}
+              </div>
+              {v.rappelePar && <div style={{ fontSize: 11, color: "#86efac", marginTop: 2 }}>✓ Déjà pris en charge par {v.rappelePar}</div>}
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <a href={`tel:${v.tel}`} style={{ flex: 1, textDecoration: "none", textAlign: "center", padding: "8px 6px", borderRadius: 10, fontSize: 12.5, fontWeight: 800, color: "#1c0f04", background: "linear-gradient(135deg, #fdba74, #fb923c)", boxShadow: "0 0 14px rgba(251,146,60,.5)" }}>📞 Appeler</a>
+                <a href={lienWhatsApp(v)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: "none", textAlign: "center", padding: "8px 6px", borderRadius: 10, fontSize: 12.5, fontWeight: 800, color: "#04210f", background: "linear-gradient(135deg, #4ade80, #22c55e)", boxShadow: "0 0 14px rgba(34,197,94,.45)" }}>💬 WhatsApp</a>
+                <button onClick={() => marquerTraite(v)} title="Masquer : je m'en occupe" style={{ ...bouton, padding: "8px 10px", fontSize: 12, flexShrink: 0 }}>✓</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Flux d'activité */}
       <div className="rv-vd-scroll" style={mobile
         ? { position: "absolute", left: 12, right: 12, top: 148, display: "flex", flexDirection: "column", gap: 6 }
         : { position: "absolute", right: 14, top: 72, width: "min(290px, 44vw)", display: "flex", flexDirection: "column", gap: 6, maxHeight: "46vh", overflowY: "auto" }}>
         {fil.length === 0 && !mobile && <div style={{ ...verre, padding: "10px 12px", fontSize: 12, opacity: 0.75 }}>En attente d'activité… chaque visite et chaque commande apparaîtra ici en direct.</div>}
-        {(mobile ? fil.slice(0, 1) : fil).map((f) => (
-          <div key={f.id} onClick={() => f.commandeId && onOuvrirCommande && onOuvrirCommande(f.commandeId)} style={{ ...verre, padding: "9px 12px", animation: "rvEntre .35s ease", cursor: f.commandeId ? "pointer" : "default", borderColor: f.type === "commande" || f.type === "valide" ? "rgba(251,191,36,0.45)" : f.type === "paiement" ? "rgba(192,132,252,0.5)" : f.type === "panier" ? "rgba(34,211,238,0.45)" : "rgba(160,255,220,0.14)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: f.type === "commande" || f.type === "valide" ? "#fde68a" : f.type === "paiement" ? "#e9d5ff" : f.type === "panier" ? "#a5f3fc" : "#d1fae5" }}>{f.texte}</div>
+        {(mobile ? (hesitants.length > 0 ? [] : fil.slice(0, 1)) : fil).map((f) => (
+          <div key={f.id} onClick={() => f.commandeId && onOuvrirCommande && onOuvrirCommande(f.commandeId)} style={{ ...verre, padding: "9px 12px", animation: "rvEntre .35s ease", cursor: f.commandeId ? "pointer" : "default", borderColor: f.type === "hesite" ? "rgba(251,146,60,0.6)" : f.type === "commande" || f.type === "valide" ? "rgba(251,191,36,0.45)" : f.type === "paiement" ? "rgba(192,132,252,0.5)" : f.type === "panier" ? "rgba(34,211,238,0.45)" : "rgba(160,255,220,0.14)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: f.type === "hesite" ? "#fdba74" : f.type === "commande" || f.type === "valide" ? "#fde68a" : f.type === "paiement" ? "#e9d5ff" : f.type === "panier" ? "#a5f3fc" : "#d1fae5" }}>{f.texte}</div>
             {f.sous && <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.sous}</div>}
           </div>
         ))}
@@ -677,7 +745,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
           <button onClick={() => zoomer(1 / 1.6)} aria-label="Zoom arrière" style={{ ...bouton, flexShrink: 0, width: 38, justifyContent: "center", padding: "8px 0" }}>－</button>
           <button onClick={() => setRotationAuto((r) => !r)} style={{ ...bouton, flexShrink: 0 }}>{rotationAuto ? "⏸ Pause" : "🔄 Rotation"}</button>
         </div>
-        <div style={{ fontSize: 10.5, color: "rgba(232,255,246,0.4)", display: mobile ? "none" : "block" }}>🟢 visite · 🔵 panier · 🟣 paiement en cours · 🟡 validé et commandes du jour (par ville) · éclairage jour / nuit réel · glisse pour tourner, pince ou molette pour zoomer (les villes s'affichent), touche un point doré pour ouvrir la commande</div>
+        <div style={{ fontSize: 10.5, color: "rgba(232,255,246,0.4)", display: mobile ? "none" : "block" }}>🟢 visite · 🔵 panier · 🟣 paiement en cours · 🟠 hésite (à rappeler) · 🟡 validé et commandes du jour (par ville) · éclairage jour / nuit réel · glisse pour tourner, pince ou molette pour zoomer (les villes s'affichent), touche un point doré pour ouvrir la commande</div>
       </div>
 
       {/* Bulle d'information au survol / toucher */}

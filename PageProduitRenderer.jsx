@@ -25,6 +25,21 @@ import {
 // Utilitaires visuels
 // ---------------------------------------------------------------------------
 
+// Photo de variante : la variante qui correspond aux options DÉJÀ choisies (même partiellement,
+// ex. seulement la couleur) et qui a une photo ; et la photo à montrer dans la pastille d'une valeur.
+export function imageVarianteChoisie(variantes, choix) {
+  const liste = Array.isArray(variantes) ? variantes : [];
+  const cles = Object.keys(choix || {}).filter((k) => choix[k]);
+  if (cles.length === 0) return null;
+  const v = liste.find((x) => x && x.image && x.combinaison && cles.every((k) => x.combinaison[k] === choix[k]));
+  return v ? v.image : null;
+}
+export function imageValeurOption(variantes, nomOption, valeur) {
+  const liste = Array.isArray(variantes) ? variantes : [];
+  const v = liste.find((x) => x && x.image && x.combinaison && x.combinaison[nomOption] === valeur);
+  return v ? v.image : null;
+}
+
 function hexVersRgba(hex, alpha) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
   if (!m) return `rgba(26,122,60,${alpha})`;
@@ -132,6 +147,8 @@ const CSS_PAGE = `
 .rvpp-chips{display:flex;flex-wrap:wrap;gap:8px}
 .rvpp-chip{min-height:42px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--pp-line);background:#fff;color:var(--pp-ink);font-size:13.5px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .rvpp-chip[aria-pressed="true"]{border-color:var(--pp-accent);background:var(--pp-accent-soft)}
+.rvpp-chip-img{display:inline-flex;align-items:center;gap:8px;padding:5px 14px 5px 5px}
+.rvpp-chip-img img{width:34px;height:34px;border-radius:999px;object-fit:cover;flex-shrink:0;border:1px solid var(--pp-line)}
 .rvpp-trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px}
 .rvpp-trio>div{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:11.5px;font-weight:600;color:var(--pp-muted);line-height:1.3}
 .rvpp-trio i{font-style:normal;width:40px;height:40px;border-radius:50%;background:var(--pp-accent-soft);display:flex;align-items:center;justify-content:center;font-size:18px}
@@ -812,7 +829,14 @@ function InfoProduit({ p, ctx, blocOffres }) {
               <div className="rvpp-opt-t">{o.nom} <span style={{ color: "#D64933" }}>*</span></div>
               <div className="rvpp-chips">
                 {(o.valeurs || []).map((val) => (
-                  <button key={val} type="button" className="rvpp-chip" aria-pressed={etat.optionsChoisies[o.nom] === val} onClick={() => actions.onChoisirOption(o.nom, val)}>{val}</button>
+                  (() => {
+                  const img = imageValeurOption(produit.variantes, o.nom, val);
+                  return (
+                    <button key={val} type="button" className={img ? "rvpp-chip rvpp-chip-img" : "rvpp-chip"} aria-pressed={etat.optionsChoisies[o.nom] === val} onClick={() => actions.onChoisirOption(o.nom, val)}>
+                      {img && <img src={img} alt="" loading="lazy" decoding="async" />}{val}
+                    </button>
+                  );
+                })()
                 ))}
               </div>
             </div>
@@ -1596,7 +1620,7 @@ export function PageProduitPublique({
 
   const ctx = {
     ...ctxBase, accent, accentTxt, devise, deviseCode, etat: etatComplet, liv, t, preview, libelleCta, optionsManquantes,
-    photos: [etatComplet.varianteActive?.image, produit?.photo_url, ...((produit && produit.photos_galerie) || [])].filter((url, idx, arr) => Boolean(url) && arr.indexOf(url) === idx),
+    photos: [etatComplet.varianteActive?.image || imageVarianteChoisie(produit?.variantes, etatComplet.optionsChoisies), produit?.photo_url, ...((produit && produit.photos_galerie) || [])].filter((url, idx, arr) => Boolean(url) && arr.indexOf(url) === idx),
     actions: {
       ...actionsCompletes,
       onChoisirOffre: (o) => { actionsCompletes.onChoisirOffre(o); evenement("offre_selectionnee", { offre_id: o ? o.id : "base" }); },

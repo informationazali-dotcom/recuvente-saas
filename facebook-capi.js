@@ -1,0 +1,383 @@
+import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
+
+const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+function hasher(valeur) {
+  if (!valeur) return null;
+  return crypto.createHash("sha256").update(String(valeur).trim().toLowerCase()).digest("hex");
+}
+
+// Même table que côté boutique publique (CataloguePublic.jsx) — évite de figer la
+// Côte d'Ivoire en dur alors que RecuVente sert plusieurs pays d'Afrique de l'Ouest.
+const INDICATIFS_PAYS = { CI: "225", BJ: "229", SN: "221", ML: "223", BF: "226", TG: "228", GN: "224", CM: "237", GA: "241", CD: "243", MA: "212", DZ: "213", TN: "216", GH: "233", NG: "234", FR: "33" };
+
+// Longueur du numéro national (sans indicatif) : en Côte d'Ivoire et au Bénin, depuis leur passage
+// à 10 chiffres, le « 0 » de tête FAIT PARTIE du numéro (+225 07 01 02 03 04). L'ancien code le
+// retirait toujours, ce qui donnait un numéro faux à Facebook (donc un achat moins bien reconnu).
+const LONGUEUR_NATIONALE = { CI: 10, BJ: 10, SN: 9, ML: 8, BF: 8, TG: 8, GN: 9, CM: 9 };
+
+function normaliserTelephone(tel, codePays) {
+  // Boutique multi-pays : un client d'un autre pays que le pays principal est enregistré au format
+  // international « +224… » — déjà complet, on ne lui rajoute surtout pas l'indicatif du pays principal.
+  if (String(tel || "").trim().startsWith("+")) return "+" + String(tel).replace(/\D/g, "");
+  let chiffres = String(tel || "").replace(/\D/g, "");
+  if (chiffres.startsWith("00")) chiffres = chiffres.slice(2);
+  const indicatif = INDICATIFS_PAYS[codePays] || "225";
+  const longueur = LONGUEUR_NATIONALE[codePays] || 10;
+  if (!chiffres.startsWith(indicatif) && chiffres.length <= 10) {
+    // On ne retire le « 0 » de tête que s'il est en trop (numéro plus long que la longueur nationale).
+    const national = chiffres.length > longueur ? chiffres.replace(/^0/, "") : chiffres;
+    chiffres = indicatif + national;
+  }
+  return "+" + chiffres;
+}
+
+// ============================================================================
+//  Événements d'entonnoir (ViewContent, AddToCart, InitiateCheckout) envoyés à Facebook
+//  PAR LE SERVEUR — en plus du Pixel du navigateur, comme le fait Shopify.
+//  Le Pixel du navigateur est souvent bloqué ou retardé (iPhone, navigateur intégré de
+//  Facebook/Instagram, bloqueurs de publicités) ; le serveur, lui, ne peut pas être bloqué.
+//  Le même event_id est envoyé des deux côtés : Meta ne compte l'événement qu'une fois.
+//
+//  Ce code vit DANS ce fichier (et non dans un fichier séparé) car l'offre gratuite de
+//  Vercel limite le nombre de fonctions serveur : un fichier de plus ferait échouer le
+//  déploiement. Une requête contenant « nom » est un événement d'entonnoir ; une requête
+//  contenant « commandeId » suit le chemin habituel de l'achat ci-dessous, inchangé.
+// ============================================================================
+const EVENEMENTS_AUTORISES = new Set(["ViewContent", "AddToCart", "InitiateCheckout"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Petites protections en mémoire (valables pour l'instance serveur en cours) :
+// - la config Facebook d'une boutique est gardée 60 s (évite une lecture de base par événement) ;
+// - un même visiteur (IP) est limité à 90 événements par minute (anti-abus).
+const cacheWorkspace = new Map();
+const compteurs = new Map();
+
+async function lireWorkspace(id) {
+  const en_cache = cacheWorkspace.get(id);
+  if (en_cache && Date.now() - en_cache.t < 60000) return en_cache.v;
+  const { data } = await supabaseAdmin
+    .from("workspaces")
+    .select("facebook_pixel_id, facebook_capi_token, currency")
+    .eq("id", id)
+    .maybeSingle();
+  cacheWorkspace.set(id, { t: Date.now(), v: data || null });
+  if (cacheWorkspace.size > 500) cacheWorkspace.clear();
+  return data || null;
+}
+
+function tropDeRequetes(ip) {
+  const minute = Math.floor(Date.now() / 60000);
+  const cle = `${ip}:${minute}`;
+  const n = (compteurs.get(cle) || 0) + 1;
+  compteurs.set(cle, n);
+  if (compteurs.size > 5000) compteurs.clear();
+  return n > 90;
+}
+
+const texte = (v, max) => (typeof v === "string" ? v.slice(0, max) : undefined);
+
+// Ne garde que des champs attendus, aux bons formats : ce point d'entrée est public,
+// rien de ce qui arrive du navigateur n'est transmis tel quel à Facebook.
+function nettoyerParametres(brut, devisePareDefaut) {
+  const p = brut && typeof brut === "object" ? brut : {};
+  const out = {};
+  const valeur = Number(p.value);
+  if (Number.isFinite(valeur) && valeur >= 0 && valeur < 1e10) out.value = valeur;
+  const devise = typeof p.currency === "string" && /^[A-Za-z]{3}$/.test(p.currency) ? p.currency.toUpperCase() : devisePareDefaut || "XOF";
+  out.currency = devise;
+  out.content_type = "product";
+  const nom = texte(p.content_name, 200);
+  if (nom) out.content_name = nom;
+  if (Array.isArray(p.content_ids)) {
+    const ids = p.content_ids.filter((x) => typeof x === "string" && x.length <= 64).slice(0, 20);
+    if (ids.length) out.content_ids = ids;
+  }
+  if (Array.isArray(p.contents)) {
+    const contenus = p.contents
+      .filter((c) => c && typeof c.id === "string" && c.id.length <= 64)
+      .slice(0, 20)
+      .map((c) => ({ id: c.id, quantity: Math.max(1, Math.min(999, Number(c.quantity) || 1)), item_price: Math.max(0, Number(c.item_price) || 0) }));
+    if (contenus.length) out.contents = contenus;
+  }
+  const nb = Number(p.num_items);
+  if (Number.isFinite(nb) && nb >= 1 && nb <= 999) out.num_items = Math.round(nb);
+  return out;
+}
+
+async function traiterEvenementEntonnoir(req, res) {
+  const corps = req.body && typeof req.body === "object" ? req.body : {};
+  const { workspaceId, nom, eventId } = corps;
+
+  if (!EVENEMENTS_AUTORISES.has(nom)) return res.status(400).json({ error: "Événement non autorisé" });
+  if (typeof workspaceId !== "string" || !UUID.test(workspaceId)) return res.status(400).json({ error: "Boutique invalide" });
+  if (typeof eventId !== "string" || eventId.length < 6 || eventId.length > 80) return res.status(400).json({ error: "eventId invalide" });
+
+  const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || undefined;
+  if (tropDeRequetes(ip || "inconnue")) return res.status(429).json({ error: "Trop de requêtes" });
+
+  try {
+    const workspace = await lireWorkspace(workspaceId);
+    if (!workspace?.facebook_pixel_id || !workspace?.facebook_capi_token) {
+      // Pas de Pixel ou pas de jeton Conversions API pour cette boutique : rien à faire.
+      return res.status(200).json({ envoye: false, raison: "Conversions API non configurée" });
+    }
+
+    const evenement = {
+      event_name: nom,
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: "website",
+      event_id: eventId,
+      event_source_url: texte(corps.url, 500),
+      user_data: {
+        client_ip_address: ip,
+        client_user_agent: texte(req.headers["user-agent"], 500),
+        fbp: texte(corps.fbp, 120) || undefined,
+        fbc: texte(corps.fbc, 200) || undefined,
+      },
+      custom_data: nettoyerParametres(corps.params, workspace.currency),
+    };
+
+    const reponse = await fetch(
+      `https://graph.facebook.com/v25.0/${encodeURIComponent(workspace.facebook_pixel_id)}/events?access_token=${encodeURIComponent(workspace.facebook_capi_token)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: [evenement] }) }
+    );
+    if (!reponse.ok) {
+      const detail = await reponse.json().catch(() => ({}));
+      return res.status(200).json({ envoye: false, error: detail?.error?.message || "Erreur Facebook" });
+    }
+    return res.status(200).json({ envoye: true });
+  } catch (e) {
+    // Un événement perdu n'est jamais bloquant pour le client.
+    return res.status(200).json({ envoye: false, error: e.message });
+  }
+}
+
+export default async function handler(req, res) {
+  // Boutique multi-pays : « GET ?pays=1 » renvoie seulement le PAYS du visiteur (code à 2 lettres, fourni
+  // par Vercel), pour préchoisir sa monnaie. Rien n'est enregistré. Placé ici (et non dans un nouveau
+  // fichier) car l'offre gratuite de Vercel limite le nombre de fonctions serveur.
+  if (req.method === "GET" && req.query && req.query.pays) {
+    res.setHeader("Cache-Control", "private, no-store");
+    const code = String(req.headers["x-vercel-ip-country"] || "").toUpperCase();
+    // Ville approximative du visiteur (déduite par Vercel de l'adresse IP, sans aucun service payant) —
+    // utilisée seulement pour la « Vue en direct » du commerçant. Coordonnées arrondies (~1 km).
+    let ville = null;
+    try { ville = decodeURIComponent(String(req.headers["x-vercel-ip-city"] || "")).slice(0, 80) || null; } catch (_) { ville = null; }
+    const lat = Number(req.headers["x-vercel-ip-latitude"]);
+    const lon = Number(req.headers["x-vercel-ip-longitude"]);
+    const coordsOk = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0);
+    return res.status(200).json({
+      pays: /^[A-Z]{2}$/.test(code) ? code : null,
+      ville,
+      lat: coordsOk ? Math.round(lat * 100) / 100 : null,
+      lon: coordsOk ? Math.round(lon * 100) / 100 : null,
+    });
+  }
+  // « GET ?taux=XOF » : taux de change du jour (base → autres monnaies), pour convertir automatiquement les prix
+  // quand le commerçant n'a saisi aucun taux. Mis en cache 12 h côté Vercel ; en cas de panne : rates = null.
+  if (req.method === "GET" && req.query && req.query.taux) {
+    const base = String(req.query.taux).toUpperCase();
+    if (!/^[A-Z]{3}$/.test(base)) return res.status(400).json({ error: "Devise invalide" });
+    try {
+      const r = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+      const j = r.ok ? await r.json() : null;
+      if (!j || j.result !== "success" || !j.rates) throw new Error("taux indisponibles");
+      const rates = {};
+      for (const d of ["XOF","XAF","GNF","CDF","MAD","DZD","TND","GHS","NGN","EUR","USD"]) if (Number(j.rates[d]) > 0) rates[d] = Number(j.rates[d]);
+      res.setHeader("Cache-Control", "public, s-maxage=43200, stale-while-revalidate=86400");
+      return res.status(200).json({ base, rates });
+    } catch (_) {
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ base, rates: null });
+    }
+  }
+  // ----- Paiement en ligne optionnel / annuaire / paramètres du programme (logique dans lib/, chargée à la demande) -----
+  // Placé ici car l'offre gratuite de Vercel limite le nombre de fonctions serveur.
+  if (req.method === "GET" && req.query && (req.query.paiement || req.query.paiement_statut || req.query.annuaire || req.query.croissance)) {
+    try {
+      if (req.query.paiement) return await (await import("../lib/paiements.js")).repondreDisponibilite(req, res);
+      if (req.query.paiement_statut) return await (await import("../lib/paiements.js")).statutPublic(req, res);
+      if (req.query.annuaire) return await (await import("../lib/croissance.js")).repondreAnnuaire(req, res);
+      return await (await import("../lib/croissance.js")).repondreCroissance(req, res);
+    } catch (e) {
+      return res.status(200).json({ actif: false, boutiques: [], plans: [], erreur: true });
+    }
+  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
+
+  // Le client clique sur « Payer maintenant » (Mobile Money / carte) après sa commande.
+  if (req.body && typeof req.body === "object" && req.body.action === "payer_en_ligne") {
+    try { return await (await import("../lib/paiements.js")).creerPaiementPublic(req, res); }
+    catch (e) { return res.status(500).json({ error: "Paiement en ligne indisponible pour l'instant." }); }
+  }
+  // Événement d'entonnoir (vue produit, ajout au panier, début de commande) → traitement dédié.
+  if (req.body && typeof req.body === "object" && typeof req.body.nom === "string") return traiterEvenementEntonnoir(req, res);
+
+  const { commandeId } = req.body;
+  if (!commandeId) return res.status(400).json({ error: "commandeId manquant" });
+
+  const { data: commande, error: erreurCommande } = await supabaseAdmin
+    .from("commandes")
+    .select("id, workspace_id, client, tel, zone, montant, statut, created_at, confirmed_at, purchase_event_envoye, fb_fbp, fb_fbc, fb_user_agent, fb_event_source_url")
+    .eq("id", commandeId)
+    .single();
+
+  if (erreurCommande || !commande) return res.status(404).json({ error: "Commande introuvable" });
+
+  // Deux façons légitimes d'appeler cette fonction :
+  // 1. Depuis le tableau de bord (admin connecté) — utilisé comme filet de sécurité au moment
+  //    de la confirmation, si l'envoi immédiat a échoué pour une raison ou une autre.
+  // 2. Depuis le cron horaire interne (secret partagé, jamais exposé au navigateur) — relance
+  //    automatiquement les envois qui auraient échoué, sans dépendre uniquement du client.
+  // 3. Depuis la boutique publique, SANS session (le client n'est jamais connecté) — c'est le
+  //    déclenchement principal, juste après la commande, façon Shopify : Facebook apprend vite.
+  //    Pour rester sûr sans authentification, on exige que la commande soit toute récente
+  //    (moins de 10 minutes) — impossible à deviner/rejouer plus tard pour quelqu'un d'externe.
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.replace("Bearer ", "");
+  const secretInterne = req.headers["x-internal-cron-secret"];
+
+  if (secretInterne && process.env.CRON_SECRET && secretInterne === process.env.CRON_SECRET) {
+    // Appel interne de confiance — aucune limite d'âge, c'est justement fait pour rattraper
+    // les commandes plus anciennes dont l'envoi immédiat a échoué.
+  } else if (token) {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !userData?.user) return res.status(401).json({ error: "Session invalide" });
+    const { data: membership } = await supabaseAdmin
+      .from("workspace_members")
+      .select("id")
+      .eq("workspace_id", commande.workspace_id)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    if (!membership) return res.status(403).json({ error: "Accès refusé" });
+  } else {
+    const ageMinutes = (Date.now() - new Date(commande.created_at).getTime()) / 60000;
+    if (ageMinutes > 10) return res.status(403).json({ error: "Commande trop ancienne pour un envoi non authentifié" });
+    // Appel public juste après une vraie commande : c'est le bon moment pour faire sonner le
+    // téléphone du commerçant (notification push forte). Chargé à la demande et protégé : au moindre
+    // souci, l'envoi à Facebook ci-dessous continue exactement comme avant. Le second paramètre
+    // ne sert qu'à ne jamais attendre plus de 5 s.
+    try {
+      const module_notifs = await import("./notifications.js");
+      await Promise.race([
+        module_notifs.pousserNouvelleCommande({ ...commande, produit: undefined }),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    } catch (_) {}
+  }
+
+  // Jamais deux fois le même achat envoyé à Facebook, peu importe combien de fois cette
+  // fonction est appelée pour cette commande (immédiat + filet de sécurité à la confirmation).
+  if (commande.purchase_event_envoye) {
+    return res.status(200).json({ envoye: false, raison: "Déjà envoyé précédemment pour cette commande" });
+  }
+
+  const { data: workspace, error: erreurWorkspace } = await supabaseAdmin
+    .from("workspaces")
+    .select("facebook_pixel_id, facebook_capi_token, currency, country")
+    .eq("id", commande.workspace_id)
+    .single();
+
+  if (erreurWorkspace || !workspace?.facebook_pixel_id || !workspace?.facebook_capi_token) {
+    // Pas de pixel/token configuré pour cet espace — on ignore silencieusement, ce n'est pas une erreur
+    return res.status(200).json({ envoye: false, raison: "Pixel Facebook ou token Conversions API non configuré" });
+  }
+
+  // Les vrais articles de la commande — mêmes identifiants que le flux catalogue (g:id) et que
+  // les événements ViewContent/AddToCart/Purchase navigateur, pour une cohérence parfaite.
+  const { data: articlesCommande } = await supabaseAdmin
+    .from("commande_items")
+    .select("produit_id, produit_nom, quantite, prix_unitaire")
+    .eq("commande_id", commande.id);
+
+  const contents = (articlesCommande || [])
+    .filter((it) => it.produit_id)
+    .map((it) => ({ id: it.produit_id, quantity: Number(it.quantite) || 1, item_price: Number(it.prix_unitaire) || 0 }));
+  const contentIds = contents.map((c) => c.id);
+  const numItems = (articlesCommande || []).reduce((s, it) => s + (Number(it.quantite) || 1), 0) || 1;
+
+  // Verrou atomique : cette mise à jour ne réussit QUE si purchase_event_envoye était encore à
+  // false au moment exact de l'écriture. Si deux appels arrivent en même temps pour la même
+  // commande (double clic, appel immédiat + filet de sécurité), un seul des deux peut gagner
+  // cette course — l'autre reçoit une liste vide et s'arrête immédiatement, sans jamais
+  // dupliquer l'envoi à Facebook.
+  const { data: verrouGagne } = await supabaseAdmin
+    .from("commandes")
+    .update({ purchase_event_envoye: true })
+    .eq("id", commande.id)
+    .eq("purchase_event_envoye", false)
+    .select("id");
+
+  if (!verrouGagne || verrouGagne.length === 0) {
+    return res.status(200).json({ envoye: false, raison: "Déjà envoyé précédemment pour cette commande" });
+  }
+
+  // Advanced Matching : plus Facebook reçoit d'informations sur le client (même hachées),
+  // mieux son algorithme reconnaît qui achète vraiment et optimise les publicités en
+  // conséquence — Shopify envoie systématiquement ces champs, pas seulement le téléphone.
+  const nomComplet = String(commande.client || "").trim().split(/\s+/);
+  const prenom = nomComplet[0] || "";
+  const nomFamille = nomComplet.length > 1 ? nomComplet.slice(1).join(" ") : "";
+
+  // L'IP du visiteur, quand Vercel la fournit — jamais inventée si absente.
+  const ipVisiteur = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || undefined;
+
+  // fbp/fbc/user_agent/event_source_url permettent à Facebook de relier précisément cet achat
+  // à la publicité qui l'a généré — sans ça, l'optimisation des pubs est très limitée.
+  const evenement = {
+    event_name: "Purchase",
+    event_time: Math.floor(new Date(commande.created_at || Date.now()).getTime() / 1000),
+    action_source: "website",
+    event_id: `commande-${commande.id}`,
+    event_source_url: commande.fb_event_source_url || undefined,
+    user_data: {
+      ph: [hasher(normaliserTelephone(commande.tel, workspace.country))].filter(Boolean),
+      fn: prenom ? [hasher(prenom)] : undefined,
+      ln: nomFamille ? [hasher(nomFamille)] : undefined,
+      ct: commande.zone ? [hasher(commande.zone)] : undefined,
+      country: workspace.country ? [hasher(workspace.country)] : undefined,
+      client_ip_address: ipVisiteur,
+      client_user_agent: commande.fb_user_agent || undefined,
+      fbp: commande.fb_fbp || undefined,
+      fbc: commande.fb_fbc || undefined,
+    },
+    custom_data: {
+      value: Number(commande.montant),
+      currency: workspace.currency || "XOF",
+      content_type: "product",
+      content_ids: contentIds.length > 0 ? contentIds : undefined,
+      contents: contents.length > 0 ? contents : undefined,
+      num_items: numItems,
+    },
+  };
+
+  try {
+    const reponseFacebook = await fetch(
+      `https://graph.facebook.com/v19.0/${workspace.facebook_pixel_id}/events?access_token=${workspace.facebook_capi_token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: [evenement] }),
+      }
+    );
+    const resultatFacebook = await reponseFacebook.json();
+
+    if (!reponseFacebook.ok) {
+      // L'envoi a échoué — on relâche le verrou pour qu'un prochain essai (filet de sécurité à
+      // la confirmation, ou une future relance automatique) puisse vraiment retenter, plutôt
+      // que de perdre définitivement cet achat à cause d'une erreur temporaire.
+      await supabaseAdmin.from("commandes").update({ purchase_event_envoye: false }).eq("id", commande.id);
+      return res.status(400).json({ envoye: false, error: resultatFacebook.error?.message || "Erreur Facebook" });
+    }
+
+    return res.status(200).json({ envoye: true, resultatFacebook });
+  } catch (e) {
+    await supabaseAdmin.from("commandes").update({ purchase_event_envoye: false }).eq("id", commande.id);
+    return res.status(500).json({ envoye: false, error: e.message });
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { CarteLivreurClient } from "./SuiviGPS.jsx";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -107,6 +108,9 @@ export default function SuiviPublic({ commandeId }) {
             <div style={{ color: "#6B7168", fontSize: 14 }}>{erreur}</div>
           </div>
         )}
+
+        {/* 🛵 « Votre livreur arrive » : visible seulement quand le livreur est en route vers CETTE commande. */}
+        {commande && commande.statut === "en_cours" && <CarteLivreurClient commandeId={commandeId} supabase={supabase} />}
 
         {commande && (
           <div style={{ background: "white", border: "1px solid #ECE8DC", borderRadius: 16, padding: 24 }}>

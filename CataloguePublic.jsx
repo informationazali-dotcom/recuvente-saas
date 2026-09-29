@@ -1916,11 +1916,13 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         signalerChamp("options", "⚠️ Cette combinaison n'est pas disponible.");
         return;
       }
-      if (Number(varianteEnvoi.stock ?? 0) <= 0) {
+      // Stock vide (null) = non suivi : vente illimitée, jamais de blocage.
+      const stockSuiviEnvoi = varianteEnvoi.stock !== null && varianteEnvoi.stock !== undefined && varianteEnvoi.stock !== "";
+      if (stockSuiviEnvoi && Number(varianteEnvoi.stock) <= 0) {
         signalerChamp("options", "⚠️ Cette variante est en rupture de stock.");
         return;
       }
-      if (Number(quantite) > Number(varianteEnvoi.stock)) {
+      if (stockSuiviEnvoi && Number(quantite) > Number(varianteEnvoi.stock)) {
         signalerChamp("options", `⚠️ Il ne reste que ${varianteEnvoi.stock} en stock pour cette variante — merci de réduire la quantité.`);
         return;
       }
@@ -2454,8 +2456,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const prixUnitaireEffectif = varianteActive
       ? (varianteActive.prix != null ? Number(varianteActive.prix) : Number(produitOuvert.prix_vente))
       : prixUnitairePourBundle(produitOuvert.prix_vente, bundleActif);
-    const stockVarianteActive = varianteActive ? Number(varianteActive.stock ?? 0) : null;
-    const varianteEnRupture = varianteActive && stockVarianteActive <= 0;
+    // Stock de variante vide (null) = « ne pas suivre le stock » : illimité, jamais en rupture.
+    const stockVarianteActive = varianteActive && varianteActive.stock !== null && varianteActive.stock !== undefined && varianteActive.stock !== "" ? Number(varianteActive.stock) : null;
+    const varianteEnRupture = stockVarianteActive != null && stockVarianteActive <= 0;
     // Photo propre à la variante choisie (ex. couleur rouge) : elle passe en premier dans la galerie.
     const photoVariante = (varianteActive && varianteActive.image) || imageVarianteChoisie(variantesProduit, optionsChoisies);
     const fraisLivraisonActuel = aChoixLivraison ? (typeLivraisonChoisi === "expedition" ? fraisExpeditionEffectif : fraisLivraisonEffectif) : (fraisLivraisonEffectif || 0);

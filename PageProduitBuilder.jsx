@@ -1235,7 +1235,7 @@ export default function PageProduitBuilder({ workspace, produit, produits = [], 
   const toutesOptionsChoisies = options.length > 0 && options.every((o) => optionsChoisies[o.nom]);
   const varianteActive = toutesOptionsChoisies ? produitPublic.variantes.find((v) => options.every((o) => v.combinaison && v.combinaison[o.nom] === optionsChoisies[o.nom])) : null;
   const prixBase = varianteActive && varianteActive.prix != null ? Number(varianteActive.prix) : produitPublic.prix_vente;
-  const apercuEtat = { quantite, bundleChoisiId, optionsChoisies, produitBumpId, varianteActive, varianteEnRupture: !!varianteActive && Number(varianteActive.stock ?? 0) <= 0, toutesOptionsChoisies, prixBase, prixUnitaireEffectif: prixBase };
+  const apercuEtat = { quantite, bundleChoisiId, optionsChoisies, produitBumpId, varianteActive, varianteEnRupture: !!varianteActive && varianteActive.stock !== null && varianteActive.stock !== undefined && varianteActive.stock !== "" && Number(varianteActive.stock) <= 0, toutesOptionsChoisies, prixBase, prixUnitaireEffectif: prixBase };
   const apercuActions = {
     onChoisirOffre: (o) => { setBundleChoisiId(o ? o.id : null); setQuantite(o ? o.qty : 1); },
     onChoisirOption: (nom, val) => setOptionsChoisies((c) => ({ ...c, [nom]: val })),

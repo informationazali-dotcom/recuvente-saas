@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { PanneauAmbiance } from "./PremiumAmbiance.jsx";
 import { Package, ListChecks, CheckCheck, Users, Truck, Headset, Calculator, Boxes, Target, Compass, Menu, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { useTraceurGPS, BandeauGPS, CarteSuiviLivreurs } from "./SuiviGPS.jsx";
 import { jsPDF } from "jspdf";
 import CataloguePublic, { GrilleCollections, EnteteCollectionVedette } from "./CataloguePublic.jsx";
 import ProjectDiagnostic from "./ProjectDiagnostic.jsx";
@@ -7476,7 +7477,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
             </div>
           </div>
 
-          {livreurs.some((l) => l.en_tournee) && (
+          {livreurs.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <CarteLivreursSaas livreurs={livreurs} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -14061,6 +14062,11 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
   }, [workspaceId]);
   const [optionsProduit, setOptionsProduit] = useState([{ nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }, { nom: "", valeursTexte: "" }]);
   const [variantesListe, setVariantesListe] = useState([]);
+  // Ne pas suivre le stock : le produit (et ses variantes) reste en vente sans limite de quantité.
+  const [stockSuivi, setStockSuivi] = useState(true);
+  // Stock d'une variante tel qu'enregistré : vide ou « non suivi » = null = vente illimitée
+  // (avant, une case vide devenait 0 et la variante passait « en rupture » sur la boutique).
+  const stockVariantePourEnregistrer = (v, suivi) => (!suivi || v.stock === "" || v.stock === null || v.stock === undefined ? null : Number(v.stock));
   const [savedFlash, setSavedFlash] = useState(null); // nom du champ qui vient d'être enregistré
   const [erreurEnreg, setErreurEnreg] = useState(null); // échec d'enregistrement à afficher (livraison / bundles / variantes)
   const [erreurNom, setErreurNom] = useState(null);
@@ -14099,6 +14105,8 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
       const optsExistantes = Array.isArray(selected.options) ? selected.options : [];
       setOptionsProduit([0, 1, 2].map((i) => optsExistantes[i] ? { nom: optsExistantes[i].nom || "", valeursTexte: (optsExistantes[i].valeurs || []).join(", ") } : { nom: "", valeursTexte: "" }));
       setVariantesListe(Array.isArray(selected.variantes) ? selected.variantes.map((v) => ({ ...v, prix: v.prix ?? "", stock: v.stock ?? "" })) : []);
+      // « Suivre le stock » (comme Shopify) : coché seulement si un stock a vraiment été saisi.
+      setStockSuivi(Number(selected.stock_initial || 0) > 0 || (Array.isArray(selected.variantes) && selected.variantes.some((v) => v && v.stock !== null && v.stock !== undefined && v.stock !== "")));
     }
   }, [selectedId, !!selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -15226,7 +15234,11 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                             )}
                           </div>
                           <input type="number" placeholder={`Prix (${currency})`} value={v.prix} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, prix: e.target.value } : x)))} style={{ width: 100, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
-                          <input type="number" placeholder="Stock" value={v.stock} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, stock: e.target.value } : x)))} style={{ width: 70, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                          {stockSuivi ? (
+                            <input type="number" placeholder="Stock ∞" title="Vide = vente illimitée pour cette variante" value={v.stock} onChange={(e) => setVariantesListe((liste) => liste.map((x, j) => (j === i ? { ...x, stock: e.target.value } : x)))} style={{ width: 70, padding: "6px 8px", borderRadius: 6, border: "1px solid #DDD8CC", fontSize: 12 }} />
+                          ) : (
+                            <span title="Stock non suivi : vente illimitée" style={{ width: 70, textAlign: "center", fontSize: 11, fontWeight: 700, color: "#3B6D11", background: "#EAF3DE", borderRadius: 6, padding: "6px 4px" }}>∞ illimité</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -15238,7 +15250,7 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                         setErreurEnreg(null);
                         const res = await onUpdateLivraisonBundles(selected.id, {
                           options: optionsProduit.filter((o) => o.nom.trim() && o.valeursTexte.trim()).map((o) => ({ nom: o.nom.trim(), valeurs: o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean) })),
-                          variantes: variantesListe.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: v.stock === "" ? 0 : Number(v.stock), ...(v.image ? { image: v.image } : {}) })),
+                          variantes: variantesListe.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: stockVariantePourEnregistrer(v, stockSuivi), ...(v.image ? { image: v.image } : {}) })),
                         });
                         if (res && !res.ok) setErreurEnreg({ zone: "variantes", echecs: res.echecs });
                         else flash("variantes");
@@ -15258,6 +15270,37 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
 
                 {/* --- Carte Inventaire --- */}
                 <Carte titre="📦 Inventaire">
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 12, color: "#16231F" }}>
+                    <input
+                      type="checkbox"
+                      checked={!stockSuivi}
+                      style={{ marginTop: 2, width: 17, height: 17 }}
+                      onChange={async (e) => {
+                        const nePasSuivre = e.target.checked;
+                        setStockSuivi(!nePasSuivre);
+                        if (nePasSuivre) {
+                          // Plus de limite : stock produit remis à 0 (= non suivi) et variantes en illimité.
+                          setChamps((c) => ({ ...c, stock: "0" }));
+                          const variantesIllimitees = variantesListe.map((v) => ({ ...v, stock: "" }));
+                          setVariantesListe(variantesIllimitees);
+                          await onUpdateStock(selected.id, 0);
+                          if (variantesIllimitees.length > 0) {
+                            await onUpdateLivraisonBundles(selected.id, { variantes: variantesIllimitees.map((v) => ({ id: v.id, combinaison: v.combinaison, prix: v.prix === "" ? null : Number(v.prix), stock: null, ...(v.image ? { image: v.image } : {}) })) });
+                          }
+                          flash("stock");
+                        }
+                      }}
+                    />
+                    <span>
+                      Ne pas suivre le stock
+                      <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: "#6B7168", marginTop: 2 }}>Le produit reste en ligne et commandable sans limite de quantité, même sans stock saisi (idéal pour la commande à la livraison ou le réassort continu).</span>
+                    </span>
+                  </label>
+                  {!stockSuivi ? (
+                    <div style={{ background: "#EAF3DE", border: "1px solid #CFE3B8", color: "#3B6D11", borderRadius: 9, padding: "10px 12px", fontSize: 12.5, fontWeight: 700 }}>
+                      ∞ Stock non suivi — vente illimitée, jamais « en rupture » sur la boutique.
+                    </div>
+                  ) : (<>
                   <div className="rv-pm-grid2">
                     <Champ label="Stock acheté (pièces)">
                       <input type="number" className="rv-pm-field" value={champs.stock} onChange={(e) => setChamps((c) => ({ ...c, stock: e.target.value }))} onBlur={() => { if (champs.stock !== String(selected.stock_initial ?? "")) { onUpdateStock(selected.id, champs.stock); flash("stock"); } }} style={champStyle} />
@@ -15271,6 +15314,8 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                   </div>
                   {stockSel > 0 && restantSel <= 5 && restantSel > 0 && <div style={{ fontSize: 11, color: "#D64933", marginTop: 8, fontWeight: 600 }}>⚠️ Stock bientôt épuisé</div>}
                   {stockSel > 0 && restantSel <= 0 && <div style={{ fontSize: 11, color: "#D64933", marginTop: 8, fontWeight: 600 }}>🔴 Stock épuisé</div>}
+                  </>)}
+                  {!stockSuivi && savedFlash === "stock" && <ConfirmationEnregistre />}
                 </Carte>
 
                 {/* --- Carte Livraison & bundles --- */}
@@ -15569,6 +15614,10 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
   const [etapePreuve, setEtapePreuve] = useState(null); // { commande, mode } — après le choix du mode de paiement, avant la confirmation finale
   const [gpsErreur, setGpsErreur] = useState(null);
   const watchIdRef = React.useRef(null);
+  // Suivi GPS optimisé (SuiviGPS.jsx) : actif pendant toute la tournée, reprend tout seul à la
+  // réouverture de l'app, garde les points hors ligne, écran maintenu allumé.
+  const [commandeEnRoute, setCommandeEnRoute] = useState(livreur.commande_en_cours || null);
+  const traceur = useTraceurGPS({ livreur, actif: enTournee, commandeEnCours: commandeEnRoute });
   const [enLigne, setEnLigne] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [nbEnAttente, setNbEnAttente] = useState(() => rvLireFileAttente().filter((a) => a.livreurId === livreur.id).length);
   const [synchroEnCours, setSynchroEnCours] = useState(false);
@@ -15625,11 +15674,9 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
         await supabase.from("livreurs").update({ en_tournee: true }).eq("id", livreur.id);
         await majPosition(pos.coords.latitude, pos.coords.longitude);
         setEnTournee(true);
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (p) => majPosition(p.coords.latitude, p.coords.longitude),
-          () => {},
-          { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-        );
+        // Le suivi continu est désormais fait par useTraceurGPS (filtré, groupé, hors ligne) :
+        // il démarre tout seul dès que enTournee passe à true.
+        traceur.evenement("debut_tournee", null);
       },
       (err) => {
         setGpsErreur(err.code === err.PERMISSION_DENIED ? "Autorisation de localisation refusée. Active-la dans les réglages de ton téléphone." : "Impossible d'obtenir ta position pour le moment.");
@@ -15643,6 +15690,8 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+    try { await traceur.evenement("fin_tournee", null); } catch (_) {}
+    setCommandeEnRoute(null);
     await supabase.from("livreurs").update({ en_tournee: false }).eq("id", livreur.id);
     setEnTournee(false);
   }
@@ -15652,6 +15701,17 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
     };
   }, []);
+
+  // « Je pars chez ce client » : le patron (et le client sur sa page de suivi) le voient en route.
+  async function partirChez(commande) {
+    if (!enTournee) demarrerTournee();
+    setCommandeEnRoute(commande.id);
+    await traceur.evenement("depart", commande.id);
+  }
+  async function signalerArrivee(commande) {
+    await traceur.evenement("arrivee", commande.id);
+    alert("📍 Arrivée enregistrée. Appelle le client s'il ne sort pas.");
+  }
 
   const idsEnAttenteLocale = new Set(rvLireFileAttente().filter((a) => a.livreurId === livreur.id).map((a) => a.commandeId));
   const actives = commandes.filter((c) => (c.statut === "en_cours" || c.statut === "echouee") && !idsEnAttenteLocale.has(c.id));
@@ -15759,6 +15819,9 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
       } catch (_) { /* la confirmation continue même si la photo échoue */ }
       setEnvoiPhotoId(null);
     }
+    // 📍 Lieu exact de remise + fin du trajet vers ce client (n'empêche jamais la confirmation).
+    try { traceur.evenement("livree", commande.id); } catch (_) {}
+    if (commandeEnRoute === commande.id) setCommandeEnRoute(null);
     await changerStatut(commande.id, "confirmee", modePaiement);
   }
 
@@ -15783,6 +15846,7 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
           {enTournee ? "🔴 Terminer ma tournée" : "🟢 Démarrer ma tournée"}
         </button>
         {enTournee && <div style={{ fontSize: 11.5, opacity: 0.8, marginTop: 6, textAlign: "center" }}>📍 Ta position est partagée avec l'entreprise pendant ta tournée</div>}
+        {enTournee && <BandeauGPS traceur={traceur} />}
         {gpsErreur && <div style={{ background: "rgba(214,73,51,0.2)", borderRadius: 8, padding: "8px 10px", marginTop: 8, fontSize: 12 }}>{gpsErreur}</div>}
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -15879,11 +15943,27 @@ function LivreurPortalSaas({ livreur, commandes, currency, onStatusChanged, work
                 <a href={`tel:${c.tel}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 0", borderRadius: 9, fontWeight: 600, fontSize: 13, textDecoration: "none", marginTop: 12 }}>
                   📞 {c.tel}
                 </a>
+                {/* 🛰️ Suivi GPS : départ / arrivée / itinéraire */}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  {commandeEnRoute === c.id ? (
+                    <button onClick={() => signalerArrivee(c)} style={{ flex: 1, background: traceur.arretDepuis && Date.now() - traceur.arretDepuis > 90000 ? "#16a34a" : "#EAF7F1", color: traceur.arretDepuis && Date.now() - traceur.arretDepuis > 90000 ? "white" : "#166534", border: "1px solid #86efac", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                      📍 Je suis arrivé
+                    </button>
+                  ) : (
+                    <button onClick={() => partirChez(c)} style={{ flex: 1, background: "#16231F", color: "white", border: "none", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                      🛵 Je pars chez ce client
+                    </button>
+                  )}
+                  <a href={c.livraison_lat && c.livraison_lng ? `https://www.google.com/maps/dir/?api=1&destination=${c.livraison_lat},${c.livraison_lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([c.zone, workspace?.country].filter(Boolean).join(", "))}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "white", border: "1px solid #DDD8CC", color: "#16231F", padding: "10px 0", borderRadius: 9, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                    🗺️ Itinéraire
+                  </a>
+                </div>
+                {commandeEnRoute === c.id && <div style={{ fontSize: 11.5, color: "#166534", fontWeight: 700, marginTop: 6, textAlign: "center" }}>🟢 En route — le patron voit ta position en direct</div>}
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                   <button onClick={() => setCommandeAConfirmer(c)} style={{ flex: 1, background: "#1F9D6E", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
                     ✅ Confirmer
                   </button>
-                  <button onClick={() => changerStatut(c.id, "echouee")} style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
+                  <button onClick={() => { traceur.evenement("echec", c.id); if (commandeEnRoute === c.id) setCommandeEnRoute(null); changerStatut(c.id, "echouee"); }} style={{ flex: 1, background: "#D64933", color: "white", border: "none", padding: "11px 0", borderRadius: 9, fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
                     ❌ Échoué
                   </button>
                 </div>
@@ -16286,7 +16366,7 @@ function ComptablePortalSaas({ workspace, commandes, livreurs, produits }) {
         </div>
       </div>
 
-      {livreurs.some((l) => l.en_tournee) && (
+      {livreurs.length > 0 && (
         <div className="rv-saas-no-print" style={{ marginBottom: 20 }}>
           <CarteLivreursSaas livreurs={livreurs} />
         </div>
@@ -18923,7 +19003,13 @@ function CelebrationOverlaySaas({ montant, client, currency }) {
   );
 }
 
+// Carte en direct du patron : nouvelle version optimisée (SuiviGPS.jsx). L'ancienne carte reste
+// disponible juste en dessous (CarteLivreursSaasClassique), inchangée.
 function CarteLivreursSaas({ livreurs }) {
+  return <CarteSuiviLivreurs livreurs={livreurs} />;
+}
+
+function CarteLivreursSaasClassique({ livreurs }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);

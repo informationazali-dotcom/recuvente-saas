@@ -14166,9 +14166,10 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
     }
   }
 
-  function regenererVariantes() {
+  // Toutes les combinaisons des options saisies, en gardant prix / stock / photo des variantes existantes.
+  function combinerVariantes(ancienneListe) {
     const optionsValides = optionsProduit.filter((o) => o.nom.trim() && o.valeursTexte.trim());
-    if (optionsValides.length === 0) { setVariantesListe([]); return; }
+    if (optionsValides.length === 0) return [];
     const listesValeurs = optionsValides.map((o) => o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean));
     let combos = [{}];
     optionsValides.forEach((o, i) => {
@@ -14178,13 +14179,42 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
       });
       combos = nouvelles;
     });
-    setVariantesListe((ancienneListe) =>
-      combos.map((combinaison) => {
-        const cle = JSON.stringify(combinaison);
-        const existant = ancienneListe.find((v) => JSON.stringify(v.combinaison) === cle);
-        return existant || { id: "v" + Date.now() + Math.random().toString(36).slice(2), combinaison, prix: "", stock: "" };
-      })
-    );
+    return combos.map((combinaison) => {
+      const cle = JSON.stringify(combinaison);
+      const existant = ancienneListe.find((v) => JSON.stringify(v.combinaison) === cle);
+      return existant || { id: "v" + Date.now() + Math.random().toString(36).slice(2), combinaison, prix: "", stock: "" };
+    });
+  }
+
+  function regenererVariantes() {
+    setVariantesListe((ancienneListe) => combinerVariantes(ancienneListe));
+  }
+
+  // Photo d'une VALEUR d'option (ex. Couleur = Rouge) : posée sur toutes les variantes « Rouge »,
+  // directement depuis la ligne de l'option — les variantes sont créées automatiquement si besoin.
+  const [photoValeurEnvoi, setPhotoValeurEnvoi] = useState(null);
+  async function envoyerPhotoValeur(produitId, nomOption, valeur, fichier) {
+    if (!fichier || !nomOption || !valeur) return;
+    if (fichier.size > 5 * 1024 * 1024) {
+      alert("L'image est trop lourde (max 5 Mo). Choisis une photo plus légère.");
+      return;
+    }
+    setPhotoValeurEnvoi(`${nomOption}::${valeur}`);
+    try {
+      const fichierCompresse = await compresserImage(fichier);
+      const extension = fichierCompresse.name.split(".").pop();
+      const chemin = `${produitId}-valeur-${String(valeur).normalize("NFD").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 30) || "option"}-${Date.now()}.${extension}`;
+      const { error: erreurUpload } = await supabase.storage.from("produits").upload(chemin, fichierCompresse, { upsert: true });
+      if (erreurUpload) { alert("Erreur lors de l'envoi de la photo : " + erreurUpload.message); return; }
+      const { data } = supabase.storage.from("produits").getPublicUrl(chemin);
+      try { televerserVignetteProduit("produits", chemin, fichier); } catch (_) {}
+      setVariantesListe((liste) => {
+        const base = combinerVariantes(liste);
+        return base.map((x) => (x.combinaison && x.combinaison[nomOption] === valeur ? { ...x, image: data.publicUrl } : x));
+      });
+    } finally {
+      setPhotoValeurEnvoi(null);
+    }
   }
 
   // Photo propre à une variante (ex. la couleur Rouge) : envoyée dans le même stockage que les
@@ -15132,15 +15162,41 @@ function ProduitsModal({ produits, onAdd, onUpdateNom, onUpdateCout, onUpdateFra
                 {/* --- Carte Variantes --- */}
                 <Carte titre="🎨 Variantes">
                   <div style={{ fontSize: 11.5, color: "#6B7168", marginBottom: 10, lineHeight: 1.5 }}>
-                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Laisse un prix vide pour garder le prix de vente par défaut. Touche 📷 pour donner une photo à chaque variante : elle s'affiche quand le client la choisit.
+                    Jusqu'à 3 types d'options (ex: Couleur, Taille, Matière). Laisse un prix vide pour garder le prix de vente par défaut. Tape les valeurs (ex : Rouge, Bleu, Noir) : une case 📷 apparaît sous chaque valeur pour lui donner sa photo. Elle s'affiche quand le client la choisit. N'oublie pas « Enregistrer les variantes ».
                   </div>
                   <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
-                    {optionsProduit.map((o, i) => (
-                      <div key={i} style={{ display: "flex", gap: 6 }}>
+                    {optionsProduit.map((o, i) => {
+                      const nomOpt = o.nom.trim();
+                      const valeursOpt = o.valeursTexte.split(",").map((v) => v.trim()).filter(Boolean);
+                      return (
+                      <div key={i}>
+                      <div style={{ display: "flex", gap: 6 }}>
                         <input placeholder={`Option ${i + 1} (ex: ${["Couleur", "Taille", "Matière"][i]})`} value={o.nom} onChange={(e) => setOptionsProduit((liste) => liste.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
                         <input placeholder="Valeurs séparées par des virgules" value={o.valeursTexte} onChange={(e) => setOptionsProduit((liste) => liste.map((x, j) => (j === i ? { ...x, valeursTexte: e.target.value } : x)))} style={{ flex: 2, padding: "8px 10px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
                       </div>
-                    ))}
+                      {nomOpt && valeursOpt.length > 0 && (
+                        <div style={{ margin: "6px 0 4px", padding: "8px 10px", background: "#f7faf7", border: "1px solid #E3EDE5", borderRadius: 9 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#1a7a3c", marginBottom: 6 }}>📷 Photo pour chaque « {nomOpt} » (touche une case pour ajouter la photo)</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {valeursOpt.map((val) => {
+                              const imgVal = (variantesListe.find((x) => x.image && x.combinaison && x.combinaison[nomOpt] === val) || {}).image;
+                              const enCours = photoValeurEnvoi === `${nomOpt}::${val}`;
+                              return (
+                                <label key={val} title={imgVal ? `Changer la photo « ${val} »` : `Ajouter une photo « ${val} »`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer", width: 64 }}>
+                                  <span style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "white", border: imgVal ? "2px solid #1a7a3c" : "1.5px dashed #9fb5a5", fontSize: 20 }}>
+                                    {enCours ? "⏳" : imgVal ? <img src={imgVal} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "📷"}
+                                  </span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#16231F", textAlign: "center", maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{val}</span>
+                                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; envoyerPhotoValeur(selected.id, nomOpt, val, f); }} />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      </div>
+                      );
+                    })}
                   </div>
                   <button onClick={regenererVariantes} style={{ border: "1px dashed #9fb5a5", background: "#f7faf7", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#1a7a3c", cursor: "pointer", marginBottom: 14 }}>
                     🔄 Générer les variantes

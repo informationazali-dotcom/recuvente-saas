@@ -4780,6 +4780,13 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const knownOrderIds = React.useRef(null);
   const debounceNouvellesCommandes = React.useRef(null);
   const [toastNouvellesCommandes, setToastNouvellesCommandes] = useState(null);
+  // Commandes pour lesquelles le « ka-ching » a déjà retenti sur cet appareil : le temps réel, le
+  // service worker et la vérification périodique peuvent signaler la même commande — un seul son.
+  const commandesSonnees = React.useRef(new Set());
+  // Commande à ouvrir directement (toucher sur une notification, ou lien /admin/?commande=ID).
+  const [commandeCiblee, setCommandeCiblee] = useState(() => {
+    try { const id = new URLSearchParams(window.location.search).get("commande"); return id && /^[0-9a-f-]{36}$/i.test(id) ? id : null; } catch (_) { return null; }
+  });
 
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
@@ -4795,6 +4802,50 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   }
 
   const [statutNotifDebug, setStatutNotifDebug] = useState("");
+
+  // Type d'appareil, pour la liste des appareils et le diagnostic (Android / iPhone / ordinateur, app installée ou non).
+  function plateformeAppareil() {
+    try {
+      const ua = navigator.userAgent || "";
+      const installee = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+      const os = /android/i.test(ua) ? "Android" : /iphone|ipad|ipod/i.test(ua) ? "iPhone" : /windows/i.test(ua) ? "Windows" : /mac os/i.test(ua) ? "Mac" : "Autre";
+      const nav = /edg\//i.test(ua) ? "Edge" : /chrome|crios/i.test(ua) ? "Chrome" : /firefox|fxios/i.test(ua) ? "Firefox" : /safari/i.test(ua) ? "Safari" : "Navigateur";
+      return `${os} · ${nav}${installee ? " · app installée" : ""}`;
+    } catch (_) { return ""; }
+  }
+
+  // Enregistre CET appareil côté serveur : le serveur vérifie la session et l'appartenance à la
+  // boutique (on ne fait jamais confiance au workspaceId du navigateur). Si l'API ne répond pas,
+  // on retombe sur l'ancien enregistrement direct — rien ne casse.
+  async function enregistrerAppareilPush(sub) {
+    const raw = sub.toJSON();
+    try {
+      const { data: sd } = await supabase.auth.getSession();
+      const r = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sd.session?.access_token}` },
+        body: JSON.stringify({ type: "subscribe", workspaceId: workspace.id, subscription: raw, plateforme: plateformeAppareil() }),
+      });
+      if (r.ok) return { ok: true, ...(await r.json().catch(() => ({}))) };
+      if (r.status === 401) return { ok: false, erreur: "Session expirée : reconnecte-toi puis réessaie." };
+    } catch (_) {}
+    const { error } = await supabase.from("push_subscriptions").upsert(
+      [{ workspace_id: workspace.id, user_email: session.user.email, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }],
+      { onConflict: "endpoint" }
+    );
+    return error ? { ok: false, erreur: error.message } : { ok: true };
+  }
+
+  // L'abonnement de cet appareil a-t-il été créé avec la clé VAPID actuelle ? (sinon il est mort)
+  function abonnementAvecBonneCle(sub) {
+    try {
+      const cle = sub && sub.options && sub.options.applicationServerKey;
+      if (!cle) return true; // navigateur qui ne l'expose pas : on ne peut pas vérifier
+      const actuelle = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      const a = new Uint8Array(cle);
+      return a.length === actuelle.length && a.every((v, i) => v === actuelle[i]);
+    } catch (_) { return true; }
+  }
   // Alertes de vente : cet appareil est-il réellement abonné ? (null = on vérifie)
   const [pushAbonne, setPushAbonne] = useState(null);
   const [testNotifMessage, setTestNotifMessage] = useState("");
@@ -4822,35 +4873,38 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       try {
         if (notifPermission !== "granted" || !("serviceWorker" in navigator) || !("PushManager" in window)) { if (!annule) setPushAbonne(false); return; }
         const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
+        let sub = await reg.pushManager.getSubscription();
+        // Réparation automatique (permission déjà accordée, donc sans rien demander) :
+        // - abonnement créé avec une ANCIENNE clé VAPID → on le remplace ;
+        // - abonnement disparu (expiré, nettoyé par le serveur après un 404/410) → on en recrée un.
+        if (sub && !abonnementAvecBonneCle(sub)) { try { await sub.unsubscribe(); } catch (_) {} sub = null; }
+        if (!sub) {
+          try { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) }); } catch (_) { sub = null; }
+        }
         if (annule) return;
         setPushAbonne(!!sub);
         if (sub) {
           // Ré-enregistre l'appareil pour cette boutique (au cas où la ligne aurait disparu) — sans doublon.
-          const raw = sub.toJSON();
-          supabase.from("push_subscriptions").upsert(
-            [{ workspace_id: workspace.id, user_email: session.user.email, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }],
-            { onConflict: "endpoint" }
-          ).then(() => {});
+          enregistrerAppareilPush(sub).then(() => {});
         }
       } catch (_) { if (!annule) setPushAbonne(false); }
     })();
     return () => { annule = true; };
   }, [notifPermission, statutNotifDebug]);
 
-  async function envoyerNotificationTest() {
-    setTestNotifMessage("⏳ Envoi de la notification test…");
+  async function envoyerNotificationTest(delaiSecondes = 0) {
+    setTestNotifMessage(delaiSecondes > 0 ? `⏳ La notification test part dans ${delaiSecondes} s : verrouille ton téléphone ou passe sur une autre app maintenant.` : "⏳ Envoi de la notification test…");
     try {
       const { data: sd } = await supabase.auth.getSession();
       const r = await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sd.session?.access_token}` },
-        body: JSON.stringify({ type: "test", workspaceId: workspace.id }),
+        body: JSON.stringify({ type: "test", workspaceId: workspace.id, delaiSecondes }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) setTestNotifMessage("❌ " + (j.error || "Échec de l'envoi."));
-      else if (!j.envoyes) setTestNotifMessage(j.total ? "❌ L'envoi a échoué. Réactive les alertes puis réessaie." : "❌ Aucun appareil enregistré. Clique d'abord sur « Activer les alertes ».");
-      else setTestNotifMessage(`✅ Notification test envoyée sur ${j.envoyes} appareil${j.envoyes > 1 ? "s" : ""}. Elle doit arriver dans quelques secondes.`);
+      else if (!j.envoyes) setTestNotifMessage(j.total ? `❌ Push NON envoyé : ${j.nettoyes ? "l'abonnement de cet appareil était expiré ou lié à une ancienne clé (nettoyé). " : ""}Touche « Activer les alertes » puis réessaie.` : "❌ Push NON envoyé : aucun appareil enregistré. Touche d'abord « Activer les alertes ».");
+      else setTestNotifMessage(`✅ Push envoyé à ${j.envoyes} appareil${j.envoyes > 1 ? "s" : ""}${j.total > j.envoyes ? ` (${j.total - j.envoyes} en échec${j.nettoyes ? ", nettoyé" + (j.nettoyes > 1 ? "s" : "") : ""})` : ""}. S'il n'arrive pas dans les 30 s : vérifie les notifications du navigateur dans les réglages du téléphone.`);
     } catch (e) {
       setTestNotifMessage("❌ Erreur : " + e.message);
     }
@@ -4889,17 +4943,14 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
 
-      setStatutNotifDebug("⏳ Enregistrement dans la base de données...");
-      const raw = sub.toJSON();
-      const { error: erreurUpsert } = await supabase.from("push_subscriptions").upsert(
-        [{ workspace_id: workspace.id, user_email: session.user.email, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }],
-        { onConflict: "endpoint" }
-      );
-      if (erreurUpsert) {
-        setStatutNotifDebug("❌ Erreur base de données : " + erreurUpsert.message);
+      setStatutNotifDebug("⏳ Enregistrement de cet appareil...");
+      const enreg = await enregistrerAppareilPush(sub);
+      if (!enreg.ok) {
+        setStatutNotifDebug("❌ Enregistrement impossible : " + (enreg.erreur || "erreur inconnue"));
         return;
       }
-      setStatutNotifDebug("✅ Notifications activées avec succès, même app fermée !");
+      setPushAbonne(true);
+      setStatutNotifDebug(`✅ Alertes activées sur cet appareil${enreg.appareils > 1 ? ` (${enreg.appareils} appareils reçoivent tes alertes)` : ""}, même app fermée !`);
     } catch (e) {
       setStatutNotifDebug("❌ Erreur : " + e.message);
     }
@@ -4951,7 +5002,8 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     if (!error) {
       const list = data || [];
       if (knownOrderIds.current !== null) {
-        const nouvelles = list.filter((c) => !knownOrderIds.current.has(c.id));
+        const nouvelles = list.filter((c) => !knownOrderIds.current.has(c.id) && !commandesSonnees.current.has(c.id));
+        nouvelles.forEach((c) => commandesSonnees.current.add(c.id));
         if (nouvelles.length > 0) {
           playNotifSound();
           const montantNouvelle = Number(nouvelles[0].montant) > 0 ? ` · ${Number(nouvelles[0].montant).toLocaleString("fr-FR")} ${workspace.currency || ""}` : "";
@@ -5131,6 +5183,12 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           clearTimeout(debounceNouvellesCommandes.current);
           loadCommandes();
         }
+        // Toucher sur la notification alors que l'app était déjà ouverte : on ouvre la commande.
+        if (e && e.data && e.data.type === "rv-ouvrir-commande" && e.data.commandeId) {
+          setCommandeCiblee(String(e.data.commandeId));
+          clearTimeout(debounceNouvellesCommandes.current);
+          loadCommandes();
+        }
       };
       navigator.serviceWorker.addEventListener("message", ecouteur);
     }
@@ -5285,8 +5343,31 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       const q = recherche.trim().toLowerCase();
       r = r.filter((c) => (c.client || "").toLowerCase().includes(q) || (c.tel || "").includes(q));
     }
+    // Commande ouverte depuis une notification : toujours visible, même si un filtre la cachait.
+    if (commandeCiblee && !r.some((c) => c.id === commandeCiblee)) {
+      const cible = commandes.find((c) => c.id === commandeCiblee);
+      if (cible) r = [cible, ...r];
+    }
     return r;
-  }, [commandesInRange, recherche, filterStatut]);
+  }, [commandesInRange, recherche, filterStatut, commandeCiblee, commandes]);
+
+  // Ouverture directe d'une commande (toucher sur la notification « Nouvelle commande ») :
+  // on affiche l'écran Commandes, on fait défiler jusqu'à la commande, on l'ouvre et on la met
+  // en évidence quelques secondes.
+  useEffect(() => {
+    if (!commandeCiblee) return undefined;
+    if (!commandes.some((c) => c.id === commandeCiblee)) return undefined;
+    setVue("commandes");
+    const t1 = setTimeout(() => {
+      document.getElementById(`rv-commande-${commandeCiblee}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 350);
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has("commande")) { u.searchParams.delete("commande"); window.history.replaceState({}, "", u.toString()); }
+    } catch (_) {}
+    const t2 = setTimeout(() => setCommandeCiblee(null), 12000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [commandeCiblee, commandes]);
 
   const groupedByDay = useMemo(() => {
     const groups = {};
@@ -6635,7 +6716,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
               )}
               <button onClick={() => { debloquerSonVente(); jouerSonVente(1).catch(() => playNotifSoundSecours()); }} style={{ background: "white", color: "#16231F", border: "1px solid #d9dfd6", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🔊 Tester le son</button>
               {notifPermission === "granted" && pushAbonne === true && (
-                <button onClick={envoyerNotificationTest} style={{ background: "white", color: "#16231F", border: "1px solid #d9dfd6", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📲 Notification test</button>
+                <button onClick={() => envoyerNotificationTest(0)} style={{ background: "white", color: "#16231F", border: "1px solid #d9dfd6", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📲 Notification test</button>
               )}
               <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer" }}>
                 <input type="checkbox" checked={sonVentesOn} onChange={(e) => { setSonVentesOn(e.target.checked); definirSonVentes(e.target.checked); }} /> Son dans l'app
@@ -6647,6 +6728,34 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           <div style={{ marginTop: 4, fontSize: 11, opacity: 0.8 }}>Quand l'app est fermée, le son est celui de notification de ton téléphone (réglé dans ses paramètres). Le « ka-ching » retentit quand l'app est ouverte.</div>
         </div>
       )}
+
+      {/* État clair des alertes de nouvelle commande sur CET appareil (toujours visible). */}
+      {(() => {
+        const ios = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+        const installee = typeof window !== "undefined" && ((window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true);
+        const actives = notifPermission === "granted" && pushAbonne === true;
+        const verification = notifPermission === "granted" && pushAbonne === null;
+        const bouton = (texte, onClick, principal) => (
+          <button onClick={onClick} style={{ background: principal ? "#1a7a3c" : "white", color: principal ? "white" : "#16231F", border: principal ? "none" : "1px solid #d9dfd6", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{texte}</button>
+        );
+        return (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", background: "white", border: `1px solid ${actives ? "#C7DDA3" : "#F2C7BE"}`, borderRadius: 12, padding: "9px 14px", marginBottom: 10, fontSize: 12.5 }}>
+            <span style={{ fontWeight: 700, color: actives ? "#3B6D11" : verification ? "#6B7168" : "#B33A2A" }}>
+              {actives ? "🟢 Alertes actives sur cet appareil" : verification ? "⏳ Vérification des alertes…" : "🔴 Alertes désactivées sur cet appareil"}
+              <span style={{ fontWeight: 500, color: "#6B7168" }}>
+                {!actives && !verification && notifPermission === "denied" && " — notifications bloquées dans les réglages du navigateur"}
+                {!actives && !verification && notifPermission === "unsupported" && (ios && !installee ? " — sur iPhone : Safari → Partager → « Sur l'écran d'accueil », puis ouvre RecuVente depuis l'icône" : " — ce navigateur ne gère pas les alertes")}
+              </span>
+            </span>
+            <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {!actives && !verification && notifPermission !== "denied" && notifPermission !== "unsupported" && bouton("Activer les alertes", activerNotificationsPush, true)}
+              {actives && bouton("📲 Envoyer une notification test", () => envoyerNotificationTest(0), false)}
+              {actives && bouton("🔒 Test dans 6 s", () => envoyerNotificationTest(6), false)}
+            </span>
+            {(testNotifMessage || statutNotifDebug) && <div style={{ flexBasis: "100%", fontSize: 12, color: "#3D4540" }}>{testNotifMessage || statutNotifDebug}</div>}
+          </div>
+        );
+      })()}
 
       {/* Mode écoute : « ka-ching » même téléphone verrouillé (tant que l'app reste ouverte). */}
       <div style={{ background: ecouteVentesActive ? "#EAF3DE" : "white", border: `1px solid ${ecouteVentesActive ? "#C7DDA3" : "#E4E1D5"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: ecouteVentesActive ? "#3B6D11" : "#3D4540" }}>
@@ -7055,7 +7164,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {group.orders.map((c) => (
-              <CommandeCard key={c.id} commande={c} currency={formaterDevise(workspace.currency)} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} produits={produits} />
+              <CommandeCard key={c.id} ciblee={commandeCiblee === c.id} commande={c} currency={formaterDevise(workspace.currency)} onStatusChanged={loadCommandes} livreurs={livreurs} closers={closers} onAssignLivreur={assignLivreur} onAssignCloser={assignCloser} onReschedule={reprogrammerCommande} workspace={workspace} confirmateurNom={session.user.email.split("@")[0]} onCelebrate={(montant, client) => { setCelebration({ montant, client }); playCelebrationSound(); setTimeout(() => setCelebration(null), 2600); }} onRendreCaution={rendreCaution} produits={produits} />
             ))}
           </div>
         </div>
@@ -10318,8 +10427,10 @@ function libelleSectionCommandes(activityType) {
   return activityType === "location_immobiliere" ? "Loyers" : activityType === "location_vehicule" ? "Réservations" : "Commandes";
 }
 
-function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution, produits = [] }) {
+function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], closers = [], onAssignLivreur, onAssignCloser, onReschedule, workspace, confirmateurNom, onCelebrate, onRendreCaution, produits = [], ciblee = false }) {
   const [open, setOpen] = useState(false);
+  // Ouverte depuis une notification : la carte se déplie toute seule.
+  useEffect(() => { if (ciblee) setOpen(true); }, [ciblee]);
   // Paiement en ligne (optionnel) + réseau anti-refus : de simples informations en plus sur la carte.
   const paiementsEnLigne = rvUsePaiementsEnLigne(workspace?.id);
   const payeEnLigne = Math.min(Number(commande.montant) || 0, Number(paiementsEnLigne[commande.id]) || 0);
@@ -10485,7 +10596,8 @@ function CommandeCard({ commande, currency, onStatusChanged, livreurs = [], clos
   }
 
   return (
-    <div style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: "12px 14px" }}>
+    <div id={`rv-commande-${commande.id}`} style={{ background: "white", border: "1px solid #ECE8DC", borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: "12px 14px", scrollMarginTop: 90, transition: "box-shadow .3s ease", ...(ciblee ? { boxShadow: "0 0 0 3px #1a7a3c, 0 8px 24px rgba(26,122,60,0.25)" } : {}) }}>
+      {ciblee && <div style={{ fontSize: 11.5, fontWeight: 700, color: "#1a7a3c", marginBottom: 6 }}>🔔 Commande ouverte depuis la notification</div>}
       {editing ? (
         <div>
           <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Modifier la commande</div>

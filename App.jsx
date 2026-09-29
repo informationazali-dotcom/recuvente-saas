@@ -890,6 +890,59 @@ function jouerSonVente(fois = 2) {
   return premiere && premiere.then ? premiere : Promise.resolve();
 }
 
+// ============================================================================
+//  MODE ÉCOUTE DES VENTES (téléphone verrouillé)
+//  Un site web ne peut normalement plus rien jouer une fois l'écran verrouillé : le navigateur
+//  endort la page. Exception : une page qui JOUE DÉJÀ un son reste éveillée (comme une radio).
+//  Le mode écoute lance donc un son quasi inaudible en boucle ; la page reste active écran
+//  verrouillé, la connexion aux commandes aussi, et le « ka-ching » peut retentir.
+//  Fiable sur Android (Chrome / app installée). Sur iPhone, Apple peut quand même couper.
+// ============================================================================
+const CLE_ECOUTE_VENTES = "rv_ecoute_ventes";
+let ecouteVentesEl = null;
+let urlSonQuasiMuet = null;
+function sonQuasiMuetUrl() {
+  if (urlSonQuasiMuet) return urlSonQuasiMuet;
+  // WAV 8 kHz, 8 bits, 2 s : un souffle de ±1 autour du silence (inaudible, mais pas « vide »,
+  // pour que le téléphone considère bien que la page joue un son).
+  const freq = 8000, n = freq * 2;
+  const buf = new ArrayBuffer(44 + n);
+  const v = new DataView(buf);
+  const ecrire = (o, txt) => { for (let i = 0; i < txt.length; i++) v.setUint8(o + i, txt.charCodeAt(i)); };
+  ecrire(0, "RIFF"); v.setUint32(4, 36 + n, true); ecrire(8, "WAVE"); ecrire(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, freq, true); v.setUint32(28, freq, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  ecrire(36, "data"); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128 + (i % 2 === 0 ? 1 : -1));
+  urlSonQuasiMuet = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+  return urlSonQuasiMuet;
+}
+function ecouteVentesPreferee() {
+  try { return localStorage.getItem(CLE_ECOUTE_VENTES) === "on"; } catch (_) { return false; }
+}
+function demarrerEcouteVentes(nomBoutique) {
+  debloquerSonVente();
+  if (typeof Audio === "undefined") return Promise.reject(new Error("audio indisponible"));
+  if (!ecouteVentesEl) {
+    ecouteVentesEl = new Audio(sonQuasiMuetUrl());
+    ecouteVentesEl.loop = true;
+    ecouteVentesEl.volume = 1;
+    ecouteVentesEl.setAttribute("playsinline", "");
+  }
+  try {
+    if ("mediaSession" in navigator && typeof MediaMetadata !== "undefined") {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: "Écoute des ventes active", artist: nomBoutique || "RecuVente", album: "Le « ka-ching » sonnera à chaque commande" });
+    }
+  } catch (_) {}
+  try { localStorage.setItem(CLE_ECOUTE_VENTES, "on"); } catch (_) {}
+  return ecouteVentesEl.play();
+}
+function arreterEcouteVentes() {
+  try { localStorage.setItem(CLE_ECOUTE_VENTES, "off"); } catch (_) {}
+  if (ecouteVentesEl) { try { ecouteVentesEl.pause(); } catch (_) {} }
+  try { if ("mediaSession" in navigator) navigator.mediaSession.metadata = null; } catch (_) {}
+}
+
 function Centered({ children }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FAFAF7" }}>
@@ -4746,6 +4799,22 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const [pushAbonne, setPushAbonne] = useState(null);
   const [testNotifMessage, setTestNotifMessage] = useState("");
   const [sonVentesOn, setSonVentesOn] = useState(sonVentesActif());
+  // Mode écoute (téléphone verrouillé) : actif seulement tant que le son de veille joue.
+  const [ecouteVentesActive, setEcouteVentesActive] = useState(false);
+  const [ecouteVentesErreur, setEcouteVentesErreur] = useState("");
+  useEffect(() => {
+    const surPause = () => setEcouteVentesActive(false);
+    const surLecture = () => setEcouteVentesActive(true);
+    const brancher = () => { if (ecouteVentesEl) { ecouteVentesEl.addEventListener("pause", surPause); ecouteVentesEl.addEventListener("playing", surLecture); } };
+    brancher();
+    return () => { if (ecouteVentesEl) { ecouteVentesEl.removeEventListener("pause", surPause); ecouteVentesEl.removeEventListener("playing", surLecture); } };
+  }, [ecouteVentesActive]);
+  function basculerEcouteVentes() {
+    setEcouteVentesErreur("");
+    if (ecouteVentesActive) { arreterEcouteVentes(); setEcouteVentesActive(false); return; }
+    if (!sonVentesOn) { setSonVentesOn(true); definirSonVentes(true); }
+    demarrerEcouteVentes(workspace?.name).then(() => setEcouteVentesActive(true)).catch(() => setEcouteVentesErreur("Le téléphone a refusé de lancer le son : touche à nouveau le bouton."));
+  }
   const [carteAlertesMasquee, setCarteAlertesMasquee] = useState(() => { try { return localStorage.getItem("rv_carte_alertes_masquee") === "1"; } catch (_) { return false; } });
   useEffect(() => {
     let annule = false;
@@ -6578,6 +6647,24 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           <div style={{ marginTop: 4, fontSize: 11, opacity: 0.8 }}>Quand l'app est fermée, le son est celui de notification de ton téléphone (réglé dans ses paramètres). Le « ka-ching » retentit quand l'app est ouverte.</div>
         </div>
       )}
+
+      {/* Mode écoute : « ka-ching » même téléphone verrouillé (tant que l'app reste ouverte). */}
+      <div style={{ background: ecouteVentesActive ? "#EAF3DE" : "white", border: `1px solid ${ecouteVentesActive ? "#C7DDA3" : "#E4E1D5"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: ecouteVentesActive ? "#3B6D11" : "#3D4540" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontWeight: 600 }}>
+            {ecouteVentesActive
+              ? "🎧 Mode écoute actif : laisse RecuVente ouvert, tu peux verrouiller ton téléphone — le « ka-ching » sonnera à chaque commande."
+              : ecouteVentesPreferee()
+                ? "🎧 Mode écoute en pause (l'app a été rechargée). Touche « Activer » pour l'entendre téléphone verrouillé."
+                : "📱 Entendre le « ka-ching » même téléphone verrouillé ?"}
+          </span>
+          <button onClick={basculerEcouteVentes} style={{ background: ecouteVentesActive ? "white" : "#1a7a3c", color: ecouteVentesActive ? "#3B6D11" : "white", border: ecouteVentesActive ? "1px solid #C7DDA3" : "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+            {ecouteVentesActive ? "Arrêter" : "Activer le mode écoute"}
+          </button>
+        </div>
+        {ecouteVentesErreur && <div style={{ marginTop: 6, color: "#D64933", fontWeight: 600 }}>{ecouteVentesErreur}</div>}
+        {!ecouteVentesActive && <div style={{ marginTop: 4, fontSize: 11, opacity: 0.8 }}>Fonctionne sur Android (Chrome ou app installée) : ouvre RecuVente, active le mode, puis verrouille l'écran sans fermer l'app. Consomme un peu plus de batterie — branche le chargeur si tu le laisses toute la journée. Sur iPhone, Apple peut couper le son après le verrouillage.</div>}
+      </div>
 
       {notifPermission === "default" && (
         <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 12, padding: "12px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

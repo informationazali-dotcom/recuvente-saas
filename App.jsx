@@ -17,6 +17,8 @@ import { AGENTS } from "./src/ai/orchestrator/agentRegistry.js";
 import * as XLSX from "xlsx";
 import { verifierChevauchement, messageChevauchement } from "./locationVehiculeUtils.js";
 import { urlFichePublique, urlQrFiche, messageWhatsAppPartageFiche } from "./fichesCommercialesUtils.js";
+// Vue en direct (globe) : chargée seulement quand on l'ouvre — aucun poids en plus pour le reste de l'app.
+const VueEnDirect = React.lazy(() => import("./VueEnDirect.jsx"));
 // Product Page Builder : éditeur chargé À LA DEMANDE (n'alourdit ni la boutique publique ni le tableau de bord).
 const PageProduitBuilder = React.lazy(() => import("./PageProduitBuilder.jsx"));
 // Croissance (paiement en ligne optionnel, réseau anti-refus, annuaire, ambassadeur) : chargée à la demande.
@@ -4145,6 +4147,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const [showAzaliDesign, setShowAzaliDesign] = useState(false);
   const [showTraficBoutique, setShowTraficBoutique] = useState(false);
   const [showVisiteursEnLigne, setShowVisiteursEnLigne] = useState(false);
+  const [showVueEnDirect, setShowVueEnDirect] = useState(false);
   // Administration RecuVente : le bouton n'apparaît que pour le compte administrateur (vérifié par le serveur).
   const [estAdminRecuvente, setEstAdminRecuvente] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -6598,6 +6601,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                 onPersonnaliser={() => setShowStoreBuilder(true)}
                 onVoirEnLigne={() => setShowVisiteursEnLigne(true)}
                 onVoirTrafic={() => setShowTraficBoutique(true)}
+                onVueEnDirect={() => setShowVueEnDirect(true)}
               />
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 10px" }}>
                 <a
@@ -6639,6 +6643,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                 {workspace.role === "owner" && <button onClick={() => setShowCroissance(true)} aria-label="Paiement en ligne et croissance" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🚀</button>}
                 {(workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowGestionLivraisonFinances(true)} aria-label="Tarifs de livraison et dépenses" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>⚙️</button>}
                 {workspace.activity_type === "location_immobiliere" && <button onClick={() => setShowLocationMaison(true)} aria-label="Immobilier — Location et vente" style={{ flexShrink: 0, background: "rgba(26,122,60,0.3)", border: "1px solid rgba(26,122,60,0.5)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🏠</button>}
+                {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVueEnDirect(true)} aria-label="Vue en direct (globe)" title="Vue en direct" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🌍</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowVisiteursEnLigne(true)} aria-label="Visiteurs en ligne" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🟢</button>}
                 {estEcommerce && (workspace.role === "owner" || workspace.role === "admin") && <button onClick={() => setShowTraficBoutique(true)} aria-label="Trafic de ma boutique" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📈</button>}
                 {session?.user?.email === "oulipaiexpress@gmail.com" && <button onClick={() => setShowProspectsIA(true)} aria-label="Prospects IA" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤖</button>}
@@ -7738,6 +7743,17 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       {showPages && !accesBloque && <PagesModal workspace={workspace} onClose={() => setShowPages(false)} />}
       {showAzaliDesign && !accesBloque && <AzaliDesignModal workspace={workspace} onClose={() => setShowAzaliDesign(false)} />}
       {showVisiteursEnLigne && !accesBloque && <VisiteursEnLigneModal workspaceId={workspace.id} onClose={() => setShowVisiteursEnLigne(false)} />}
+      {showVueEnDirect && !accesBloque && (
+        <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, zIndex: 120, background: "#03070c", color: "#6ee7b7", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", fontWeight: 700 }}>🌍 Chargement de la vue en direct…</div>}>
+          <VueEnDirect
+            workspace={workspace}
+            commandes={commandes}
+            devise={formaterDevise(workspace.currency)}
+            onClose={() => setShowVueEnDirect(false)}
+            onOuvrirCommande={(id) => { setShowVueEnDirect(false); setCommandeCiblee(id); }}
+          />
+        </React.Suspense>
+      )}
       {showTraficBoutique && !accesBloque && <TraficBoutiqueModal workspaceId={workspace.id} onClose={() => setShowTraficBoutique(false)} />}
       {estAdminRecuvente && showAdminPanel && (
         <div style={{ position: "fixed", inset: 0, zIndex: 400, overflowY: "auto", background: "#FAFAF7", WebkitOverflowScrolling: "touch" }}>
@@ -9944,7 +9960,7 @@ function nomEtDrapeauPays(code) {
 }
 
 // Carte « Ma boutique en ligne » du tableau de bord : lien, visiteurs en direct et trafic, au même endroit (plus besoin d'ouvrir d'autres menus).
-function CarteBoutiqueTableauDeBord({ workspace, onPersonnaliser, onVoirEnLigne, onVoirTrafic }) {
+function CarteBoutiqueTableauDeBord({ workspace, onPersonnaliser, onVoirEnLigne, onVoirTrafic, onVueEnDirect }) {
   const enLigne = useVisiteursEnLigne(workspace.id).length;
   const [stats, setStats] = useState(null);
   const [copie, setCopie] = useState(false);
@@ -9980,6 +9996,7 @@ function CarteBoutiqueTableauDeBord({ workspace, onPersonnaliser, onVoirEnLigne,
         <a href={`${lien}${lien.includes("?") ? "&" : "?"}_t=${Date.now()}`} target="_blank" rel="noopener noreferrer" style={{ ...lienBtn, background: "#e8920a", border: "none", color: "#16231F" }}>👁️ Voir ma boutique</a>
         <button onClick={copier} style={lienBtn}>{copie ? "✅ Lien copié" : "📋 Copier le lien"}</button>
         {onPersonnaliser && <button onClick={onPersonnaliser} style={lienBtn}>🎨 {workspace.store_is_published ? "Personnaliser" : "Créer ma boutique"}</button>}
+        {onVueEnDirect && <button onClick={onVueEnDirect} style={{ ...lienBtn, background: "linear-gradient(135deg, #0b3a2e 0%, #0e5f4a 55%, #1a8f6b 100%)", border: "1px solid rgba(110,231,183,0.55)", boxShadow: "0 0 18px rgba(52,211,153,0.35)", color: "#d1fae5" }}>🌍 Vue en direct</button>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(76px, 1fr))", gap: 8 }}>
         {tuile("🟢", enLigne, "en ce moment", onVoirEnLigne, "#7fd6a3")}

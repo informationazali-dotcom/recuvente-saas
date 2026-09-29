@@ -42,6 +42,10 @@ async function envoyerAuxAbonnements(abonnements, payload) {
   let envoyes = 0;
   const morts = [];
   const erreurs = [];
+  // Un même appareil ne reçoit jamais deux fois la même alerte, même s'il apparaît deux fois
+  // (rattaché à l'espace ET à l'e-mail d'un membre, par exemple).
+  const vus = new Set();
+  abonnements = (abonnements || []).filter((a) => a && a.endpoint && a.p256dh && a.auth && !vus.has(a.endpoint) && vus.add(a.endpoint));
   await Promise.all(
     (abonnements || []).map(async (abo) => {
       try {
@@ -53,7 +57,11 @@ async function envoyerAuxAbonnements(abonnements, payload) {
         envoyes += 1;
       } catch (e) {
         erreurs.push({ statusCode: e.statusCode || null, message: e.message || String(e) });
-        if (e.statusCode === 404 || e.statusCode === 410) morts.push(abo.endpoint);
+        // 404/410 : appareil désabonné ou abonnement expiré. 403 « VAPID » : abonnement créé avec une
+        // ancienne clé VAPID — inutilisable pour toujours. Dans les deux cas on le nettoie ; l'appareil
+        // se réabonnera tout seul à la prochaine ouverture de l'app (voir App.jsx).
+        const corps = String(e.body || e.message || "").toLowerCase();
+        if (e.statusCode === 404 || e.statusCode === 410 || (e.statusCode === 403 && corps.includes("vapid"))) morts.push(abo.endpoint);
       }
     })
   );
@@ -137,6 +145,17 @@ export async function pousserNouvelleCommande(commandeOuId) {
     for (const [k, v] of dejaNotifiees) if (maintenant - v > 15 * 60 * 1000) dejaNotifiees.delete(k);
     if (dejaNotifiees.has(id)) return { envoyes: 0, raison: "déjà notifiée" };
     dejaNotifiees.set(id, maintenant);
+    // Anti-doublon PERSISTANT (partagé entre toutes les instances du serveur) : la même commande
+    // peut être signalée par la boutique, par le déclencheur de la base ET par un webhook — une
+    // seule alerte part. Si la table n'existe pas encore (migration pas appliquée), on garde
+    // l'anti-doublon en mémoire ci-dessus, comme avant.
+    try {
+      const { data: reservee, error: errReserve } = await supabaseAdmin
+        .from("rv_alertes_commandes")
+        .upsert([{ commande_id: id }], { onConflict: "commande_id", ignoreDuplicates: true })
+        .select("commande_id");
+      if (!errReserve && Array.isArray(reservee) && reservee.length === 0) return { envoyes: 0, raison: "déjà notifiée" };
+    } catch (_) {}
 
     if (!cmd || cmd.produit === undefined) {
       const { data } = await supabaseAdmin.from("commandes").select("id, workspace_id, client, produit, montant, created_at").eq("id", id).maybeSingle();
@@ -155,11 +174,16 @@ export async function pousserNouvelleCommande(commandeOuId) {
     }
     const montant = Number(cmd.montant) > 0 ? `${Number(cmd.montant).toLocaleString("fr-FR")} ${libelleDevise(ws?.currency)}` : "";
     const payload = {
-      title: `💰 Nouvelle commande${ws?.name ? " — " + ws.name : ""} !`,
-      body: [String(cmd.client || "Un client").slice(0, 60), String(produit || "").slice(0, 90), montant].filter(Boolean).join(" • "),
-      url: "/admin/",
-      tag: `commande-${cmd.id}`,
-      commandeId: cmd.id,
+      type: "new_order",
+      orderId: cmd.id,
+      workspaceId: cmd.workspace_id,
+      title: `🔔 Nouvelle commande${ws?.name ? " — " + ws.name : ""}`,
+      body: [montant ? `${montant}` : null, String(cmd.client || "").slice(0, 60) || null, String(produit || "").slice(0, 90) || null].filter(Boolean).join(" • ") || "Une nouvelle commande vient d'arriver",
+      url: `/admin/?commande=${encodeURIComponent(cmd.id)}`,
+      // Un « tag » par commande : deux commandes rapprochées = deux notifications distinctes,
+      // jamais l'une qui écrase l'autre en silence. La même commande reçue deux fois = remplacée.
+      tag: `rv-order-${cmd.id}`,
+      commandeId: cmd.id, // ancien nom, gardé pour les anciennes versions du service worker
       sound: true,
       ts: Date.now(),
     };
@@ -279,27 +303,78 @@ export default async function handler(req, res) {
     if (!commandeId || !/^[0-9a-f-]{36}$/i.test(String(commandeId))) return res.status(400).json({ error: "commandeId invalide" });
     const { data: cmd } = await supabaseAdmin.from("commandes").select("id, workspace_id, client, produit, montant, created_at").eq("id", commandeId).maybeSingle();
     if (!cmd) return res.status(404).json({ error: "Commande introuvable" });
-    if ((Date.now() - new Date(cmd.created_at).getTime()) / 60000 > 10) return res.status(403).json({ error: "Commande trop ancienne" });
+    const secretInterne = req.headers["x-internal-cron-secret"];
+    const appelInterne = !!(secretInterne && process.env.CRON_SECRET && secretInterne === process.env.CRON_SECRET);
+    const ageMin = (Date.now() - new Date(cmd.created_at).getTime()) / 60000;
+    if (ageMin > (appelInterne ? 24 * 60 : 10)) return res.status(403).json({ error: "Commande trop ancienne" });
     const r = await pousserNouvelleCommande(cmd);
     return res.status(200).json({ ok: true, envoyes: r.envoyes || 0 });
   }
 
   // ===== Test : « Envoyer une notification test » depuis l'app (envoyée à MES appareils seulement) =====
   if (type === "test") {
-    const { workspaceId } = req.body || {};
+    const { workspaceId, delaiSecondes } = req.body || {};
     const user = await utilisateurMembre(req, workspaceId);
     if (!user) return res.status(401).json({ error: "Session invalide ou accès refusé" });
     const { data: abos } = await supabaseAdmin.from("push_subscriptions").select("*").eq("user_email", user.email);
     if (!abos || abos.length === 0) return res.status(200).json({ ok: true, envoyes: 0, total: 0, message: "Aucun appareil enregistré pour ton compte." });
+    // Test « écran verrouillé / arrière-plan » : on attend quelques secondes avant d'envoyer, le
+    // temps de verrouiller le téléphone ou de changer d'app (6 s maximum, pour rester sous la limite de durée de Vercel).
+    const delai = Math.max(0, Math.min(6, Number(delaiSecondes) || 0));
+    if (delai > 0) await new Promise((r) => setTimeout(r, delai * 1000));
+    const { data: ws } = await supabaseAdmin.from("workspaces").select("name").eq("id", workspaceId).maybeSingle();
     const r = await envoyerAuxAbonnements(abos, {
-      title: "💰 Nouvelle commande — TEST !",
-      body: "Aminata K. • Sérum éclat ×2 • 25 000 F CFA",
+      type: "test",
+      orderId: null,
+      workspaceId,
+      title: `🔔 Nouvelle commande — TEST${ws?.name ? " — " + ws.name : ""}`,
+      body: "25 000 F CFA • Aminata K. • Sérum éclat ×2",
       url: "/admin/",
-      tag: `test-${Date.now()}`,
+      tag: `rv-test-${Date.now()}`,
       sound: true,
       ts: Date.now(),
     });
-    return res.status(200).json({ ok: true, ...r });
+    return res.status(200).json({ ok: true, ...r, nettoyes: (r.erreurs || []).filter((e) => [404, 410, 403].includes(e.statusCode)).length });
+  }
+
+  // ===== Enregistrer CET appareil pour les alertes (appelé par « Activer les alertes ») =====
+  // Le serveur vérifie la session ET l'appartenance à l'espace : impossible de s'abonner aux
+  // commandes d'une autre entreprise en changeant le workspaceId envoyé par le navigateur.
+  if (type === "subscribe") {
+    const { workspaceId, subscription, plateforme } = req.body || {};
+    const user = await utilisateurMembre(req, workspaceId);
+    if (!user) return res.status(401).json({ error: "Session invalide ou accès refusé" });
+    const endpoint = subscription?.endpoint;
+    const p256dh = subscription?.keys?.p256dh;
+    const auth = subscription?.keys?.auth;
+    if (!endpoint || !p256dh || !auth || !/^https:\/\//.test(endpoint)) return res.status(400).json({ error: "Abonnement invalide" });
+    const base = { workspace_id: workspaceId, user_email: user.email, endpoint, p256dh, auth };
+    let { error } = await supabaseAdmin.from("push_subscriptions").upsert(
+      [{ ...base, user_id: user.id, plateforme: String(plateforme || "").slice(0, 60) || null, derniere_activite: new Date().toISOString() }],
+      { onConflict: "endpoint" }
+    );
+    // Colonnes optionnelles absentes (migration pas encore appliquée) : on enregistre l'essentiel.
+    if (error) ({ error } = await supabaseAdmin.from("push_subscriptions").upsert([base], { onConflict: "endpoint" }));
+    if (error) return res.status(500).json({ error: error.message });
+    const { count } = await supabaseAdmin.from("push_subscriptions").select("endpoint", { count: "exact", head: true }).eq("user_email", user.email);
+    return res.status(200).json({ ok: true, appareils: count || 1 });
+  }
+
+  // ===== Le navigateur a renouvelé l'abonnement tout seul (événement pushsubscriptionchange) =====
+  // Appelé par le service worker (sans session) : on ne transfère que si l'ANCIEN abonnement existe
+  // déjà en base — l'appareil garde exactement la même boutique et le même utilisateur.
+  if (type === "renouveler_abonnement") {
+    const { ancienEndpoint, subscription } = req.body || {};
+    const endpoint = subscription?.endpoint;
+    if (!ancienEndpoint || !endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) return res.status(400).json({ error: "Données manquantes" });
+    const { data: ancien } = await supabaseAdmin.from("push_subscriptions").select("workspace_id, user_email").eq("endpoint", ancienEndpoint).maybeSingle();
+    if (!ancien) return res.status(404).json({ error: "Ancien abonnement inconnu" });
+    await supabaseAdmin.from("push_subscriptions").upsert(
+      [{ workspace_id: ancien.workspace_id, user_email: ancien.user_email, endpoint, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth }],
+      { onConflict: "endpoint" }
+    );
+    if (ancienEndpoint !== endpoint) await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", ancienEndpoint);
+    return res.status(200).json({ ok: true });
   }
 
   // ===== Notification push forte à l'arrivée d'une nouvelle commande =====

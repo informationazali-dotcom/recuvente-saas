@@ -523,7 +523,7 @@ const TRADUCTIONS = {
     badgePaiement2: "Paiement à la livraison",
     badgeLivraison2: "Livraison rapide",
     badgeVerifie: "Vérifie avant de payer",
-    merciCommander: "⚠️ Merci de ne commander que si tu es réellement intéressé(e)",
+    merciCommander: "✅ Paiement à la livraison — tu paies seulement à la réception",
     commander: "Commander",
     descriptionTitre: "Description",
     ctaEnLigneTitre: "Cliquez ici pour commander",
@@ -631,7 +631,7 @@ const TRADUCTIONS = {
     badgePaiement2: "Pay on delivery",
     badgeLivraison2: "Fast delivery",
     badgeVerifie: "Check before you pay",
-    merciCommander: "⚠️ Please only order if you're genuinely interested",
+    merciCommander: "✅ Pay on delivery — you only pay when you receive it",
     commander: "Order",
     descriptionTitre: "Description",
     ctaEnLigneTitre: "Click here to order",
@@ -2020,9 +2020,10 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
 
   async function envoyerCommande() {
     if (form.champPiege) return; // Champ piège rempli = probablement un robot, on ignore silencieusement.
-    if (momentOuvertureFormulaireRef.current && Date.now() - momentOuvertureFormulaireRef.current < 2500) {
-      setErreurEnvoi("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
-      return;
+    // Anti-robot : le champ piège suffit. Un client rapide (remplissage automatique du téléphone)
+    // n'est plus bloqué par un message d'erreur — on attend juste une seconde en silence.
+    if (momentOuvertureFormulaireRef.current && Date.now() - momentOuvertureFormulaireRef.current < 1200) {
+      await new Promise((r) => setTimeout(r, 1200 - (Date.now() - momentOuvertureFormulaireRef.current)));
     }
     if (!form.client.trim()) { signalerChamp("client", entreprise?.marche === "europe" ? "⚠️ Indiquez votre nom et prénom." : "⚠️ Écris ton nom ici."); return; }
     if (paysClient.multi && !paysClient.effectif) { signalerChamp("pays", t("choisirPaysErreur")); return; }
@@ -2064,11 +2065,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     const livraisonGratuiteV = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
     const fraisExpeditionV = livraisonGratuiteV ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
     const aChoixLivraisonV = !livraisonGratuiteV && fraisExpeditionV > 0;
-    if (aChoixLivraisonV && !typeLivraisonChoisi) {
-      signalerChamp("mode-livraison", "⚠️ Choisis ton mode de livraison ici.");
-      return;
-    }
-    if (!engagementCoche) {
+    // Plus de blocage : sans choix, c'est la livraison locale (le conseiller ajuste à l'appel si besoin).
+    const typeLivraisonEnvoi = aChoixLivraisonV ? (typeLivraisonChoisi || "livraison") : typeLivraisonChoisi;
+    if (aChoixLivraisonV && !typeLivraisonChoisi) setTypeLivraisonChoisi("livraison");
+    const engagementExige = entreprise?.marche === "europe" || !!entreprise?.storeConfig?.engagementObligatoire;
+    if (engagementExige && !engagementCoche) {
       signalerChamp("engagement", entreprise?.marche === "europe" ? "⚠️ Cochez cette case pour accepter les conditions de vente." : "⚠️ Coche cette case pour valider ta commande.");
       return;
     }
@@ -2121,7 +2122,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       p_type_livraison: (() => {
         const livraisonGratuiteP = !!produitOuvert.livraison_gratuite || (produitOuvert.livraison_gratuite_qte_min && quantite >= Number(produitOuvert.livraison_gratuite_qte_min));
         const fraisExpeditionP = livraisonGratuiteP ? 0 : Number(produitOuvert.frais_expedition_produit ?? entreprise.fraisExpedition ?? 0);
-        return !livraisonGratuiteP && fraisExpeditionP > 0 ? typeLivraisonChoisi : "livraison";
+        return !livraisonGratuiteP && fraisExpeditionP > 0 ? (typeLivraisonEnvoi || "livraison") : "livraison";
       })(),
       p_fbp: obtenirAttributionMeta().fbp,
       p_fbc: obtenirAttributionMeta().fbc,
@@ -2960,7 +2961,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => { livraisonAutoRef.current = false; setTypeLivraisonChoisi("livraison"); }}
-                      style={{ flex: 1, textAlign: "left", background: typeLivraisonChoisi === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${typeLivraisonChoisi === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
+                      style={{ flex: 1, textAlign: "left", background: (typeLivraisonChoisi || "livraison") === "livraison" ? "#EAF3DE" : "white", border: `1.5px solid ${(typeLivraisonChoisi || "livraison") === "livraison" ? couleur : "#DDD8CC"}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
                     >
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#16231F" }}>{estEurope ? "📦" : "🏍️"} {estEurope && entreprise.labelLivraisonLocale === "Livraison locale" ? "Livraison standard" : entreprise.labelLivraisonLocale}</div>
                       <div style={{ fontSize: 11.5, color: "#6B7168" }}>+ {montantAffiche(fraisLivraisonEffectif)} {formaterDevise(entreprise.devise)}</div>
@@ -2975,7 +2976,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                   </div>
                   {champEnErreur === "mode-livraison" && erreurEnvoi
                     ? <div role="alert" style={{ color: "#D64933", fontSize: 12.5, fontWeight: 700, marginTop: 6 }}>{erreurEnvoi}</div>
-                    : !typeLivraisonChoisi && <div style={{ fontSize: 11.5, color: "#8A9089", marginTop: 6 }}>{t("choisisMode")}</div>}
+                    : null}
                   {typeLivraisonChoisi === "expedition" && entreprise.depotRequis && !estEurope && (
                     <div style={{ background: "#FBF3E3", border: "1px solid #F0DDA8", borderRadius: 8, padding: "9px 12px", marginTop: 8, fontSize: 11.5, color: "#8A6412", lineHeight: 1.5 }}>
                       💰 {entreprise.depotMessage ? entreprise.depotMessage.replace(/\{montant\}/g, `${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)}`) : `Un dépôt de ${montantAffiche((arrondiLocalBase(prixUnitaireEffectif) * quantite + arrondiLocalBase(fraisExpeditionEffectif)))} ${formaterDevise(entreprise.devise)} (le montant exact de ta commande) par Mobile Money est exigé avant l'expédition. Notre équipe te contactera pour l'organiser.`}
@@ -3111,6 +3112,19 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                     <input type="checkbox" checked={engagementCoche} onChange={(e) => { setEngagementCoche(e.target.checked); if (e.target.checked) effacerErreurChamp("engagement"); }} style={{ width: 22, height: 22, flexShrink: 0, cursor: "pointer", accentColor: couleur, margin: 0 }} />
                     <span>J'accepte les conditions générales de vente et la politique de retour (droit de rétractation de 14 jours).</span>
                   </label>
+                </div>
+              ) : !entreprise?.storeConfig?.engagementObligatoire ? (
+                /* Mode conversion : plus de case obligatoire ni d'avertissement qui fait peur — on rassure.
+                   (L'ancienne carte « engagement » reste disponible si storeConfig.engagementObligatoire.) */
+                <div id="rv-cmd-engagement" style={{ border: `1.5px solid ${teinteClaire(couleur, 0.45)}`, background: teinteClaire(couleur, 0.06), borderRadius: 14, marginBottom: 12, padding: "11px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: "#16231F", fontWeight: 700, lineHeight: 1.4 }}>
+                    <span aria-hidden="true" style={{ fontSize: 17 }}>💵</span>
+                    <span>Tu paies seulement à la réception, après avoir vu ton produit.</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 12.5, color: "#4A5A4E", lineHeight: 1.4 }}>
+                    <span aria-hidden="true" style={{ fontSize: 17 }}>📞</span>
+                    <span>On t'appelle juste pour confirmer l'adresse et l'heure de livraison.</span>
+                  </div>
                 </div>
               ) : (
               <div
@@ -4241,9 +4255,8 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
 
   async function envoyerCommandePanier() {
     if (form.champPiege) return; // Champ piège rempli = probablement un robot, on ignore silencieusement.
-    if (Date.now() - momentOuvertureRef.current < 2500) {
-      setErreur("Merci de prendre un instant pour vérifier tes informations avant d'envoyer.");
-      return;
+    if (Date.now() - momentOuvertureRef.current < 1200) {
+      await new Promise((r) => setTimeout(r, 1200 - (Date.now() - momentOuvertureRef.current)));
     }
     const europePanier = entreprise?.marche === "europe";
     if (europePanier) {

@@ -840,13 +840,18 @@ function instantanePaysClient() {
 // SÉPARÉ de storePaysClient ci-dessus (qui pilote la devise/le montant affichés au client) pour ne
 // jamais faire interagir ce simple indicateur de présence avec la logique de paiement — même source
 // (/api/facebook-capi?pays=1, déjà en production) mais un cache indépendant, en lecture seule.
-const cachePaysVisiteur = { pays: "", demande: null };
+const cachePaysVisiteur = { pays: "", demande: null, geo: null };
 function paysVisiteurPromesse() {
   if (cachePaysVisiteur.pays) return Promise.resolve(cachePaysVisiteur.pays);
   if (!cachePaysVisiteur.demande) {
     cachePaysVisiteur.demande = typeof fetch !== "function" ? Promise.resolve("") : fetch("/api/facebook-capi?pays=1")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { const c = String(j?.pays || "").toUpperCase(); if (c) cachePaysVisiteur.pays = c; return c; })
+      .then((j) => {
+        const c = String(j?.pays || "").toUpperCase(); if (c) cachePaysVisiteur.pays = c;
+        // Ville approximative (fournie par Vercel) pour la « Vue en direct » du commerçant.
+        if (j && (j.ville || Number.isFinite(j.lat))) cachePaysVisiteur.geo = { ville: j.ville || null, lat: Number.isFinite(j.lat) ? j.lat : null, lon: Number.isFinite(j.lon) ? j.lon : null };
+        return c;
+      })
       .catch(() => "");
   }
   return cachePaysVisiteur.demande;
@@ -1489,6 +1494,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       paysVisiteurPromesse().then((pays) => {
         try { supabase.rpc("ping_visiteur_boutique", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null }).then(() => {}, () => {}); } catch (_) {}
+        // Signal complémentaire avec la ville (Vue en direct). Sans effet si la migration SQL n'est pas appliquée.
+        const geo = cachePaysVisiteur.geo;
+        if (geo) { try { supabase.rpc("ping_visiteur_geo", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null, p_ville: geo.ville, p_lat: geo.lat, p_lon: geo.lon }).then(() => {}, () => {}); } catch (_) {} }
       });
     };
     ping();

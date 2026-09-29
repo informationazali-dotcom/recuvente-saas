@@ -121,18 +121,28 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
   const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 700);
   useEffect(() => { const f = () => setMobile(window.innerWidth < 700); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
 
+  const geoDispo = useRef(true);
   useEffect(() => {
     let vivant = true;
     let precedents = null;
     const lire = () => {
       if (document.visibilityState === "hidden") return;
-      supabase.rpc("visiteurs_en_ligne", { p_workspace: workspace.id }).then(({ data, error }) => {
-        if (!vivant || error || !Array.isArray(data)) return;
-        const liste = data.map((v, i) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: `${v.pays || ""}-${v.depuis || i}` }));
+      // D'abord les visiteurs AVEC leur ville (nouvelle fonction) ; si elle n'existe pas encore
+      // (migration SQL pas appliquée), on retombe sur la liste par pays, comme avant.
+      const lireGeo = () => supabase.rpc("visiteurs_en_ligne_geo", { p_workspace: workspace.id }).then(({ data, error }) => {
+        if (error || !Array.isArray(data)) throw error || new Error("indisponible");
+        return data.map((v) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: v.sid, ville: v.ville || null, lat: Number.isFinite(v.lat) ? v.lat : null, lon: Number.isFinite(v.lon) ? v.lon : null }));
+      });
+      const lireSimple = () => supabase.rpc("visiteurs_en_ligne", { p_workspace: workspace.id }).then(({ data, error }) => {
+        if (error || !Array.isArray(data)) return null;
+        return data.map((v, i) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: `${v.pays || ""}-${v.depuis || i}`, ville: null, lat: null, lon: null }));
+      });
+      (geoDispo.current ? lireGeo().catch(() => { geoDispo.current = false; return lireSimple(); }) : lireSimple()).then((liste) => {
+        if (!vivant || !liste) return;
         // Nouveaux visiteurs → une ligne dans le flux d'activité.
         if (precedents) {
           const avant = new Set(precedents.map((v) => v.cle));
-          liste.filter((v) => !avant.has(v.cle)).slice(0, 3).forEach((v) => ajouterFil({ type: "visiteur", texte: `${drapeau(v.pays)} Nouveau visiteur — ${nomPays(v.pays)}`, sous: v.page }));
+          liste.filter((v) => !avant.has(v.cle)).slice(0, 3).forEach((v) => ajouterFil({ type: "visiteur", texte: `${drapeau(v.pays)} Nouveau visiteur — ${v.ville ? `${v.ville}, ` : ""}${nomPays(v.pays)}`, sous: v.page }));
         }
         precedents = liste;
         setVisiteurs(liste);
@@ -164,9 +174,10 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
     commandesJour.forEach((c) => { const k = c.lieu.ville ? titreVille(c.lieu.ville) : "Autre"; m.set(k, (m.get(k) || 0) + 1); });
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
   }, [commandesJour]);
+  // Regroupement des visiteurs : par ville quand on la connaît, sinon par pays.
   const visiteursParPays = useMemo(() => {
     const m = new Map();
-    visiteurs.forEach((v) => m.set(v.pays, (m.get(v.pays) || 0) + 1));
+    visiteurs.forEach((v) => { const k = v.ville ? `${drapeau(v.pays)} ${v.ville}` : `${drapeau(v.pays)}`; m.set(k, (m.get(k) || 0) + 1); });
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [visiteurs]);
 
@@ -215,8 +226,10 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
     liste.forEach((c, i) => setTimeout(() => lancerCommande(c, i % 3 === 0), i * pas));
     setTimeout(() => setRejeu(false), liste.length * pas + 1500);
   }
+  function zoomer(f) { const e = etat.current; e.cibleZoom = Math.max(1, Math.min(5, (e.cibleZoom || 1) * f)); }
   function centrerBoutique() {
     const m = PAYS[paysBoutique] || PAYS.SN;
+    etat.current.cibleZoom = Math.max(etat.current.cibleZoom || 1, 4);
     etat.current.cibleRot = -m[1]; etat.current.cibleIncl = Math.max(-35, Math.min(35, m[0]));
   }
 
@@ -241,12 +254,24 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       const y = 1 - (2 * (k + 0.5)) / N;
       const lat = Math.asin(y) / RAD;
       const lon = ((((k * or) / RAD) % 360) + 360) % 360 - 180;
-      if (estTerre(lat, lon)) pts.push({ v: vecteur(lat, lon), a: hachage(`${k}`) });
+      if (estTerre(lat, lon)) pts.push({ v: vecteur(lat, lon), zone: Math.abs(lat - maison[0]) < 24 && Math.abs(((lon - maison[1] + 540) % 360) - 180) < 34 });
+    }
+    // Maillage FIN autour de la boutique (± 24° / 34°) : utilisé quand on zoome, pour des côtes nettes.
+    const fins = [];
+    const N2 = N * 9;
+    for (let k = 0; k < N2; k++) {
+      const y = 1 - (2 * (k + 0.5)) / N2;
+      const lat = Math.asin(y) / RAD;
+      if (Math.abs(lat - maison[0]) >= 24) continue;
+      const lon = ((((k * or) / RAD) % 360) + 360) % 360 - 180;
+      if (Math.abs(((lon - maison[1] + 540) % 360) - 180) >= 34) continue;
+      if (estTerre(lat, lon)) fins.push({ v: vecteur(lat, lon) });
     }
     // Étoiles fixes (fond).
     const etoiles = Array.from({ length: 140 }, (_, i) => ({ x: hachage(`x${i}`), y: hachage(`y${i}`), r: 0.3 + hachage(`r${i}`) * 1.1, a: 0.15 + hachage(`a${i}`) * 0.55 }));
 
-    let L = 0, H = 0, dpr = 1, cx = 0, cy = 0, R = 0;
+    let L = 0, H = 0, dpr = 1, cx = 0, cy = 0, R = 0, R0 = 0;
+    e.zoom = e.zoom || 1; e.cibleZoom = e.cibleZoom || 1;
     function taille() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
       L = boite.clientWidth; H = boite.clientHeight;
@@ -255,7 +280,8 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       const large = L > 900;
       const etroit = L < 700;
       cx = large ? L * 0.56 : L / 2; cy = large ? H * 0.52 : etroit ? H * 0.5 : H * 0.46;
-      R = Math.min(large ? L * 0.34 : L * 0.44, H * (large ? 0.40 : etroit ? 0.31 : 0.33));
+      R0 = Math.min(large ? L * 0.34 : L * 0.44, H * (large ? 0.40 : etroit ? 0.31 : 0.33));
+      R = R0 * e.zoom;
     }
     taille();
     const obs = new ResizeObserver(taille); obs.observe(boite);
@@ -289,10 +315,13 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         } else if (Math.abs(e.vRot) > 0.5) {
           e.rot += e.vRot * dt; e.vRot *= Math.pow(0.12, dt);
         } else if (e.rotationAuto !== false && !reduit) {
-          e.rot += 4.5 * dt;
+          e.rot += (4.5 / e.zoom) * dt;
         }
       }
 
+      // Zoom doux (molette, pincement, boutons ＋ / －).
+      e.zoom += (e.cibleZoom - e.zoom) * Math.min(1, dt * 5);
+      R = R0 * e.zoom;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // Fond : nuit profonde + lueur colorée.
       const fond = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, Math.max(L, H) * 0.9);
@@ -312,10 +341,13 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
 
       // Terres en points, éclairées par le soleil réel (jour lumineux, nuit bleutée).
       const sol = soleil(Date.now()); const S = vecteur(sol.lat, sol.lon);
-      const taillePt = Math.max(1.05, R / 230);
+      const fin = e.zoom > 1.8;
+      const taillePt = Math.max(1.05, R0 / 230) * Math.min(1.5, Math.pow(e.zoom, fin ? 0.15 : 0.3));
       const lots = [[], [], [], [], [], []];
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i]; const q = projeter(p.v);
+      const liste = fin ? pts.filter((p) => !p.zone).concat(fins) : pts;
+      for (let i = 0; i < liste.length; i++) {
+        const p = liste[i]; const q = projeter(p.v);
+        if (q.x < -4 || q.x > L + 4 || q.y < -4 || q.y > H + 4) continue;
         if (q.z <= 0.02) continue;
         const jour = p.v[0] * S[0] + p.v[1] * S[1] + p.v[2] * S[2];
         const lum = Math.max(0, Math.min(1, (jour + 0.12) / 0.32));
@@ -372,9 +404,11 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
 
       // Visiteurs en direct : points verts qui respirent.
       (e.visiteurs || []).forEach((v, i) => {
-        const base = PAYS[v.pays] || PAYS[paysBoutique] || PAYS.SN;
         const h1 = hachage(v.cle + "a"), h2 = hachage(v.cle + "b");
-        const q = projeter(vecteur(base[0] + (h1 - 0.5) * 3, base[1] + (h2 - 0.5) * 3), 0.006);
+        const exact = Number.isFinite(v.lat) && Number.isFinite(v.lon);
+        const base = exact ? [v.lat, v.lon] : (PAYS[v.pays] || PAYS[paysBoutique] || PAYS.SN);
+        const ecart = exact ? 0.08 : 3; // plusieurs visiteurs dans la même ville : légèrement écartés
+        const q = projeter(vecteur(base[0] + (h1 - 0.5) * ecart, base[1] + (h2 - 0.5) * ecart), 0.006);
         if (q.z <= 0.05) return;
         const phase = (t / 1600 + h1) % 1;
         ctx.strokeStyle = `rgba(110,255,190,${0.55 * (1 - phase)})`; ctx.lineWidth = 1.4;
@@ -384,6 +418,30 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, 11, 0, Math.PI * 2); ctx.fill();
         e.cibles.push({ x: q.x, y: q.y, r: 10, type: "visiteur", v });
       });
+
+      // Zoom avant : les noms des villes apparaissent (visiteurs en vert, commandes en doré).
+      if (e.zoom > 1.7) {
+        const etiquettes = new Map();
+        (e.visiteurs || []).forEach((v) => { if (v.ville && Number.isFinite(v.lat)) { const k = "v" + v.ville; const x = etiquettes.get(k) || { lat: v.lat, lon: v.lon, nom: v.ville, n: 0, couleur: "#a7f3d0" }; x.n++; etiquettes.set(k, x); } });
+        (e.commandes || []).forEach((c) => { if (c.lieu.ville) { const k = "c" + c.lieu.ville; const x = etiquettes.get(k) || { lat: c.lieu.lat, lon: c.lieu.lon, nom: titreVille(c.lieu.ville), n: 0, couleur: "#fde68a", dy: 16 }; x.n++; etiquettes.set(k, x); } });
+        const alpha = Math.min(1, (e.zoom - 1.7) / 0.6);
+        ctx.font = "600 11.5px 'IBM Plex Sans', system-ui, sans-serif";
+        const places = [];
+        [...etiquettes.values()].sort((a, b) => b.n - a.n).forEach((x) => {
+          const q = projeter(vecteur(x.lat, x.lon), 0.006); if (q.z <= 0.15) return;
+          const txt = `${x.nom}${x.n > 1 ? " · " + x.n : ""}`;
+          const w = ctx.measureText(txt).width + 10;
+          // Évite les chevauchements : on essaie à droite, à gauche, au-dessus, en dessous.
+          const essais = [[10, -8], [-w - 10, -8], [-w / 2, -26], [-w / 2, 12]].map(([dx, dy]) => ({ x: q.x + dx, y: q.y + dy + (x.dy || 0) * 0 }));
+          const libre = essais.find((r) => !places.some((p) => r.x < p.x + p.w && r.x + w > p.x && r.y < p.y + 16 && r.y + 16 > p.y));
+          if (!libre) return;
+          places.push({ x: libre.x, y: libre.y, w });
+          ctx.globalAlpha = alpha * Math.min(1, q.z * 1.5);
+          ctx.fillStyle = "rgba(3,10,16,0.55)"; ctx.fillRect(libre.x, libre.y, w, 16);
+          ctx.fillStyle = x.couleur; ctx.fillText(txt, libre.x + 5, libre.y + 12);
+        });
+        ctx.globalAlpha = 1;
+      }
 
       // Faisceaux des nouvelles commandes : colonne de lumière + ondes + étiquette flottante.
       e.faisceaux = e.faisceaux.filter((f) => t - f.t0 < 5200);
@@ -421,8 +479,23 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
     raf = requestAnimationFrame(image);
 
     // Interaction : glisser pour tourner (souris et doigt), inertie au relâchement.
-    const bas = (ev) => { e.glisse = { x: ev.clientX, y: ev.clientY, rot: e.rot, incl: e.incl, t: performance.now(), dernierX: ev.clientX }; e.cibleRot = null; e.cibleIncl = null; canvas.setPointerCapture && canvas.setPointerCapture(ev.pointerId); };
+    const doigts = new Map();
+    let pince = null;
+    const molette = (ev) => { ev.preventDefault(); e.cibleZoom = Math.max(1, Math.min(5, e.cibleZoom * Math.exp(-ev.deltaY * 0.0015))); };
+    const basPince = (ev) => {
+      doigts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (doigts.size === 2) { const [a, b] = [...doigts.values()]; pince = { d: Math.hypot(a.x - b.x, a.y - b.y), z: e.cibleZoom }; e.glisse = null; }
+    };
+    const bougePince = (ev) => {
+      if (!doigts.has(ev.pointerId)) return false;
+      doigts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pince && doigts.size === 2) { const [a, b] = [...doigts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); e.cibleZoom = Math.max(1, Math.min(5, pince.z * (d / Math.max(20, pince.d)))); e.zoom = e.cibleZoom; return true; }
+      return false;
+    };
+    const hautPince = (ev) => { doigts.delete(ev.pointerId); if (doigts.size < 2) pince = null; };
+    const bas = (ev) => { basPince(ev); if (doigts.size > 1) return; e.glisse = { x: ev.clientX, y: ev.clientY, rot: e.rot, incl: e.incl, t: performance.now(), dernierX: ev.clientX }; e.cibleRot = null; e.cibleIncl = null; canvas.setPointerCapture && canvas.setPointerCapture(ev.pointerId); };
     const bouge = (ev) => {
+      if (bougePince(ev)) return;
       if (!e.glisse) {
         const r = canvas.getBoundingClientRect(); const x = ev.clientX - r.left, y = ev.clientY - r.top;
         const c = e.cibles.find((k) => (k.x - x) ** 2 + (k.y - y) ** 2 < k.r * k.r);
@@ -438,6 +511,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       e.glisse.dernierX = ev.clientX; e.glisse.t = now;
     };
     const haut = (ev) => {
+      hautPince(ev);
       if (e.glisse && Math.abs(ev.clientX - e.glisse.x) < 5 && Math.abs(ev.clientY - e.glisse.y) < 5) {
         const r = canvas.getBoundingClientRect(); const x = ev.clientX - r.left, y = ev.clientY - r.top;
         const c = e.cibles.find((k) => (k.x - x) ** 2 + (k.y - y) ** 2 < (k.r + 6) ** 2);
@@ -448,6 +522,8 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       e.glisse = null;
     };
     canvas.addEventListener("pointerdown", bas);
+    canvas.addEventListener("wheel", molette, { passive: false });
+    window.addEventListener("pointercancel", hautPince);
     window.addEventListener("pointermove", bouge);
     window.addEventListener("pointerup", haut);
     const echap = (ev) => { if (ev.key === "Escape" && onClose) onClose(); };
@@ -455,7 +531,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
 
     return () => {
       vivant = false; cancelAnimationFrame(raf); obs.disconnect();
-      canvas.removeEventListener("pointerdown", bas); window.removeEventListener("pointermove", bouge); window.removeEventListener("pointerup", haut); window.removeEventListener("keydown", echap);
+      canvas.removeEventListener("pointerdown", bas); canvas.removeEventListener("wheel", molette); window.removeEventListener("pointercancel", hautPince); window.removeEventListener("pointermove", bouge); window.removeEventListener("pointerup", haut); window.removeEventListener("keydown", echap);
     };
   }, [paysBoutique, devise]);
 
@@ -519,16 +595,18 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       <div style={{ position: "absolute", left: 14, right: 14, bottom: 14, display: "flex", flexDirection: "column", gap: 8 }}>
         {(visiteursParPays.length > 0 || topVilles.length > 0) && (
           <div className="rv-vd-scroll" style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-            {visiteursParPays.slice(0, 5).map(([p, n]) => <span key={p} style={{ ...bouton, cursor: "default", flexShrink: 0, color: "#d1fae5" }}>{drapeau(p)} {n}</span>)}
+            {visiteursParPays.slice(0, 6).map(([p, n]) => <span key={p} style={{ ...bouton, cursor: "default", flexShrink: 0, color: "#d1fae5" }}>{p} · {n}</span>)}
             {topVilles.map(([v, n]) => <span key={v} style={{ ...bouton, cursor: "default", flexShrink: 0, color: "#fde68a", borderColor: "rgba(251,191,36,0.35)" }}>📍 {v} · {n}</span>)}
           </div>
         )}
         <div className="rv-vd-scroll" style={{ display: "flex", gap: 8, flexWrap: mobile ? "nowrap" : "wrap", overflowX: "auto" }}>
           <button onClick={rejouerJournee} disabled={rejeu || commandesJour.length === 0} style={{ ...bouton, flexShrink: 0, color: "#fde68a", opacity: rejeu || commandesJour.length === 0 ? 0.5 : 1 }}>{rejeu ? "⏳ Rejeu en cours…" : "▶ Rejouer la journée"}</button>
           <button onClick={centrerBoutique} style={{ ...bouton, flexShrink: 0 }}>🎯 Ma boutique</button>
+          <button onClick={() => zoomer(1.6)} aria-label="Zoom avant" style={{ ...bouton, flexShrink: 0, width: 38, justifyContent: "center", padding: "8px 0" }}>＋</button>
+          <button onClick={() => zoomer(1 / 1.6)} aria-label="Zoom arrière" style={{ ...bouton, flexShrink: 0, width: 38, justifyContent: "center", padding: "8px 0" }}>－</button>
           <button onClick={() => setRotationAuto((r) => !r)} style={{ ...bouton, flexShrink: 0 }}>{rotationAuto ? "⏸ Pause" : "🔄 Rotation"}</button>
         </div>
-        <div style={{ fontSize: 10.5, color: "rgba(232,255,246,0.4)", display: mobile ? "none" : "block" }}>🟢 visiteurs en ce moment (par pays) · 🟡 commandes du jour (par ville de livraison) · éclairage jour / nuit réel · glisse pour tourner, touche un point doré pour ouvrir la commande</div>
+        <div style={{ fontSize: 10.5, color: "rgba(232,255,246,0.4)", display: mobile ? "none" : "block" }}>🟢 visiteurs en ce moment (ville approximative) · 🟡 commandes du jour (par ville de livraison) · éclairage jour / nuit réel · glisse pour tourner, pince ou molette pour zoomer (les villes s'affichent), touche un point doré pour ouvrir la commande</div>
       </div>
 
       {/* Bulle d'information au survol / toucher */}
@@ -542,7 +620,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
             </>
           ) : (
             <>
-              <div style={{ fontWeight: 800, color: "#6ee7b7" }}>{drapeau(survol.cible.v.pays)} Visiteur — {nomPays(survol.cible.v.pays)}</div>
+              <div style={{ fontWeight: 800, color: "#6ee7b7" }}>{drapeau(survol.cible.v.pays)} Visiteur — {survol.cible.v.ville ? `${survol.cible.v.ville}, ` : ""}{nomPays(survol.cible.v.pays)}</div>
               <div style={{ opacity: 0.75 }}>{survol.cible.v.page}</div>
             </>
           )}

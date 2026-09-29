@@ -90,6 +90,22 @@ function nomPays(code) { try { return new Intl.DisplayNames(["fr"], { type: "reg
 function titreVille(v) { return String(v || "").replace(/(^|[\s-])\S/g, (m) => m.toUpperCase()); }
 const RAD = Math.PI / 180;
 
+// Étapes du parcours client (façon « comportement des clients » de Shopify), avec leur lumière.
+const ETAPES = {
+  navigue: { rang: 0, nom: "Navigue", icone: "👀", rgb: [52, 211, 153] },
+  produit: { rang: 0, nom: "Navigue", icone: "👀", rgb: [52, 211, 153] },
+  panier: { rang: 1, nom: "Panier actif", icone: "🛍️", rgb: [34, 211, 238] },
+  paiement: { rang: 2, nom: "Paiement en cours", icone: "💳", rgb: [192, 132, 252] },
+  valide: { rang: 3, nom: "Commande validée", icone: "✅", rgb: [251, 191, 36] },
+};
+const COLONNES_PARCOURS = [
+  { cle: "navigue", nom: "Navigue", court: "Visite", icone: "👀", couleur: "#34d399" },
+  { cle: "panier", nom: "Panier actif", court: "Panier", icone: "🛍️", couleur: "#22d3ee" },
+  { cle: "paiement", nom: "Paiement en cours", court: "Paiement", icone: "💳", couleur: "#c084fc" },
+  { cle: "valide", nom: "Validé", court: "Validé", icone: "✅", couleur: "#fbbf24" },
+];
+function etapeDe(v) { return ETAPES[v && v.etape] ? v.etape : "navigue"; }
+
 // Point sous-solaire à l'instant t (précision largement suffisante pour l'éclairage).
 function soleil(t) {
   const d = new Date(t);
@@ -131,7 +147,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       // (migration SQL pas appliquée), on retombe sur la liste par pays, comme avant.
       const lireGeo = () => supabase.rpc("visiteurs_en_ligne_geo", { p_workspace: workspace.id }).then(({ data, error }) => {
         if (error || !Array.isArray(data)) throw error || new Error("indisponible");
-        return data.map((v) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: v.sid, ville: v.ville || null, lat: Number.isFinite(v.lat) ? v.lat : null, lon: Number.isFinite(v.lon) ? v.lon : null }));
+        return data.map((v) => ({ pays: codePays(v.pays) || paysBoutique, page: v.page || "Accueil", depuis: v.depuis ? new Date(v.depuis).getTime() : Date.now(), cle: v.sid, ville: v.ville || null, lat: Number.isFinite(v.lat) ? v.lat : null, lon: Number.isFinite(v.lon) ? v.lon : null, etape: v.etape || "navigue", etapeDepuis: v.etape_depuis ? new Date(v.etape_depuis).getTime() : null }));
       });
       const lireSimple = () => supabase.rpc("visiteurs_en_ligne", { p_workspace: workspace.id }).then(({ data, error }) => {
         if (error || !Array.isArray(data)) return null;
@@ -143,6 +159,15 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         if (precedents) {
           const avant = new Set(precedents.map((v) => v.cle));
           liste.filter((v) => !avant.has(v.cle)).slice(0, 3).forEach((v) => ajouterFil({ type: "visiteur", texte: `${drapeau(v.pays)} Nouveau visiteur — ${v.ville ? `${v.ville}, ` : ""}${nomPays(v.pays)}`, sous: v.page }));
+          // Un visiteur avance dans le parcours : panier → paiement → validé.
+          const etapesAvant = new Map(precedents.map((v) => [v.cle, etapeDe(v)]));
+          liste.forEach((v) => {
+            const avantEtape = etapesAvant.get(v.cle); const maintenant = etapeDe(v);
+            if (!avantEtape || ETAPES[maintenant].rang <= ETAPES[avantEtape].rang || ETAPES[maintenant].rang === 0) return;
+            const lieu = v.ville ? `${v.ville}` : nomPays(v.pays);
+            ajouterFil({ type: maintenant, texte: `${ETAPES[maintenant].icone} ${ETAPES[maintenant].nom} — ${lieu}`, sous: v.page });
+            etat.current.impulsions.push({ cle: v.cle, t0: performance.now(), rgb: ETAPES[maintenant].rgb });
+          });
         }
         precedents = liste;
         setVisiteurs(liste);
@@ -167,6 +192,12 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
       .map((c) => ({ ...c, lieu: localiserCommande(c.zone, paysBoutique) }))
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }, [commandes, paysBoutique]);
+  // Comportement des clients en direct : combien sont à chaque étape en ce moment.
+  const parcours = useMemo(() => {
+    const n = { navigue: 0, panier: 0, paiement: 0, valide: 0 };
+    visiteurs.forEach((v) => { const k = etapeDe(v); n[k === "produit" ? "navigue" : k]++; });
+    return n;
+  }, [visiteurs]);
   const ventesJour = commandesJour.reduce((s, c) => s + (Number(c.montant) || 0), 0);
   const conversion = visitesJour ? Math.min(100, (commandesJour.length / visitesJour) * 100) : null;
   const topVilles = useMemo(() => {
@@ -191,7 +222,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
   }, [ventesJour]);
 
   // --- État partagé avec la boucle d'animation (sans re-rendu React à 60 i/s) --------------
-  const etat = useRef({ rot: 0, incl: 0, vRot: 0, cibleRot: null, cibleIncl: null, glisse: null, faisceaux: [], arcs: [], visiteurs: [], commandes: [], cibles: [] });
+  const etat = useRef({ rot: 0, incl: 0, vRot: 0, cibleRot: null, cibleIncl: null, glisse: null, faisceaux: [], arcs: [], visiteurs: [], commandes: [], cibles: [], impulsions: [] });
   useEffect(() => { etat.current.visiteurs = visiteurs; }, [visiteurs]);
   useEffect(() => { etat.current.commandes = commandesJour; }, [commandesJour]);
   useEffect(() => { etat.current.rotationAuto = rotationAuto; }, [rotationAuto]);
@@ -410,14 +441,26 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         const ecart = exact ? 0.08 : 3; // plusieurs visiteurs dans la même ville : légèrement écartés
         const q = projeter(vecteur(base[0] + (h1 - 0.5) * ecart, base[1] + (h2 - 0.5) * ecart), 0.006);
         if (q.z <= 0.05) return;
-        const phase = (t / 1600 + h1) % 1;
-        ctx.strokeStyle = `rgba(110,255,190,${0.55 * (1 - phase)})`; ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.arc(q.x, q.y, 4 + phase * 20, 0, Math.PI * 2); ctx.stroke();
-        const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 11);
-        g.addColorStop(0, "rgba(210,255,235,1)"); g.addColorStop(0.35, "rgba(52,211,153,0.7)"); g.addColorStop(1, "rgba(52,211,153,0)");
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, 11, 0, Math.PI * 2); ctx.fill();
+        // Couleur selon l'étape : vert (visite) → cyan (panier) → violet (paiement) → or (validé).
+        const et = ETAPES[etapeDe(v)]; const [cr, cg, cb] = et.rgb;
+        const vite = et.rang >= 2 ? 900 : 1600; // le paiement « bat » plus vite
+        const phase = (t / vite + h1) % 1;
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.6 * (1 - phase)})`; ctx.lineWidth = et.rang >= 2 ? 2 : 1.4;
+        ctx.beginPath(); ctx.arc(q.x, q.y, 4 + phase * (et.rang >= 2 ? 26 : 20), 0, Math.PI * 2); ctx.stroke();
+        const rayon = 11 + et.rang * 2;
+        const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, rayon);
+        g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.3, `rgba(${cr},${cg},${cb},0.8)`); g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, rayon, 0, Math.PI * 2); ctx.fill();
+        // Impulsion lumineuse quand le visiteur vient d'avancer d'une étape.
+        (e.impulsions || []).forEach((imp) => {
+          if (imp.cle !== v.cle) return; const a = (t - imp.t0) / 1400; if (a > 1) return;
+          ctx.strokeStyle = `rgba(${imp.rgb[0]},${imp.rgb[1]},${imp.rgb[2]},${1 - a})`; ctx.lineWidth = 3 * (1 - a) + 0.5;
+          ctx.beginPath(); ctx.arc(q.x, q.y, 6 + a * 48, 0, Math.PI * 2); ctx.stroke();
+        });
         e.cibles.push({ x: q.x, y: q.y, r: 10, type: "visiteur", v });
       });
+
+      e.impulsions = (e.impulsions || []).filter((imp) => t - imp.t0 < 1500);
 
       // Zoom avant : les noms des villes apparaissent (visiteurs en vert, commandes en doré).
       if (e.zoom > 1.7) {
@@ -554,6 +597,9 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         @keyframes rvLive { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .45; transform: scale(.8) } }
         @keyframes rvEntre { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
         .rv-vd-scroll::-webkit-scrollbar { display: none }
+        @keyframes rvBat { 0%,100% { transform: scale(1) } 50% { transform: scale(1.12) } }
+        @keyframes rvFlux { from { background-position: 0 0 } to { background-position: 200px 0 } }
+        .rv-flux { background: linear-gradient(90deg, rgba(52,211,153,.15), rgba(52,211,153,.9) 20%, rgba(34,211,238,.9) 45%, rgba(192,132,252,.9) 70%, rgba(251,191,36,.9) 90%, rgba(251,191,36,.15)); background-size: 200px 2px; animation: rvFlux 2.4s linear infinite; opacity: .55; filter: drop-shadow(0 0 4px rgba(110,231,183,.6)) }
       `}</style>
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, touchAction: "none", cursor: "grab" }} />
 
@@ -578,14 +624,39 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
         <div style={mobile ? {} : { gridColumn: "1 / -1" }}>{tuile(mobile ? "CA du jour" : "Ventes du jour", `${ventesAffichees.toLocaleString("fr-FR")}${mobile ? "" : " " + devise}`, "#fde68a", conversion !== null ? `${mobile ? devise + " · " : ""}Conv. ${conversion.toFixed(1)} %${mobile ? "" : ` · ${visitesJour} visite${visitesJour > 1 ? "s" : ""}`}` : mobile ? devise : "")}</div>
       </div>
 
+      {/* Comportement des clients : pipeline lumineux en direct */}
+      <div style={mobile
+        ? { position: "absolute", left: 12, right: 12, bottom: 118, ...verre, padding: "10px 10px 8px" }
+        : { position: "absolute", left: 14, top: 262, width: 260, boxSizing: "border-box", ...verre, padding: "12px 14px 10px" }}>
+        <div style={{ fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.6, fontWeight: 700, marginBottom: 8 }}>Comportement des clients · en direct</div>
+        <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+          <div className="rv-flux" style={{ position: "absolute", left: "12%", right: "12%", top: mobile ? 17 : 19, height: 2, borderRadius: 2 }} />
+          {COLONNES_PARCOURS.map((c) => {
+            const n = parcours[c.cle] || 0; const actif = n > 0;
+            return (
+              <div key={c.cle} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textAlign: "center" }}>
+                <div style={{ width: mobile ? 34 : 38, height: mobile ? 34 : 38, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: mobile ? 15 : 17,
+                  background: actif ? `radial-gradient(circle at 35% 30%, ${c.couleur}55, ${c.couleur}18 70%)` : "rgba(255,255,255,0.04)",
+                  border: `1.5px solid ${actif ? c.couleur : "rgba(255,255,255,0.12)"}`,
+                  boxShadow: actif ? `0 0 16px ${c.couleur}88, inset 0 0 10px ${c.couleur}44` : "none",
+                  animation: actif && (c.cle === "paiement" || c.cle === "valide") ? "rvBat 1.1s ease-in-out infinite" : "none",
+                  transition: "all .4s ease" }}>{c.icone}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: mobile ? 16 : 18, fontWeight: 700, color: actif ? c.couleur : "rgba(232,255,246,0.35)", textShadow: actif ? `0 0 12px ${c.couleur}88` : "none", lineHeight: 1 }}>{n}</div>
+                <div style={{ fontSize: mobile ? 9.5 : 10.5, opacity: actif ? 0.85 : 0.45, lineHeight: 1.2 }}>{mobile ? c.court : c.nom}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Flux d'activité */}
       <div className="rv-vd-scroll" style={mobile
         ? { position: "absolute", left: 12, right: 12, top: 148, display: "flex", flexDirection: "column", gap: 6 }
         : { position: "absolute", right: 14, top: 72, width: "min(290px, 44vw)", display: "flex", flexDirection: "column", gap: 6, maxHeight: "46vh", overflowY: "auto" }}>
         {fil.length === 0 && !mobile && <div style={{ ...verre, padding: "10px 12px", fontSize: 12, opacity: 0.75 }}>En attente d'activité… chaque visite et chaque commande apparaîtra ici en direct.</div>}
         {(mobile ? fil.slice(0, 1) : fil).map((f) => (
-          <div key={f.id} onClick={() => f.commandeId && onOuvrirCommande && onOuvrirCommande(f.commandeId)} style={{ ...verre, padding: "9px 12px", animation: "rvEntre .35s ease", cursor: f.commandeId ? "pointer" : "default", borderColor: f.type === "commande" ? "rgba(251,191,36,0.45)" : "rgba(160,255,220,0.14)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: f.type === "commande" ? "#fde68a" : "#d1fae5" }}>{f.texte}</div>
+          <div key={f.id} onClick={() => f.commandeId && onOuvrirCommande && onOuvrirCommande(f.commandeId)} style={{ ...verre, padding: "9px 12px", animation: "rvEntre .35s ease", cursor: f.commandeId ? "pointer" : "default", borderColor: f.type === "commande" || f.type === "valide" ? "rgba(251,191,36,0.45)" : f.type === "paiement" ? "rgba(192,132,252,0.5)" : f.type === "panier" ? "rgba(34,211,238,0.45)" : "rgba(160,255,220,0.14)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: f.type === "commande" || f.type === "valide" ? "#fde68a" : f.type === "paiement" ? "#e9d5ff" : f.type === "panier" ? "#a5f3fc" : "#d1fae5" }}>{f.texte}</div>
             {f.sous && <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.sous}</div>}
           </div>
         ))}
@@ -606,7 +677,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
           <button onClick={() => zoomer(1 / 1.6)} aria-label="Zoom arrière" style={{ ...bouton, flexShrink: 0, width: 38, justifyContent: "center", padding: "8px 0" }}>－</button>
           <button onClick={() => setRotationAuto((r) => !r)} style={{ ...bouton, flexShrink: 0 }}>{rotationAuto ? "⏸ Pause" : "🔄 Rotation"}</button>
         </div>
-        <div style={{ fontSize: 10.5, color: "rgba(232,255,246,0.4)", display: mobile ? "none" : "block" }}>🟢 visiteurs en ce moment (ville approximative) · 🟡 commandes du jour (par ville de livraison) · éclairage jour / nuit réel · glisse pour tourner, pince ou molette pour zoomer (les villes s'affichent), touche un point doré pour ouvrir la commande</div>
+        <div style={{ fontSize: 10.5, color: "rgba(232,255,246,0.4)", display: mobile ? "none" : "block" }}>🟢 visite · 🔵 panier · 🟣 paiement en cours · 🟡 validé et commandes du jour (par ville) · éclairage jour / nuit réel · glisse pour tourner, pince ou molette pour zoomer (les villes s'affichent), touche un point doré pour ouvrir la commande</div>
       </div>
 
       {/* Bulle d'information au survol / toucher */}
@@ -622,6 +693,7 @@ export default function VueEnDirect({ workspace, commandes = [], devise = "", on
             <>
               <div style={{ fontWeight: 800, color: "#6ee7b7" }}>{drapeau(survol.cible.v.pays)} Visiteur — {survol.cible.v.ville ? `${survol.cible.v.ville}, ` : ""}{nomPays(survol.cible.v.pays)}</div>
               <div style={{ opacity: 0.75 }}>{survol.cible.v.page}</div>
+              <div style={{ marginTop: 3, fontWeight: 700, color: `rgb(${ETAPES[etapeDe(survol.cible.v)].rgb.join(",")})` }}>{ETAPES[etapeDe(survol.cible.v)].icone} {ETAPES[etapeDe(survol.cible.v)].nom}</div>
             </>
           )}
         </div>

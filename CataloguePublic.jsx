@@ -1486,6 +1486,18 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
   // Aucun compte, aucune donnée personnelle : seulement un identifiant aléatoire de l'onglet et le nom de la page regardée.
   const pageVueRef = useRef("Accueil");
   pageVueRef.current = produitOuvert?.produit_nom ? `Produit : ${produitOuvert.produit_nom}` : "Accueil";
+  // Étape du parcours (Vue en direct du commerçant, façon Shopify) :
+  // navigue → produit → panier → paiement (formulaire de commande ouvert / en cours) → valide (commande envoyée).
+  const [achatValideA, setAchatValideA] = useState(0);
+  const formulaireEnCours = afficherFormulaire || !!(form.client || form.tel);
+  const etapeVisiteur = achatValideA && Date.now() - achatValideA < 10 * 60 * 1000 ? "valide"
+    : formulaireEnCours || (panierOuvert && panier.length > 0) ? "paiement"
+    : panier.length > 0 ? "panier"
+    : produitOuvert ? "produit" : "navigue";
+  const etapeRef = useRef(etapeVisiteur);
+  etapeRef.current = etapeVisiteur;
+  const pingRef = useRef(null);
+  useEffect(() => { if (pingRef.current) pingRef.current(); }, [etapeVisiteur]);
   useEffect(() => {
     if (!workspaceId) return;
     let sid = "";
@@ -1496,9 +1508,11 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
         try { supabase.rpc("ping_visiteur_boutique", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null }).then(() => {}, () => {}); } catch (_) {}
         // Signal complémentaire avec la ville (Vue en direct). Sans effet si la migration SQL n'est pas appliquée.
         const geo = cachePaysVisiteur.geo;
-        if (geo) { try { supabase.rpc("ping_visiteur_geo", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null, p_ville: geo.ville, p_lat: geo.lat, p_lon: geo.lon }).then(() => {}, () => {}); } catch (_) {} }
+        // (envoyé même sans ville connue : l'étape du parcours reste utile au commerçant)
+        try { supabase.rpc("ping_visiteur_geo", { p_workspace: workspaceId, p_sid: sid, p_page: pageVueRef.current, p_pays: pays || null, p_ville: geo ? geo.ville : null, p_lat: geo ? geo.lat : null, p_lon: geo ? geo.lon : null, p_etape: etapeRef.current }).then(() => {}, () => {}); } catch (_) {}
       });
     };
+    pingRef.current = ping;
     ping();
     const minuteur = setInterval(ping, 30000);
     document.addEventListener("visibilitychange", ping);
@@ -2000,6 +2014,7 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
     supabase.rpc("marquer_panier_converti", { p_workspace_id: workspaceId, p_tel: telephoneEnregistre(form.tel, paysClient.effectif, paysClient.principal), p_produit_id: produitOuvert.produit_id }).then(() => {});
     suivrePage("commande_creee", { commande_id: idCommandeCreee, offre_id: bundleChoisiId ?? "base", montant: valeurCommande });
     setIdCommandeEnvoyee(idCommandeCreee || null);
+    setAchatValideA(Date.now());
     setEnvoye(true);
   }
 
@@ -3962,13 +3977,14 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
           onViderPanier={viderPanier}
           onTrack={trackEvenement}
           onCapi={envoyerEvenementCapi}
+          onCommandeValidee={() => setAchatValideA(Date.now())}
         />
       )}
     </AmbianceShop>
   );
 }
 
-function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onModifierQuantite, onRetirer, onViderPanier, onTrack, onCapi }) {
+function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onModifierQuantite, onRetirer, onViderPanier, onTrack, onCapi, onCommandeValidee }) {
   // Le suivi Facebook (Pixel + serveur) vit dans le composant parent : on le reçoit en propriété.
   // (Avant, il était appelé ici sans être défini → erreur JS juste après l'envoi de la commande du
   // panier : le panier n'était pas vidé et la confirmation « Commande envoyée » ne s'affichait pas.)
@@ -4059,6 +4075,7 @@ function PanierDrawer({ panier, entreprise, couleur, workspaceId, onFermer, onMo
       }, { eventID: `commande-${idCommandePanier}` });
       envoyerEvenementCapi(idCommandePanier);
     }
+    if (onCommandeValidee) onCommandeValidee();
     onViderPanier();
     setIdCommandePayer(idCommandePanier || null);
     setEtape("envoye");

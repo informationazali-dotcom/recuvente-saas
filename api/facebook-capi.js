@@ -164,7 +164,19 @@ export default async function handler(req, res) {
   if (req.method === "GET" && req.query && req.query.pays) {
     res.setHeader("Cache-Control", "private, no-store");
     const code = String(req.headers["x-vercel-ip-country"] || "").toUpperCase();
-    return res.status(200).json({ pays: /^[A-Z]{2}$/.test(code) ? code : null });
+    // Ville approximative du visiteur (déduite par Vercel de l'adresse IP, sans aucun service payant) —
+    // utilisée seulement pour la « Vue en direct » du commerçant. Coordonnées arrondies (~1 km).
+    let ville = null;
+    try { ville = decodeURIComponent(String(req.headers["x-vercel-ip-city"] || "")).slice(0, 80) || null; } catch (_) { ville = null; }
+    const lat = Number(req.headers["x-vercel-ip-latitude"]);
+    const lon = Number(req.headers["x-vercel-ip-longitude"]);
+    const coordsOk = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0);
+    return res.status(200).json({
+      pays: /^[A-Z]{2}$/.test(code) ? code : null,
+      ville,
+      lat: coordsOk ? Math.round(lat * 100) / 100 : null,
+      lon: coordsOk ? Math.round(lon * 100) / 100 : null,
+    });
   }
   // « GET ?taux=XOF » : taux de change du jour (base → autres monnaies), pour convertir automatiquement les prix
   // quand le commerçant n'a saisi aucun taux. Mis en cache 12 h côté Vercel ; en cas de panne : rates = null.

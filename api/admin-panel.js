@@ -2038,6 +2038,7 @@ export default async function handler(req, res) {
         workspaceId: req.body.workspace_id,
         successUrl: req.body.successUrl,
         cancelUrl: req.body.cancelUrl,
+        email: req.body.email,
       });
       return res.status(200).json(resultat);
     } catch (e) {

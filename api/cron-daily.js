@@ -731,6 +731,13 @@ export default async function handler(req, res) {
   const resultatEssais = await verifierEssaisEtRappels();
   let resultatRenouvellements = null;
   try { resultatRenouvellements = await verifierRenouvellementsProches(); } catch (e) { console.error("Erreur rappels renouvellement:", e); }
+  // Abonnements dont la période payée est finie : boutique + tableau de bord désactivés (voir
+  // supabase/migrations/202609300003_expiration_abonnements.sql). Rouverts dès le paiement suivant.
+  try {
+    const { data: expires, error: errExp } = await supabaseAdmin.rpc("rv_expirer_abonnements");
+    if (errExp) console.error("Erreur expiration abonnements:", errExp.message);
+    else if (expires && expires.length) console.log("Abonnements expirés désactivés:", expires.map((x) => x.boutique).join(", "));
+  } catch (e) { console.error("Erreur expiration abonnements:", e); }
   const resultatStock = await verifierStockBas();
   // Isolé dans son propre try/catch, comme les autres lots plus récents ci-dessous : une
   // erreur ici ne doit jamais empêcher le reste du cron quotidien (stock, essais, paiements...)

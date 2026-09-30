@@ -275,6 +275,10 @@ const CSS_PAGE = `
 .rvpp-formcard{padding:18px 16px;max-width:560px;margin:0 auto;box-shadow:0 10px 30px rgba(22,35,31,.08)}
 .rvpp-info-list{display:grid;gap:10px;font-size:14.5px}
 .rvpp-info-list div{display:flex;gap:10px;align-items:flex-start}
+.rvpp-pastilles{display:inline-flex;align-items:center;margin-left:4px}
+.rvpp-pastille{width:26px;height:26px;border-radius:50%;border:2px solid #fff;margin-left:-8px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#5a4636;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.12);position:relative}
+.rvpp-pastille:first-child{margin-left:0}
+.rvpp-pastille img{width:100%;height:100%;object-fit:cover}
 .rvpp-stats{display:flex;flex-direction:column;margin:10px 0 12px}
 .rvpp-stat{display:flex;align-items:center;gap:18px;padding:16px 0;border-bottom:1px solid var(--pp-line)}
 .rvpp-stat:last-child{border-bottom:none}
@@ -762,6 +766,31 @@ function BoutonEcouterPage({ texteAudio, langue, lib }) {
 // Informations produit (utilisé par Hero et par le bloc "Infos produit")
 // ---------------------------------------------------------------------------
 
+// Petites pastilles rondes qui se chevauchent à côté de la note (façon Copify) : les PHOTOS des
+// vrais clients qui ont laissé un avis, sinon leurs initiales, sinon de simples pastilles neutres
+// (décoratives, sans aucun nom ni visage inventé).
+export function PastillesClients({ avis }) {
+  const reels = (avis || []).filter((a) => a && Number(a.note) >= 4);
+  const pastilles = [];
+  reels.forEach((a) => {
+    if (pastilles.length >= 4) return;
+    const photo = a.photo_url && !/\.(mp4|mov|webm)(\?|$)/i.test(a.photo_url) ? a.photo_url : null;
+    const nom = String(a.client_nom || "").trim();
+    pastilles.push(photo ? { photo } : { initiale: nom ? nom.charAt(0).toUpperCase() : "" });
+  });
+  while (pastilles.length < 4) pastilles.push({ initiale: "" });
+  const teintes = ["#E8D8C8", "#D9C3AE", "#C9AE95", "#B8997E"];
+  return (
+    <span className="rvpp-pastilles" aria-hidden="true">
+      {pastilles.map((x, k) => (
+        <span key={k} className="rvpp-pastille" style={{ background: x.photo ? undefined : teintes[k % teintes.length], zIndex: 10 - k }}>
+          {x.photo ? <img src={x.photo} alt="" loading="lazy" decoding="async" /> : x.initiale}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function InfoProduit({ p, ctx, blocOffres }) {
   const { produit, devise, etat, actions, liv, t, entreprise } = ctx;
   const titre = (p.titre || "").trim() || produit.produit_nom;
@@ -805,7 +834,8 @@ function InfoProduit({ p, ctx, blocOffres }) {
         const contenu = (
           <>
             <Etoiles note={note} />
-            <span style={{ fontSize: 13, color: "var(--pp-muted)" }}><b style={{ color: "var(--pp-ink)" }}>{mot}</b> | {note}/5{nbAvis != null && ` (${nbAvis} ${lib("noteAvisClients", "avis clients")})`}</span>
+            <span style={{ fontSize: 13.5, color: "var(--pp-ink)" }}><b>{mot}</b> | Noté {note}{nbAvis != null && Number(nbAvis) > 0 && <> <span style={{ color: "var(--pp-muted)" }}>({Number(nbAvis).toLocaleString("fr-FR")} {lib("clientsSatisfaits", "clients satisfaits")})</span></>}</span>
+            <PastillesClients avis={ctx.avis} />
           </>
         );
         const style = { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, margin: "0 0 6px", textAlign: "left", color: "inherit" };

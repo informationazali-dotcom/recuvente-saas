@@ -4764,12 +4764,17 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const accesBloque = (() => {
     if (subscription === undefined) return false; // encore en cours de chargement, ne pas bloquer par erreur
     if (subscription === null) return true; // aucun abonnement enregistré du tout = accès bloqué (sécurité)
-    if (subscription.status === "active") return false;
+    // Période payée finie depuis plus de 24 h (Chariow ne prélève jamais automatiquement) : bloqué,
+    // même si le statut est resté « active » en base. Le paiement suivant rouvre tout seul.
+    const periodeFinie = !!subscription.current_period_end && new Date(subscription.current_period_end).getTime() < Date.now() - 24 * 3600 * 1000;
+    if (subscription.status === "active") return periodeFinie;
     if (subscription.status === "trial") {
       const finEssai = new Date(subscription.trial_ends_at);
       return finEssai < new Date();
     }
-    if (subscription.status === "suspended" || subscription.status === "cancelled") return true;
+    // Abonnement annulé : l'accès reste ouvert jusqu'à la fin de la période déjà payée.
+    if (subscription.status === "cancelled") return !subscription.current_period_end || periodeFinie;
+    if (subscription.status === "suspended" || subscription.status === "refunded") return true;
     return false;
   })();
 

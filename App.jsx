@@ -4764,9 +4764,9 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const accesBloque = (() => {
     if (subscription === undefined) return false; // encore en cours de chargement, ne pas bloquer par erreur
     if (subscription === null) return true; // aucun abonnement enregistré du tout = accès bloqué (sécurité)
-    // Période payée finie depuis plus de 24 h (Chariow ne prélève jamais automatiquement) : bloqué,
+    // Période payée finie (Chariow ne prélève jamais automatiquement) : bloqué à l'heure exacte,
     // même si le statut est resté « active » en base. Le paiement suivant rouvre tout seul.
-    const periodeFinie = !!subscription.current_period_end && new Date(subscription.current_period_end).getTime() < Date.now() - 24 * 3600 * 1000;
+    const periodeFinie = !!subscription.current_period_end && new Date(subscription.current_period_end).getTime() <= Date.now();
     if (subscription.status === "active") return periodeFinie;
     if (subscription.status === "trial") {
       const finEssai = new Date(subscription.trial_ends_at);
@@ -6710,7 +6710,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           ✅ Paiement reçu ! Ton abonnement s'active automatiquement, ça peut prendre quelques instants.
         </div>
       )}
-      <SubscriptionBanner subscription={subscription} />
+      <SubscriptionBanner subscription={subscription} onRenouveler={() => setShowAbonnement(true)} />
 
       {notifPermission !== "default" && !carteAlertesMasquee && (
         <div style={{ background: pushAbonne ? "#EAF3DE" : "#FBF3E3", border: `1px solid ${pushAbonne ? "#C7DDA3" : "#F0DDA8"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: pushAbonne ? "#3B6D11" : "#8A6412" }}>
@@ -6798,7 +6798,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       {accesBloque && (
         <div style={{ background: "white", border: "1.5px solid #F0DDA8", borderRadius: 16, padding: "40px 24px", textAlign: "center", maxWidth: 480, margin: "40px auto" }}>
           <div style={{ fontSize: 44, marginBottom: 14 }}>🔒</div>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: "#16231F" }}>Ton essai gratuit est terminé</div>
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: "#16231F" }}>{subscription?.status === "trial" ? "Ton essai gratuit est terminé" : "Ton abonnement est terminé"}</div>
           <div style={{ color: "#6B7168", fontSize: 13.5, lineHeight: 1.6, marginBottom: 22 }}>
             Passe à un plan payant pour retrouver l'accès à tout ton espace — commandes, clients, produits, équipe, et le reste.
           </div>
@@ -8493,8 +8493,39 @@ function InviteMemberForm({ workspace, onClose, onInvited, filleulPreselectionne
   );
 }
 
-function SubscriptionBanner({ subscription }) {
+function SubscriptionBanner({ subscription, onRenouveler }) {
   if (subscription === undefined) return null;
+
+  // ⏳ Règle ferme : prévenu 72 h avant la fin (essai ou période payée), puis fermeture automatique
+  // à l'heure exacte — boutique publique ET tableau de bord. Le paiement suivant rouvre tout.
+  if (subscription && (subscription.status === "trial" || subscription.status === "active" || subscription.status === "cancelled")) {
+    const finIso = subscription.status === "trial" ? subscription.trial_ends_at : subscription.current_period_end;
+    const fin = finIso ? new Date(finIso).getTime() : null;
+    const reste = fin ? fin - Date.now() : null;
+    if (reste !== null && reste > 0 && reste <= 72 * 3600 * 1000) {
+      const heures = Math.floor(reste / 3600000);
+      const texteReste = heures >= 24 ? `${Math.floor(heures / 24)} j ${heures % 24} h` : heures >= 1 ? `${heures} h` : `${Math.max(1, Math.floor(reste / 60000))} min`;
+      const dateFin = new Date(fin).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      return (
+        <div role="alert" style={{ background: "linear-gradient(135deg, #FFF4E5, #FBEAE6)", border: "1.5px solid #E8920A", borderRadius: 14, padding: "14px 16px", marginBottom: 16, color: "#7A3B0B", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ fontSize: 26 }}>⏳</div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontWeight: 800, fontSize: 14.5 }}>
+              {subscription.status === "trial" ? "Ton essai gratuit" : "Ton abonnement"} se termine dans {texteReste}
+            </div>
+            <div style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }}>
+              Fin : <b>{dateFin}</b>. Sans paiement, ta <b>boutique en ligne</b> et ton <b>tableau de bord</b> seront <b>fermés automatiquement</b> à cette heure-là.
+            </div>
+          </div>
+          {onRenouveler && (
+            <button onClick={onRenouveler} style={{ background: "#1a7a3c", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", flexShrink: 0 }}>
+              💳 Payer maintenant
+            </button>
+          )}
+        </div>
+      );
+    }
+  }
 
   if (subscription === null) {
     return (
@@ -8509,7 +8540,7 @@ function SubscriptionBanner({ subscription }) {
   if (subscription.status === "trial") {
     const finEssai = new Date(subscription.trial_ends_at);
     const joursRestants = Math.max(0, Math.floor((finEssai - new Date()) / 86400000));
-    const expire = joursRestants === 0;
+    const expire = finEssai.getTime() <= Date.now();
     return (
       <div style={{ background: expire ? "#FBEAE6" : "#EAF3DE", border: `1px solid ${expire ? "#F0B8AC" : "#C7DDA3"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: expire ? "#D64933" : "#3B6D11", fontWeight: 600 }}>
         {expire

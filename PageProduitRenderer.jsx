@@ -275,6 +275,12 @@ const CSS_PAGE = `
 .rvpp-formcard{padding:18px 16px;max-width:560px;margin:0 auto;box-shadow:0 10px 30px rgba(22,35,31,.08)}
 .rvpp-info-list{display:grid;gap:10px;font-size:14.5px}
 .rvpp-info-list div{display:flex;gap:10px;align-items:flex-start}
+.rvpp-stats{display:flex;flex-direction:column;margin:10px 0 12px}
+.rvpp-stat{display:flex;align-items:center;gap:18px;padding:16px 0;border-bottom:1px solid var(--pp-line)}
+.rvpp-stat:last-child{border-bottom:none}
+.rvpp-stat-v{flex:0 0 auto;min-width:92px;font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--pp-accent)}
+.rvpp-stat-t{font-size:14.5px;line-height:1.45;color:var(--pp-ink)}
+.rvpp-stat-src{font-size:12px;color:var(--pp-muted);background:color-mix(in srgb,var(--pp-ink) 5%,#fff);border-radius:10px;padding:9px 12px;line-height:1.45}
 .rvpp-ticker{overflow:hidden;background:var(--pp-ink,#16231F);color:#fff;border-radius:var(--pp-radius);margin:6px auto 4px;max-width:1120px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
 .rvpp-ticker-piste{display:flex;width:max-content;animation:rvppTicker linear infinite}
 .rvpp-ticker:hover .rvpp-ticker-piste{animation-play-state:paused}
@@ -1367,6 +1373,33 @@ function BlocImageTexte({ bloc, ctx }) {
 }
 
 // ---------------------------------------------------------------------------
+// Statistiques / résultats (façon Copify) — chiffres saisis par le commerçant, avec leur source
+// TOUJOURS affichée juste en dessous (sans source, le bloc est masqué : voir blocEstVide).
+// ---------------------------------------------------------------------------
+function BlocStatistiques({ bloc }) {
+  const p = bloc.props;
+  const items = (p.items || []).filter((i) => (i.valeur || "").trim() && (i.texte || "").trim()).slice(0, 4);
+  const aImage = (p.image || "").trim();
+  return (
+    <div className={`rvpp-imgtxt ${p.position === "droite" ? "rvpp-rev-order" : ""}`}>
+      {aImage ? <img src={p.image} alt={p.titre || ""} loading="lazy" decoding="async" /> : null}
+      <div style={aImage ? undefined : { gridColumn: "1 / -1", maxWidth: 640, margin: "0 auto", width: "100%" }}>
+        {(p.titre || "").trim() && <h2 className="rvpp-h2">{p.titre}</h2>}
+        <div className="rvpp-stats">
+          {items.map((i, k) => (
+            <div className="rvpp-stat" key={k}>
+              <div className="rvpp-stat-v">{i.valeur}</div>
+              <div className="rvpp-stat-t">{i.texte}</div>
+            </div>
+          ))}
+        </div>
+        <div className="rvpp-stat-src">ⓘ {p.source}</div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Compte à rebours / urgence — TOUJOURS un vrai décompte vers une date ou une heure fixée par
 // le commerçant, jamais un faux minuteur qui recommence à chaque visite (voir la règle d'or de
 // l'AI Page Architect dans blocs.js : « ne crée jamais... de compte à rebours »). Deux modes :
@@ -1478,7 +1511,7 @@ const COMPOSANTS = {
   comment_ca_marche: BlocEtapes, offres: BlocOffres, bundles: BlocGroupee, avis: BlocAvis, ugc: BlocUGC,
   reassurance: BlocReassurance, comparaison: BlocComparaison, faq: BlocFAQ, upsell: BlocUpsell,
   cross_sell: BlocCrossSell, formulaire_cod: BlocFormulaire, livraison: BlocLivraison, texte: BlocTexte, description: BlocDescription,
-  image_texte: BlocImageTexte, cta: BlocCta, urgence: BlocUrgence,
+  image_texte: BlocImageTexte, cta: BlocCta, urgence: BlocUrgence, statistiques: BlocStatistiques,
 };
 
 // ---------------------------------------------------------------------------

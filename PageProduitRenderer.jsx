@@ -285,19 +285,21 @@ const CSS_PAGE = `
 .rvpp-stat-v{flex:0 0 auto;min-width:92px;font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--pp-accent)}
 .rvpp-stat-t{font-size:14.5px;line-height:1.45;color:var(--pp-ink)}
 .rvpp-stat-src{font-size:12px;color:var(--pp-muted);background:color-mix(in srgb,var(--pp-ink) 5%,#fff);border-radius:10px;padding:9px 12px;line-height:1.45}
-.rvpp-ticker{display:grid;grid-template-columns:minmax(200px,.8fr) 2.2fr;align-items:center;gap:28px;max-width:1120px;margin:18px auto 8px;padding:0 4px}
+.rvpp-ticker{display:grid;grid-template-columns:minmax(200px,.8fr) 2.2fr;align-items:center;gap:28px;max-width:1120px;margin:4px auto 4px;padding:0 4px}
+.rvpp-sec.rvpp-avant-bandeau{padding-bottom:10px}
+.rvpp-ticker + .rvpp-sec{padding-top:calc(var(--pp-sec-y)*.7)}
 .rvpp-ticker-titre{font-size:clamp(20px,2.2vw,26px);font-weight:600;line-height:1.25;color:var(--pp-ink);margin:0}
-.rvpp-ticker-fenetre{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
-.rvpp-ticker-piste{display:flex;gap:16px;width:max-content;padding:6px 0;animation:rvppTicker linear infinite}
+.rvpp-ticker-fenetre{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 94%,transparent)}
+.rvpp-ticker-piste{display:flex;width:max-content;padding:8px 0;animation:rvppTicker linear infinite}
 .rvpp-ticker-fenetre:hover .rvpp-ticker-piste{animation-play-state:paused}
-.rvpp-ticker-carte{display:flex;align-items:center;gap:14px;width:300px;flex:0 0 300px;box-sizing:border-box;background:color-mix(in srgb,var(--pp-ink) 7%,#fff);border-radius:16px;padding:14px 14px 14px 16px}
+.rvpp-ticker-carte{display:flex;align-items:center;gap:16px;width:420px;flex:0 0 420px;margin-right:28px;box-sizing:border-box;background:color-mix(in srgb,var(--pp-ink) 8%,#fff);border:1px solid color-mix(in srgb,var(--pp-ink) 6%,transparent);border-radius:14px;padding:14px 14px 14px 18px}
 .rvpp-ticker-txt{flex:1;min-width:0}
 .rvpp-ticker-nom{font-size:14.5px;font-weight:700;color:var(--pp-ink);margin-bottom:3px}
 .rvpp-ticker-nom span{color:#f5b301;font-size:11px;letter-spacing:1px;margin-left:6px;font-weight:400}
 .rvpp-ticker-com{font-size:13px;font-style:italic;line-height:1.4;color:color-mix(in srgb,var(--pp-ink) 80%,#fff);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .rvpp-ticker-av{flex:0 0 52px;width:52px;height:52px;border-radius:50%;background:var(--pp-ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.15)}
 @keyframes rvppTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media (max-width:760px){.rvpp-ticker{grid-template-columns:1fr;gap:10px;margin:14px auto 4px}.rvpp-ticker-titre{text-align:center;font-size:19px;padding:0 12px}.rvpp-ticker-carte{width:260px;flex-basis:260px}}
+@media (max-width:760px){.rvpp-ticker{grid-template-columns:1fr;gap:10px;margin:4px auto 2px}.rvpp-ticker-titre{text-align:center;font-size:19px;padding:0 12px}.rvpp-ticker-carte{width:280px;flex-basis:280px;margin-right:16px}.rvpp-ticker-av{flex-basis:44px;width:44px;height:44px;font-size:17px}.rvpp-ticker-fenetre{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 10%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent 0,#000 10%,#000 92%,transparent)}}
 @media (prefers-reduced-motion:reduce){.rvpp-ticker-piste{animation:none}}
 .rvpp-sticky-prod{display:none;align-items:center;gap:10px;min-width:0;flex:0 1 auto;margin-right:auto}
 .rvpp-sticky-prod img{width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0}
@@ -1832,7 +1834,7 @@ export function PageProduitPublique({
             <section
               key={bloc.id}
               id={idSection}
-              className={classes.join(" ")}
+              className={classes.join(" ") + (bandeauApres ? " rvpp-avant-bandeau" : "")}
               data-rvpp-bloc={bloc.id}
               onClickCapture={preview && onSelectBloc ? (e) => { e.preventDefault(); e.stopPropagation(); onSelectBloc(bloc.id); } : undefined}
             >

@@ -90,10 +90,27 @@ function ChargementInitial() {
   return <div style={{ minHeight: "100vh", background: "#FAFAF7" }} />;
 }
 
+// Après une mise à jour du site, un onglet ouvert AVANT la mise à jour cherche d'anciens morceaux
+// de code qui n'existent plus → « Une erreur est survenue ». On recharge alors la page UNE fois,
+// tout seul, pour prendre la nouvelle version (garde-fou : pas plus d'une fois par minute).
+const ERREUR_VERSION = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|ChunkLoadError|Expected a JavaScript(-or-Wasm)? module script|Unable to preload CSS/i;
+function rechargerPourNouvelleVersion() {
+  try {
+    const derniere = Number(sessionStorage.getItem("rv_rechargement_version") || 0);
+    if (Date.now() - derniere < 60000) return false;
+    sessionStorage.setItem("rv_rechargement_version", String(Date.now()));
+  } catch (_) {}
+  window.location.reload();
+  return true;
+}
+window.addEventListener("vite:preloadError", (e) => { if (rechargerPourNouvelleVersion() && e && e.preventDefault) e.preventDefault(); });
+window.addEventListener("unhandledrejection", (e) => { if (ERREUR_VERSION.test(String(e?.reason?.message || e?.reason || ""))) rechargerPourNouvelleVersion(); });
+
 class ErreurBoundary extends React.Component {
   constructor(props) { super(props); this.state = { erreur: false }; }
   static getDerivedStateFromError() { return { erreur: true }; }
   componentDidCatch(erreur, info) {
+    if (ERREUR_VERSION.test(String(erreur?.message || erreur || "")) && rechargerPourNouvelleVersion()) return;
     chargerSentry().then((S) => { if (S) S.captureException(erreur, { contexts: { react: { componentStack: info && info.componentStack } } }); }).catch(() => {});
   }
   render() { return this.state.erreur ? <ErreurFallback /> : this.props.children; }

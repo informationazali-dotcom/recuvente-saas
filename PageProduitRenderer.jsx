@@ -275,20 +275,6 @@ const CSS_PAGE = `
 .rvpp-formcard{padding:18px 16px;max-width:560px;margin:0 auto;box-shadow:0 10px 30px rgba(22,35,31,.08)}
 .rvpp-info-list{display:grid;gap:10px;font-size:14.5px}
 .rvpp-info-list div{display:flex;gap:10px;align-items:flex-start}
-.rvpp-ticker{overflow:hidden;background:var(--pp-ink,#16231F);color:#fff;border-radius:var(--pp-radius);margin:6px auto 4px;max-width:1120px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
-.rvpp-ticker-piste{display:flex;width:max-content;animation:rvppTicker linear infinite}
-.rvpp-ticker:hover .rvpp-ticker-piste{animation-play-state:paused}
-.rvpp-ticker-item{white-space:nowrap;padding:13px 26px;font-size:13.5px;font-weight:600;border-right:1px solid rgba(255,255,255,.12)}
-.rvpp-ticker-item b{color:#f5b301;letter-spacing:1px;margin-right:6px;font-weight:400}
-.rvpp-ticker-item i{opacity:.7;font-style:normal;font-weight:500;margin-left:4px}
-@keyframes rvppTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){.rvpp-ticker-piste{animation:none}}
-.rvpp-sticky-prod{display:none;align-items:center;gap:10px;min-width:0;flex:0 1 auto;margin-right:auto}
-.rvpp-sticky-prod img{width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0}
-.rvpp-sticky-prod-nom{font-size:13.5px;font-weight:800;color:var(--pp-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
-.rvpp-sticky-prod-prix{font-size:13.5px;font-weight:800;color:var(--pp-ink)}
-.rvpp-sticky-prod-prix s{font-weight:500;color:var(--pp-muted);margin-left:6px;font-size:12.5px}
-@media (min-width:760px){.rvpp-sticky-in{max-width:980px}.rvpp-sticky-prod{display:flex}.rvpp-sticky-in .rvpp-cta:not(.rvpp-cta-cart){flex:0 0 360px}}
 .rvpp-sticky{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--pp-line);box-shadow:0 -6px 20px rgba(0,0,0,.09);padding:10px 14px calc(10px + env(safe-area-inset-bottom));transition:transform .2s ease}
 .rvpp-sticky.rvpp-off{transform:translateY(110%)}
 .rvpp-sticky-in{max-width:560px;margin:0 auto;display:flex;gap:8px;align-items:stretch}
@@ -1448,31 +1434,6 @@ function BlocCta({ bloc, ctx }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Bandeau défilant d'avis (façon Copify) — UNIQUEMENT de vrais avis clients approuvés
-// (au moins 3 avec un commentaire). Aucun texte inventé : sans vrais avis, rien ne s'affiche.
-// ---------------------------------------------------------------------------
-function BandeauAvis({ ctx }) {
-  const reels = (ctx.avis || [])
-    .filter((a) => a && Number(a.note) >= 4 && String(a.commentaire || "").trim().length >= 12)
-    .slice(0, 12)
-    .map((a) => ({ nom: String(a.client_nom || "").trim().split(/\s+/)[0] || "Client", texte: String(a.commentaire).trim().replace(/\s+/g, " ").slice(0, 110) }));
-  if (reels.length < 3) return null;
-  const serie = [...reels, ...reels]; // doublée pour une boucle sans à-coup
-  const duree = Math.max(24, reels.length * 7);
-  return (
-    <div className="rvpp-ticker" aria-label="Avis de nos clients">
-      <div className="rvpp-ticker-piste" style={{ animationDuration: `${duree}s` }}>
-        {serie.map((a, k) => (
-          <span className="rvpp-ticker-item" key={k} aria-hidden={k >= reels.length ? "true" : undefined}>
-            <b aria-hidden="true">★★★★★</b> « {a.texte}{a.texte.length >= 110 ? "…" : ""} » <i>— {a.nom}</i>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const COMPOSANTS = {
   hero: BlocHero, galerie: BlocGalerie, info_produit: BlocInfo, benefices: BlocBenefices, video: BlocVideo,
   comment_ca_marche: BlocEtapes, offres: BlocOffres, bundles: BlocGroupee, avis: BlocAvis, ugc: BlocUGC,
@@ -1505,21 +1466,6 @@ function CtaCollant({ ctx, libelle, total, devise }) {
   return (
     <div className={`rvpp-sticky ${masque ? "rvpp-off" : ""}`} role="region" aria-label="Commander">
       <div className="rvpp-sticky-in">
-        {(() => {
-          const pr = ctx.produit || {};
-          const photo = (ctx.photos && ctx.photos[0]) || pr.photo_url;
-          const prix = Number(ctx.etat?.prixUnitaireEffectif || pr.prix_vente || 0);
-          const barre = Number(pr.prix_barre);
-          return (
-            <div className="rvpp-sticky-prod">
-              {photo && <img src={photo} alt="" loading="lazy" decoding="async" />}
-              <div style={{ minWidth: 0 }}>
-                <div className="rvpp-sticky-prod-nom">{pr.produit_nom}</div>
-                <div className="rvpp-sticky-prod-prix">{formaterMontant(prix, devise)}{Number.isFinite(barre) && barre > prix && <s>{formaterMontant(barre, devise)}</s>}</div>
-              </div>
-            </div>
-          );
-        })()}
         {ctx.peutAjouterPanier && (
           <button type="button" className="rvpp-cta rvpp-cta-cart" aria-label="Ajouter au panier" title="Ajouter au panier" disabled={ctx.etat.varianteEnRupture} onClick={ctx.ajouterPanierCta}>🛒</button>
         )}
@@ -1706,7 +1652,6 @@ export function PageProduitPublique({
   };
 
   let indexAffiche = 0;
-  let bandeauPlace = false;
   return (
     <div className={`rvpp-root ${preview ? "rvpp-preview" : ""} ${stickyActif ? "rvpp-has-sticky" : ""} ${ambiance ? "rvpp-ambiance" : ""}`} style={style} data-rvpp-template={cfg.template} data-rvpp-mise-en-page={cfg.theme.mise_en_page || "classique"}>
       <style>{CSS_PAGE}</style>
@@ -1745,9 +1690,7 @@ export function PageProduitPublique({
           ) : (
             <Comp bloc={bloc} ctx={{ ...ctx, produitsCrossSell: cs }} />
           );
-          const bandeauApres = !vide && !preview && (bloc.type === "hero" || bloc.type === "info_produit") && !bandeauPlace && cfg.theme.bandeau_avis !== false && (bandeauPlace = true);
           return (
-            <React.Fragment key={bloc.id}>
             <section
               key={bloc.id}
               id={idSection}
@@ -1759,8 +1702,6 @@ export function PageProduitPublique({
                 {modeBulle && !vide ? <div className={`rvpp-bulle rvpp-bulle-${modeBulle}`}>{contenu}</div> : contenu}
               </div>
             </section>
-            {bandeauApres && <BandeauAvis ctx={ctx} />}
-            </React.Fragment>
           );
         })}
       </div>

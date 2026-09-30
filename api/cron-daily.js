@@ -76,10 +76,10 @@ async function sauvegarderQuotidiennement() {
 }
 
 async function verifierEssaisEtRappels() {
+  // Règle : prévenir 72 h avant la fin (une seule fois, grâce au drapeau « rappel … envoyé »).
   const dansDeuxJours = new Date();
-  dansDeuxJours.setDate(dansDeuxJours.getDate() + 2);
+  dansDeuxJours.setDate(dansDeuxJours.getDate() + 3);
   const dansUnJour = new Date();
-  dansUnJour.setDate(dansUnJour.getDate() + 1);
 
   const { data: subs, error } = await supabaseAdmin
     .from("subscriptions")
@@ -103,9 +103,9 @@ async function verifierEssaisEtRappels() {
         subject: `Ton accès RecuVente se termine bientôt — ${sub.workspaces.name}`,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours</h1>
+            <h1 style="color: #e8920a; font-size: 20px;">⏳ Moins de 72 heures</h1>
             <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
-              Ton accès sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Choisis un plan pour continuer à utiliser tes commandes sans interruption.
+              Ton accès sur <strong>${sub.workspaces.name}</strong> se termine dans moins de 72 heures. Choisis un plan pour continuer à utiliser tes commandes sans interruption.
             </p>
             <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
               Choisir mon plan
@@ -165,10 +165,10 @@ async function verifierEssaisEtRappels() {
 // un abonné payant se retrouverait bloqué du jour au lendemain sans aucun avertissement, alors
 // que Chariow ne prélève jamais automatiquement — la personne doit repayer elle-même à temps.
 async function verifierRenouvellementsProches() {
+  // Règle : prévenir 72 h avant la fin (une seule fois, grâce au drapeau « rappel … envoyé »).
   const dansDeuxJours = new Date();
-  dansDeuxJours.setDate(dansDeuxJours.getDate() + 2);
+  dansDeuxJours.setDate(dansDeuxJours.getDate() + 3);
   const dansUnJour = new Date();
-  dansUnJour.setDate(dansUnJour.getDate() + 1);
 
   const { data: subs, error } = await supabaseAdmin
     .from("subscriptions")
@@ -192,9 +192,9 @@ async function verifierRenouvellementsProches() {
         subject: `Ton abonnement RecuVente se termine bientôt — ${sub.workspaces.name}`,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #e8920a; font-size: 20px;">⏳ Plus que 2 jours</h1>
+            <h1 style="color: #e8920a; font-size: 20px;">⏳ Moins de 72 heures</h1>
             <p style="color: #16231F; font-size: 15px; line-height: 1.6;">
-              Ta période payée sur <strong>${sub.workspaces.name}</strong> se termine dans 2 jours. Renouvelle ton plan pour continuer à utiliser tes commandes sans interruption — RecuVente ne prélève jamais automatiquement, c'est à toi de repayer.
+              Ta période payée sur <strong>${sub.workspaces.name}</strong> se termine dans moins de 72 heures. Renouvelle ton plan pour continuer à utiliser tes commandes sans interruption — RecuVente ne prélève jamais automatiquement, c'est à toi de repayer.
             </p>
             <a href="https://recuvente-saas.vercel.app" style="display: inline-block; background: #1a7a3c; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 10px;">
               Renouveler mon plan

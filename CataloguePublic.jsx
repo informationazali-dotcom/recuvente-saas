@@ -4,7 +4,7 @@ import { EcranAmorce, libererFondAmorce } from "./AmorceBoutique.jsx";
 import { AmbianceShop, lireAmbiance } from "./PremiumAmbiance.jsx";
 // Product Page Builder (couche additive) : rendu des pages produit personnalisées.
 // Aucune page publiée pour un produit => la fiche produit historique ci-dessous est utilisée, inchangée.
-import { PageProduitPublique, PageProduitSquelette, imageVarianteChoisie, imageValeurOption } from "./PageProduitRenderer.jsx";
+import { PageProduitPublique, PageProduitSquelette, imageVarianteChoisie, imageValeurOption, PastillesClients } from "./PageProduitRenderer.jsx";
 import { fusionnerConfigDansProduit, offreParDefaut, composerZoneLivraison, configPubliqueValide, normaliserConfig, blocsActifs, urlImageLegere, couleurCssSure, reparerCouleurs, estClaire, ratioContraste, texteSurFond, libelleDevise, definirMonnaieAffichage, monnaieAffichage, monnaieDuPays, tauxFixe, arrondiLocalBase, montantAffiche, DEVISE_PAR_DEFAUT_PAYS, construireResumeVocal, analyserVideo } from "./blocs.js";
 import { creerSuiviPage } from "./suivi.js";
 
@@ -532,6 +532,7 @@ const TRADUCTIONS = {
     noteTresBien: "Très bien",
     noteBien: "Bien",
     noteAvisClients: "avis clients",
+    clientsSatisfaits: "clients satisfaits",
     economisez: "Économisez",
     photoPrecedente: "Photo précédente",
     photoSuivante: "Photo suivante",
@@ -640,6 +641,7 @@ const TRADUCTIONS = {
     noteTresBien: "Very good",
     noteBien: "Good",
     noteAvisClients: "customer reviews",
+    clientsSatisfaits: "satisfied customers",
     economisez: "Save",
     photoPrecedente: "Previous photo",
     photoSuivante: "Next photo",
@@ -3343,8 +3345,9 @@ export default function CataloguePublic({ workspaceId: workspaceIdProp, slug, do
                 <>
                   <span style={{ color: "#e8920a", fontSize: 15, letterSpacing: 1 }}>{"★".repeat(Math.round(note))}{"☆".repeat(5 - Math.round(note))}</span>
                   <span style={{ fontSize: 12.5, color: "#6B7168" }}>
-                    {note >= 4.5 ? t("noteExcellent") : note >= 4 ? t("noteTresBien") : t("noteBien")} | {note}/5{nombre !== "" && ` (${nombre} ${t("noteAvisClients")})`}
+                    <b style={{ color: "#16231F" }}>{note >= 4.5 ? t("noteExcellent") : note >= 4 ? t("noteTresBien") : t("noteBien")}</b> | Noté {note}{nombre !== "" && Number(nombre) > 0 && ` (${Number(nombre).toLocaleString("fr-FR")} ${t("clientsSatisfaits")})`}
                   </span>
+                  <span style={{ display: "inline-flex", alignItems: "center" }}><style>{`.rvpp-pastilles{display:inline-flex;align-items:center;margin-left:4px}.rvpp-pastille{width:24px;height:24px;border-radius:50%;border:2px solid #fff;margin-left:-8px;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#5a4636;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.12);position:relative}.rvpp-pastille:first-child{margin-left:0}.rvpp-pastille img{width:100%;height:100%;object-fit:cover}`}</style><PastillesClients avis={avisListe} /></span>
                 </>
               );
               const style = { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, background: "none", border: "none", padding: 0, marginBottom: 12, textAlign: "left" };

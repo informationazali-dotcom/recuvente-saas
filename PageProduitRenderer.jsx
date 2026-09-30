@@ -281,13 +281,19 @@ const CSS_PAGE = `
 .rvpp-stat-v{flex:0 0 auto;min-width:92px;font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--pp-accent)}
 .rvpp-stat-t{font-size:14.5px;line-height:1.45;color:var(--pp-ink)}
 .rvpp-stat-src{font-size:12px;color:var(--pp-muted);background:color-mix(in srgb,var(--pp-ink) 5%,#fff);border-radius:10px;padding:9px 12px;line-height:1.45}
-.rvpp-ticker{overflow:hidden;background:var(--pp-ink,#16231F);color:#fff;border-radius:var(--pp-radius);margin:6px auto 4px;max-width:1120px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
-.rvpp-ticker-piste{display:flex;width:max-content;animation:rvppTicker linear infinite}
-.rvpp-ticker:hover .rvpp-ticker-piste{animation-play-state:paused}
-.rvpp-ticker-item{white-space:nowrap;padding:13px 26px;font-size:13.5px;font-weight:600;border-right:1px solid rgba(255,255,255,.12)}
-.rvpp-ticker-item b{color:#f5b301;letter-spacing:1px;margin-right:6px;font-weight:400}
-.rvpp-ticker-item i{opacity:.7;font-style:normal;font-weight:500;margin-left:4px}
+.rvpp-ticker{display:grid;grid-template-columns:minmax(200px,.8fr) 2.2fr;align-items:center;gap:28px;max-width:1120px;margin:18px auto 8px;padding:0 4px}
+.rvpp-ticker-titre{font-size:clamp(20px,2.2vw,26px);font-weight:600;line-height:1.25;color:var(--pp-ink);margin:0}
+.rvpp-ticker-fenetre{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.rvpp-ticker-piste{display:flex;gap:16px;width:max-content;padding:6px 0;animation:rvppTicker linear infinite}
+.rvpp-ticker-fenetre:hover .rvpp-ticker-piste{animation-play-state:paused}
+.rvpp-ticker-carte{display:flex;align-items:center;gap:14px;width:300px;flex:0 0 300px;box-sizing:border-box;background:color-mix(in srgb,var(--pp-ink) 7%,#fff);border-radius:16px;padding:14px 14px 14px 16px}
+.rvpp-ticker-txt{flex:1;min-width:0}
+.rvpp-ticker-nom{font-size:14.5px;font-weight:700;color:var(--pp-ink);margin-bottom:3px}
+.rvpp-ticker-nom span{color:#f5b301;font-size:11px;letter-spacing:1px;margin-left:6px;font-weight:400}
+.rvpp-ticker-com{font-size:13px;font-style:italic;line-height:1.4;color:color-mix(in srgb,var(--pp-ink) 80%,#fff);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.rvpp-ticker-av{flex:0 0 52px;width:52px;height:52px;border-radius:50%;background:var(--pp-ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.15)}
 @keyframes rvppTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (max-width:760px){.rvpp-ticker{grid-template-columns:1fr;gap:10px;margin:14px auto 4px}.rvpp-ticker-titre{text-align:center;font-size:19px;padding:0 12px}.rvpp-ticker-carte{width:260px;flex-basis:260px}}
 @media (prefers-reduced-motion:reduce){.rvpp-ticker-piste{animation:none}}
 .rvpp-sticky-prod{display:none;align-items:center;gap:10px;min-width:0;flex:0 1 auto;margin-right:auto}
 .rvpp-sticky-prod img{width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0}
@@ -1485,22 +1491,34 @@ function BlocCta({ bloc, ctx }) {
 // Bandeau défilant d'avis (façon Copify) — UNIQUEMENT de vrais avis clients approuvés
 // (au moins 3 avec un commentaire). Aucun texte inventé : sans vrais avis, rien ne s'affiche.
 // ---------------------------------------------------------------------------
-function BandeauAvis({ ctx }) {
+function BandeauAvis({ ctx, titre }) {
   const reels = (ctx.avis || [])
     .filter((a) => a && Number(a.note) >= 4 && String(a.commentaire || "").trim().length >= 12)
     .slice(0, 12)
-    .map((a) => ({ nom: String(a.client_nom || "").trim().split(/\s+/)[0] || "Client", texte: String(a.commentaire).trim().replace(/\s+/g, " ").slice(0, 110) }));
+    .map((a) => {
+      const morceaux = String(a.client_nom || "").trim().split(/\s+/).filter(Boolean);
+      // « Nadia M. » : prénom + initiale du nom, comme sur Copify (et plus discret pour le client).
+      const nom = morceaux.length ? morceaux[0] + (morceaux[1] ? ` ${morceaux[1].charAt(0).toUpperCase()}.` : "") : "Client";
+      return { nom, initiale: nom.charAt(0).toUpperCase(), note: Math.round(Number(a.note) || 5), texte: String(a.commentaire).trim().replace(/\s+/g, " ").slice(0, 140) };
+    });
   if (reels.length < 3) return null;
   const serie = [...reels, ...reels]; // doublée pour une boucle sans à-coup
-  const duree = Math.max(24, reels.length * 7);
+  const duree = Math.max(30, reels.length * 9);
   return (
     <div className="rvpp-ticker" aria-label="Avis de nos clients">
-      <div className="rvpp-ticker-piste" style={{ animationDuration: `${duree}s` }}>
-        {serie.map((a, k) => (
-          <span className="rvpp-ticker-item" key={k} aria-hidden={k >= reels.length ? "true" : undefined}>
-            <b aria-hidden="true">★★★★★</b> « {a.texte}{a.texte.length >= 110 ? "…" : ""} » <i>— {a.nom}</i>
-          </span>
-        ))}
+      <h2 className="rvpp-ticker-titre">{titre || "Ce qu'en disent nos clients"}</h2>
+      <div className="rvpp-ticker-fenetre">
+        <div className="rvpp-ticker-piste" style={{ animationDuration: `${duree}s` }}>
+          {serie.map((a, k) => (
+            <div className="rvpp-ticker-carte" key={k} aria-hidden={k >= reels.length ? "true" : undefined}>
+              <div className="rvpp-ticker-txt">
+                <div className="rvpp-ticker-nom">{a.nom}<span aria-label={`${a.note} étoiles sur 5`}>{"★".repeat(a.note)}</span></div>
+                <div className="rvpp-ticker-com">{a.texte}{a.texte.length >= 140 ? "…" : ""}</div>
+              </div>
+              <div className="rvpp-ticker-av" aria-hidden="true">{a.initiale}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1792,7 +1810,7 @@ export function PageProduitPublique({
                 {modeBulle && !vide ? <div className={`rvpp-bulle rvpp-bulle-${modeBulle}`}>{contenu}</div> : contenu}
               </div>
             </section>
-            {bandeauApres && <BandeauAvis ctx={ctx} />}
+            {bandeauApres && <BandeauAvis ctx={ctx} titre={(cfg.theme.bandeau_avis_titre || "").trim()} />}
             </React.Fragment>
           );
         })}

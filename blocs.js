@@ -728,6 +728,22 @@ export const REGISTRE_BLOCS = {
       { cle: "bouton_texte", label: "Bouton (optionnel)", type: "texte", aide: "Le bouton renvoie vers la commande." },
     ],
   },
+  statistiques: {
+    label: "Statistiques / résultats", icone: "📊", categorie: "preuves",
+    description: "Grands chiffres (ex. 95 % — peau plus douce) avec une photo, façon Copify. À remplir avec VOS vrais chiffres : la source est obligatoire et s'affiche sous les chiffres.",
+    defaut: () => ({ titre: "Des résultats visibles", image: "", position: "gauche", items: [], source: "" }),
+    champs: [
+      { cle: "titre", label: "Titre", type: "texte" },
+      { cle: "image", label: "Image (facultatif)", type: "image" },
+      { cle: "position", label: "Position de l'image", type: "choix", options: [{ v: "gauche", l: "Gauche" }, { v: "droite", l: "Droite" }] },
+      {
+        cle: "items", label: "Chiffres", type: "liste", max: 4,
+        sous: [{ cle: "valeur", label: "Chiffre (ex. 95 %)", type: "texte" }, { cle: "texte", label: "Ce que ça veut dire", type: "zone" }],
+        nouvelElement: () => ({ valeur: "", texte: "" }),
+      },
+      { cle: "source", label: "Source des chiffres (obligatoire)", type: "texte", aide: "Ex. « Sondage auprès de 120 clientes en septembre 2026 ». Sans source, le bloc ne s'affiche pas sur la boutique." },
+    ],
+  },
   cta: {
     label: "Appel à l'action", icone: "👉", categorie: "vente",
     description: "Bandeau avec un bouton qui mène à la commande.",
@@ -1203,6 +1219,8 @@ export function blocEstVide(bloc, ctx = {}) {
     // sans texte ni image, le bloc ne s'affiche pas publiquement.
     case "image_texte": return !rempli(p.image) && !rempli(p.texte);
     case "cta": return false;
+    // Chiffres sans source = masqués : on n'affiche jamais une statistique que personne ne peut justifier.
+    case "statistiques": return !rempli(p.source) || !(p.items || []).some((i) => rempli(i.valeur) && rempli(i.texte));
     // Décompte quotidien : toujours actif dès qu'une heure est réglée (il redémarre chaque
     // jour). Date précise : masqué sans date ET une fois cette date dépassée — jamais de
     // minuteur figé à zéro ou de "offre" qui continue après sa vraie fin.

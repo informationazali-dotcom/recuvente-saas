@@ -13,15 +13,13 @@ const MarketingPublicTracker = lazy(() => import("./MarketingPublicTracker.jsx")
 const MarketingCODDashboard = lazy(() => import("./MarketingCODDashboard.jsx"));
 const AnnuairePublic = lazy(() => import("./AnnuairePublic.jsx"));
 const OutilsPublic = lazy(() => import("./OutilsPublic.jsx"));
-// LOT 4 — Réservation publique de véhicules, ouverte à TOUTES les boutiques "location_vehicule"
-// (le cas historique "luxury-car" dans CataloguePublic.jsx n'est pas touché et continue de marcher).
 const ReservationPublique = lazy(() => import("./ReservationPublique.jsx"));
-// LOT 7 — Fiche commerciale publique (immobilier vente/location, véhicule vente) : "?fiche=<id>&type=<...>".
 const FichePublique = lazy(() => import("./FichePublique.jsx"));
 
-// Sentry (suivi d'erreurs) n'est plus dans le premier téléchargement : c'est une bibliothèque
-// lourde, inutile pour afficher la boutique. Il se charge juste après l'affichage (tout de suite
-// pour l'administrateur). Le comportement est le même, seul le moment du chargement change.
+// LOT DIGITAL — couche strictement additive : aucun module existant n'est remplacé.
+const DigitalCommerce = lazy(() => import("./DigitalCommerce.jsx"));
+const DigitalAccess = lazy(() => import("./DigitalAccess.jsx"));
+
 let promesseSentry = null;
 function chargerSentry() {
   if (!import.meta.env.VITE_SENTRY_DSN) return Promise.resolve(null);
@@ -34,65 +32,57 @@ function chargerSentry() {
 }
 
 const params = new URLSearchParams(window.location.search);
-// Programme ambassadeur : « ?amb=CODE » — on garde le code 60 jours pour rattacher la boutique créée plus tard.
 try {
   const codeAmb = (params.get("amb") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
   if (codeAmb) localStorage.setItem("rv_amb", JSON.stringify({ code: codeAmb, t: Date.now() }));
 } catch (_) {}
+
 const suiviId = params.get("suivi");
 const commanderId = params.get("commander");
 const catalogueId = params.get("catalogue");
-// Lien standard généré par le Store Builder (« ?boutique=mon-slug ») — il manquait ici,
-// donc ces liens tombaient dans la vue admin ci-dessous, qui chargeait tout le tableau
-// de bord (plus lourd) avant de rediriger en interne vers la boutique. Fini.
 const boutiqueSlug = params.get("boutique");
 const marketingId = params.get("marketing");
 const pageAnnuaire = params.get("annuaire") === "1";
 const pageOutils = params.get("outils") === "1";
-// Page de réservation publique d'une boutique de location de véhicules : "?location=<slug>".
 const slugLocation = params.get("location");
-// Fiche commerciale publique (LOT 7) : "?fiche=<id>&type=bien_vente|vehicule_vente|logement".
 const ficheId = params.get("fiche");
 const ficheType = params.get("type");
-// Menu public d'un restaurant (LOT 5) : "?menu=<slug>" (ou "?menu_id=<id>" si la boutique n'a pas
-// encore de lien publié), avec "&table=<numéro ou id>" quand le client scanne le QR d'une table,
-// et "&suivi_menu=<id>" pour rouvrir directement la page de suivi d'une commande déjà passée.
 const menuSlug = params.get("menu");
 const menuWorkspaceId = params.get("menu_id");
 const menuTable = params.get("table");
 const menuSuiviId = params.get("suivi_menu");
+
+// LOT DIGITAL :
+// ?digital=1          -> espace marchand Produits numériques
+// ?digital_product=UUID -> page publique d'un produit numérique
+// ?digital_access=1  -> espace client après paiement
+const digitalAdmin = params.get("digital") === "1";
+const digitalProductId = params.get("digital_product");
+const digitalAccess = params.get("digital_access") === "1";
+
 const DOMAINES_INTERNES = ["recuvente-saas.vercel.app", "localhost", "127.0.0.1"];
 const hostname = window.location.hostname;
 const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostname.endsWith(".vercel.app");
-// Lien court façon Shopify (« /nom-boutique » ou « /nom-boutique/nom-produit ») sur le domaine
-// partagé — remplace les longs liens ?boutique=...&produit=<uuid>. Vérifié SEULEMENT si aucune
-// des routes ci-dessus ne correspond déjà, pour ne jamais capter une URL existante par erreur.
-// Sur un domaine personnalisé, le chemin ne contient pas de segment "boutique" (voir plus bas).
-const cheminCourt = !estDomainePersonnalise && !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId
+
+const cheminCourt = !estDomainePersonnalise && !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId && !digitalAdmin && !digitalProductId && !digitalAccess
   ? chemincourtDepuisUrl()
   : null;
-const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId && !estDomainePersonnalise && !cheminCourt;
+
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId && !digitalAdmin && !digitalProductId && !digitalAccess && !estDomainePersonnalise && !cheminCourt;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
-// Boutique publique : on demande le code de la boutique tout de suite, sans attendre le premier affichage.
+
 if (catalogueId || boutiqueSlug || estDomainePersonnalise || cheminCourt) importerCatalogue();
-// Sentry : immédiatement pour l'admin, un peu après le chargement pour les visiteurs.
 if (estVueAdmin) chargerSentry();
 else window.addEventListener("load", () => setTimeout(chargerSentry, 2000));
 
-// Boutique demandée par l'URL (null = admin / suivi / marketing) et son identité gardée en cache.
 const cleShop = cleBoutiqueDepuisUrl();
 const identiteCachee = lireIdentiteCachee(cleShop);
 
 function ChargementInitial() {
-  // Aux couleurs de la boutique si on la connaît déjà (identique à l'amorce posée par
-  // index.html → aucune rupture), sinon écran neutre. Jamais de marque RecuVente ici.
   if (cleShop) return <EcranAmorce identite={identiteCachee} />;
   return <div style={{ minHeight: "100vh", background: "#FAFAF7" }} />;
 }
 
-// Après une mise à jour du site, un onglet ouvert AVANT la mise à jour cherche d'anciens morceaux
-// de code qui n'existent plus → « Une erreur est survenue ». On recharge alors la page UNE fois,
-// tout seul, pour prendre la nouvelle version (garde-fou : pas plus d'une fois par minute).
 const ERREUR_VERSION = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|ChunkLoadError|Expected a JavaScript(-or-Wasm)? module script|Unable to preload CSS/i;
 function rechargerPourNouvelleVersion() {
   try {
@@ -122,7 +112,23 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErreurBoundary>
       <Suspense fallback={<ChargementInitial />}>
-        {pageAnnuaire ? <AnnuairePublic /> : pageOutils ? <OutilsPublic /> : ficheId ? <FichePublique ficheId={ficheId} typeEntite={ficheType} /> : slugLocation ? <ReservationPublique slug={slugLocation} /> : menuSlug ? <MenuPublic slug={menuSlug} tableParam={menuTable} suiviId={menuSuiviId} /> : menuWorkspaceId ? <MenuPublic workspaceId={menuWorkspaceId} tableParam={menuTable} suiviId={menuSuiviId} /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : cheminCourt ? <><PublicTracker slug={cheminCourt.boutique} /><CataloguePublic slug={cheminCourt.boutique} produitSlugInitial={cheminCourt.produit} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} produitSlugInitial={produitDepuisCheminDomainePerso()} /></> : <App />}
+        {digitalAdmin ? <DigitalCommerce /> :
+         digitalProductId ? <DigitalCommerce publicProductId={digitalProductId} /> :
+         digitalAccess ? <DigitalAccess /> :
+         pageAnnuaire ? <AnnuairePublic /> :
+         pageOutils ? <OutilsPublic /> :
+         ficheId ? <FichePublique ficheId={ficheId} typeEntite={ficheType} /> :
+         slugLocation ? <ReservationPublique slug={slugLocation} /> :
+         menuSlug ? <MenuPublic slug={menuSlug} tableParam={menuTable} suiviId={menuSuiviId} /> :
+         menuWorkspaceId ? <MenuPublic workspaceId={menuWorkspaceId} tableParam={menuTable} suiviId={menuSuiviId} /> :
+         marketingId ? <MarketingCODDashboard /> :
+         suiviId ? <SuiviPublic commandeId={suiviId} /> :
+         commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> :
+         catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> :
+         boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> :
+         cheminCourt ? <><PublicTracker slug={cheminCourt.boutique} /><CataloguePublic slug={cheminCourt.boutique} produitSlugInitial={cheminCourt.produit} /></> :
+         estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} produitSlugInitial={produitDepuisCheminDomainePerso()} /></> :
+         <App />}
       </Suspense>
     </ErreurBoundary>
   </React.StrictMode>

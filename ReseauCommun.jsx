@@ -508,7 +508,7 @@ const CSS = `
 .rn-app > *{min-width:0}
 .rn-app-tete{background:var(--rn-prune);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .rn-app-tete h1{font-size:22px;color:#fff}
-.rn-onglets{display:flex;gap:4px;overflow-x:auto;padding:8px 12px;background:#fff;border-bottom:1px solid var(--rn-trait);scrollbar-width:none;position:sticky;top:0;z-index:30}
+.rn-onglets{display:flex;flex-wrap:wrap;gap:4px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--rn-trait);scrollbar-width:none;position:sticky;top:0;z-index:30}
 .rn-onglets::-webkit-scrollbar{display:none}
 .rn-onglet{flex:none;border:0;background:none;padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600;color:var(--rn-gris);display:inline-flex;gap:6px;align-items:center}
 .rn-onglet[aria-current=page]{background:var(--rn-rose);color:var(--rn-prune)}

@@ -41,6 +41,9 @@ const LocationVoiture = React.lazy(() => import("./LocationVoiture.jsx"));
 // LOT 7 — Prospects & fiches commerciales (immobilier vente, véhicule vente, logements en location) :
 // tous les prospects/questions/rendez-vous venus des fiches publiques. Chargé à la demande.
 const ProspectsFiches = React.lazy(() => import("./ProspectsFiches.jsx"));
+// Réseau national (stocks chez les représentants régionaux, attribution automatique des livraisons).
+// Chargé à la demande, ouvert au propriétaire et aux administrateurs de la boutique.
+const AdminReseau = React.lazy(() => import("./ReseauAdmin.jsx"));
 
 
 // ============================================================================
@@ -6205,6 +6208,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           ...(workspace.activity_type === "restaurant" ? [{ key: "cuisine", label: "🍽️ Cuisine" }, { key: "menu_restaurant", label: "📋 Menu" }, { key: "tables_addition", label: "🧾 Tables & addition" }, { key: "qr_menu", label: "📲 QR & menu public" }] : []),
           ...(workspace.activity_type === "location_vehicule" ? [{ key: "biens_location", label: "🚗 Véhicules/Matériel" }] : []),
           ...(workspace.activity_type === "location_immobiliere" ? [{ key: "logements", label: "🏠 Logements" }] : []),
+          ...(workspace.role === "owner" || workspace.role === "admin" ? [{ key: "reseau_national", label: "🌍 Réseau national" }] : []),
           { key: "validations", label: "Validations" },
           { key: "clients", label: "Clients" },
         ].map((t) => (
@@ -7214,6 +7218,12 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           onDelete={deleteBienLocation}
           onReload={loadBiensLocation}
         />
+      )}
+
+      {vue === "reseau_national" && !accesBloque && (workspace.role === "owner" || workspace.role === "admin") && (
+        <React.Suspense fallback={null}>
+          <AdminReseau supabase={supabase} workspaceId={workspace.id} slug={workspace.slug} nomBoutique={workspace.name} />
+        </React.Suspense>
       )}
 
       {vue === "logements" && !accesBloque && (

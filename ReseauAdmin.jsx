@@ -1,0 +1,1200 @@
+// =====================================================================
+// RecuVente — Réseau national : ESPACE ADMINISTRATEUR (tableau de bord central)
+// À afficher dans App.jsx pour le propriétaire / l'équipe de la boutique.
+// =====================================================================
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  fmt, fmtNombre, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, exporterExcel, exporterPDF,
+  STATUTS, STATUTS_MISSION, STATUTS_ARTICLE, ETATS, MODES_PAIEMENT,
+  Bouton, Champ, Message, Modale, Vide, Pastille, StatutCommande, Barres, Icone,
+} from "./ReseauCommun.jsx";
+import { FormulaireArticle } from "./ReseauRepresentant.jsx";
+
+const ONGLETS = [
+  ["tableau", "Tableau de bord"],
+  ["commandes", "Commandes"],
+  ["articles", "Articles"],
+  ["stocks", "Stocks"],
+  ["representants", "Représentants"],
+  ["zones", "Zones"],
+  ["reclamations", "Réclamations"],
+  ["finances", "Finances"],
+  ["vendeurs", "Vendeurs partenaires"],
+  ["parametres", "Paramètres"],
+  ["journal", "Journal"],
+];
+
+export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }) {
+  const [param, setParam] = useState(undefined);
+  const [onglet, setOnglet] = useState("tableau");
+  const [notifs, setNotifs] = useState([]);
+  const [panneauNotifs, setPanneauNotifs] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const [compteurs, setCompteurs] = useState({});
+  const [base, setBase] = useState({ reps: [], zones: [], categories: [] });
+  useStylesReseau(param?.couleur_principale, param?.couleur_or);
+
+  const chargerRef = useCallback(async () => {
+    const [p, r, z, c] = await Promise.all([
+      supabase.from("rn_parametres").select("*").eq("workspace_id", workspaceId).maybeSingle(),
+      supabase.from("rn_representants").select("*").eq("workspace_id", workspaceId).order("nom"),
+      supabase.from("rn_zones").select("*").eq("workspace_id", workspaceId).order("nom"),
+      supabase.from("rn_categories").select("*").eq("workspace_id", workspaceId).order("ordre"),
+    ]);
+    if (p.error) { setErreur(erreurTexte(p.error)); setParam(null); return; }
+    setParam(p.data);
+    setBase({ reps: r.data || [], zones: z.data || [], categories: c.data || [] });
+  }, [supabase, workspaceId]);
+
+  const chargerAlertes = useCallback(async () => {
+    const [n, pa, att, val, rec] = await Promise.all([
+      supabase.from("rn_notifications").select("*").eq("workspace_id", workspaceId).eq("cible", "admin").order("created_at", { ascending: false }).limit(60),
+      supabase.from("rn_commandes").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("statut", "en_attente_paiement"),
+      supabase.from("rn_commandes").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).in("statut", ["en_attente_attribution", "echec_livraison"]),
+      supabase.from("rn_articles").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("statut", "en_attente"),
+      supabase.from("rn_reclamations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).in("statut", ["ouverte", "en_cours"]),
+    ]);
+    setNotifs(n.data || []);
+    setCompteurs({ commandes: (pa.count || 0) + (att.count || 0), articles: val.count || 0, reclamations: rec.count || 0 });
+  }, [supabase, workspaceId]);
+
+  useEffect(() => { chargerRef(); }, [chargerRef]);
+  useEffect(() => {
+    if (!param) return;
+    chargerAlertes();
+    const canal = supabase
+      .channel("rn-admin-" + workspaceId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "rn_notifications", filter: `workspace_id=eq.${workspaceId}` }, (p) => {
+        if (p.new.cible === "admin") chargerAlertes();
+      })
+      .subscribe();
+    const t = setInterval(chargerAlertes, 60000);
+    return () => { supabase.removeChannel(canal); clearInterval(t); };
+  }, [supabase, workspaceId, param, chargerAlertes]);
+
+  if (param === undefined) return <div className="rn" style={{ padding: 40 }}><span className="rn-spin" /></div>;
+  if (!param) return <Activation supabase={supabase} workspaceId={workspaceId} nomBoutique={nomBoutique} fini={chargerRef} erreur={erreur} />;
+
+  const nonLues = notifs.filter((n) => !n.lu).length;
+  const lienBoutique = `${window.location.origin}/?reseau=${encodeURIComponent(slug || "")}`;
+  const ctx = { supabase, workspaceId, slug, param, base, rechargerRef: chargerRef, rechargerAlertes: chargerAlertes, aller: setOnglet };
+  return (
+    <div className="rn rn-app" style={{ minHeight: "auto" }}>
+      <div>
+        <header className="rn-app-tete">
+          <div>
+            <h1>{param.nom_plateforme}</h1>
+            <p style={{ opacity: 0.8, fontSize: 13 }}>Réseau national de vente</p>
+          </div>
+          <div className="rn-ligne">
+            <a className="rn-btn rn-btn-petit" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }} href={lienBoutique} target="_blank" rel="noreferrer">Voir la boutique</a>
+            <button className="rn-icone-btn" style={{ color: "#fff" }} onClick={() => setPanneauNotifs(true)} aria-label={`Alertes (${nonLues})`}>
+              {Icone.cloche}{nonLues ? <span className="rn-compteur">{nonLues}</span> : null}
+            </button>
+          </div>
+        </header>
+        <nav className="rn-onglets">
+          {ONGLETS.filter(([k]) => k !== "vendeurs" || param.vendeurs_actifs).map(([k, l]) => (
+            <button key={k} className="rn-onglet" aria-current={onglet === k ? "page" : undefined} onClick={() => setOnglet(k)}>
+              {l}{compteurs[k] ? <span className="rn-compteur">{compteurs[k]}</span> : null}
+            </button>
+          ))}
+        </nav>
+      </div>
+      <main className="rn-zone-travail">
+        {onglet === "tableau" ? <TableauDeBord {...ctx} /> : null}
+        {onglet === "commandes" ? <Commandes {...ctx} /> : null}
+        {onglet === "articles" ? <Articles {...ctx} /> : null}
+        {onglet === "stocks" ? <Stocks {...ctx} /> : null}
+        {onglet === "representants" ? <Representants {...ctx} /> : null}
+        {onglet === "zones" ? <Zones {...ctx} /> : null}
+        {onglet === "reclamations" ? <Reclamations {...ctx} /> : null}
+        {onglet === "finances" ? <Finances {...ctx} /> : null}
+        {onglet === "vendeurs" ? <Vendeurs {...ctx} /> : null}
+        {onglet === "parametres" ? <Parametres {...ctx} /> : null}
+        {onglet === "journal" ? <Journal {...ctx} /> : null}
+      </main>
+
+      {panneauNotifs ? (
+        <div className="rn-panneau-lateral" role="dialog" aria-label="Alertes">
+          <div className="rn-modale-tete">
+            <h3>Alertes</h3>
+            <div className="rn-ligne">
+              <Bouton variante="discret" petit onClick={async () => { await supabase.from("rn_notifications").update({ lu: true }).eq("workspace_id", workspaceId).eq("cible", "admin").eq("lu", false); chargerAlertes(); }}>Tout marquer lu</Bouton>
+              <button className="rn-x" onClick={() => setPanneauNotifs(false)} aria-label="Fermer">×</button>
+            </div>
+          </div>
+          <div className="rn-panneau-lateral-corps">
+            {notifs.length ? notifs.map((n) => (
+              <button key={n.id} className="rn-carte" style={{ textAlign: "left", cursor: "pointer", opacity: n.lu ? 0.65 : 1 }}
+                onClick={() => { setPanneauNotifs(false); setOnglet(n.commande_id ? "commandes" : n.type === "validation" ? "articles" : n.type === "inventaire" ? "stocks" : "tableau"); if (n.commande_id) sessionStorage.setItem("rn_ouvrir_commande", n.commande_id); }}>
+                <div className="rn-entre"><b>{n.titre}</b><span className="rn-muet rn-petit">{fmtDate(n.created_at)}</span></div>
+                {n.message ? <p className="rn-petit" style={{ marginTop: 4 }}>{n.message}</p> : null}
+              </button>
+            )) : <Vide titre="Aucune alerte" />}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Activation({ supabase, workspaceId, nomBoutique, fini, erreur: e0 }) {
+  const [nom, setNom] = useState(nomBoutique || "MISS & MISTER EXCELLENCE CÔTE D'IVOIRE");
+  const [erreur, setErreur] = useState(e0);
+  const [charge, setCharge] = useState(false);
+  const activer = async () => {
+    setCharge(true);
+    try { await rpc(supabase, "rn_initialiser", { p_ws: workspaceId, p_nom: nom }); fini(); }
+    catch (e) { setErreur(erreurTexte(e)); } finally { setCharge(false); }
+  };
+  return (
+    <div className="rn" style={{ padding: 16, minHeight: "auto" }}>
+      <div className="rn-carte rn-pile" style={{ maxWidth: 620, margin: "24px auto", gap: 14 }}>
+        <h2>Réseau national de vente</h2>
+        <p>
+          Ce module vend des articles stockés chez des représentants répartis dans le pays. Chaque commande est confiée
+          automatiquement au représentant le plus proche du client qui détient l'article.
+        </p>
+        <p className="rn-muet">L'activation crée les 6 catégories du catalogue et 32 zones de Côte d'Ivoire (régions, villes, communes d'Abidjan). Tout reste modifiable.</p>
+        <Champ label="Nom affiché de la plateforme"><input value={nom} onChange={(e) => setNom(e.target.value)} /></Champ>
+        <Message ton="danger">{erreur}</Message>
+        <Bouton chargement={charge} onClick={activer}>Activer le réseau national</Bouton>
+      </div>
+    </div>
+  );
+}
+
+// =================================================================== TABLEAU DE BORD
+const PERIODES = { "7": "7 derniers jours", "30": "30 derniers jours", "90": "3 derniers mois", "365": "12 derniers mois", mois: "Ce mois-ci", perso: "Personnalisée" };
+function bornes(periode, debut, fin) {
+  const maintenant = new Date();
+  if (periode === "mois") return [new Date(maintenant.getFullYear(), maintenant.getMonth(), 1), maintenant];
+  if (periode === "perso" && debut && fin) return [new Date(debut + "T00:00:00Z"), new Date(fin + "T23:59:59Z")];
+  return [new Date(Date.now() - Number(periode || 30) * 86400000), maintenant];
+}
+
+function TableauDeBord({ supabase, workspaceId, param, aller }) {
+  const [periode, setPeriode] = useState("30");
+  const [perso, setPerso] = useState({ debut: "", fin: "" });
+  const [s, setS] = useState(null);
+  const [erreur, setErreur] = useState("");
+  useEffect(() => {
+    const [d, f] = bornes(periode, perso.debut, perso.fin);
+    setS(null);
+    rpc(supabase, "rn_stats", { p_ws: workspaceId, p_debut: d.toISOString(), p_fin: f.toISOString() }).then(setS).catch((e) => setErreur(erreurTexte(e)));
+  }, [supabase, workspaceId, periode, perso.debut, perso.fin]);
+
+  const exportPDF = () => {
+    const [d, f] = bornes(periode, perso.debut, perso.fin);
+    const t = (rows, cols) => `<table><tr>${cols.map((c) => `<th class="${c[2] || ""}">${c[0]}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map((c) => `<td class="${c[2] || ""}">${c[1](r) ?? ""}</td>`).join("")}</tr>`).join("")}</table>`;
+    exporterPDF(`Rapport ${param.nom_plateforme}`, `<h1>${param.nom_plateforme}</h1><p class="meta">Rapport du ${fmtDate(d, false)} au ${fmtDate(f, false)}</p>
+      <h2>Synthèse</h2>${t([
+        ["Commandes reçues", s.commandes.total], ["Livrées", s.commandes.livrees], ["Annulées", s.commandes.annulees], ["En retard", s.commandes.en_retard],
+        ["Chiffre d'affaires", fmt(s.finances.chiffre_affaires)], ["dont frais de livraison", fmt(s.finances.frais_livraison)],
+        ["Encaissé par les représentants", fmt(s.finances.encaisse_representants)], ["À reverser", fmt(s.finances.a_reverser)],
+        ["Commissions", fmt(s.finances.commissions)], ["Taux de réussite des livraisons", s.livraisons.taux_reussite != null ? s.livraisons.taux_reussite + " %" : "—"],
+        ["Délai moyen de livraison", s.livraisons.delai_moyen_h != null ? s.livraisons.delai_moyen_h + " h" : "—"],
+        ["Valeur du stock", fmt(s.stocks.valeur)]], [["Indicateur", (r) => r[0]], ["Valeur", (r) => r[1], "n"]])}
+      <h2>Ventes par catégorie</h2>${t(s.par_categorie, [["Catégorie", (r) => r.categorie], ["Pièces", (r) => r.nb, "n"], ["Ventes", (r) => fmt(r.ca), "n"]])}
+      <h2>Ventes par région</h2>${t(s.par_region, [["Région", (r) => r.region], ["Commandes", (r) => r.nb, "n"], ["CA", (r) => fmt(r.ca), "n"]])}
+      <h2>Représentants</h2>${t(s.par_representant, [["Représentant", (r) => r.nom], ["Zone", (r) => r.zone], ["Livrées", (r) => r.livrees, "n"], ["Refus", (r) => r.refusees, "n"], ["Ventes", (r) => fmt(r.ventes), "n"], ["Commissions", (r) => fmt(r.commissions), "n"], ["À reverser", (r) => fmt(r.a_reverser), "n"], ["Stock", (r) => r.stock, "n"]])}
+      <h2>Articles les plus vendus</h2>${t(s.top_articles, [["Article", (r) => r.titre], ["Pièces", (r) => r.nb, "n"], ["Ventes", (r) => fmt(r.ca), "n"]])}
+      <h2>Zones non couvertes</h2>${t(s.zones_non_couvertes, [["Zone", (r) => r.nom], ["Commandes reçues", (r) => r.commandes, "n"]])}`);
+  };
+  const exportXLS = () =>
+    exporterExcel("representants-" + new Date().toISOString().slice(0, 10), [
+      { label: "Représentant", val: (r) => r.nom }, { label: "Zone", val: (r) => r.zone }, { label: "Livrées", val: (r) => r.livrees },
+      { label: "Refus", val: (r) => r.refusees }, { label: "Échecs", val: (r) => r.echecs }, { label: "Ventes (FCFA)", val: (r) => r.ventes },
+      { label: "Commissions (FCFA)", val: (r) => r.commissions }, { label: "À reverser (FCFA)", val: (r) => r.a_reverser },
+      { label: "Pièces en stock", val: (r) => r.stock }, { label: "Valeur stock (FCFA)", val: (r) => r.stock_valeur },
+    ], s.par_representant);
+
+  return (
+    <>
+      <div className="rn-section-titre">
+        <h2>Tableau de bord</h2>
+        <div className="rn-ligne">
+          <select value={periode} onChange={(e) => setPeriode(e.target.value)} style={{ width: "auto" }} aria-label="Période">
+            {Object.entries(PERIODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          {periode === "perso" ? (
+            <>
+              <input type="date" value={perso.debut} onChange={(e) => setPerso({ ...perso, debut: e.target.value })} style={{ width: "auto" }} aria-label="Du" />
+              <input type="date" value={perso.fin} onChange={(e) => setPerso({ ...perso, fin: e.target.value })} style={{ width: "auto" }} aria-label="Au" />
+            </>
+          ) : null}
+          {s ? <><Bouton variante="discret" petit onClick={exportXLS}>Excel</Bouton><Bouton variante="discret" petit onClick={exportPDF}>PDF</Bouton></> : null}
+        </div>
+      </div>
+      <Message ton="danger">{erreur}</Message>
+      {!s ? <span className="rn-spin" /> : (
+        <>
+          {(s.commandes.paiements_a_verifier || s.commandes.sans_representant || s.stocks.a_valider || s.stocks.ecarts_inventaire || s.commandes.echecs) ? (
+            <div className="rn-kpis">
+              {s.commandes.paiements_a_verifier ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Paiements à vérifier</div><div className="rn-kpi-val">{s.commandes.paiements_a_verifier}</div></button> : null}
+              {s.commandes.sans_representant ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Commandes sans livreur</div><div className="rn-kpi-val">{s.commandes.sans_representant}</div></button> : null}
+              {s.commandes.echecs ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Échecs de livraison</div><div className="rn-kpi-val">{s.commandes.echecs}</div></button> : null}
+              {s.stocks.a_valider ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("articles")}><div className="rn-kpi-lab">Articles à valider</div><div className="rn-kpi-val">{s.stocks.a_valider}</div></button> : null}
+              {s.stocks.ecarts_inventaire ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Écarts d'inventaire</div><div className="rn-kpi-val">{s.stocks.ecarts_inventaire}</div></button> : null}
+            </div>
+          ) : null}
+          <div className="rn-kpis">
+            {[
+              ["Chiffre d'affaires (livré)", fmt(s.finances.chiffre_affaires)],
+              ["Commandes reçues", s.commandes.total],
+              ["Livrées", s.commandes.livrees],
+              ["En cours", s.commandes.en_cours],
+              ["En retard", s.commandes.en_retard],
+              ["Annulées", s.commandes.annulees],
+              ["Panier moyen", fmt(s.finances.panier_moyen)],
+              ["Frais de livraison encaissés", fmt(s.finances.frais_livraison)],
+              ["À reverser par les représentants", fmt(s.finances.a_reverser)],
+              ["Paiements en attente", fmt(s.finances.paiements_en_attente)],
+              ["Commissions", fmt(s.finances.commissions)],
+              ["Taux de réussite des livraisons", s.livraisons.taux_reussite != null ? s.livraisons.taux_reussite + " %" : "—"],
+              ["Taux d'acceptation des missions", s.livraisons.taux_acceptation != null ? s.livraisons.taux_acceptation + " %" : "—"],
+              ["Délai moyen de livraison", s.livraisons.delai_moyen_h != null ? s.livraisons.delai_moyen_h + " h" : "—"],
+              ["Pièces en stock", fmtNombre(s.stocks.quantite)],
+              ["Valeur du stock", fmt(s.stocks.valeur)],
+            ].map(([l, v]) => <div className="rn-kpi" key={l}><div className="rn-kpi-lab">{l}</div><div className="rn-kpi-val">{v}</div></div>)}
+          </div>
+          <div className="rn-grille-2">
+            <div className="rn-carte rn-pile">
+              <h3>Chiffre d'affaires par jour</h3>
+              {s.par_jour.length ? <Barres donnees={s.par_jour.slice(-31)} label={(d) => new Date(d.jour).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} valeur={(d) => d.ca || 0} format={fmt} /> : <p className="rn-muet">Aucune commande sur la période.</p>}
+            </div>
+            <div className="rn-carte rn-pile">
+              <h3>Ventes par catégorie</h3>
+              {s.par_categorie.length ? <Barres donnees={s.par_categorie} label={(d) => d.categorie} valeur={(d) => d.ca} format={fmt} /> : <p className="rn-muet">Pas encore de vente livrée.</p>}
+            </div>
+            <div className="rn-carte rn-pile">
+              <h3>Ventes par région</h3>
+              {s.par_region.length ? <Barres donnees={s.par_region} label={(d) => d.region} valeur={(d) => d.ca} format={fmt} /> : <p className="rn-muet">Pas encore de vente livrée.</p>}
+            </div>
+            <div className="rn-carte rn-pile">
+              <h3>Articles les plus vendus</h3>
+              {s.top_articles.length ? <Barres donnees={s.top_articles} label={(d) => d.titre} valeur={(d) => d.nb} /> : <p className="rn-muet">Pas encore de vente livrée.</p>}
+            </div>
+          </div>
+          <div className="rn-carte rn-pile">
+            <h3>Performance des représentants</h3>
+            {s.par_representant.length ? (
+              <div className="rn-table-boite">
+                <table className="rn-table">
+                  <thead><tr><th>Représentant</th><th>Zone</th><th className="rn-num">Livrées</th><th className="rn-num">Refus</th><th className="rn-num">Échecs</th><th className="rn-num">Ventes</th><th className="rn-num">Commissions</th><th className="rn-num">À reverser</th><th className="rn-num">Stock</th></tr></thead>
+                  <tbody>{s.par_representant.map((r) => (
+                    <tr key={r.id}><td>{r.nom}</td><td>{r.zone}</td><td className="rn-num">{r.livrees}</td><td className="rn-num">{r.refusees}</td><td className="rn-num">{r.echecs}</td>
+                      <td className="rn-num">{fmt(r.ventes)}</td><td className="rn-num">{fmt(r.commissions)}</td><td className="rn-num">{fmt(r.a_reverser)}</td><td className="rn-num">{r.stock}</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            ) : <Vide titre="Aucun représentant" action={<Bouton onClick={() => aller("representants")}>Ajouter un représentant</Bouton>} />}
+          </div>
+          <div className="rn-grille-2">
+            <div className="rn-carte rn-pile">
+              <h3>Zones non couvertes ({s.zones_non_couvertes.length})</h3>
+              <p className="rn-muet rn-petit">Aucun représentant actif n'y livre : les commandes partent en envoi interurbain.</p>
+              {s.zones_non_couvertes.slice(0, 15).map((z) => (
+                <div key={z.id} className="rn-entre rn-petit"><span>{z.nom}</span>{z.commandes ? <Pastille ton="alerte">{z.commandes} commande(s)</Pastille> : null}</div>
+              ))}
+            </div>
+            <div className="rn-carte rn-pile">
+              <h3>Invendus depuis plus de 60 jours</h3>
+              {s.invendus.length ? s.invendus.map((a) => (
+                <div key={a.id} className="rn-entre rn-petit"><span>{a.titre} <span className="rn-muet">({a.reference})</span></span><span>{a.jours} j, {fmt(a.prix)}</span></div>
+              )) : <p className="rn-muet">Aucun article qui stagne.</p>}
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+// =================================================================== COMMANDES
+function Commandes({ supabase, workspaceId, base, rechargerAlertes }) {
+  const [liste, setListe] = useState(null);
+  const [filtre, setFiltre] = useState({ statut: "a_traiter", q: "" });
+  const [ouverte, setOuverte] = useState(() => sessionStorage.getItem("rn_ouvrir_commande"));
+  const charger = useCallback(async () => {
+    let req = supabase.from("rn_commandes").select("*, zone:rn_zones(nom)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(300);
+    if (filtre.statut === "a_traiter") req = req.in("statut", ["en_attente_paiement", "en_attente_attribution", "echec_livraison", "retour_demande"]);
+    else if (filtre.statut === "en_cours") req = req.in("statut", ["confirmee", "representant_notifie", "livraison_acceptee", "en_preparation", "en_cours_livraison"]);
+    else if (filtre.statut) req = req.eq("statut", filtre.statut);
+    const { data } = await req;
+    setListe(data || []);
+  }, [supabase, workspaceId, filtre.statut]);
+  useEffect(() => { charger(); sessionStorage.removeItem("rn_ouvrir_commande"); }, [charger]);
+  const q = filtre.q.trim().toLowerCase();
+  const visibles = (liste || []).filter((c) => !q || [c.numero, c.client_nom, c.client_tel].some((v) => String(v || "").toLowerCase().includes(q)));
+  const exporter = () => exporterExcel("commandes-" + new Date().toISOString().slice(0, 10), [
+    { label: "Numéro", val: (c) => c.numero }, { label: "Date", val: (c) => fmtDate(c.created_at) }, { label: "Client", val: (c) => c.client_nom },
+    { label: "Téléphone", val: (c) => c.client_tel }, { label: "Zone", val: (c) => c.zone?.nom }, { label: "Statut", val: (c) => STATUTS[c.statut]?.label },
+    { label: "Paiement", val: (c) => MODES_PAIEMENT[c.mode_paiement]?.court }, { label: "Articles (FCFA)", val: (c) => c.sous_total },
+    { label: "Livraison (FCFA)", val: (c) => c.frais_livraison }, { label: "Réduction (FCFA)", val: (c) => c.reduction }, { label: "Total (FCFA)", val: (c) => c.total },
+    { label: "Encaissé livreur (FCFA)", val: (c) => c.montant_encaisse }, { label: "Reversé le", val: (c) => fmtDate(c.reverse_at) }, { label: "Commission (FCFA)", val: (c) => c.commission },
+  ], visibles);
+  return (
+    <>
+      <div className="rn-section-titre">
+        <h2>Commandes</h2>
+        <Bouton variante="discret" petit onClick={exporter} disabled={!visibles.length}>Exporter en Excel</Bouton>
+      </div>
+      <div className="rn-filtres">
+        <select value={filtre.statut} onChange={(e) => setFiltre({ ...filtre, statut: e.target.value })} aria-label="Statut">
+          <option value="a_traiter">À traiter</option>
+          <option value="en_cours">En cours de livraison</option>
+          <option value="">Toutes</option>
+          {Object.entries(STATUTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+        </select>
+        <input type="search" placeholder="Numéro, nom ou téléphone" value={filtre.q} onChange={(e) => setFiltre({ ...filtre, q: e.target.value })} aria-label="Rechercher" />
+      </div>
+      {!liste ? <span className="rn-spin" /> : visibles.length ? (
+        <div className="rn-table-boite">
+          <table className="rn-table">
+            <thead><tr><th>Commande</th><th>Client</th><th>Zone</th><th>Statut</th><th>Paiement</th><th className="rn-num">Total</th></tr></thead>
+            <tbody>{visibles.map((c) => (
+              <tr key={c.id} className="rn-cliquable" onClick={() => setOuverte(c.id)}>
+                <td><b>{c.numero}</b><br /><span className="rn-muet rn-petit">{fmtDate(c.created_at)}</span></td>
+                <td>{c.client_nom}<br /><span className="rn-muet rn-petit">{c.client_tel}</span></td>
+                <td>{c.zone?.nom}{c.type_livraison === "interurbaine" ? <><br /><span className="rn-petit rn-muet">interurbaine</span></> : null}</td>
+                <td><StatutCommande statut={c.statut} /></td>
+                <td>{MODES_PAIEMENT[c.mode_paiement]?.court}{c.statut_paiement === "verifie" ? <><br /><Pastille ton="ok">Réglé</Pastille></> : null}</td>
+                <td className="rn-num">{fmt(c.total)}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      ) : <Vide titre={filtre.statut === "a_traiter" ? "Rien à traiter" : "Aucune commande"}>{filtre.statut === "a_traiter" ? "Les paiements à vérifier, commandes sans livreur et échecs apparaîtront ici." : null}</Vide>}
+      {ouverte ? <DetailCommande supabase={supabase} id={ouverte} reps={base.reps} fermer={() => setOuverte(null)} apres={() => { charger(); rechargerAlertes(); }} /> : null}
+    </>
+  );
+}
+
+function DetailCommande({ supabase, id, reps, fermer, apres }) {
+  const [d, setD] = useState(null);
+  const [modale, setModale] = useState(null);
+  const [f, setF] = useState({});
+  const [msg, setMsg] = useState({});
+  const [charge, setCharge] = useState(false);
+  const charger = useCallback(async () => {
+    const [c, l, m, h, p] = await Promise.all([
+      supabase.from("rn_commandes").select("*, zone:rn_zones(nom)").eq("id", id).single(),
+      supabase.from("rn_commande_lignes").select("*, article:rn_articles(reference, photos)").eq("commande_id", id).order("groupe"),
+      supabase.from("rn_missions").select("*, rep:rn_representants(nom, telephone)").eq("commande_id", id).order("created_at"),
+      supabase.from("rn_historique").select("*").eq("commande_id", id).order("created_at"),
+      supabase.from("rn_paiements").select("*").eq("commande_id", id).order("created_at"),
+    ]);
+    setD({ c: c.data, lignes: l.data || [], missions: m.data || [], hist: h.data || [], paiements: p.data || [] });
+  }, [supabase, id]);
+  useEffect(() => { charger(); }, [charger]);
+  const agir = async (nom, args, ok) => {
+    setCharge(true); setMsg({});
+    try { await rpc(supabase, nom, args); setModale(null); setMsg({ ton: "ok", texte: ok }); charger(); apres(); }
+    catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); } finally { setCharge(false); }
+  };
+  if (!d) return <div className="rn-panneau-lateral"><div style={{ padding: 30 }}><span className="rn-spin" /></div></div>;
+  const c = d.c;
+  const groupes = [...new Set(d.lignes.map((l) => l.groupe))];
+  const clos = ["livree", "annulee", "remboursee"].includes(c.statut);
+  return (
+    <div className="rn-panneau-lateral" role="dialog" aria-label={`Commande ${c.numero}`}>
+      <div className="rn-modale-tete">
+        <div><h3>{c.numero}</h3><span className="rn-muet rn-petit">{fmtDate(c.created_at)}</span></div>
+        <button className="rn-x" onClick={fermer} aria-label="Fermer">×</button>
+      </div>
+      <div className="rn-panneau-lateral-corps">
+        <div className="rn-entre"><StatutCommande statut={c.statut} /><span>{MODES_PAIEMENT[c.mode_paiement]?.label} : <b>{{ en_attente: "à vérifier", a_la_livraison: "à la livraison", verifie: "réglé", echoue: "échoué", rembourse: "remboursé" }[c.statut_paiement]}</b></span></div>
+        <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+
+        <div className="rn-ligne">
+          {c.statut === "en_attente_paiement" ? <Bouton petit onClick={() => { setF({ provider: c.mode_paiement, reference: c.reference_paiement_client || "", montant: c.total }); setModale("paiement"); }}>Valider le paiement</Bouton> : null}
+          {["en_attente_attribution", "echec_livraison"].includes(c.statut) ? <Bouton petit chargement={charge} onClick={() => agir("rn_admin_relancer", { p_cmd: c.id }, "Attribution relancée.")}>Relancer l'attribution</Bouton> : null}
+          {!clos && c.statut !== "en_attente_paiement" ? <Bouton variante="contour" petit onClick={() => { setF({ groupe: groupes[0], rep: "" }); setModale("affecter"); }}>Affecter manuellement</Bouton> : null}
+          {!clos ? <Bouton variante="danger" petit onClick={() => { setF({ motif: "" }); setModale("annuler"); }}>Annuler</Bouton> : null}
+          {["livree", "retour_demande"].includes(c.statut) || (c.statut === "annulee" && c.statut_paiement === "verifie") ? <Bouton variante="discret" petit onClick={() => { setF({ montant: c.total, reference: "" }); setModale("rembourser"); }}>Rembourser</Bouton> : null}
+        </div>
+        {c.reference_paiement_client && c.statut === "en_attente_paiement" ? <Message ton="alerte">Le client indique avoir payé, référence {c.reference_paiement_client}. Vérifiez-la sur votre compte marchand avant de valider.</Message> : null}
+
+        <div className="rn-carte rn-pile" style={{ gap: 6 }}>
+          <b>{c.client_nom}</b>
+          <span><a href={telLien(c.client_tel)}>{c.client_tel}</a> · <a href={lienWhatsApp(c.client_tel, `Bonjour ${c.client_nom}, au sujet de votre commande ${c.numero}.`)} target="_blank" rel="noreferrer">WhatsApp</a></span>
+          {c.client_email ? <span>{c.client_email}</span> : null}
+          <span>{c.zone?.nom}{c.adresse ? `, ${c.adresse}` : ""}{c.repere ? `. Repère : ${c.repere}` : ""}</span>
+          {c.lat ? <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer">Position du client sur la carte</a> : null}
+          {c.note_client ? <span className="rn-petit">Message : {c.note_client}</span> : null}
+          <span className="rn-petit rn-muet">Code de remise : {c.code_livraison} · Livraison {c.type_livraison} {c.delai_jours ? `(${c.delai_jours} j)` : ""}</span>
+        </div>
+
+        {groupes.map((g) => (
+          <div className="rn-carte rn-pile" key={g}>
+            <b>{groupes.length > 1 ? `Colis ${g}` : "Articles"}</b>
+            {d.lignes.filter((l) => l.groupe === g).map((l) => (
+              <div className="rn-mini-article" key={l.id}>
+                {l.article?.photos?.[0] ? <img src={l.article.photos[0]} alt="" /> : <span />}
+                <span>{l.titre}<br /><span className="rn-muet rn-petit">Réf. {l.article?.reference}{l.quantite > 1 ? ` × ${l.quantite}` : ""}{l.reserve ? "" : ", non réservé"}</span></span>
+                <span className="rn-num">{fmt(l.prix * l.quantite)}</span>
+              </div>
+            ))}
+            <div className="rn-chronologie">
+              {d.missions.filter((m) => m.groupe === g).map((m) => (
+                <div key={m.id}><span className="rn-muet">{fmtDate(m.proposee_at)}</span><span>{m.rep?.nom} <Pastille ton={STATUTS_MISSION[m.statut]?.ton}>{STATUTS_MISSION[m.statut]?.label}</Pastille>{m.distance_km != null ? ` ${m.distance_km} km` : ""}{m.motif ? ` · ${m.motif}` : ""}</span></div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div className="rn-carte rn-totaux">
+          <div><span>Articles</span><span>{fmt(c.sous_total)}</span></div>
+          <div><span>Livraison</span><span>{fmt(c.frais_livraison)}</span></div>
+          {c.reduction ? <div><span>Réduction</span><span>−{fmt(c.reduction)}</span></div> : null}
+          <div className="rn-total"><span>Total</span><span>{fmt(c.total)}</span></div>
+          {c.montant_encaisse ? <div className="rn-petit"><span>Encaissé par le livreur</span><span>{fmt(c.montant_encaisse)}{c.reverse_at ? `, reversé le ${fmtDate(c.reverse_at, false)}` : ", à reverser"}</span></div> : null}
+          {c.commission ? <div className="rn-petit"><span>Commission représentant</span><span>{fmt(c.commission)}</span></div> : null}
+        </div>
+        {d.paiements.length ? (
+          <div className="rn-carte rn-pile"><b>Paiements enregistrés</b>
+            {d.paiements.map((p) => <div key={p.id} className="rn-entre rn-petit"><span>{fmtDate(p.created_at)} · {p.provider} {p.reference ? `(${p.reference.slice(0, 18)})` : ""}</span><span>{fmt(p.montant)}</span></div>)}
+          </div>
+        ) : null}
+        <div className="rn-carte rn-pile"><b>Historique</b>
+          <div className="rn-chronologie">
+            {d.hist.map((h) => <div key={h.id}><span className="rn-muet">{fmtDate(h.created_at)}</span><span>{STATUTS[h.statut]?.label}{h.note ? ` · ${h.note}` : ""}</span></div>)}
+          </div>
+        </div>
+      </div>
+
+      {modale === "paiement" ? (
+        <Modale titre="Valider le paiement" onFermer={() => setModale(null)}>
+          <p>Ne validez qu'après avoir vu la transaction sur votre compte {MODES_PAIEMENT[c.mode_paiement]?.label}. Une capture d'écran du client ne suffit pas.</p>
+          <Champ label="Opérateur"><select value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })}>{Object.entries(MODES_PAIEMENT).filter(([k]) => k !== "cod").map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></Champ>
+          <Champ label="Référence de la transaction"><input value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Champ>
+          <Champ label="Montant reçu (FCFA)"><input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/\D/g, "") })} /></Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton chargement={charge} onClick={() => agir("rn_admin_valider_paiement", { p_cmd: c.id, p_provider: f.provider, p_reference: f.reference, p_montant: Number(f.montant) }, "Paiement validé, attribution lancée.")}>Valider et lancer la livraison</Bouton>
+        </Modale>
+      ) : null}
+      {modale === "affecter" ? (
+        <Modale titre="Affecter à un représentant" onFermer={() => setModale(null)}>
+          {groupes.length > 1 ? <Champ label="Colis"><select value={f.groupe} onChange={(e) => setF({ ...f, groupe: Number(e.target.value) })}>{groupes.map((g) => <option key={g} value={g}>Colis {g}</option>)}</select></Champ> : null}
+          <Champ label="Représentant" aide="Il doit détenir les articles. Sinon, faites d'abord un transfert dans l'onglet Stocks.">
+            <select value={f.rep} onChange={(e) => setF({ ...f, rep: e.target.value })}><option value="">Choisir…</option>{reps.filter((r) => r.statut === "actif").map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select>
+          </Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton chargement={charge} disabled={!f.rep} onClick={() => agir("rn_admin_affecter", { p_cmd: c.id, p_groupe: Number(f.groupe), p_rep: f.rep }, "Mission proposée au représentant choisi.")}>Proposer la mission</Bouton>
+        </Modale>
+      ) : null}
+      {modale === "annuler" ? (
+        <Modale titre="Annuler la commande" onFermer={() => setModale(null)}>
+          <p>Les articles réservés sont remis en vente et les représentants concernés sont prévenus.</p>
+          <Champ label="Motif"><input value={f.motif} onChange={(e) => setF({ ...f, motif: e.target.value })} /></Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton variante="danger" chargement={charge} onClick={() => agir("rn_admin_annuler", { p_cmd: c.id, p_motif: f.motif || "Annulée par l'administration" }, "Commande annulée.")}>Confirmer l'annulation</Bouton>
+        </Modale>
+      ) : null}
+      {modale === "rembourser" ? (
+        <Modale titre="Enregistrer un remboursement" onFermer={() => setModale(null)}>
+          <Champ label="Montant remboursé (FCFA)"><input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/\D/g, "") })} /></Champ>
+          <Champ label="Référence du transfert"><input value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton chargement={charge} disabled={!Number(f.montant)} onClick={() => agir("rn_admin_rembourser", { p_cmd: c.id, p_montant: Number(f.montant), p_reference: f.reference }, "Remboursement enregistré.")}>Enregistrer</Bouton>
+        </Modale>
+      ) : null}
+    </div>
+  );
+}
+
+// =================================================================== ARTICLES
+function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
+  const [liste, setListe] = useState(null);
+  const [filtre, setFiltre] = useState({ statut: "", q: "", cat: "" });
+  const [edit, setEdit] = useState(null);
+  const [vendeurs, setVendeurs] = useState([]);
+  const [msg, setMsg] = useState({});
+  const charger = useCallback(async () => {
+    const { data } = await supabase.from("rn_articles").select("*, stocks:rn_stocks(quantite, reservee, representant_id)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(1000);
+    setListe(data || []);
+  }, [supabase, workspaceId]);
+  useEffect(() => { charger(); }, [charger]);
+  useEffect(() => { if (param.vendeurs_actifs) supabase.from("rn_vendeurs").select("id, nom").eq("workspace_id", workspaceId).then(({ data }) => setVendeurs(data || [])); }, [supabase, workspaceId, param.vendeurs_actifs]);
+  const nomRep = (id) => base.reps.find((r) => r.id === id)?.nom || "—";
+  const proposePar = (a) => (a.propose_par_type === "representant" ? nomRep(a.propose_par_id) : a.propose_par_type === "vendeur" ? "Vendeur" : "Administration");
+  const q = filtre.q.trim().toLowerCase();
+  const visibles = (liste || []).filter((a) => (!filtre.statut || a.statut === filtre.statut) && (!filtre.cat || a.categorie === filtre.cat) && (!q || [a.titre, a.reference, a.marque].some((v) => String(v || "").toLowerCase().includes(q))));
+  const aValider = (liste || []).filter((a) => a.statut === "en_attente").length;
+
+  const enregistrer = async () => {
+    setMsg({});
+    const v = edit;
+    try {
+      if (!v.titre || !v.prix) throw new Error("Titre et prix sont obligatoires.");
+      if (!v.photos?.length) throw new Error("Ajoutez au moins une photo réelle.");
+      if (!v.id && (!v.rep_initial || !Number(v.qte_initiale))) throw new Error("Indiquez le représentant qui détient l'article et la quantité.");
+      const donnees = {
+        workspace_id: workspaceId, titre: v.titre.trim(), description: v.description || null, categorie: v.categorie || base.categories[0]?.nom || "Vêtements femmes",
+        sous_categorie: v.sous_categorie || null, taille: v.taille || null, marque: v.marque || null, couleur: v.couleur || null, etat: v.etat || "bon",
+        defauts: v.defauts || null, prix: Number(v.prix), prix_barre: v.prix_barre ? Number(v.prix_barre) : null, photos: v.photos, vendeur_id: v.vendeur_id || null,
+        updated_at: new Date().toISOString(),
+      };
+      let id = v.id;
+      if (id) {
+        const { error } = await supabase.from("rn_articles").update(donnees).eq("id", id);
+        if (error) throw error;
+      } else {
+        const reference = v.reference?.trim() || "A" + new Date().toISOString().slice(2, 10).replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+        const { data, error } = await supabase.from("rn_articles").insert({ ...donnees, reference, statut: "disponible", propose_par_type: "admin" }).select("id").single();
+        if (error) throw error;
+        id = data.id;
+        if (v.rep_initial && Number(v.qte_initiale) > 0) await rpc(supabase, "rn_stock_mouvement", { p_article: id, p_rep: v.rep_initial, p_type: "entree", p_q: Number(v.qte_initiale), p_note: "Stock initial" });
+        await supabase.rpc("rn_admin_valider_article", { p_article: id, p_ok: true });
+      }
+      setEdit(null); setMsg({ ton: "ok", texte: "Article enregistré." }); charger();
+    } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  const valider = async (a, ok) => {
+    const motif = ok ? null : window.prompt("Motif du refus (transmis au représentant) :");
+    if (!ok && motif === null) return;
+    try { await rpc(supabase, "rn_admin_valider_article", { p_article: a.id, p_ok: ok, p_motif: motif }); charger(); rechargerAlertes(); }
+    catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  const retirer = async (a) => {
+    if (!window.confirm(`Retirer « ${a.titre} » de la vente ?`)) return;
+    await supabase.from("rn_articles").update({ statut: a.statut === "retire" ? "disponible" : "retire" }).eq("id", a.id);
+    charger();
+  };
+  const exporter = () => exporterExcel("articles-" + new Date().toISOString().slice(0, 10), [
+    { label: "Référence", val: (a) => a.reference }, { label: "Titre", val: (a) => a.titre }, { label: "Catégorie", val: (a) => a.categorie },
+    { label: "Taille", val: (a) => a.taille }, { label: "Marque", val: (a) => a.marque }, { label: "État", val: (a) => ETATS[a.etat] },
+    { label: "Prix (FCFA)", val: (a) => a.prix }, { label: "Statut", val: (a) => STATUTS_ARTICLE[a.statut]?.label },
+    { label: "Stock total", val: (a) => (a.stocks || []).reduce((s, x) => s + x.quantite, 0) },
+    { label: "Détenu par", val: (a) => (a.stocks || []).filter((x) => x.quantite > 0).map((x) => `${nomRep(x.representant_id)} (${x.quantite})`).join(", ") },
+    { label: "Ajouté le", val: (a) => fmtDate(a.created_at, false) },
+  ], visibles);
+
+  return (
+    <>
+      <div className="rn-section-titre">
+        <h2>Articles</h2>
+        <div className="rn-ligne">
+          <Bouton variante="discret" petit onClick={exporter}>Exporter en Excel</Bouton>
+          <Bouton petit onClick={() => setEdit({ etat: "bon", photos: [], qte_initiale: 1, categorie: base.categories[0]?.nom })}>Ajouter un article</Bouton>
+        </div>
+      </div>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      {aValider ? <Message ton="alerte">{aValider} article(s) proposé(s) par les représentants attendent votre validation.</Message> : null}
+      <div className="rn-filtres">
+        <select value={filtre.statut} onChange={(e) => setFiltre({ ...filtre, statut: e.target.value })} aria-label="Statut">
+          <option value="">Tous les statuts</option>{Object.entries(STATUTS_ARTICLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+        </select>
+        <select value={filtre.cat} onChange={(e) => setFiltre({ ...filtre, cat: e.target.value })} aria-label="Catégorie">
+          <option value="">Toutes les catégories</option>{base.categories.filter((c) => !c.parent_id).map((c) => <option key={c.id}>{c.nom}</option>)}
+        </select>
+        <input type="search" placeholder="Titre, référence, marque" value={filtre.q} onChange={(e) => setFiltre({ ...filtre, q: e.target.value })} aria-label="Rechercher" />
+      </div>
+      {!liste ? <span className="rn-spin" /> : visibles.length ? (
+        <div className="rn-table-boite">
+          <table className="rn-table">
+            <thead><tr><th>Article</th><th>Statut</th><th className="rn-num">Prix</th><th>Détenu par</th><th>Proposé par</th><th /></tr></thead>
+            <tbody>{visibles.map((a) => (
+              <tr key={a.id}>
+                <td>
+                  <div className="rn-mini-article" style={{ gridTemplateColumns: "44px 1fr" }}>
+                    {a.photos?.[0] ? <img src={a.photos[0]} alt="" style={{ width: 44, height: 54 }} /> : <span />}
+                    <span><b>{a.titre}</b><br /><span className="rn-muet rn-petit">{a.reference}, {a.categorie}{a.taille ? `, ${a.taille}` : ""}</span></span>
+                  </div>
+                </td>
+                <td><Pastille ton={STATUTS_ARTICLE[a.statut]?.ton}>{STATUTS_ARTICLE[a.statut]?.label}</Pastille></td>
+                <td className="rn-num">{fmt(a.prix)}</td>
+                <td className="rn-petit">{(a.stocks || []).filter((x) => x.quantite > 0).map((x) => `${nomRep(x.representant_id)} (${x.quantite}${x.reservee ? `, ${x.reservee} rés.` : ""})`).join(", ") || "—"}</td>
+                <td className="rn-petit">{proposePar(a)}</td>
+                <td>
+                  <div className="rn-ligne" style={{ flexWrap: "nowrap" }}>
+                    {a.statut === "en_attente" ? <><Bouton petit variante="vert" onClick={() => valider(a, true)}>Publier</Bouton><Bouton petit variante="danger" onClick={() => valider(a, false)}>Refuser</Bouton></> : null}
+                    <Bouton petit variante="discret" onClick={() => setEdit({ ...a })}>Modifier</Bouton>
+                    {["disponible", "retire"].includes(a.statut) ? <Bouton petit variante="discret" onClick={() => retirer(a)}>{a.statut === "retire" ? "Remettre" : "Retirer"}</Bouton> : null}
+                  </div>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      ) : <Vide titre="Aucun article" action={<Bouton onClick={() => setEdit({ etat: "bon", photos: [], qte_initiale: 1 })}>Ajouter le premier article</Bouton>} />}
+      {edit ? (
+        <Modale titre={edit.id ? "Modifier l'article" : "Nouvel article"} onFermer={() => setEdit(null)} large>
+          <FormulaireArticle supabase={supabase} workspaceId={workspaceId} valeur={edit} categories={base.categories.filter((c) => !c.parent_id).map((c) => c.nom)} onChange={setEdit} />
+          {!edit.id ? (
+            <div className="rn-grille-2">
+              <Champ label="Confié au représentant" aide="Celui qui détient physiquement l'article.">
+                <select value={edit.rep_initial || ""} onChange={(e) => setEdit({ ...edit, rep_initial: e.target.value })}><option value="">Choisir…</option>{base.reps.filter((r) => r.statut === "actif").map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select>
+              </Champ>
+              <Champ label="Quantité"><input inputMode="numeric" value={edit.qte_initiale} onChange={(e) => setEdit({ ...edit, qte_initiale: e.target.value.replace(/\D/g, "") })} /></Champ>
+              <Champ label="Référence (facultatif)" aide="Générée automatiquement si vide."><input value={edit.reference || ""} onChange={(e) => setEdit({ ...edit, reference: e.target.value })} /></Champ>
+            </div>
+          ) : null}
+          {param.vendeurs_actifs ? (
+            <Champ label="Vendeur partenaire (facultatif)"><select value={edit.vendeur_id || ""} onChange={(e) => setEdit({ ...edit, vendeur_id: e.target.value })}><option value="">Aucun (stock propre)</option>{vendeurs.map((v) => <option key={v.id} value={v.id}>{v.nom}</option>)}</select></Champ>
+          ) : null}
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton onClick={enregistrer}>Enregistrer</Bouton>
+        </Modale>
+      ) : null}
+    </>
+  );
+}
+
+// =================================================================== STOCKS
+function Stocks({ supabase, workspaceId, base }) {
+  const [vue, setVue] = useState("par_rep");
+  const [stocks, setStocks] = useState(null);
+  const [mouvements, setMouvements] = useState([]);
+  const [inventaires, setInventaires] = useState([]);
+  const [rep, setRep] = useState("");
+  const [modale, setModale] = useState(null);
+  const [f, setF] = useState({});
+  const [msg, setMsg] = useState({});
+  const charger = useCallback(async () => {
+    const [s, m, i] = await Promise.all([
+      supabase.from("rn_stocks").select("*, article:rn_articles(id, titre, reference, prix, statut, created_at)").eq("workspace_id", workspaceId).gt("quantite", 0),
+      supabase.from("rn_mouvements").select("*, article:rn_articles(titre, reference)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(150),
+      supabase.from("rn_inventaires").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(50),
+    ]);
+    setStocks(s.data || []); setMouvements(m.data || []); setInventaires(i.data || []);
+  }, [supabase, workspaceId]);
+  useEffect(() => { charger(); }, [charger]);
+  const nomRep = (id) => base.reps.find((r) => r.id === id)?.nom || "—";
+  const agir = async (nom, args, ok) => {
+    try { await rpc(supabase, nom, args); setModale(null); setMsg({ ton: "ok", texte: ok }); charger(); }
+    catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  const visibles = (stocks || []).filter((s) => !rep || s.representant_id === rep);
+  const parRep = base.reps.map((r) => {
+    const l = (stocks || []).filter((s) => s.representant_id === r.id);
+    return { ...r, pieces: l.reduce((a, s) => a + s.quantite, 0), reservees: l.reduce((a, s) => a + s.reservee, 0), valeur: l.reduce((a, s) => a + s.quantite * (s.article?.prix || 0), 0) };
+  });
+  const TYPES = { entree: "Entrée", sortie: "Sortie", vente: "Vente", retour: "Retour", transfert_sortie: "Transfert sortant", transfert_entree: "Transfert entrant", ajustement: "Ajustement", reservation: "Réservation", liberation: "Libération" };
+  return (
+    <>
+      <div className="rn-section-titre">
+        <h2>Stocks décentralisés</h2>
+        <div className="rn-ligne">
+          <Bouton variante="discret" petit onClick={() => { setF({ type: "entree", q: 1 }); setModale("mouvement"); }}>Mouvement de stock</Bouton>
+          <Bouton petit onClick={() => { setF({ q: 1 }); setModale("transfert"); }}>Transférer un article</Bouton>
+        </div>
+      </div>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      <div className="rn-ligne">
+        {[["par_rep", "Par représentant"], ["detail", "Détail des articles"], ["mouvements", "Mouvements"], ["inventaires", `Inventaires${inventaires.filter((i) => i.statut === "soumis").length ? ` (${inventaires.filter((i) => i.statut === "soumis").length})` : ""}`]].map(([k, l]) => (
+          <button key={k} className="rn-cat" aria-pressed={vue === k} onClick={() => setVue(k)}>{l}</button>
+        ))}
+      </div>
+      {!stocks ? <span className="rn-spin" /> : null}
+      {stocks && vue === "par_rep" ? (
+        <div className="rn-table-boite"><table className="rn-table">
+          <thead><tr><th>Représentant</th><th>Statut</th><th className="rn-num">Pièces</th><th className="rn-num">Réservées</th><th className="rn-num">Valeur</th><th /></tr></thead>
+          <tbody>{parRep.map((r) => (
+            <tr key={r.id}><td>{r.nom}</td><td><Pastille ton={r.statut === "actif" ? (r.disponible ? "ok" : "alerte") : "neutre"}>{r.statut !== "actif" ? "Suspendu" : r.disponible ? "Disponible" : "Indisponible"}</Pastille></td>
+              <td className="rn-num">{r.pieces}</td><td className="rn-num">{r.reservees}</td><td className="rn-num">{fmt(r.valeur)}</td>
+              <td><Bouton petit variante="discret" onClick={() => { setRep(r.id); setVue("detail"); }}>Voir</Bouton></td></tr>
+          ))}</tbody>
+        </table></div>
+      ) : null}
+      {stocks && vue === "detail" ? (
+        <>
+          <div className="rn-filtres"><select value={rep} onChange={(e) => setRep(e.target.value)} aria-label="Représentant"><option value="">Tous les représentants</option>{base.reps.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select></div>
+          <div className="rn-table-boite"><table className="rn-table">
+            <thead><tr><th>Article</th><th>Représentant</th><th className="rn-num">Quantité</th><th className="rn-num">Réservée</th><th className="rn-num">Libre</th><th>En stock depuis</th></tr></thead>
+            <tbody>{visibles.map((s) => (
+              <tr key={s.id}><td>{s.article?.titre}<br /><span className="rn-muet rn-petit">{s.article?.reference}</span></td><td>{nomRep(s.representant_id)}</td>
+                <td className="rn-num">{s.quantite}</td><td className="rn-num">{s.reservee}</td><td className="rn-num">{s.quantite - s.reservee}</td>
+                <td className="rn-petit">{fmtDate(s.article?.created_at, false)}{Date.now() - new Date(s.article?.created_at) > 60 * 86400000 ? <> <Pastille ton="alerte">+60 j</Pastille></> : null}</td></tr>
+            ))}</tbody>
+          </table></div>
+        </>
+      ) : null}
+      {vue === "mouvements" ? (
+        <div className="rn-table-boite"><table className="rn-table">
+          <thead><tr><th>Date</th><th>Article</th><th>Représentant</th><th>Type</th><th className="rn-num">Qté</th><th>Note</th></tr></thead>
+          <tbody>{mouvements.map((m) => (
+            <tr key={m.id}><td className="rn-petit">{fmtDate(m.created_at)}</td><td>{m.article?.titre}<br /><span className="rn-muet rn-petit">{m.article?.reference}</span></td><td>{nomRep(m.representant_id)}</td><td>{TYPES[m.type]}</td><td className="rn-num">{m.quantite}</td><td className="rn-petit">{m.note}</td></tr>
+          ))}</tbody>
+        </table></div>
+      ) : null}
+      {vue === "inventaires" ? (
+        inventaires.length ? inventaires.map((i) => (
+          <div key={i.id} className="rn-carte rn-pile">
+            <div className="rn-entre"><b>{nomRep(i.representant_id)}, {fmtDate(i.created_at)}</b><Pastille ton={i.statut === "valide" ? "ok" : i.statut === "rejete" ? "neutre" : i.ecart_total ? "alerte" : "info"}>{i.statut === "soumis" ? (i.ecart_total ? `${i.ecart_total} écart(s)` : "Conforme") : i.statut === "valide" ? "Appliqué" : "Rejeté"}</Pastille></div>
+            {i.note ? <p className="rn-petit">{i.note}</p> : null}
+            {(i.lignes || []).filter((l) => l.reel !== l.theorique).map((l) => (
+              <div key={l.article_id} className="rn-entre rn-petit"><span>{l.titre} ({l.reference})</span><span>enregistré {l.theorique}, compté <b>{l.reel}</b></span></div>
+            ))}
+            {i.statut === "soumis" ? (
+              <div className="rn-ligne">
+                <Bouton petit onClick={() => agir("rn_admin_valider_inventaire", { p_inv: i.id, p_appliquer: true }, "Stock aligné sur l'inventaire.")}>Appliquer au stock</Bouton>
+                <Bouton petit variante="discret" onClick={() => agir("rn_admin_valider_inventaire", { p_inv: i.id, p_appliquer: false }, "Inventaire rejeté.")}>Rejeter</Bouton>
+              </div>
+            ) : null}
+          </div>
+        )) : <Vide titre="Aucun inventaire">Les représentants envoient leurs comptages depuis leur espace.</Vide>
+      ) : null}
+
+      {modale === "transfert" ? (
+        <Modale titre="Transférer un article" onFermer={() => setModale(null)}>
+          <Champ label="Depuis"><select value={f.de || ""} onChange={(e) => setF({ ...f, de: e.target.value, article: "" })}><option value="">Choisir…</option>{base.reps.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select></Champ>
+          <Champ label="Article"><select value={f.article || ""} onChange={(e) => setF({ ...f, article: e.target.value })} disabled={!f.de}><option value="">Choisir…</option>{(stocks || []).filter((s) => s.representant_id === f.de && s.quantite > s.reservee).map((s) => <option key={s.article_id} value={s.article_id}>{s.article?.titre} ({s.quantite - s.reservee} libre)</option>)}</select></Champ>
+          <Champ label="Vers"><select value={f.vers || ""} onChange={(e) => setF({ ...f, vers: e.target.value })}><option value="">Choisir…</option>{base.reps.filter((r) => r.id !== f.de).map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select></Champ>
+          <Champ label="Quantité"><input inputMode="numeric" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value.replace(/\D/g, "") })} /></Champ>
+          <Champ label="Note (transporteur, date…)"><input value={f.note || ""} onChange={(e) => setF({ ...f, note: e.target.value })} /></Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton disabled={!f.de || !f.vers || !f.article} onClick={() => agir("rn_admin_transferer", { p_article: f.article, p_de: f.de, p_vers: f.vers, p_q: Number(f.q), p_note: f.note || null }, "Transfert enregistré. Les deux représentants sont prévenus.")}>Transférer</Bouton>
+        </Modale>
+      ) : null}
+      {modale === "mouvement" ? (
+        <MouvementAdmin supabase={supabase} workspaceId={workspaceId} reps={base.reps} f={f} setF={setF} msg={msg} fermer={() => setModale(null)}
+          valider={() => agir("rn_stock_mouvement", { p_article: f.article, p_rep: f.rep, p_type: f.type, p_q: Number(f.q), p_note: f.note || null }, "Stock mis à jour.")} />
+      ) : null}
+    </>
+  );
+}
+
+function MouvementAdmin({ supabase, workspaceId, reps, f, setF, msg, fermer, valider }) {
+  const [articles, setArticles] = useState([]);
+  const [q, setQ] = useState("");
+  useEffect(() => { supabase.from("rn_articles").select("id, titre, reference").eq("workspace_id", workspaceId).neq("statut", "refuse").order("created_at", { ascending: false }).limit(1000).then(({ data }) => setArticles(data || [])); }, [supabase, workspaceId]);
+  const filtres = articles.filter((a) => !q || (a.titre + " " + a.reference).toLowerCase().includes(q.toLowerCase())).slice(0, 50);
+  return (
+    <Modale titre="Mouvement de stock" onFermer={fermer}>
+      <Champ label="Chercher l'article"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Titre ou référence" /></Champ>
+      <Champ label="Article"><select value={f.article || ""} onChange={(e) => setF({ ...f, article: e.target.value })}><option value="">Choisir…</option>{filtres.map((a) => <option key={a.id} value={a.id}>{a.titre} ({a.reference})</option>)}</select></Champ>
+      <Champ label="Représentant"><select value={f.rep || ""} onChange={(e) => setF({ ...f, rep: e.target.value })}><option value="">Choisir…</option>{reps.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select></Champ>
+      <Champ label="Type">
+        <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
+          <option value="entree">Entrée</option><option value="sortie">Sortie</option><option value="retour">Retour client</option><option value="ajustement">Ajustement (fixer la quantité exacte)</option>
+        </select>
+      </Champ>
+      <Champ label={f.type === "ajustement" ? "Nouvelle quantité" : "Quantité"}><input inputMode="numeric" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value.replace(/\D/g, "") })} /></Champ>
+      <Champ label="Motif"><input value={f.note || ""} onChange={(e) => setF({ ...f, note: e.target.value })} /></Champ>
+      <Message ton={msg.ton}>{msg.texte}</Message>
+      <Bouton disabled={!f.article || !f.rep || f.q === ""} onClick={valider}>Enregistrer</Bouton>
+    </Modale>
+  );
+}
+
+// =================================================================== REPRÉSENTANTS
+function Representants({ supabase, workspaceId, slug, base, rechargerRef }) {
+  const [edit, setEdit] = useState(null);
+  const [zonesRep, setZonesRep] = useState([]);
+  const [msg, setMsg] = useState({});
+  const lienEspace = `${window.location.origin}/?reseau=${encodeURIComponent(slug || "")}&espace=representant`;
+  useEffect(() => { supabase.from("rn_representant_zones").select("*").eq("workspace_id", workspaceId).then(({ data }) => setZonesRep(data || [])); }, [supabase, workspaceId, base.reps]);
+  const nomZone = (id) => base.zones.find((z) => z.id === id)?.nom || "";
+  const zonesTriees = useMemo(() => [...base.zones].sort((a, b) => ({ region: 0, ville: 1, commune: 2 }[a.type] - { region: 0, ville: 1, commune: 2 }[b.type]) || a.nom.localeCompare(b.nom, "fr")), [base.zones]);
+  const enregistrer = async () => {
+    setMsg({});
+    try {
+      const v = edit;
+      if (!v.nom?.trim() || !v.email?.trim()) throw new Error("Nom et e-mail sont obligatoires (l'e-mail sert à se connecter).");
+      const donnees = {
+        workspace_id: workspaceId, nom: v.nom.trim(), email: v.email.trim().toLowerCase(), telephone: v.telephone || null, zone_id: v.zone_id || null,
+        adresse: v.adresse || null, lat: v.lat === "" || v.lat == null ? null : Number(v.lat), lng: v.lng === "" || v.lng == null ? null : Number(v.lng),
+        statut: v.statut || "actif", max_missions: Number(v.max_missions) || 5, taux_commission: v.taux_commission === "" || v.taux_commission == null ? null : Number(v.taux_commission),
+      };
+      let id = v.id;
+      if (id) { const { error } = await supabase.from("rn_representants").update(donnees).eq("id", id); if (error) throw error; }
+      else { const { data, error } = await supabase.from("rn_representants").insert(donnees).select("id").single(); if (error) throw error; id = data.id; }
+      await supabase.from("rn_representant_zones").delete().eq("representant_id", id);
+      if (v.zones?.length) {
+        const { error } = await supabase.from("rn_representant_zones").insert(v.zones.map((z) => ({ representant_id: id, zone_id: z, workspace_id: workspaceId })));
+        if (error) throw error;
+      }
+      setEdit(null); setMsg({ ton: "ok", texte: "Représentant enregistré." }); rechargerRef();
+    } catch (e) { setMsg({ ton: "danger", texte: /duplicate|unique/i.test(e.message) ? "Un représentant utilise déjà cet e-mail." : erreurTexte(e) }); }
+  };
+  const invitation = (r) => `Bonjour ${r.nom.split(" ")[0]}, votre espace représentant est prêt.\n\n1. Ouvrez ${lienEspace}\n2. Touchez « Première connexion »\n3. Utilisez l'adresse ${r.email} et choisissez votre mot de passe.\n\nVous y recevrez vos missions de livraison.`;
+  return (
+    <>
+      <div className="rn-section-titre">
+        <h2>Représentants</h2>
+        <Bouton petit onClick={() => setEdit({ statut: "actif", max_missions: 5, zones: [] })}>Ajouter un représentant</Bouton>
+      </div>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      <div className="rn-carte rn-entre"><span className="rn-petit">Lien de l'espace représentant : <b>{lienEspace}</b></span><Bouton variante="discret" petit onClick={() => navigator.clipboard?.writeText(lienEspace)}>Copier</Bouton></div>
+      {base.reps.length ? (
+        <div className="rn-table-boite"><table className="rn-table">
+          <thead><tr><th>Représentant</th><th>Zone de rattachement</th><th>Zones de livraison</th><th>Statut</th><th>Compte</th><th /></tr></thead>
+          <tbody>{base.reps.map((r) => (
+            <tr key={r.id}>
+              <td><b>{r.nom}</b><br /><span className="rn-muet rn-petit">{r.telephone} {r.email}</span></td>
+              <td>{nomZone(r.zone_id)}{r.lat ? <><br /><span className="rn-muet rn-petit">position enregistrée</span></> : null}</td>
+              <td className="rn-petit">{zonesRep.filter((z) => z.representant_id === r.id).map((z) => nomZone(z.zone_id)).join(", ") || "—"}</td>
+              <td><Pastille ton={r.statut === "actif" ? (r.disponible ? "ok" : "alerte") : "neutre"}>{r.statut !== "actif" ? "Suspendu" : r.disponible ? "Disponible" : "Indisponible"}</Pastille></td>
+              <td>{r.user_id ? <Pastille ton="ok">Connecté</Pastille> : <a href={lienWhatsApp(r.telephone, invitation(r))} target="_blank" rel="noreferrer" className="rn-petit">Envoyer l'invitation</a>}</td>
+              <td><div className="rn-ligne" style={{ flexWrap: "nowrap" }}>
+                <Bouton petit variante="discret" onClick={() => setEdit({ ...r, zones: zonesRep.filter((z) => z.representant_id === r.id).map((z) => z.zone_id) })}>Modifier</Bouton>
+                <Bouton petit variante="discret" onClick={async () => { await supabase.from("rn_representants").update({ statut: r.statut === "actif" ? "suspendu" : "actif" }).eq("id", r.id); rechargerRef(); }}>{r.statut === "actif" ? "Suspendre" : "Réactiver"}</Bouton>
+              </div></td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      ) : <Vide titre="Aucun représentant" action={<Bouton onClick={() => setEdit({ statut: "actif", max_missions: 5, zones: [] })}>Ajouter le premier représentant</Bouton>}>Les représentants stockent les articles et livrent les clients de leur zone.</Vide>}
+      {edit ? (
+        <Modale titre={edit.id ? "Modifier le représentant" : "Nouveau représentant"} onFermer={() => setEdit(null)} large>
+          <div className="rn-grille-2">
+            <Champ label="Nom complet"><input value={edit.nom || ""} onChange={(e) => setEdit({ ...edit, nom: e.target.value })} /></Champ>
+            <Champ label="Téléphone"><input type="tel" value={edit.telephone || ""} onChange={(e) => setEdit({ ...edit, telephone: e.target.value })} /></Champ>
+            <Champ label="E-mail de connexion"><input type="email" value={edit.email || ""} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Champ>
+            <Champ label="Zone de rattachement" aide="Sert à estimer la distance si la position n'est pas renseignée.">
+              <select value={edit.zone_id || ""} onChange={(e) => setEdit({ ...edit, zone_id: e.target.value })}><option value="">Choisir…</option>{zonesTriees.map((z) => <option key={z.id} value={z.id}>{z.type === "commune" ? "— " : ""}{z.nom}</option>)}</select>
+            </Champ>
+            <Champ label="Adresse du point de stockage"><input value={edit.adresse || ""} onChange={(e) => setEdit({ ...edit, adresse: e.target.value })} /></Champ>
+            <Champ label="Coordonnées GPS (facultatif)" aide="Copiez-les depuis Google Maps : appui long sur le lieu.">
+              <input placeholder="5.3540, -3.9870" value={edit.lat != null && edit.lat !== "" ? `${edit.lat}, ${edit.lng}` : ""}
+                onChange={(e) => { const [a, b] = e.target.value.split(",").map((x) => x.trim()); setEdit({ ...edit, lat: a ?? "", lng: b ?? "" }); }} />
+            </Champ>
+            <Champ label="Missions simultanées maximum"><input inputMode="numeric" value={edit.max_missions ?? 5} onChange={(e) => setEdit({ ...edit, max_missions: e.target.value.replace(/\D/g, "") })} /></Champ>
+            <Champ label="Commission (%)" aide="Laisser vide pour le taux par défaut."><input inputMode="decimal" value={edit.taux_commission ?? ""} onChange={(e) => setEdit({ ...edit, taux_commission: e.target.value })} /></Champ>
+          </div>
+          <Champ label="Zones où il livre en local" aide="Cocher une région ou une ville inclut toutes ses communes.">
+            <div style={{ maxHeight: 220, overflow: "auto", border: "1.5px solid var(--rn-trait)", borderRadius: 12, padding: 10, background: "#fff", display: "grid", gap: 4 }}>
+              {zonesTriees.map((z) => (
+                <label key={z.id} className="rn-ligne" style={{ gap: 8, paddingLeft: z.type === "commune" ? 18 : z.type === "ville" ? 8 : 0 }}>
+                  <input type="checkbox" checked={(edit.zones || []).includes(z.id)} onChange={(e) => setEdit({ ...edit, zones: e.target.checked ? [...(edit.zones || []), z.id] : edit.zones.filter((x) => x !== z.id) })} />
+                  <span style={{ fontWeight: z.type === "region" ? 600 : 400 }}>{z.nom}</span>
+                </label>
+              ))}
+            </div>
+          </Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton onClick={enregistrer}>Enregistrer</Bouton>
+        </Modale>
+      ) : null}
+    </>
+  );
+}
+
+// =================================================================== ZONES
+function Zones({ supabase, workspaceId, base, rechargerRef }) {
+  const [edit, setEdit] = useState(null);
+  const [msg, setMsg] = useState({});
+  const [couvertes, setCouvertes] = useState(new Set());
+  useEffect(() => {
+    const [d, f] = bornes("30");
+    rpc(supabase, "rn_stats", { p_ws: workspaceId, p_debut: d.toISOString(), p_fin: f.toISOString() })
+      .then((s) => setCouvertes(new Set(base.zones.filter((z) => z.type !== "region" && !s.zones_non_couvertes.some((n) => n.id === z.id)).map((z) => z.id))))
+      .catch(() => {});
+  }, [supabase, workspaceId, base.zones]);
+  const enfants = (id) => base.zones.filter((z) => z.parent_id === id).sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  const regions = base.zones.filter((z) => !z.parent_id).sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  const enregistrer = async () => {
+    try {
+      const v = edit;
+      if (!v.nom?.trim()) throw new Error("Nom obligatoire.");
+      const d = { workspace_id: workspaceId, nom: v.nom.trim(), type: v.type, parent_id: v.parent_id || null,
+        lat: v.lat === "" || v.lat == null ? null : Number(v.lat), lng: v.lng === "" || v.lng == null ? null : Number(v.lng),
+        frais_livraison: v.frais_livraison === "" || v.frais_livraison == null ? null : Number(v.frais_livraison),
+        delai_jours: v.delai_jours === "" || v.delai_jours == null ? null : Number(v.delai_jours), actif: v.actif !== false };
+      const { error } = v.id ? await supabase.from("rn_zones").update(d).eq("id", v.id) : await supabase.from("rn_zones").insert(d);
+      if (error) throw error;
+      setEdit(null); setMsg({ ton: "ok", texte: "Zone enregistrée." }); rechargerRef();
+    } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  const Ligne = ({ z, niveau }) => (
+    <>
+      <tr>
+        <td style={{ paddingLeft: 12 + niveau * 20 }}>{niveau ? "└ " : ""}<span style={{ fontWeight: z.type === "region" ? 700 : 500 }}>{z.nom}</span>{!z.actif ? <> <Pastille>Inactive</Pastille></> : null}</td>
+        <td>{{ region: "Région", ville: "Ville", commune: "Commune" }[z.type]}</td>
+        <td className="rn-num">{z.frais_livraison != null ? fmt(z.frais_livraison) : <span className="rn-muet">hérité</span>}</td>
+        <td className="rn-num">{z.delai_jours != null ? `${z.delai_jours} j` : <span className="rn-muet">hérité</span>}</td>
+        <td>{z.type === "region" ? null : couvertes.has(z.id) ? <Pastille ton="ok">Couverte</Pastille> : <Pastille ton="alerte">Non couverte</Pastille>}</td>
+        <td><Bouton petit variante="discret" onClick={() => setEdit({ ...z })}>Modifier</Bouton></td>
+      </tr>
+      {enfants(z.id).map((e) => <Ligne key={e.id} z={e} niveau={niveau + 1} />)}
+    </>
+  );
+  return (
+    <>
+      <div className="rn-section-titre">
+        <h2>Zones et frais de livraison</h2>
+        <Bouton petit onClick={() => setEdit({ type: "ville", actif: true })}>Ajouter une zone</Bouton>
+      </div>
+      <p className="rn-muet">Les frais et délais d'une ville ou commune vides reprennent ceux de la zone parente. Pour une livraison depuis une autre ville, les frais interurbains des paramètres s'ajoutent.</p>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      <div className="rn-table-boite"><table className="rn-table">
+        <thead><tr><th>Zone</th><th>Type</th><th className="rn-num">Frais</th><th className="rn-num">Délai</th><th>Couverture</th><th /></tr></thead>
+        <tbody>{regions.map((z) => <Ligne key={z.id} z={z} niveau={0} />)}</tbody>
+      </table></div>
+      {edit ? (
+        <Modale titre={edit.id ? "Modifier la zone" : "Nouvelle zone"} onFermer={() => setEdit(null)}>
+          <Champ label="Nom"><input value={edit.nom || ""} onChange={(e) => setEdit({ ...edit, nom: e.target.value })} /></Champ>
+          <div className="rn-grille-2">
+            <Champ label="Type"><select value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value })}><option value="region">Région</option><option value="ville">Ville</option><option value="commune">Commune</option></select></Champ>
+            <Champ label="Rattachée à"><select value={edit.parent_id || ""} onChange={(e) => setEdit({ ...edit, parent_id: e.target.value })}><option value="">Aucune</option>{base.zones.filter((z) => z.id !== edit.id && z.type !== "commune").map((z) => <option key={z.id} value={z.id}>{z.nom}</option>)}</select></Champ>
+            <Champ label="Frais de livraison (FCFA)"><input inputMode="numeric" value={edit.frais_livraison ?? ""} onChange={(e) => setEdit({ ...edit, frais_livraison: e.target.value.replace(/\D/g, "") })} placeholder="hérité" /></Champ>
+            <Champ label="Délai (jours)"><input inputMode="numeric" value={edit.delai_jours ?? ""} onChange={(e) => setEdit({ ...edit, delai_jours: e.target.value.replace(/\D/g, "") })} placeholder="hérité" /></Champ>
+          </div>
+          <Champ label="Coordonnées du centre" aide="Latitude, longitude. Sert au calcul de distance.">
+            <input placeholder="5.3540, -3.9870" value={edit.lat != null && edit.lat !== "" ? `${edit.lat}, ${edit.lng}` : ""} onChange={(e) => { const [a, b] = e.target.value.split(",").map((x) => x.trim()); setEdit({ ...edit, lat: a ?? "", lng: b ?? "" }); }} />
+          </Champ>
+          <label className="rn-interrupteur"><input type="checkbox" checked={edit.actif !== false} onChange={(e) => setEdit({ ...edit, actif: e.target.checked })} /> Proposée aux clients</label>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton onClick={enregistrer}>Enregistrer</Bouton>
+        </Modale>
+      ) : null}
+    </>
+  );
+}
+
+// =================================================================== RÉCLAMATIONS
+function Reclamations({ supabase, workspaceId, rechargerAlertes }) {
+  const [liste, setListe] = useState(null);
+  const [filtre, setFiltre] = useState("ouvertes");
+  const [rep, setRep] = useState({});
+  const charger = useCallback(async () => {
+    let r = supabase.from("rn_reclamations").select("*, commande:rn_commandes(numero, client_nom, client_tel, statut)").eq("workspace_id", workspaceId).order("created_at", { ascending: false });
+    if (filtre === "ouvertes") r = r.in("statut", ["ouverte", "en_cours"]);
+    const { data } = await r;
+    setListe(data || []);
+  }, [supabase, workspaceId, filtre]);
+  useEffect(() => { charger(); }, [charger]);
+  const traiter = async (r, statut) => {
+    await supabase.from("rn_reclamations").update({ statut, reponse: rep[r.id] ?? r.reponse, traitee_at: ["resolue", "refusee"].includes(statut) ? new Date().toISOString() : null }).eq("id", r.id);
+    charger(); rechargerAlertes();
+  };
+  return (
+    <>
+      <div className="rn-section-titre"><h2>Retours et réclamations</h2>
+        <div className="rn-ligne"><button className="rn-cat" aria-pressed={filtre === "ouvertes"} onClick={() => setFiltre("ouvertes")}>À traiter</button><button className="rn-cat" aria-pressed={filtre === "toutes"} onClick={() => setFiltre("toutes")}>Toutes</button></div>
+      </div>
+      {!liste ? <span className="rn-spin" /> : liste.length ? liste.map((r) => (
+        <div className="rn-carte rn-pile" key={r.id}>
+          <div className="rn-entre"><b>{r.commande?.numero}, {r.commande?.client_nom}</b><span className="rn-ligne"><Pastille ton={r.type === "retour" ? "alerte" : "info"}>{{ retour: "Retour", probleme: "Problème", autre: "Question" }[r.type]}</Pastille><span className="rn-muet rn-petit">{fmtDate(r.created_at)}</span></span></div>
+          <p>{r.message}</p>
+          <a className="rn-petit" href={lienWhatsApp(r.commande?.client_tel, `Bonjour ${r.commande?.client_nom}, nous revenons vers vous au sujet de votre commande ${r.commande?.numero}.`)} target="_blank" rel="noreferrer">Répondre sur WhatsApp ({r.commande?.client_tel})</a>
+          <Champ label="Réponse visible par le client"><textarea value={rep[r.id] ?? r.reponse ?? ""} onChange={(e) => setRep({ ...rep, [r.id]: e.target.value })} /></Champ>
+          <div className="rn-ligne">
+            <Bouton petit variante="discret" onClick={() => traiter(r, "en_cours")}>En traitement</Bouton>
+            <Bouton petit variante="vert" onClick={() => traiter(r, "resolue")}>Marquer traitée</Bouton>
+            <Bouton petit variante="discret" onClick={() => traiter(r, "refusee")}>Clôturer sans suite</Bouton>
+          </div>
+        </div>
+      )) : <Vide titre="Aucune réclamation en attente" />}
+    </>
+  );
+}
+
+// =================================================================== FINANCES
+function Finances({ supabase, workspaceId, base }) {
+  const [lignes, setLignes] = useState(null);
+  const [paiements, setPaiements] = useState([]);
+  const [choix, setChoix] = useState(new Set());
+  const [msg, setMsg] = useState({});
+  const charger = useCallback(async () => {
+    const [m, p] = await Promise.all([
+      supabase.from("rn_missions").select("id, representant_id, montant_encaisse, commission, termine_at, commande:rn_commandes(id, numero, reverse_at, mode_paiement)").eq("workspace_id", workspaceId).eq("statut", "terminee").order("termine_at", { ascending: false }).limit(1000),
+      supabase.from("rn_paiements").select("*, commande:rn_commandes(numero)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(200),
+    ]);
+    setLignes(m.data || []); setPaiements(p.data || []);
+  }, [supabase, workspaceId]);
+  useEffect(() => { charger(); }, [charger]);
+  const nomRep = (id) => base.reps.find((r) => r.id === id)?.nom || "—";
+  const aReverser = (lignes || []).filter((l) => l.montant_encaisse > 0 && !l.commande?.reverse_at);
+  const parRep = base.reps.map((r) => ({ ...r, du: aReverser.filter((l) => l.representant_id === r.id).reduce((s, l) => s + Number(l.montant_encaisse), 0),
+    commissions: (lignes || []).filter((l) => l.representant_id === r.id).reduce((s, l) => s + Number(l.commission), 0) })).filter((r) => r.du || r.commissions);
+  const marquer = async () => {
+    try {
+      const n = await rpc(supabase, "rn_admin_marquer_reverse", { p_cmds: [...new Set(aReverser.filter((l) => choix.has(l.id)).map((l) => l.commande.id))] });
+      setMsg({ ton: "ok", texte: `${n} commande(s) marquée(s) comme reversée(s).` }); setChoix(new Set()); charger();
+    } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  return (
+    <>
+      <div className="rn-section-titre"><h2>Finances</h2>
+        <Bouton variante="discret" petit onClick={() => exporterExcel("paiements-" + new Date().toISOString().slice(0, 10), [
+          { label: "Date", val: (p) => fmtDate(p.created_at) }, { label: "Commande", val: (p) => p.commande?.numero }, { label: "Source", val: (p) => ({ webhook: "Prestataire", verification_admin: "Vérifié par l'admin", encaissement_livraison: "Encaissé à la livraison", remboursement: "Remboursement" }[p.source]) },
+          { label: "Opérateur", val: (p) => p.provider }, { label: "Référence", val: (p) => p.reference }, { label: "Montant (FCFA)", val: (p) => p.montant }], paiements)}>Exporter les paiements</Bouton>
+      </div>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      <div className="rn-carte rn-pile">
+        <h3>Soldes par représentant</h3>
+        {parRep.length ? (
+          <div className="rn-table-boite"><table className="rn-table">
+            <thead><tr><th>Représentant</th><th className="rn-num">Encaissé à reverser</th><th className="rn-num">Commissions cumulées</th><th className="rn-num">Net à reverser</th><th /></tr></thead>
+            <tbody>{parRep.map((r) => (
+              <tr key={r.id}><td>{r.nom}</td><td className="rn-num">{fmt(r.du)}</td><td className="rn-num">{fmt(r.commissions)}</td><td className="rn-num"><b>{fmt(r.du)}</b></td>
+                <td>{r.du ? <a className="rn-petit" href={lienWhatsApp(r.telephone, `Bonjour ${r.nom.split(" ")[0]}, merci de reverser ${fmt(r.du)} encaissés lors de vos livraisons.`)} target="_blank" rel="noreferrer">Relancer</a> : null}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : <p className="rn-muet">Aucun montant en attente.</p>}
+        <p className="rn-muet rn-petit">Les commissions sont suivies séparément : réglez-les selon l'accord passé avec chaque représentant.</p>
+      </div>
+      <div className="rn-carte rn-pile">
+        <div className="rn-entre"><h3>Encaissements à rapprocher</h3><Bouton petit disabled={!choix.size} onClick={marquer}>Marquer comme reversé ({choix.size})</Bouton></div>
+        {aReverser.length ? (
+          <div className="rn-table-boite"><table className="rn-table">
+            <thead><tr><th><input type="checkbox" aria-label="Tout sélectionner" checked={choix.size === aReverser.length} onChange={(e) => setChoix(e.target.checked ? new Set(aReverser.map((l) => l.id)) : new Set())} /></th><th>Commande</th><th>Représentant</th><th>Livrée le</th><th className="rn-num">Montant</th></tr></thead>
+            <tbody>{aReverser.map((l) => (
+              <tr key={l.id}><td><input type="checkbox" checked={choix.has(l.id)} onChange={(e) => { const n = new Set(choix); e.target.checked ? n.add(l.id) : n.delete(l.id); setChoix(n); }} aria-label={`Sélectionner ${l.commande?.numero}`} /></td>
+                <td>{l.commande?.numero}</td><td>{nomRep(l.representant_id)}</td><td className="rn-petit">{fmtDate(l.termine_at)}</td><td className="rn-num">{fmt(l.montant_encaisse)}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : <p className="rn-muet">Tout l'argent encaissé a été reversé.</p>}
+      </div>
+      <div className="rn-carte rn-pile">
+        <h3>Derniers paiements enregistrés</h3>
+        {paiements.slice(0, 30).map((p) => (
+          <div key={p.id} className="rn-entre rn-petit"><span>{fmtDate(p.created_at)}, {p.commande?.numero}, {{ webhook: "confirmé par le prestataire", verification_admin: "vérifié par l'admin", encaissement_livraison: "encaissé à la livraison", remboursement: "remboursement" }[p.source]}</span><b>{fmt(p.montant)}</b></div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// =================================================================== VENDEURS PARTENAIRES (activable)
+function Vendeurs({ supabase, workspaceId, base }) {
+  const [liste, setListe] = useState([]);
+  const [edit, setEdit] = useState(null);
+  const [msg, setMsg] = useState({});
+  const charger = useCallback(async () => { const { data } = await supabase.from("rn_vendeurs").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }); setListe(data || []); }, [supabase, workspaceId]);
+  useEffect(() => { charger(); }, [charger]);
+  const enregistrer = async () => {
+    try {
+      const v = edit;
+      const d = { workspace_id: workspaceId, nom: v.nom, telephone: v.telephone || null, email: v.email || null, representant_id: v.representant_id || null, statut: v.statut || "actif", taux_commission: Number(v.taux_commission) || 0 };
+      const { error } = v.id ? await supabase.from("rn_vendeurs").update(d).eq("id", v.id) : await supabase.from("rn_vendeurs").insert(d);
+      if (error) throw error;
+      setEdit(null); charger();
+    } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  return (
+    <>
+      <div className="rn-section-titre"><h2>Vendeurs partenaires</h2><Bouton petit onClick={() => setEdit({ statut: "actif" })}>Ajouter un vendeur</Bouton></div>
+      <p className="rn-muet">Un vendeur confie ses articles à la plateforme. Ses pièces sont stockées et livrées par le représentant gardien choisi ; vous les publiez après vérification.</p>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      {liste.length ? (
+        <div className="rn-table-boite"><table className="rn-table">
+          <thead><tr><th>Vendeur</th><th>Représentant gardien</th><th className="rn-num">Commission plateforme</th><th>Statut</th><th /></tr></thead>
+          <tbody>{liste.map((v) => (
+            <tr key={v.id}><td><b>{v.nom}</b><br /><span className="rn-muet rn-petit">{v.telephone} {v.email}</span></td><td>{base.reps.find((r) => r.id === v.representant_id)?.nom || "—"}</td><td className="rn-num">{v.taux_commission} %</td>
+              <td><Pastille ton={v.statut === "actif" ? "ok" : "neutre"}>{{ en_attente: "En attente", actif: "Actif", suspendu: "Suspendu" }[v.statut]}</Pastille></td>
+              <td><Bouton petit variante="discret" onClick={() => setEdit({ ...v })}>Modifier</Bouton></td></tr>
+          ))}</tbody>
+        </table></div>
+      ) : <Vide titre="Aucun vendeur partenaire" />}
+      {edit ? (
+        <Modale titre={edit.id ? "Modifier le vendeur" : "Nouveau vendeur"} onFermer={() => setEdit(null)}>
+          <Champ label="Nom"><input value={edit.nom || ""} onChange={(e) => setEdit({ ...edit, nom: e.target.value })} /></Champ>
+          <Champ label="Téléphone"><input value={edit.telephone || ""} onChange={(e) => setEdit({ ...edit, telephone: e.target.value })} /></Champ>
+          <Champ label="E-mail"><input type="email" value={edit.email || ""} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Champ>
+          <Champ label="Représentant gardien du stock"><select value={edit.representant_id || ""} onChange={(e) => setEdit({ ...edit, representant_id: e.target.value })}><option value="">Choisir…</option>{base.reps.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select></Champ>
+          <Champ label="Commission de la plateforme (%)"><input inputMode="decimal" value={edit.taux_commission ?? ""} onChange={(e) => setEdit({ ...edit, taux_commission: e.target.value })} /></Champ>
+          <Champ label="Statut"><select value={edit.statut} onChange={(e) => setEdit({ ...edit, statut: e.target.value })}><option value="en_attente">En attente</option><option value="actif">Actif</option><option value="suspendu">Suspendu</option></select></Champ>
+          <Bouton disabled={!edit.nom} onClick={enregistrer}>Enregistrer</Bouton>
+        </Modale>
+      ) : null}
+    </>
+  );
+}
+
+// =================================================================== PARAMÈTRES
+function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
+  const [v, setV] = useState({ ...param, textes: param.textes || {}, numeros_paiement: param.numeros_paiement || {} });
+  const [msg, setMsg] = useState({});
+  const [nouvelleCat, setNouvelleCat] = useState("");
+  const maj = (k) => (e) => setV({ ...v, [k]: e.target.value });
+  const majTexte = (k) => (e) => setV({ ...v, textes: { ...v.textes, [k]: e.target.value } });
+  const enregistrer = async () => {
+    try {
+      const { error } = await supabase.from("rn_parametres").update({
+        nom_plateforme: v.nom_plateforme, prefixe_commande: (v.prefixe_commande || "CMD").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+        delai_reponse_min: Number(v.delai_reponse_min), duree_reservation_min: Number(v.duree_reservation_min), commission_taux: Number(v.commission_taux),
+        interurbain_actif: v.interurbain_actif, frais_interurbain: Number(v.frais_interurbain), delai_interurbain_jours: Number(v.delai_interurbain_jours),
+        modes_paiement: v.modes_paiement, numeros_paiement: v.numeros_paiement, vendeurs_actifs: v.vendeurs_actifs, whatsapp_service: v.whatsapp_service || null,
+        couleur_principale: v.couleur_principale, couleur_or: v.couleur_or, logo_url: v.logo_url || null, textes: v.textes, updated_at: new Date().toISOString(),
+      }).eq("workspace_id", workspaceId);
+      if (error) throw error;
+      setMsg({ ton: "ok", texte: "Paramètres enregistrés." }); rechargerRef();
+    } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
+  const basculerMode = (m) => setV({ ...v, modes_paiement: v.modes_paiement.includes(m) ? v.modes_paiement.filter((x) => x !== m) : [...v.modes_paiement, m] });
+  return (
+    <>
+      <div className="rn-section-titre"><h2>Paramètres</h2><Bouton onClick={enregistrer}>Enregistrer</Bouton></div>
+      <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      <div className="rn-grille-2">
+        <div className="rn-carte rn-pile">
+          <h3>Identité</h3>
+          <Champ label="Nom de la plateforme"><input value={v.nom_plateforme} onChange={maj("nom_plateforme")} /></Champ>
+          <Champ label="Préfixe des numéros de commande"><input value={v.prefixe_commande} onChange={maj("prefixe_commande")} maxLength={6} /></Champ>
+          <Champ label="Logo (adresse de l'image)"><input value={v.logo_url || ""} onChange={maj("logo_url")} placeholder="https://…" /></Champ>
+          <div className="rn-ligne">
+            <Champ label="Couleur principale"><input type="color" value={v.couleur_principale || "#4A1238"} onChange={maj("couleur_principale")} style={{ width: 70, padding: 4 }} /></Champ>
+            <Champ label="Couleur or"><input type="color" value={v.couleur_or || "#C9A24A"} onChange={maj("couleur_or")} style={{ width: 70, padding: 4 }} /></Champ>
+          </div>
+          <Champ label="WhatsApp du service client"><input type="tel" value={v.whatsapp_service || ""} onChange={maj("whatsapp_service")} /></Champ>
+        </div>
+        <div className="rn-carte rn-pile">
+          <h3>Paiement</h3>
+          {Object.entries(MODES_PAIEMENT).filter(([k]) => k !== "carte").map(([k, m]) => (
+            <div key={k} className="rn-pile" style={{ gap: 6 }}>
+              <label className="rn-interrupteur"><input type="checkbox" checked={v.modes_paiement.includes(k)} onChange={() => basculerMode(k)} /> {m.label}</label>
+              {k !== "cod" && v.modes_paiement.includes(k) ? <input placeholder={`Numéro ${m.court} qui reçoit les paiements`} value={v.numeros_paiement[k] || ""} onChange={(e) => setV({ ...v, numeros_paiement: { ...v.numeros_paiement, [k]: e.target.value } })} /> : null}
+            </div>
+          ))}
+          <Champ label="Réservation d'un article en attente de paiement (minutes)"><input inputMode="numeric" value={v.duree_reservation_min} onChange={maj("duree_reservation_min")} /></Champ>
+          <p className="rn-muet rn-petit">Carte bancaire et confirmation automatique : à brancher via un prestataire (CinetPay, par exemple). La fonction de confirmation serveur est déjà prête.</p>
+        </div>
+        <div className="rn-carte rn-pile">
+          <h3>Livraisons et missions</h3>
+          <Champ label="Délai pour accepter une mission (minutes)" aide="Passé ce délai, la mission part au représentant suivant."><input inputMode="numeric" value={v.delai_reponse_min} onChange={maj("delai_reponse_min")} /></Champ>
+          <Champ label="Commission par défaut des représentants (%)"><input inputMode="decimal" value={v.commission_taux} onChange={maj("commission_taux")} /></Champ>
+          <label className="rn-interrupteur"><input type="checkbox" checked={v.interurbain_actif} onChange={(e) => setV({ ...v, interurbain_actif: e.target.checked })} /> Accepter les livraisons depuis une autre ville</label>
+          {v.interurbain_actif ? (
+            <div className="rn-grille-2">
+              <Champ label="Supplément interurbain (FCFA)"><input inputMode="numeric" value={v.frais_interurbain} onChange={maj("frais_interurbain")} /></Champ>
+              <Champ label="Délai interurbain (jours)"><input inputMode="numeric" value={v.delai_interurbain_jours} onChange={maj("delai_interurbain_jours")} /></Champ>
+            </div>
+          ) : null}
+          <label className="rn-interrupteur"><input type="checkbox" checked={v.vendeurs_actifs} onChange={(e) => setV({ ...v, vendeurs_actifs: e.target.checked })} /> Activer les vendeurs partenaires</label>
+        </div>
+        <div className="rn-carte rn-pile">
+          <h3>Textes de la boutique</h3>
+          <Champ label="Titre de l'accueil"><input value={v.textes.titre_accueil || ""} onChange={majTexte("titre_accueil")} placeholder="La mode qui a déjà du style, à petit prix" /></Champ>
+          <Champ label="Sous-titre de l'accueil"><textarea value={v.textes.sous_titre_accueil || ""} onChange={majTexte("sous_titre_accueil")} /></Champ>
+          <Champ label="Page Livraison" aide="Laisser vide pour le texte par défaut."><textarea value={v.textes.page_livraison || ""} onChange={majTexte("page_livraison")} /></Champ>
+          <Champ label="Page Retours"><textarea value={v.textes.page_retours || ""} onChange={majTexte("page_retours")} /></Champ>
+          <Champ label="Conditions générales de vente"><textarea value={v.textes.page_conditions || ""} onChange={majTexte("page_conditions")} /></Champ>
+        </div>
+        <div className="rn-carte rn-pile">
+          <h3>Catégories</h3>
+          {base.categories.filter((c) => !c.parent_id).map((c) => (
+            <div key={c.id} className="rn-entre"><span>{c.nom}</span><Bouton petit variante="discret" onClick={async () => { if (window.confirm(`Supprimer la catégorie « ${c.nom} » ? Les articles gardent leur catégorie actuelle.`)) { await supabase.from("rn_categories").delete().eq("id", c.id); rechargerRef(); } }}>Supprimer</Bouton></div>
+          ))}
+          <div className="rn-ligne" style={{ flexWrap: "nowrap" }}>
+            <input value={nouvelleCat} onChange={(e) => setNouvelleCat(e.target.value)} placeholder="Nouvelle catégorie" aria-label="Nouvelle catégorie" />
+            <Bouton petit disabled={!nouvelleCat.trim()} onClick={async () => { await supabase.from("rn_categories").insert({ workspace_id: workspaceId, nom: nouvelleCat.trim(), ordre: base.categories.length + 1 }); setNouvelleCat(""); rechargerRef(); }}>Ajouter</Bouton>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// =================================================================== JOURNAL
+function Journal({ supabase, workspaceId }) {
+  const [liste, setListe] = useState(null);
+  useEffect(() => { supabase.from("rn_journal").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(300).then(({ data }) => setListe(data || [])); }, [supabase, workspaceId]);
+  const ACTIONS = { paiement_valide: "Paiement validé", affectation_manuelle: "Affectation manuelle", article_valide: "Article publié", article_refuse: "Article refusé", stock_entree: "Entrée de stock", stock_sortie: "Sortie de stock", stock_retour: "Retour en stock", stock_ajustement: "Ajustement de stock" };
+  return (
+    <>
+      <h2>Journal des opérations</h2>
+      {!liste ? <span className="rn-spin" /> : liste.length ? (
+        <div className="rn-table-boite"><table className="rn-table">
+          <thead><tr><th>Date</th><th>Opération</th><th>Détails</th></tr></thead>
+          <tbody>{liste.map((j) => (
+            <tr key={j.id}><td className="rn-petit">{fmtDate(j.created_at)}</td><td>{ACTIONS[j.action] || j.action}</td><td className="rn-petit">{Object.entries(j.details || {}).filter(([, v]) => v != null).map(([k, v]) => `${k} : ${typeof v === "object" ? JSON.stringify(v) : v}`).join(", ")}</td></tr>
+          ))}</tbody>
+        </table></div>
+      ) : <Vide titre="Journal vide">Les validations, paiements, affectations et mouvements de stock s'y inscrivent automatiquement.</Vide>}
+    </>
+  );
+}

@@ -18,6 +18,9 @@ const OutilsPublic = lazy(() => import("./OutilsPublic.jsx"));
 const ReservationPublique = lazy(() => import("./ReservationPublique.jsx"));
 // LOT 7 — Fiche commerciale publique (immobilier vente/location, véhicule vente) : "?fiche=<id>&type=<...>".
 const FichePublique = lazy(() => import("./FichePublique.jsx"));
+// Réseau national (Miss & Mister Excellence…) : boutique « ?reseau=<slug> » et espace représentant
+// « ?reseau=<slug>&espace=representant ». Stocks chez les représentants, attribution automatique.
+const PagePubliqueReseau = lazy(() => import("./ReseauPagePublique.jsx"));
 
 // Sentry (suivi d'erreurs) n'est plus dans le premier téléchargement : c'est une bibliothèque
 // lourde, inutile pour afficher la boutique. Il se charge juste après l'affichage (tout de suite
@@ -54,6 +57,8 @@ const slugLocation = params.get("location");
 // Fiche commerciale publique (LOT 7) : "?fiche=<id>&type=bien_vente|vehicule_vente|logement".
 const ficheId = params.get("fiche");
 const ficheType = params.get("type");
+// Réseau national : "?reseau=<slug>" (boutique) ou "?reseau=<slug>&espace=representant".
+const reseauSlug = params.get("reseau");
 // Menu public d'un restaurant (LOT 5) : "?menu=<slug>" (ou "?menu_id=<id>" si la boutique n'a pas
 // encore de lien publié), avec "&table=<numéro ou id>" quand le client scanne le QR d'une table,
 // et "&suivi_menu=<id>" pour rouvrir directement la page de suivi d'une commande déjà passée.
@@ -68,10 +73,10 @@ const estDomainePersonnalise = !DOMAINES_INTERNES.includes(hostname) && !hostnam
 // partagé — remplace les longs liens ?boutique=...&produit=<uuid>. Vérifié SEULEMENT si aucune
 // des routes ci-dessus ne correspond déjà, pour ne jamais capter une URL existante par erreur.
 // Sur un domaine personnalisé, le chemin ne contient pas de segment "boutique" (voir plus bas).
-const cheminCourt = !estDomainePersonnalise && !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId
+const cheminCourt = !estDomainePersonnalise && !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId && !reseauSlug
   ? chemincourtDepuisUrl()
   : null;
-const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId && !estDomainePersonnalise && !cheminCourt;
+const estVueAdmin = !suiviId && !commanderId && !catalogueId && !boutiqueSlug && !marketingId && !pageAnnuaire && !pageOutils && !slugLocation && !menuSlug && !menuWorkspaceId && !ficheId && !reseauSlug && !estDomainePersonnalise && !cheminCourt;
 if (estVueAdmin) document.body.classList.add("rv-admin-app");
 // Boutique publique : on demande le code de la boutique tout de suite, sans attendre le premier affichage.
 if (catalogueId || boutiqueSlug || estDomainePersonnalise || cheminCourt) importerCatalogue();
@@ -122,7 +127,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErreurBoundary>
       <Suspense fallback={<ChargementInitial />}>
-        {pageAnnuaire ? <AnnuairePublic /> : pageOutils ? <OutilsPublic /> : ficheId ? <FichePublique ficheId={ficheId} typeEntite={ficheType} /> : slugLocation ? <ReservationPublique slug={slugLocation} /> : menuSlug ? <MenuPublic slug={menuSlug} tableParam={menuTable} suiviId={menuSuiviId} /> : menuWorkspaceId ? <MenuPublic workspaceId={menuWorkspaceId} tableParam={menuTable} suiviId={menuSuiviId} /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : cheminCourt ? <><PublicTracker slug={cheminCourt.boutique} /><CataloguePublic slug={cheminCourt.boutique} produitSlugInitial={cheminCourt.produit} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} produitSlugInitial={produitDepuisCheminDomainePerso()} /></> : <App />}
+        {reseauSlug ? <PagePubliqueReseau /> : pageAnnuaire ? <AnnuairePublic /> : pageOutils ? <OutilsPublic /> : ficheId ? <FichePublique ficheId={ficheId} typeEntite={ficheType} /> : slugLocation ? <ReservationPublique slug={slugLocation} /> : menuSlug ? <MenuPublic slug={menuSlug} tableParam={menuTable} suiviId={menuSuiviId} /> : menuWorkspaceId ? <MenuPublic workspaceId={menuWorkspaceId} tableParam={menuTable} suiviId={menuSuiviId} /> : marketingId ? <MarketingCODDashboard /> : suiviId ? <SuiviPublic commandeId={suiviId} /> : commanderId ? <><PublicTracker workspaceId={commanderId} /><CommanderPublic workspaceId={commanderId} /></> : catalogueId ? <><PublicTracker workspaceId={catalogueId} /><CataloguePublic workspaceId={catalogueId} /></> : boutiqueSlug ? <><PublicTracker slug={boutiqueSlug} /><CataloguePublic slug={boutiqueSlug} /></> : cheminCourt ? <><PublicTracker slug={cheminCourt.boutique} /><CataloguePublic slug={cheminCourt.boutique} produitSlugInitial={cheminCourt.produit} /></> : estDomainePersonnalise ? <><PublicTracker domaine={hostname} /><CataloguePublic domaine={hostname} produitSlugInitial={produitDepuisCheminDomainePerso()} /></> : <App />}
       </Suspense>
     </ErreurBoundary>
   </React.StrictMode>

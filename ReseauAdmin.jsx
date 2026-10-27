@@ -17,6 +17,7 @@ const ONGLETS = [
   ["stocks", "Stocks"],
   ["representants", "Représentants"],
   ["zones", "Zones"],
+  ["carte", "Carte"],
   ["reclamations", "Réclamations"],
   ["finances", "Finances"],
   ["vendeurs", "Vendeurs partenaires"],
@@ -47,15 +48,17 @@ export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }
   }, [supabase, workspaceId]);
 
   const chargerAlertes = useCallback(async () => {
-    const [n, pa, att, val, rec] = await Promise.all([
+    const [n, pa, att, val, rec, tr, ct] = await Promise.all([
       supabase.from("rn_notifications").select("*").eq("workspace_id", workspaceId).eq("cible", "admin").order("created_at", { ascending: false }).limit(60),
       supabase.from("rn_commandes").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("statut", "en_attente_paiement"),
       supabase.from("rn_commandes").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).in("statut", ["en_attente_attribution", "echec_livraison"]),
       supabase.from("rn_articles").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("statut", "en_attente"),
       supabase.from("rn_reclamations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).in("statut", ["ouverte", "en_cours"]),
+      supabase.from("rn_transferts").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("statut", "demande"),
+      supabase.from("rn_contacts").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("statut", "nouveau"),
     ]);
     setNotifs(n.data || []);
-    setCompteurs({ commandes: (pa.count || 0) + (att.count || 0), articles: val.count || 0, reclamations: rec.count || 0 });
+    setCompteurs({ commandes: (pa.count || 0) + (att.count || 0), articles: val.count || 0, reclamations: (rec.count || 0) + (ct.count || 0), stocks: tr.count || 0 });
   }, [supabase, workspaceId]);
 
   useEffect(() => { chargerRef(); }, [chargerRef]);
@@ -108,6 +111,7 @@ export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }
         {onglet === "stocks" ? <Stocks {...ctx} /> : null}
         {onglet === "representants" ? <Representants {...ctx} /> : null}
         {onglet === "zones" ? <Zones {...ctx} /> : null}
+        {onglet === "carte" ? <CarteReseau {...ctx} /> : null}
         {onglet === "reclamations" ? <Reclamations {...ctx} /> : null}
         {onglet === "finances" ? <Finances {...ctx} /> : null}
         {onglet === "vendeurs" ? <Vendeurs {...ctx} /> : null}
@@ -127,7 +131,7 @@ export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }
           <div className="rn-panneau-lateral-corps">
             {notifs.length ? notifs.map((n) => (
               <button key={n.id} className="rn-carte" style={{ textAlign: "left", cursor: "pointer", opacity: n.lu ? 0.65 : 1 }}
-                onClick={() => { setPanneauNotifs(false); setOnglet(n.commande_id ? "commandes" : n.type === "validation" ? "articles" : n.type === "inventaire" ? "stocks" : "tableau"); if (n.commande_id) sessionStorage.setItem("rn_ouvrir_commande", n.commande_id); }}>
+                onClick={() => { setPanneauNotifs(false); setOnglet(n.commande_id ? "commandes" : n.type === "validation" ? "articles" : ["inventaire", "stock"].includes(n.type) ? "stocks" : n.type === "contact" ? "reclamations" : n.type === "vendeur" ? "vendeurs" : "tableau"); if (n.commande_id) sessionStorage.setItem("rn_ouvrir_commande", n.commande_id); }}>
                 <div className="rn-entre"><b>{n.titre}</b><span className="rn-muet rn-petit">{fmtDate(n.created_at)}</span></div>
                 {n.message ? <p className="rn-petit" style={{ marginTop: 4 }}>{n.message}</p> : null}
               </button>
@@ -179,6 +183,7 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
   const [perso, setPerso] = useState({ debut: "", fin: "" });
   const [s, setS] = useState(null);
   const [erreur, setErreur] = useState("");
+  const [grain, setGrain] = useState("jour");
   useEffect(() => {
     const [d, f] = bornes(periode, perso.debut, perso.fin);
     setS(null);
@@ -193,13 +198,15 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
         ["Commandes reçues", s.commandes.total], ["Livrées", s.commandes.livrees], ["Annulées", s.commandes.annulees], ["En retard", s.commandes.en_retard],
         ["Chiffre d'affaires", fmt(s.finances.chiffre_affaires)], ["dont frais de livraison", fmt(s.finances.frais_livraison)],
         ["Encaissé par les représentants", fmt(s.finances.encaisse_representants)], ["À reverser", fmt(s.finances.a_reverser)],
-        ["Commissions", fmt(s.finances.commissions)], ["Taux de réussite des livraisons", s.livraisons.taux_reussite != null ? s.livraisons.taux_reussite + " %" : "—"],
+        ["Commissions", fmt(s.finances.commissions)], ["Réductions accordées", fmt(s.finances.reductions)], ["Écart de caisse", fmt(s.finances.ecart_total)], ["Taux de réussite des livraisons", s.livraisons.taux_reussite != null ? s.livraisons.taux_reussite + " %" : "—"],
         ["Délai moyen de livraison", s.livraisons.delai_moyen_h != null ? s.livraisons.delai_moyen_h + " h" : "—"],
         ["Valeur du stock", fmt(s.stocks.valeur)]], [["Indicateur", (r) => r[0]], ["Valeur", (r) => r[1], "n"]])}
       <h2>Ventes par catégorie</h2>${t(s.par_categorie, [["Catégorie", (r) => r.categorie], ["Pièces", (r) => r.nb, "n"], ["Ventes", (r) => fmt(r.ca), "n"]])}
       <h2>Ventes par région</h2>${t(s.par_region, [["Région", (r) => r.region], ["Commandes", (r) => r.nb, "n"], ["CA", (r) => fmt(r.ca), "n"]])}
       <h2>Représentants</h2>${t(s.par_representant, [["Représentant", (r) => r.nom], ["Zone", (r) => r.zone], ["Livrées", (r) => r.livrees, "n"], ["Refus", (r) => r.refusees, "n"], ["Ventes", (r) => fmt(r.ventes), "n"], ["Commissions", (r) => fmt(r.commissions), "n"], ["À reverser", (r) => fmt(r.a_reverser), "n"], ["Stock", (r) => r.stock, "n"]])}
       <h2>Articles les plus vendus</h2>${t(s.top_articles, [["Article", (r) => r.titre], ["Pièces", (r) => r.nb, "n"], ["Ventes", (r) => fmt(r.ca), "n"]])}
+      <h2>Chiffre d'affaires par mois</h2>${t(s.par_mois, [["Mois", (r) => new Date(r.periode).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })], ["Commandes", (r) => r.nb, "n"], ["CA livré", (r) => fmt(r.ca), "n"]])}
+      <h2>Écarts de caisse</h2>${s.ecarts_caisse.length ? t(s.ecarts_caisse, [["Commande", (r) => r.numero], ["Représentant", (r) => r.representant], ["Dû", (r) => fmt(r.du), "n"], ["Encaissé", (r) => fmt(r.encaisse), "n"], ["Écart", (r) => fmt(r.ecart), "n"]]) : "<p>Aucun écart.</p>"}
       <h2>Zones non couvertes</h2>${t(s.zones_non_couvertes, [["Zone", (r) => r.nom], ["Commandes reçues", (r) => r.commandes, "n"]])}`);
   };
   const exportXLS = () =>
@@ -230,12 +237,15 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
       <Message ton="danger">{erreur}</Message>
       {!s ? <span className="rn-spin" /> : (
         <>
-          {(s.commandes.paiements_a_verifier || s.commandes.sans_representant || s.stocks.a_valider || s.stocks.ecarts_inventaire || s.commandes.echecs) ? (
+          {(s.commandes.paiements_a_verifier || s.commandes.sans_representant || s.stocks.a_valider || s.stocks.ecarts_inventaire || s.commandes.echecs || s.transferts_demandes || s.contacts_nouveaux || s.stocks_faibles.length) ? (
             <div className="rn-kpis">
               {s.commandes.paiements_a_verifier ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Paiements à vérifier</div><div className="rn-kpi-val">{s.commandes.paiements_a_verifier}</div></button> : null}
               {s.commandes.sans_representant ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Commandes sans livreur</div><div className="rn-kpi-val">{s.commandes.sans_representant}</div></button> : null}
               {s.commandes.echecs ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Échecs de livraison</div><div className="rn-kpi-val">{s.commandes.echecs}</div></button> : null}
               {s.stocks.a_valider ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("articles")}><div className="rn-kpi-lab">Articles à valider</div><div className="rn-kpi-val">{s.stocks.a_valider}</div></button> : null}
+              {s.transferts_demandes ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Demandes de transfert</div><div className="rn-kpi-val">{s.transferts_demandes}</div></button> : null}
+              {s.contacts_nouveaux ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("reclamations")}><div className="rn-kpi-lab">Messages clients</div><div className="rn-kpi-val">{s.contacts_nouveaux}</div></button> : null}
+              {s.stocks_faibles.length ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Représentants à stock faible</div><div className="rn-kpi-val">{s.stocks_faibles.length}</div></button> : null}
               {s.stocks.ecarts_inventaire ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Écarts d'inventaire</div><div className="rn-kpi-val">{s.stocks.ecarts_inventaire}</div></button> : null}
             </div>
           ) : null}
@@ -252,6 +262,8 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
               ["À reverser par les représentants", fmt(s.finances.a_reverser)],
               ["Paiements en attente", fmt(s.finances.paiements_en_attente)],
               ["Commissions", fmt(s.finances.commissions)],
+              ["Réductions accordées", fmt(s.finances.reductions)],
+              ["Écart de caisse", fmt(s.finances.ecart_total)],
               ["Taux de réussite des livraisons", s.livraisons.taux_reussite != null ? s.livraisons.taux_reussite + " %" : "—"],
               ["Taux d'acceptation des missions", s.livraisons.taux_acceptation != null ? s.livraisons.taux_acceptation + " %" : "—"],
               ["Délai moyen de livraison", s.livraisons.delai_moyen_h != null ? s.livraisons.delai_moyen_h + " h" : "—"],
@@ -261,8 +273,17 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
           </div>
           <div className="rn-grille-2">
             <div className="rn-carte rn-pile">
-              <h3>Chiffre d'affaires par jour</h3>
-              {s.par_jour.length ? <Barres donnees={s.par_jour.slice(-31)} label={(d) => new Date(d.jour).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} valeur={(d) => d.ca || 0} format={fmt} /> : <p className="rn-muet">Aucune commande sur la période.</p>}
+              <div className="rn-entre">
+                <h3>Chiffre d'affaires</h3>
+                <div className="rn-segment" role="group" aria-label="Regrouper par">
+                  {[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => <button key={k} type="button" aria-pressed={grain === k} onClick={() => setGrain(k)}>{l}</button>)}
+                </div>
+              </div>
+              {(() => {
+                const serie = grain === "jour" ? s.par_jour.map((d) => ({ periode: d.jour, ca: d.ca, nb: d.nb })) : grain === "semaine" ? s.par_semaine : grain === "mois" ? s.par_mois : s.par_annee;
+                const lab = (d) => { const x = new Date(d.periode); return grain === "annee" ? String(x.getFullYear()) : grain === "mois" ? x.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) : (grain === "semaine" ? "Sem. " : "") + x.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }); };
+                return serie.length ? <Barres donnees={serie.slice(-31)} label={lab} valeur={(d) => Number(d.ca) || 0} format={fmt} /> : <p className="rn-muet">Aucune commande sur la période.</p>;
+              })()}
             </div>
             <div className="rn-carte rn-pile">
               <h3>Ventes par catégorie</h3>
@@ -298,6 +319,20 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
               {s.zones_non_couvertes.slice(0, 15).map((z) => (
                 <div key={z.id} className="rn-entre rn-petit"><span>{z.nom}</span>{z.commandes ? <Pastille ton="alerte">{z.commandes} commande(s)</Pastille> : null}</div>
               ))}
+            </div>
+            <div className="rn-carte rn-pile">
+              <h3>Écarts de caisse ({s.ecarts_caisse.length})</h3>
+              <p className="rn-muet rn-petit">Montant encaissé par le livreur différent du montant dû.</p>
+              {s.ecarts_caisse.length ? s.ecarts_caisse.slice(0, 12).map((e, i) => (
+                <div key={i} className="rn-entre rn-petit"><span>{e.numero}, {e.representant}</span><span>dû {fmt(e.du)}, encaissé {fmt(e.encaisse)} <b style={{ color: e.ecart < 0 ? "var(--rn-rouge)" : "var(--rn-vert)" }}>{e.ecart > 0 ? "+" : ""}{fmt(e.ecart)}</b></span></div>
+              )) : <p className="rn-muet">Aucun écart sur la période.</p>}
+            </div>
+            <div className="rn-carte rn-pile">
+              <h3>Stocks faibles</h3>
+              <p className="rn-muet rn-petit">Représentants actifs sous le seuil de {param.seuil_stock_faible ?? 3} pièce(s) libre(s).</p>
+              {s.stocks_faibles.length ? s.stocks_faibles.map((r) => (
+                <div key={r.id} className="rn-entre rn-petit"><span>{r.nom}</span><Pastille ton={r.libre ? "alerte" : "danger"}>{r.libre} pièce(s)</Pastille></div>
+              )) : <p className="rn-muet">Tous les représentants sont approvisionnés.</p>}
             </div>
             <div className="rn-carte rn-pile">
               <h3>Invendus depuis plus de 60 jours</h3>
@@ -412,6 +447,7 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
           {c.statut === "en_attente_paiement" ? <Bouton petit onClick={() => { setF({ provider: c.mode_paiement, reference: c.reference_paiement_client || "", montant: c.total }); setModale("paiement"); }}>Valider le paiement</Bouton> : null}
           {["en_attente_attribution", "echec_livraison"].includes(c.statut) ? <Bouton petit chargement={charge} onClick={() => agir("rn_admin_relancer", { p_cmd: c.id }, "Attribution relancée.")}>Relancer l'attribution</Bouton> : null}
           {!clos && c.statut !== "en_attente_paiement" ? <Bouton variante="contour" petit onClick={() => { setF({ groupe: groupes[0], rep: "" }); setModale("affecter"); }}>Affecter manuellement</Bouton> : null}
+          {!clos ? <Bouton variante="discret" petit onClick={() => { setF({ adresse: c.adresse || "", repere: c.repere || "", client_tel: c.client_tel || "", date_livraison_souhaitee: c.date_livraison_souhaitee || "", note_client: c.note_client || "" }); setModale("modifier"); }}>Modifier la livraison</Bouton> : null}
           {!clos ? <Bouton variante="danger" petit onClick={() => { setF({ motif: "" }); setModale("annuler"); }}>Annuler</Bouton> : null}
           {["livree", "retour_demande"].includes(c.statut) || (c.statut === "annulee" && c.statut_paiement === "verifie") ? <Bouton variante="discret" petit onClick={() => { setF({ montant: c.total, reference: "" }); setModale("rembourser"); }}>Rembourser</Bouton> : null}
         </div>
@@ -424,7 +460,9 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
           <span>{c.zone?.nom}{c.adresse ? `, ${c.adresse}` : ""}{c.repere ? `. Repère : ${c.repere}` : ""}</span>
           {c.lat ? <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer">Position du client sur la carte</a> : null}
           {c.note_client ? <span className="rn-petit">Message : {c.note_client}</span> : null}
-          <span className="rn-petit rn-muet">Code de remise : {c.code_livraison} · Livraison {c.type_livraison} {c.delai_jours ? `(${c.delai_jours} j)` : ""}</span>
+          {c.date_livraison_souhaitee ? <span className="rn-petit"><b>Livraison souhaitée le {new Date(c.date_livraison_souhaitee + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</b></span> : null}
+          {c.livraison_modifiee_at ? <span className="rn-petit rn-muet">Livraison modifiée le {fmtDate(c.livraison_modifiee_at)}</span> : null}
+          <span className="rn-petit rn-muet">Code de remise : {c.code_livraison} · Livraison {c.type_livraison} {c.delai_jours ? `(${c.delai_jours} j)` : ""}{c.code_promo ? ` · Code promo ${c.code_promo}` : ""}</span>
         </div>
 
         {groupes.map((g) => (
@@ -439,7 +477,11 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
             ))}
             <div className="rn-chronologie">
               {d.missions.filter((m) => m.groupe === g).map((m) => (
-                <div key={m.id}><span className="rn-muet">{fmtDate(m.proposee_at)}</span><span>{m.rep?.nom} <Pastille ton={STATUTS_MISSION[m.statut]?.ton}>{STATUTS_MISSION[m.statut]?.label}</Pastille>{m.distance_km != null ? ` ${m.distance_km} km` : ""}{m.motif ? ` · ${m.motif}` : ""}</span></div>
+                <div key={m.id}><span className="rn-muet">{fmtDate(m.proposee_at)}</span><span>{m.rep?.nom} <Pastille ton={STATUTS_MISSION[m.statut]?.ton}>{STATUTS_MISSION[m.statut]?.label}</Pastille>{m.distance_km != null ? ` ${m.distance_km} km` : ""}{m.motif ? ` · ${m.motif}` : ""}
+                  {m.transporteur ? <><br /><span className="rn-petit">Confié à {m.transporteur}{m.numero_colis ? `, colis n° ${m.numero_colis}` : ""}</span></> : null}
+                  {m.montant_du != null && m.statut === "terminee" && Number(m.montant_encaisse) !== Number(m.montant_du) && c.mode_paiement === "cod" ? <><br /><span className="rn-petit">Encaissé {fmt(m.montant_encaisse)} pour {fmt(m.montant_du)} dû</span></> : null}
+                  {m.preuves?.length ? <span className="rn-preuves" style={{ marginTop: 6 }}>{m.preuves.map((p) => <a key={p.url} href={p.url} target="_blank" rel="noreferrer" title={p.type === "signature" ? "Signature du client" : "Photo de remise"}><img src={p.url} alt={p.type === "signature" ? "Signature" : "Photo de remise"} /></a>)}</span> : null}
+                </span></div>
               ))}
             </div>
           </div>
@@ -485,6 +527,18 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
           <Bouton chargement={charge} disabled={!f.rep} onClick={() => agir("rn_admin_affecter", { p_cmd: c.id, p_groupe: Number(f.groupe), p_rep: f.rep }, "Mission proposée au représentant choisi.")}>Proposer la mission</Bouton>
         </Modale>
       ) : null}
+      {modale === "modifier" ? (
+        <Modale titre="Modifier la livraison" onFermer={() => setModale(null)}>
+          <p className="rn-muet">Le représentant chargé de la livraison est prévenu des changements.</p>
+          <Champ label="Adresse"><input value={f.adresse} onChange={(e) => setF({ ...f, adresse: e.target.value })} /></Champ>
+          <Champ label="Point de repère"><input value={f.repere} onChange={(e) => setF({ ...f, repere: e.target.value })} /></Champ>
+          <Champ label="Téléphone du client"><input type="tel" value={f.client_tel} onChange={(e) => setF({ ...f, client_tel: e.target.value })} /></Champ>
+          <Champ label="Date souhaitée"><input type="date" value={f.date_livraison_souhaitee} onChange={(e) => setF({ ...f, date_livraison_souhaitee: e.target.value })} /></Champ>
+          <Champ label="Consignes pour le livreur"><textarea value={f.note_client} onChange={(e) => setF({ ...f, note_client: e.target.value })} /></Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton chargement={charge} onClick={() => agir("rn_admin_modifier_livraison", { p_cmd: c.id, p: f }, "Livraison modifiée, représentant prévenu.")}>Enregistrer les changements</Bouton>
+        </Modale>
+      ) : null}
       {modale === "annuler" ? (
         <Modale titre="Annuler la commande" onFermer={() => setModale(null)}>
           <p>Les articles réservés sont remis en vente et les représentants concernés sont prévenus.</p>
@@ -517,9 +571,9 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
     setListe(data || []);
   }, [supabase, workspaceId]);
   useEffect(() => { charger(); }, [charger]);
-  useEffect(() => { if (param.vendeurs_actifs) supabase.from("rn_vendeurs").select("id, nom").eq("workspace_id", workspaceId).then(({ data }) => setVendeurs(data || [])); }, [supabase, workspaceId, param.vendeurs_actifs]);
+  useEffect(() => { if (param.vendeurs_actifs) supabase.from("rn_vendeurs").select("id, nom, representant_id").eq("workspace_id", workspaceId).then(({ data }) => setVendeurs(data || [])); }, [supabase, workspaceId, param.vendeurs_actifs]);
   const nomRep = (id) => base.reps.find((r) => r.id === id)?.nom || "—";
-  const proposePar = (a) => (a.propose_par_type === "representant" ? nomRep(a.propose_par_id) : a.propose_par_type === "vendeur" ? "Vendeur" : "Administration");
+  const proposePar = (a) => (a.propose_par_type === "representant" ? nomRep(a.propose_par_id) : a.propose_par_type === "vendeur" ? `Vendeur : ${vendeurs.find((v) => v.id === a.vendeur_id)?.nom || "partenaire"}` : "Administration");
   const q = filtre.q.trim().toLowerCase();
   const visibles = (liste || []).filter((a) => (!filtre.statut || a.statut === filtre.statut) && (!filtre.cat || a.categorie === filtre.cat) && (!q || [a.titre, a.reference, a.marque].some((v) => String(v || "").toLowerCase().includes(q))));
   const aValider = (liste || []).filter((a) => a.statut === "en_attente").length;
@@ -535,6 +589,7 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
         workspace_id: workspaceId, titre: v.titre.trim(), description: v.description || null, categorie: v.categorie || base.categories[0]?.nom || "Vêtements femmes",
         sous_categorie: v.sous_categorie || null, taille: v.taille || null, marque: v.marque || null, couleur: v.couleur || null, etat: v.etat || "bon",
         defauts: v.defauts || null, prix: Number(v.prix), prix_barre: v.prix_barre ? Number(v.prix_barre) : null, photos: v.photos, vendeur_id: v.vendeur_id || null,
+        poids_kg: v.poids_kg === "" || v.poids_kg == null ? null : Number(v.poids_kg),
         updated_at: new Date().toISOString(),
       };
       let id = v.id;
@@ -552,8 +607,20 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
       setEdit(null); setMsg({ ton: "ok", texte: "Article enregistré." }); charger();
     } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
   };
+  const [publier, setPublier] = useState(null);
+  const [histo, setHisto] = useState(null);
+  const ouvrirHisto = async (a) => {
+    const { data } = await supabase.from("rn_articles_historique").select("*").eq("article_id", a.id).order("created_at", { ascending: false }).limit(100);
+    setHisto({ a, lignes: data || [] });
+  };
   const valider = async (a, ok) => {
-    const motif = ok ? null : window.prompt("Motif du refus (transmis au représentant) :");
+    // article d'un vendeur partenaire pas encore en stock : on choisit le représentant qui le gardera
+    if (ok && a.vendeur_id && !(a.stocks || []).some((x) => x.quantite > 0)) {
+      const v = vendeurs.find((x) => x.id === a.vendeur_id);
+      setPublier({ a, rep: v?.representant_id || "", q: a.quantite_declaree || 1 });
+      return;
+    }
+    const motif = ok ? null : window.prompt("Motif du refus (transmis au proposant) :");
     if (!ok && motif === null) return;
     try { await rpc(supabase, "rn_admin_valider_article", { p_article: a.id, p_ok: ok, p_motif: motif }); charger(); rechargerAlertes(); }
     catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
@@ -612,6 +679,7 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
                   <div className="rn-ligne" style={{ flexWrap: "nowrap" }}>
                     {a.statut === "en_attente" ? <><Bouton petit variante="vert" onClick={() => valider(a, true)}>Publier</Bouton><Bouton petit variante="danger" onClick={() => valider(a, false)}>Refuser</Bouton></> : null}
                     <Bouton petit variante="discret" onClick={() => setEdit({ ...a })}>Modifier</Bouton>
+                    <Bouton petit variante="discret" onClick={() => ouvrirHisto(a)}>Historique</Bouton>
                     {["disponible", "retire"].includes(a.statut) ? <Bouton petit variante="discret" onClick={() => retirer(a)}>{a.statut === "retire" ? "Remettre" : "Retirer"}</Bouton> : null}
                   </div>
                 </td>
@@ -639,8 +707,45 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
           <Bouton onClick={enregistrer}>Enregistrer</Bouton>
         </Modale>
       ) : null}
+      {publier ? (
+        <Modale titre={`Publier : ${publier.a.titre}`} onFermer={() => setPublier(null)}>
+          <p>Article d'un vendeur partenaire. Choisissez le représentant qui le reçoit et le gardera jusqu'à la vente.</p>
+          <Champ label="Représentant gardien">
+            <select value={publier.rep} onChange={(e) => setPublier({ ...publier, rep: e.target.value })}><option value="">Choisir…</option>{base.reps.filter((r) => r.statut === "actif").map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}</select>
+          </Champ>
+          <Champ label="Nombre de pièces reçues" aide={`Déclaré par le vendeur : ${publier.a.quantite_declaree || 1}`}><input inputMode="numeric" value={publier.q} onChange={(e) => setPublier({ ...publier, q: e.target.value.replace(/\D/g, "") })} /></Champ>
+          <Message ton={msg.ton}>{msg.texte}</Message>
+          <Bouton variante="vert" disabled={!publier.rep || !Number(publier.q)} onClick={async () => {
+            try { await rpc(supabase, "rn_admin_publier_article", { p_article: publier.a.id, p_ok: true, p_motif: null, p_rep: publier.rep, p_quantite: Number(publier.q) }); setPublier(null); setMsg({ ton: "ok", texte: "Article publié et confié au représentant." }); charger(); rechargerAlertes(); }
+            catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+          }}>Publier l'article</Bouton>
+        </Modale>
+      ) : null}
+      {histo ? (
+        <Modale titre={`Historique : ${histo.a.titre}`} onFermer={() => setHisto(null)} large>
+          {histo.lignes.length ? (
+            <div className="rn-table-boite"><table className="rn-table">
+              <thead><tr><th>Date</th><th>Modifications</th></tr></thead>
+              <tbody>{histo.lignes.map((h) => (
+                <tr key={h.id}><td className="rn-petit">{fmtDate(h.created_at)}</td>
+                  <td className="rn-petit">{Object.entries(h.changements || {}).map(([k, v]) => <div key={k}><b>{LIBELLES_CHAMPS[k] || k}</b> : {afficherValeur(k, v?.avant)} → {afficherValeur(k, v?.apres)}</div>)}</td></tr>
+              ))}</tbody>
+            </table></div>
+          ) : <Vide titre="Aucune modification enregistrée">Les changements de prix, de statut, de titre ou de photos s'afficheront ici.</Vide>}
+        </Modale>
+      ) : null}
     </>
   );
+}
+
+const LIBELLES_CHAMPS = { prix: "Prix", prix_barre: "Prix neuf", statut: "Statut", titre: "Titre", etat: "État", categorie: "Catégorie", taille: "Taille", photos: "Photos", description: "Description", defauts: "Défauts", poids_kg: "Poids" };
+function afficherValeur(k, v) {
+  if (v == null || v === "") return "—";
+  if (k === "prix" || k === "prix_barre") return fmt(v);
+  if (k === "statut") return STATUTS_ARTICLE[v]?.label || v;
+  if (k === "etat") return ETATS[v] || v;
+  if (k === "photos") return `${Array.isArray(v) ? v.length : v} photo(s)`;
+  return String(typeof v === "object" ? JSON.stringify(v) : v).slice(0, 80);
 }
 
 // =================================================================== STOCKS
@@ -653,7 +758,10 @@ function Stocks({ supabase, workspaceId, base }) {
   const [modale, setModale] = useState(null);
   const [f, setF] = useState({});
   const [msg, setMsg] = useState({});
+  const [demandes, setDemandes] = useState([]);
   const charger = useCallback(async () => {
+    supabase.from("rn_transferts").select("*, article:rn_articles(titre, reference)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(100)
+      .then(({ data }) => setDemandes(data || []));
     const [s, m, i] = await Promise.all([
       supabase.from("rn_stocks").select("*, article:rn_articles(id, titre, reference, prix, statut, created_at)").eq("workspace_id", workspaceId).gt("quantite", 0),
       supabase.from("rn_mouvements").select("*, article:rn_articles(titre, reference)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(150),
@@ -684,7 +792,7 @@ function Stocks({ supabase, workspaceId, base }) {
       </div>
       <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
       <div className="rn-ligne">
-        {[["par_rep", "Par représentant"], ["detail", "Détail des articles"], ["mouvements", "Mouvements"], ["inventaires", `Inventaires${inventaires.filter((i) => i.statut === "soumis").length ? ` (${inventaires.filter((i) => i.statut === "soumis").length})` : ""}`]].map(([k, l]) => (
+        {[["par_rep", "Par représentant"], ["detail", "Détail des articles"], ["demandes", `Demandes de transfert${demandes.filter((d) => d.statut === "demande").length ? ` (${demandes.filter((d) => d.statut === "demande").length})` : ""}`], ["mouvements", "Mouvements"], ["inventaires", `Inventaires${inventaires.filter((i) => i.statut === "soumis").length ? ` (${inventaires.filter((i) => i.statut === "soumis").length})` : ""}`]].map(([k, l]) => (
           <button key={k} className="rn-cat" aria-pressed={vue === k} onClick={() => setVue(k)}>{l}</button>
         ))}
       </div>
@@ -711,6 +819,29 @@ function Stocks({ supabase, workspaceId, base }) {
             ))}</tbody>
           </table></div>
         </>
+      ) : null}
+      {vue === "demandes" ? (
+        demandes.length ? demandes.map((d) => (
+          <div key={d.id} className="rn-carte rn-pile" style={{ gap: 8 }}>
+            <div className="rn-entre">
+              <span><b>{d.article?.titre}</b> × {d.quantite} <span className="rn-muet rn-petit">({d.article?.reference})</span><br />
+                <span className="rn-petit">{nomRep(d.de_representant)} → {d.destination_choisie ? nomRep(d.vers_representant) : <i>destination à choisir</i>}, {fmtDate(d.created_at)}</span></span>
+              <Pastille ton={d.statut === "demande" ? "alerte" : d.statut === "valide" ? "ok" : "neutre"}>{{ demande: "À traiter", valide: "Validé", refuse: "Refusé" }[d.statut]}</Pastille>
+            </div>
+            {d.note ? <p className="rn-petit">{d.note}</p> : null}
+            {d.statut === "demande" ? (
+              <div className="rn-ligne">
+                {!d.destination_choisie ? (
+                  <select style={{ width: "auto" }} value={f["vers_" + d.id] || ""} onChange={(e) => setF({ ...f, ["vers_" + d.id]: e.target.value })} aria-label="Représentant destinataire">
+                    <option value="">Vers…</option>{base.reps.filter((r) => r.statut === "actif" && r.id !== d.de_representant).map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                  </select>
+                ) : null}
+                <Bouton petit variante="vert" disabled={!d.destination_choisie && !f["vers_" + d.id]} onClick={() => agir("rn_admin_traiter_transfert", { p_transfert: d.id, p_ok: true, p_vers: f["vers_" + d.id] || null, p_note: null }, "Transfert validé, stock déplacé.")}>Valider</Bouton>
+                <Bouton petit variante="discret" onClick={() => { const n = window.prompt("Motif du refus (transmis au représentant) :"); if (n !== null) agir("rn_admin_traiter_transfert", { p_transfert: d.id, p_ok: false, p_vers: null, p_note: n }, "Demande refusée."); }}>Refuser</Bouton>
+              </div>
+            ) : null}
+          </div>
+        )) : <Vide titre="Aucune demande">Les représentants demandent un transfert depuis leur stock.</Vide>
       ) : null}
       {vue === "mouvements" ? (
         <div className="rn-table-boite"><table className="rn-table">
@@ -956,6 +1087,13 @@ function Reclamations({ supabase, workspaceId, rechargerAlertes }) {
     setListe(data || []);
   }, [supabase, workspaceId, filtre]);
   useEffect(() => { charger(); }, [charger]);
+  const [contacts, setContacts] = useState([]);
+  const chargerContacts = useCallback(async () => {
+    let r = supabase.from("rn_contacts").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(100);
+    if (filtre === "ouvertes") r = r.eq("statut", "nouveau");
+    const { data } = await r; setContacts(data || []);
+  }, [supabase, workspaceId, filtre]);
+  useEffect(() => { chargerContacts(); }, [chargerContacts]);
   const traiter = async (r, statut) => {
     await supabase.from("rn_reclamations").update({ statut, reponse: rep[r.id] ?? r.reponse, traitee_at: ["resolue", "refusee"].includes(statut) ? new Date().toISOString() : null }).eq("id", r.id);
     charger(); rechargerAlertes();
@@ -978,6 +1116,18 @@ function Reclamations({ supabase, workspaceId, rechargerAlertes }) {
           </div>
         </div>
       )) : <Vide titre="Aucune réclamation en attente" />}
+      <h2 style={{ marginTop: 12 }}>Messages reçus par la page Contact</h2>
+      {contacts.length ? contacts.map((m) => (
+        <div className="rn-carte rn-pile" key={m.id} style={{ gap: 6 }}>
+          <div className="rn-entre"><b>{m.nom}</b><span className="rn-ligne"><Pastille ton={m.statut === "nouveau" ? "alerte" : "ok"}>{m.statut === "nouveau" ? "Nouveau" : "Traité"}</Pastille><span className="rn-muet rn-petit">{fmtDate(m.created_at)}</span></span></div>
+          <p style={{ whiteSpace: "pre-line" }}>{m.message}</p>
+          <div className="rn-ligne">
+            <a className="rn-btn rn-btn-contour rn-btn-petit" href={lienWhatsApp(m.telephone, `Bonjour ${m.nom}, merci pour votre message.`)} target="_blank" rel="noreferrer">Répondre sur WhatsApp</a>
+            <a className="rn-btn rn-btn-discret rn-btn-petit" href={telLien(m.telephone)}>Appeler {m.telephone}</a>
+            {m.statut === "nouveau" ? <Bouton petit variante="vert" onClick={async () => { await supabase.from("rn_contacts").update({ statut: "traite" }).eq("id", m.id); chargerContacts(); rechargerAlertes(); }}>Marquer traité</Bouton> : null}
+          </div>
+        </div>
+      )) : <p className="rn-muet">Aucun message {filtre === "ouvertes" ? "en attente" : ""}.</p>}
     </>
   );
 }
@@ -1050,11 +1200,21 @@ function Finances({ supabase, workspaceId, base }) {
 }
 
 // =================================================================== VENDEURS PARTENAIRES (activable)
-function Vendeurs({ supabase, workspaceId, base }) {
+function Vendeurs({ supabase, workspaceId, slug, base }) {
   const [liste, setListe] = useState([]);
+  const [soldes, setSoldes] = useState({});
   const [edit, setEdit] = useState(null);
+  const [regl, setRegl] = useState(null);
   const [msg, setMsg] = useState({});
-  const charger = useCallback(async () => { const { data } = await supabase.from("rn_vendeurs").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }); setListe(data || []); }, [supabase, workspaceId]);
+  const lienVendeur = `${window.location.origin}/?reseau=${encodeURIComponent(slug || "")}&espace=vendeur`;
+  const charger = useCallback(async () => {
+    const { data } = await supabase.from("rn_vendeurs").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }); setListe(data || []);
+    rpc(supabase, "rn_admin_vendeurs_soldes", { p_ws: workspaceId }).then((l) => setSoldes(Object.fromEntries((l || []).map((x) => [x.id, x])))).catch(() => {});
+  }, [supabase, workspaceId]);
+  const regler = async () => {
+    try { await rpc(supabase, "rn_admin_regler_vendeur", { p_vendeur: regl.v.id, p_montant: Number(regl.montant), p_mode: regl.mode, p_reference: regl.reference || null, p_note: null }); setRegl(null); setMsg({ ton: "ok", texte: "Règlement enregistré, vendeur prévenu." }); charger(); }
+    catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
   useEffect(() => { charger(); }, [charger]);
   const enregistrer = async () => {
     try {
@@ -1070,16 +1230,32 @@ function Vendeurs({ supabase, workspaceId, base }) {
       <div className="rn-section-titre"><h2>Vendeurs partenaires</h2><Bouton petit onClick={() => setEdit({ statut: "actif" })}>Ajouter un vendeur</Bouton></div>
       <p className="rn-muet">Un vendeur confie ses articles à la plateforme. Ses pièces sont stockées et livrées par le représentant gardien choisi ; vous les publiez après vérification.</p>
       <Message ton={msg.ton} onFermer={() => setMsg({})}>{msg.texte}</Message>
+      <div className="rn-carte rn-entre"><span className="rn-petit">Lien d'inscription des vendeurs : <b>{lienVendeur}</b></span><Bouton variante="discret" petit onClick={() => navigator.clipboard?.writeText(lienVendeur)}>Copier</Bouton></div>
       {liste.length ? (
         <div className="rn-table-boite"><table className="rn-table">
-          <thead><tr><th>Vendeur</th><th>Représentant gardien</th><th className="rn-num">Commission plateforme</th><th>Statut</th><th /></tr></thead>
-          <tbody>{liste.map((v) => (
-            <tr key={v.id}><td><b>{v.nom}</b><br /><span className="rn-muet rn-petit">{v.telephone} {v.email}</span></td><td>{base.reps.find((r) => r.id === v.representant_id)?.nom || "—"}</td><td className="rn-num">{v.taux_commission} %</td>
-              <td><Pastille ton={v.statut === "actif" ? "ok" : "neutre"}>{{ en_attente: "En attente", actif: "Actif", suspendu: "Suspendu" }[v.statut]}</Pastille></td>
-              <td><Bouton petit variante="discret" onClick={() => setEdit({ ...v })}>Modifier</Bouton></td></tr>
-          ))}</tbody>
+          <thead><tr><th>Vendeur</th><th>Gardien</th><th className="rn-num">Commission</th><th className="rn-num">Ventes</th><th className="rn-num">Réglé</th><th className="rn-num">Reste dû</th><th>Statut</th><th /></tr></thead>
+          <tbody>{liste.map((v) => { const x = soldes[v.id] || {}; return (
+            <tr key={v.id}><td><b>{v.nom}</b><br /><span className="rn-muet rn-petit">{v.telephone} {v.email}</span>{x.a_valider ? <><br /><Pastille ton="alerte">{x.a_valider} article(s) à valider</Pastille></> : null}</td>
+              <td>{base.reps.find((r) => r.id === v.representant_id)?.nom || "—"}</td><td className="rn-num">{v.taux_commission} %</td>
+              <td className="rn-num">{fmt(x.ventes)}</td><td className="rn-num">{fmt(x.regle)}</td><td className="rn-num"><b>{fmt(x.reste)}</b></td>
+              <td><Pastille ton={v.statut === "actif" ? "ok" : v.statut === "en_attente" ? "alerte" : "neutre"}>{{ en_attente: "En attente", actif: "Actif", suspendu: "Suspendu" }[v.statut]}</Pastille></td>
+              <td><div className="rn-ligne" style={{ flexWrap: "nowrap" }}>
+                {v.statut === "en_attente" ? <Bouton petit variante="vert" onClick={() => setEdit({ ...v, statut: "actif", taux_commission: v.taux_commission || 20 })}>Valider</Bouton> : null}
+                {Number(x.reste) > 0 ? <Bouton petit onClick={() => setRegl({ v, montant: String(Math.round(x.reste)), mode: "Wave", reference: "" })}>Régler</Bouton> : null}
+                <Bouton petit variante="discret" onClick={() => setEdit({ ...v })}>Modifier</Bouton>
+                {v.telephone ? <a className="rn-petit" href={lienWhatsApp(v.telephone, `Bonjour ${v.nom}, `)} target="_blank" rel="noreferrer">WhatsApp</a> : null}
+              </div></td></tr>
+          ); })}</tbody>
         </table></div>
-      ) : <Vide titre="Aucun vendeur partenaire" />}
+      ) : <Vide titre="Aucun vendeur partenaire">Partagez le lien d'inscription ci-dessus ou ajoutez un vendeur.</Vide>}
+      {regl ? (
+        <Modale titre={`Régler ${regl.v.nom}`} onFermer={() => setRegl(null)}>
+          <Champ label="Montant versé (FCFA)"><input inputMode="numeric" value={regl.montant} onChange={(e) => setRegl({ ...regl, montant: e.target.value.replace(/\D/g, "") })} /></Champ>
+          <Champ label="Mode"><select value={regl.mode} onChange={(e) => setRegl({ ...regl, mode: e.target.value })}><option>Wave</option><option>Orange Money</option><option>MTN MoMo</option><option>Espèces</option><option>Virement</option></select></Champ>
+          <Champ label="Référence (facultatif)"><input value={regl.reference} onChange={(e) => setRegl({ ...regl, reference: e.target.value })} /></Champ>
+          <Bouton disabled={!Number(regl.montant)} onClick={regler}>Enregistrer le règlement</Bouton>
+        </Modale>
+      ) : null}
       {edit ? (
         <Modale titre={edit.id ? "Modifier le vendeur" : "Nouveau vendeur"} onFermer={() => setEdit(null)}>
           <Champ label="Nom"><input value={edit.nom || ""} onChange={(e) => setEdit({ ...edit, nom: e.target.value })} /></Champ>
@@ -1110,6 +1286,9 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
         interurbain_actif: v.interurbain_actif, frais_interurbain: Number(v.frais_interurbain), delai_interurbain_jours: Number(v.delai_interurbain_jours),
         modes_paiement: v.modes_paiement, numeros_paiement: v.numeros_paiement, vendeurs_actifs: v.vendeurs_actifs, whatsapp_service: v.whatsapp_service || null,
         couleur_principale: v.couleur_principale, couleur_or: v.couleur_or, logo_url: v.logo_url || null, textes: v.textes, updated_at: new Date().toISOString(),
+        seuil_stock_faible: Number(v.seuil_stock_faible) || 0, livraison_offerte_des: v.livraison_offerte_des === "" || v.livraison_offerte_des == null ? null : Number(v.livraison_offerte_des),
+        frais_par_km: Number(v.frais_par_km) || 0, frais_par_kg: Number(v.frais_par_kg) || 0, photo_livraison_obligatoire: !!v.photo_livraison_obligatoire,
+        contact_email: v.contact_email || null, contact_telephone: v.contact_telephone || null, contact_adresse: v.contact_adresse || null,
       }).eq("workspace_id", workspaceId);
       if (error) throw error;
       setMsg({ ton: "ok", texte: "Paramètres enregistrés." }); rechargerRef();
@@ -1131,6 +1310,9 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
             <Champ label="Couleur or"><input type="color" value={v.couleur_or || "#C9A24A"} onChange={maj("couleur_or")} style={{ width: 70, padding: 4 }} /></Champ>
           </div>
           <Champ label="WhatsApp du service client"><input type="tel" value={v.whatsapp_service || ""} onChange={maj("whatsapp_service")} /></Champ>
+          <Champ label="Téléphone affiché (page Contact)"><input type="tel" value={v.contact_telephone || ""} onChange={maj("contact_telephone")} /></Champ>
+          <Champ label="E-mail affiché"><input type="email" value={v.contact_email || ""} onChange={maj("contact_email")} /></Champ>
+          <Champ label="Adresse affichée"><input value={v.contact_adresse || ""} onChange={maj("contact_adresse")} placeholder="Ex. Cocody, Abidjan" /></Champ>
         </div>
         <div className="rn-carte rn-pile">
           <h3>Paiement</h3>
@@ -1154,6 +1336,13 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
               <Champ label="Délai interurbain (jours)"><input inputMode="numeric" value={v.delai_interurbain_jours} onChange={maj("delai_interurbain_jours")} /></Champ>
             </div>
           ) : null}
+          <div className="rn-grille-2">
+            <Champ label="Livraison offerte dès (FCFA)" aide="Vide = jamais offerte."><input inputMode="numeric" value={v.livraison_offerte_des ?? ""} onChange={(e) => setV({ ...v, livraison_offerte_des: e.target.value.replace(/\D/g, "") })} /></Champ>
+            <Champ label="Supplément par km (FCFA)" aide="Distance livreur → client. 0 = désactivé."><input inputMode="numeric" value={v.frais_par_km ?? 0} onChange={maj("frais_par_km")} /></Champ>
+            <Champ label="Supplément par kg (FCFA)" aide="Selon le poids des articles. 0 = désactivé."><input inputMode="numeric" value={v.frais_par_kg ?? 0} onChange={maj("frais_par_kg")} /></Champ>
+            <Champ label="Seuil de stock faible (pièces)"><input inputMode="numeric" value={v.seuil_stock_faible ?? 3} onChange={maj("seuil_stock_faible")} /></Champ>
+          </div>
+          <label className="rn-interrupteur"><input type="checkbox" checked={!!v.photo_livraison_obligatoire} onChange={(e) => setV({ ...v, photo_livraison_obligatoire: e.target.checked })} /> Photo de remise obligatoire à la livraison</label>
           <label className="rn-interrupteur"><input type="checkbox" checked={v.vendeurs_actifs} onChange={(e) => setV({ ...v, vendeurs_actifs: e.target.checked })} /> Activer les vendeurs partenaires</label>
         </div>
         <div className="rn-carte rn-pile">
@@ -1174,6 +1363,7 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
             <Bouton petit disabled={!nouvelleCat.trim()} onClick={async () => { await supabase.from("rn_categories").insert({ workspace_id: workspaceId, nom: nouvelleCat.trim(), ordre: base.categories.length + 1 }); setNouvelleCat(""); rechargerRef(); }}>Ajouter</Bouton>
           </div>
         </div>
+        <CodesPromo supabase={supabase} workspaceId={workspaceId} />
       </div>
     </>
   );
@@ -1195,6 +1385,109 @@ function Journal({ supabase, workspaceId }) {
           ))}</tbody>
         </table></div>
       ) : <Vide titre="Journal vide">Les validations, paiements, affectations et mouvements de stock s'y inscrivent automatiquement.</Vide>}
+    </>
+  );
+}
+
+// =================================================================== CODES PROMO
+function CodesPromo({ supabase, workspaceId }) {
+  const [liste, setListe] = useState([]);
+  const [n, setN] = useState({ code: "", type: "pourcentage", valeur: "", minimum: "", fin: "", usages_max: "" });
+  const [msg, setMsg] = useState({});
+  const charger = useCallback(async () => { const { data } = await supabase.from("rn_codes_promo").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }); setListe(data || []); }, [supabase, workspaceId]);
+  useEffect(() => { charger(); }, [charger]);
+  const ajouter = async () => {
+    setMsg({});
+    const { error } = await supabase.from("rn_codes_promo").insert({
+      workspace_id: workspaceId, code: n.code.trim().toUpperCase(), type: n.type, valeur: n.type === "livraison_offerte" ? 0 : Number(n.valeur) || 0,
+      minimum: Number(n.minimum) || 0, fin: n.fin || null, usages_max: n.usages_max ? Number(n.usages_max) : null,
+    });
+    if (error) return setMsg({ ton: "danger", texte: /duplicate|unique/i.test(error.message) ? "Ce code existe déjà." : erreurTexte(error) });
+    setN({ code: "", type: "pourcentage", valeur: "", minimum: "", fin: "", usages_max: "" }); charger();
+  };
+  const decrire = (c) => (c.type === "pourcentage" ? `−${c.valeur} %` : c.type === "montant" ? `−${fmt(c.valeur)}` : "Livraison offerte") + (Number(c.minimum) ? ` dès ${fmt(c.minimum)}` : "");
+  return (
+    <div className="rn-carte rn-pile">
+      <h3>Codes promo</h3>
+      {liste.map((c) => (
+        <div key={c.id} className="rn-entre rn-petit">
+          <span><b>{c.code}</b> · {decrire(c)}<br /><span className="rn-muet">{c.usages}{c.usages_max ? `/${c.usages_max}` : ""} utilisation(s){c.fin ? `, jusqu'au ${new Date(c.fin + "T12:00:00").toLocaleDateString("fr-FR")}` : ""}</span></span>
+          <span className="rn-ligne" style={{ flexWrap: "nowrap" }}>
+            <label className="rn-interrupteur"><input type="checkbox" checked={c.actif} onChange={async () => { await supabase.from("rn_codes_promo").update({ actif: !c.actif }).eq("id", c.id); charger(); }} aria-label={`Activer ${c.code}`} /></label>
+          </span>
+        </div>
+      ))}
+      <div className="rn-grille-2">
+        <Champ label="Code"><input value={n.code} onChange={(e) => setN({ ...n, code: e.target.value.toUpperCase().replace(/\s/g, "") })} placeholder="MISS10" maxLength={30} /></Champ>
+        <Champ label="Type"><select value={n.type} onChange={(e) => setN({ ...n, type: e.target.value })}><option value="pourcentage">Pourcentage</option><option value="montant">Montant fixe</option><option value="livraison_offerte">Livraison offerte</option></select></Champ>
+        {n.type !== "livraison_offerte" ? <Champ label={n.type === "pourcentage" ? "Réduction (%)" : "Réduction (FCFA)"}><input inputMode="numeric" value={n.valeur} onChange={(e) => setN({ ...n, valeur: e.target.value.replace(/\D/g, "") })} /></Champ> : null}
+        <Champ label="Achat minimum (FCFA)"><input inputMode="numeric" value={n.minimum} onChange={(e) => setN({ ...n, minimum: e.target.value.replace(/\D/g, "") })} /></Champ>
+        <Champ label="Valable jusqu'au (facultatif)"><input type="date" value={n.fin} onChange={(e) => setN({ ...n, fin: e.target.value })} /></Champ>
+        <Champ label="Utilisations max (facultatif)"><input inputMode="numeric" value={n.usages_max} onChange={(e) => setN({ ...n, usages_max: e.target.value.replace(/\D/g, "") })} /></Champ>
+      </div>
+      <Message ton={msg.ton}>{msg.texte}</Message>
+      <Bouton petit disabled={n.code.length < 3 || (n.type !== "livraison_offerte" && !Number(n.valeur))} onClick={ajouter}>Créer le code</Bouton>
+    </div>
+  );
+}
+
+// =================================================================== CARTE DU RÉSEAU
+const CONTOUR_CI = [[-7.55,4.4],[-6.9,4.6],[-6.1,4.95],[-5.0,5.15],[-4.0,5.25],[-3.3,5.12],[-2.75,5.1],[-2.95,5.7],[-3.2,6.2],[-3.0,7.0],[-2.75,7.9],[-2.5,8.2],[-2.7,9.0],[-2.75,9.4],[-3.0,9.85],[-3.6,9.9],[-4.3,9.6],[-4.7,9.75],[-5.1,10.3],[-5.5,10.4],[-6.0,10.2],[-6.2,10.6],[-6.6,10.5],[-7.0,10.2],[-7.5,10.4],[-7.9,10.3],[-8.2,10.1],[-8.0,9.4],[-8.2,9.0],[-7.8,8.5],[-8.2,8.2],[-8.5,7.7],[-8.3,7.2],[-7.9,6.6],[-7.6,5.9],[-7.5,5.3]];
+const projeter = (lng, lat) => [((lng + 8.7) / 6.4) * 520 + 20, ((10.8 - lat) / 6.6) * 540 + 20];
+
+function CarteReseau({ supabase, workspaceId, aller }) {
+  const [d, setD] = useState(null);
+  const [erreur, setErreur] = useState("");
+  const [survol, setSurvol] = useState(null);
+  useEffect(() => { rpc(supabase, "rn_carte", { p_ws: workspaceId }).then(setD).catch((e) => setErreur(erreurTexte(e))); }, [supabase, workspaceId]);
+  if (erreur) return <Message ton="danger">{erreur}</Message>;
+  if (!d) return <span className="rn-spin" />;
+  const contour = "M" + CONTOUR_CI.map(([x, y]) => projeter(x, y).map((v) => v.toFixed(1)).join(" ")).join(" L") + " Z";
+  const zones = d.zones.filter((z) => z.lat != null && z.lng != null);
+  const reps = d.representants.filter((r) => r.lat != null && r.lng != null);
+  const sansCoord = d.zones.length - zones.length;
+  const nonCouvertes = d.zones.filter((z) => !z.couverte);
+  return (
+    <>
+      <div className="rn-section-titre"><h2>Carte du réseau</h2><Bouton variante="discret" petit onClick={() => aller("zones")}>Gérer les zones</Bouton></div>
+      <div className="rn-grille-2" style={{ alignItems: "start" }}>
+        <div className="rn-carte" style={{ padding: 10 }}>
+          <svg viewBox="0 0 560 580" className="rn-carte-ci" role="img" aria-label="Carte de Côte d'Ivoire : zones couvertes et représentants">
+            <path d={contour} fill="#fff" stroke="#c9b9a8" strokeWidth="2" strokeLinejoin="round" />
+            {zones.map((z) => { const [x, y] = projeter(z.lng, z.lat); return (
+              <circle key={z.id} cx={x} cy={y} r={z.commandes ? Math.min(14, 6 + Math.sqrt(z.commandes) * 2) : 6}
+                style={{ fill: z.couverte ? "#2E7D4F" : "#C2410C", fillOpacity: 0.28, stroke: z.couverte ? "#2E7D4F" : "#C2410C", strokeWidth: 1.5, cursor: "pointer" }}
+                onMouseEnter={() => setSurvol(z)} onMouseLeave={() => setSurvol(null)} onClick={() => setSurvol(z)}>
+                <title>{`${z.nom} : ${z.couverte ? "couverte" : "non couverte"}, ${z.commandes} commande(s)`}</title>
+              </circle>
+            ); })}
+            {reps.map((r) => { const [x, y] = projeter(r.lng, r.lat); return (
+              <g key={r.id}><rect x={x - 5} y={y - 5} width="10" height="10" rx="2" transform={`rotate(45 ${x} ${y})`} style={{ fill: r.disponible ? "var(--rn-prune)" : "#9a8f99", stroke: "#fff", strokeWidth: 1.5 }} /><title>{`${r.nom}${r.disponible ? "" : " (indisponible)"}`}</title></g>
+            ); })}
+          </svg>
+          <div className="rn-ligne rn-petit" style={{ gap: 14, padding: "6px 4px" }}>
+            <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 9, background: "#2E7D4F", opacity: 0.6 }} /> Zone couverte</span>
+            <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 9, background: "#C2410C", opacity: 0.6 }} /> Non couverte</span>
+            <span><span style={{ display: "inline-block", width: 9, height: 9, background: "var(--rn-prune)", transform: "rotate(45deg)" }} /> Représentant</span>
+            <span className="rn-muet">Taille du cercle = commandes</span>
+          </div>
+          {survol ? <p className="rn-petit" style={{ padding: "0 4px" }}><b>{survol.nom}</b> : {survol.couverte ? "couverte" : "non couverte"}, {survol.commandes} commande(s)</p> : null}
+        </div>
+        <div className="rn-pile">
+          <div className="rn-kpis">
+            <div className="rn-kpi"><div className="rn-kpi-lab">Zones couvertes</div><div className="rn-kpi-val">{d.zones.length - nonCouvertes.length} / {d.zones.length}</div></div>
+            <div className="rn-kpi"><div className="rn-kpi-lab">Représentants disponibles</div><div className="rn-kpi-val">{d.representants.filter((r) => r.disponible).length} / {d.representants.length}</div></div>
+          </div>
+          <div className="rn-carte rn-pile">
+            <h3>Zones non couvertes ({nonCouvertes.length})</h3>
+            {nonCouvertes.sort((a, b) => b.commandes - a.commandes).slice(0, 20).map((z) => (
+              <div key={z.id} className="rn-entre rn-petit"><span>{z.nom}</span>{z.commandes ? <Pastille ton="alerte">{z.commandes} commande(s)</Pastille> : <span className="rn-muet">aucune commande</span>}</div>
+            ))}
+            {!nonCouvertes.length ? <p className="rn-muet">Tout le territoire configuré est couvert.</p> : null}
+          </div>
+          {sansCoord ? <p className="rn-muet rn-petit">{sansCoord} zone(s) sans coordonnées ne sont pas placées sur la carte.</p> : null}
+        </div>
+      </div>
     </>
   );
 }

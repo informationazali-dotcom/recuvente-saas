@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, useCompteARebours, formatDuree, envoyerPhotos,
+  envoyerPreuve, compresserImage, BoutonAlertes, PadSignature,
   ETATS, STATUTS_MISSION, STATUTS_ARTICLE, MODES_PAIEMENT, CATEGORIES_DEFAUT, Bouton, Champ, Message, Modale, Vide, Pastille, Icone,
 } from "./ReseauCommun.jsx";
 
@@ -42,7 +43,7 @@ export default function EspaceRepresentant({ supabase, slug }) {
   return <Tableau supabase={supabase} rep={rep} setRep={setRep} />;
 }
 
-function Connexion({ supabase }) {
+export function Connexion({ supabase, titre = "Espace représentant", texte = "Connectez-vous pour voir vos missions de livraison.", texteCreation = "Utilisez l'adresse e-mail que l'administration a enregistrée pour vous." }) {
   useStylesReseau();
   const [mode, setMode] = useState("connexion");
   const [f, setF] = useState({ email: "", mdp: "" });
@@ -71,10 +72,8 @@ function Connexion({ supabase }) {
   return (
     <div className="rn" style={{ display: "grid", placeItems: "center", padding: 16 }}>
       <form className="rn-carte rn-pile" style={{ width: "100%", maxWidth: 400, gap: 14 }} onSubmit={envoyer}>
-        <h2>Espace représentant</h2>
-        <p className="rn-muet">
-          {mode === "creation" ? "Utilisez l'adresse e-mail que l'administration a enregistrée pour vous." : "Connectez-vous pour voir vos missions de livraison."}
-        </p>
+        <h2>{titre}</h2>
+        <p className="rn-muet">{mode === "creation" ? texteCreation : texte}</p>
         <Champ label="E-mail"><input type="email" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required /></Champ>
         {mode !== "oubli" ? (
           <Champ label={mode === "creation" ? "Choisissez un mot de passe" : "Mot de passe"} aide={mode === "creation" ? "8 caractères minimum." : null}>
@@ -135,6 +134,7 @@ function Tableau({ supabase, rep, setRep }) {
     ["missions", "Missions", aRepondre],
     ["stock", "Mon stock"],
     ["proposer", "Proposer un article"],
+    ["transferts", "Transferts"],
     ["inventaire", "Inventaire"],
     ["perf", "Mes résultats"],
     ["notifs", "Alertes", nonLues],
@@ -166,10 +166,12 @@ function Tableau({ supabase, rep, setRep }) {
       </div>
       <main className="rn-zone-travail" style={{ maxWidth: 760 }}>
         <Message ton="danger" onFermer={() => setErreur("")}>{erreur}</Message>
+        <BoutonAlertes supabase={supabase} workspaceId={ws} role="representant" />
         {!rep.disponible ? <Message ton="alerte">Vous êtes indiqué indisponible : aucune nouvelle mission ne vous sera proposée.</Message> : null}
-        {onglet === "missions" ? <Missions supabase={supabase} missions={missions} recharger={chargerMissions} /> : null}
+        {onglet === "missions" ? <Missions supabase={supabase} ws={ws} missions={missions} recharger={chargerMissions} /> : null}
         {onglet === "stock" ? <MonStock supabase={supabase} rep={rep} /> : null}
         {onglet === "proposer" ? <Proposer supabase={supabase} rep={rep} fini={() => setOnglet("stock")} /> : null}
+        {onglet === "transferts" ? <Transferts supabase={supabase} rep={rep} /> : null}
         {onglet === "inventaire" ? <Inventaire supabase={supabase} rep={rep} /> : null}
         {onglet === "perf" ? <Resultats supabase={supabase} rep={rep} missions={missions} /> : null}
         {onglet === "notifs" ? (
@@ -195,7 +197,7 @@ async function marquerLues(supabase, notifs, recharger) {
 }
 
 // ------------------------------------------------------------------ missions
-function Missions({ supabase, missions, recharger }) {
+function Missions({ supabase, ws, missions, recharger }) {
   const [filtre, setFiltre] = useState("actives");
   const actives = missions.filter((m) => ["proposee", "acceptee", "en_preparation", "en_cours"].includes(m.statut));
   const liste = filtre === "actives" ? actives : missions.filter((m) => !actives.includes(m));
@@ -206,7 +208,7 @@ function Missions({ supabase, missions, recharger }) {
         <button className="rn-cat" aria-pressed={filtre === "historique"} onClick={() => setFiltre("historique")}>Historique</button>
       </div>
       {liste.length ? (
-        liste.map((m) => <CarteMission key={m.id} supabase={supabase} m={m} recharger={recharger} />)
+        liste.map((m) => <CarteMission key={m.id} supabase={supabase} ws={ws} m={m} recharger={recharger} />)
       ) : (
         <Vide titre={filtre === "actives" ? "Aucune mission pour le moment" : "Pas encore d'historique"}>
           {filtre === "actives" ? "Gardez cette page ouverte : une alerte s'affiche dès qu'une livraison vous est proposée." : null}
@@ -216,7 +218,7 @@ function Missions({ supabase, missions, recharger }) {
   );
 }
 
-function CarteMission({ supabase, m, recharger }) {
+function CarteMission({ supabase, ws, m, recharger }) {
   const c = m.commande;
   const reste = useCompteARebours(m.statut === "proposee" ? m.expire_at : null);
   const [modale, setModale] = useState(null);
@@ -250,6 +252,10 @@ function CarteMission({ supabase, m, recharger }) {
         </div>
       </div>
 
+      {c.livraison_modifiee_at && active ? <Message ton="alerte">Livraison modifiée par l'administration le {fmtDate(c.livraison_modifiee_at)} : vérifiez l'adresse et le téléphone.</Message> : null}
+      {c.date_livraison_souhaitee && m.statut !== "terminee" ? (
+        <p className="rn-petit"><b>Livraison souhaitée le {new Date(c.date_livraison_souhaitee + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</b></p>
+      ) : null}
       {(m.lignes || []).map((l, i) => (
         <div className="rn-mini-article" key={i}>
           {l.photo ? <img src={l.photo} alt="" /> : <span />}
@@ -279,9 +285,11 @@ function CarteMission({ supabase, m, recharger }) {
         </div>
       ) : null}
 
+      {m.transporteur ? <p className="rn-petit">Confié à <b>{m.transporteur}</b>{m.numero_colis ? `, colis n° ${m.numero_colis}` : ""}</p> : null}
       {m.statut === "terminee" ? (
         <p className="rn-petit rn-muet">Livrée le {fmtDate(m.termine_at)}{m.commission ? `, commission ${fmt(m.commission)}` : ""}</p>
       ) : null}
+      {m.preuves?.length ? <div className="rn-preuves">{m.preuves.map((p) => <a key={p.url} href={p.url} target="_blank" rel="noreferrer"><img src={p.url} alt={p.type === "signature" ? "Signature du client" : "Photo de remise"} /></a>)}</div> : null}
       {["refusee", "expiree", "echec", "annulee"].includes(m.statut) && m.motif ? <p className="rn-petit rn-muet">{m.motif}</p> : null}
 
       <Message ton="danger">{erreur}</Message>
@@ -295,7 +303,8 @@ function CarteMission({ supabase, m, recharger }) {
         <div className="rn-ligne">
           {m.statut === "acceptee" ? <Bouton variante="discret" petit chargement={charge} onClick={() => agir("rn_rep_avancer", { p_statut: "en_preparation" })}>Je prépare</Bouton> : null}
           {m.statut !== "en_cours" ? <Bouton variante="contour" petit chargement={charge} onClick={() => agir("rn_rep_avancer", { p_statut: "en_cours" })}>Je pars livrer</Bouton> : null}
-          <Bouton variante="vert" petit onClick={() => { setF({ ...f, montant: String(c.a_encaisser || "") }); setModale("livrer"); }}>Remettre l'article</Bouton>
+          {c.type_livraison === "interurbaine" && !m.transporteur ? <Bouton variante="contour" petit onClick={() => setModale("expedier")}>Confier au transporteur</Bouton> : null}
+          <Bouton variante="vert" petit onClick={() => { setF({ ...f, montant: String(c.a_encaisser || ""), photo: null, signature: null }); setModale("livrer"); }}>Remettre l'article</Bouton>
           <Bouton variante="danger" petit onClick={() => setModale("echec")}>Livraison impossible</Bouton>
         </div>
       ) : null}
@@ -320,11 +329,42 @@ function CarteMission({ supabase, m, recharger }) {
               <input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/\D/g, "") })} />
             </Champ>
           ) : null}
+          <Champ label="Photo de la remise" aide="L'article entre les mains du client, ou le colis déposé.">
+            <div className="rn-ligne">
+              {f.photo ? <img src={URL.createObjectURL(f.photo)} alt="Photo de remise" style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 10 }} /> : null}
+              <label className="rn-btn rn-btn-contour rn-btn-petit" style={{ position: "relative", overflow: "hidden" }}>
+                {f.photo ? "Reprendre la photo" : "Prendre une photo"}
+                <input type="file" accept="image/*" capture="environment" style={{ position: "absolute", inset: 0, opacity: 0 }}
+                  onChange={async (e) => { const fi = e.target.files?.[0]; if (fi) setF({ ...f, photo: await compresserImage(fi, 1200, 0.78) }); e.target.value = ""; }} />
+              </label>
+            </div>
+          </Champ>
+          <Champ label="Signature du client (facultatif)">
+            <PadSignature onChange={(b) => setF((x) => ({ ...x, signature: b }))} />
+          </Champ>
           <Message ton="danger">{erreur}</Message>
           <Bouton variante="vert" chargement={charge} disabled={f.code.length !== 6}
-            onClick={() => agir("rn_rep_livrer", { p_code: f.code, p_montant: c.mode_paiement === "cod" ? Number(f.montant) : null })}>
+            onClick={async () => {
+              setCharge(true); setErreur("");
+              try {
+                const preuves = [];
+                if (f.photo) preuves.push({ type: "photo", url: await envoyerPreuve(supabase, ws, f.photo, "jpg") });
+                if (f.signature) preuves.push({ type: "signature", url: await envoyerPreuve(supabase, ws, f.signature, "png") });
+                await agir("rn_rep_remettre", { p_code: f.code, p_montant: c.mode_paiement === "cod" ? Number(f.montant) : null, p_preuves: preuves });
+              } catch (e) { setErreur(erreurTexte(e)); setCharge(false); }
+            }}>
             Confirmer la livraison
           </Bouton>
+        </Modale>
+      ) : null}
+      {modale === "expedier" ? (
+        <Modale titre="Confier le colis au transporteur" onFermer={() => setModale(null)}>
+          <p>Pour un envoi vers une autre ville. Le client verra le nom du transporteur et le numéro du colis sur sa page de suivi.</p>
+          <Champ label="Transporteur"><input value={f.transporteur || ""} onChange={(e) => setF({ ...f, transporteur: e.target.value })} placeholder="Ex. UTB, STC, AVS…" list="rn-transporteurs" /></Champ>
+          <datalist id="rn-transporteurs"><option>UTB</option><option>STC</option><option>AVS</option><option>Sonef</option><option>GTI</option><option>Fabiola</option></datalist>
+          <Champ label="Numéro du colis ou du reçu (facultatif)"><input value={f.numero || ""} onChange={(e) => setF({ ...f, numero: e.target.value })} /></Champ>
+          <Message ton="danger">{erreur}</Message>
+          <Bouton chargement={charge} disabled={(f.transporteur || "").trim().length < 2} onClick={() => agir("rn_rep_expedier", { p_transporteur: f.transporteur, p_numero: f.numero || null })}>Enregistrer l'envoi</Bouton>
         </Modale>
       ) : null}
       {modale === "echec" ? (
@@ -353,7 +393,16 @@ function CarteMission({ supabase, m, recharger }) {
 function MonStock({ supabase, rep }) {
   const [lignes, setLignes] = useState(null);
   const [edit, setEdit] = useState(null);
+  const [transfert, setTransfert] = useState(null);
+  const [collegues, setCollegues] = useState([]);
   const [msg, setMsg] = useState({});
+  useEffect(() => { rpc(supabase, "rn_rep_collegues", { p_ws: rep.workspace_id }).then((d) => setCollegues(d || [])).catch(() => {}); }, [supabase, rep.workspace_id]);
+  const demanderTransfert = async () => {
+    try {
+      await rpc(supabase, "rn_rep_demander_transfert", { p_article: transfert.article.id, p_vers: transfert.vers || null, p_q: Number(transfert.q), p_note: transfert.note || null });
+      setTransfert(null); setMsg({ ton: "ok", texte: "Demande de transfert envoyée à l'administration." });
+    } catch (e) { setMsg({ ton: "danger", texte: erreurTexte(e) }); }
+  };
   const charger = useCallback(async () => {
     const { data, error } = await supabase.from("rn_stocks").select("*, article:rn_articles(*)").eq("representant_id", rep.id).order("updated_at", { ascending: false });
     if (error) setMsg({ ton: "danger", texte: erreurTexte(error) });
@@ -387,6 +436,7 @@ function MonStock({ supabase, rep }) {
           <span style={{ display: "grid", gap: 6, justifyItems: "end" }}>
             <b style={{ fontSize: 20 }}>{l.quantite}</b>
             <Bouton variante="discret" petit onClick={() => setEdit({ article: l.article, type: "sortie", q: 1, note: "" })}>Mouvement</Bouton>
+            {l.quantite - l.reservee > 0 ? <Bouton variante="discret" petit onClick={() => setTransfert({ article: l.article, q: 1, vers: "", note: "", max: l.quantite - l.reservee })}>Transférer</Bouton> : null}
           </span>
         </div>
       )) : <Vide titre="Aucun article chez vous">Les articles que l'administration vous confie ou que vous proposez apparaîtront ici.</Vide>}
@@ -402,6 +452,20 @@ function MonStock({ supabase, rep }) {
           <Champ label="Quantité"><input inputMode="numeric" value={edit.q} onChange={(e) => setEdit({ ...edit, q: e.target.value.replace(/\D/g, "") })} /></Champ>
           <Champ label="Motif" aide="Visible par l'administration."><input value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} /></Champ>
           <Bouton disabled={!Number(edit.q)} onClick={mouvement}>Enregistrer</Bouton>
+        </Modale>
+      ) : null}
+      {transfert ? (
+        <Modale titre={`Transférer : ${transfert.article.titre}`} onFermer={() => setTransfert(null)}>
+          <p className="rn-muet">L'administration valide la demande ; le stock est déplacé à ce moment-là.</p>
+          <Champ label="Vers quel représentant ?">
+            <select value={transfert.vers} onChange={(e) => setTransfert({ ...transfert, vers: e.target.value })}>
+              <option value="">Laisser l'administration choisir</option>
+              {collegues.map((r) => <option key={r.id} value={r.id}>{r.nom}{r.zone ? ` (${r.zone})` : ""}</option>)}
+            </select>
+          </Champ>
+          <Champ label="Quantité" aide={`Disponible : ${transfert.max}`}><input inputMode="numeric" value={transfert.q} onChange={(e) => setTransfert({ ...transfert, q: e.target.value.replace(/\D/g, "") })} /></Champ>
+          <Champ label="Raison (facultatif)"><input value={transfert.note} onChange={(e) => setTransfert({ ...transfert, note: e.target.value })} placeholder="Ex. cliente intéressée à Bouaké" /></Champ>
+          <Bouton disabled={!Number(transfert.q) || Number(transfert.q) > transfert.max} onClick={demanderTransfert}>Envoyer la demande</Bouton>
         </Modale>
       ) : null}
     </>
@@ -452,6 +516,7 @@ export function FormulaireArticle({ supabase, workspaceId, valeur, categories, o
         </Champ>
         <Champ label="Prix de vente (FCFA)"><input inputMode="numeric" value={valeur.prix ?? ""} onChange={(e) => onChange({ ...valeur, prix: e.target.value.replace(/\D/g, "") })} /></Champ>
         <Champ label="Prix neuf indicatif (facultatif)"><input inputMode="numeric" value={valeur.prix_barre ?? ""} onChange={(e) => onChange({ ...valeur, prix_barre: e.target.value.replace(/\D/g, "") })} /></Champ>
+        <Champ label="Poids (kg, facultatif)" aide="Sert au calcul des frais d'envoi."><input inputMode="decimal" value={valeur.poids_kg ?? ""} onChange={(e) => onChange({ ...valeur, poids_kg: e.target.value.replace(",", ".").replace(/[^0-9.]/g, "") })} /></Champ>
       </div>
       <Champ label="Défauts visibles" aide="Tache, accroc, bouton manquant… Laisser vide s'il n'y en a aucun."><textarea value={valeur.defauts || ""} onChange={maj("defauts")} /></Champ>
       <Champ label="Description"><textarea value={valeur.description || ""} onChange={maj("description")} /></Champ>
@@ -574,7 +639,47 @@ function Resultats({ supabase, rep, missions }) {
           <div className="rn-kpi" key={l}><div className="rn-kpi-lab">{l}</div><div className="rn-kpi-val">{v ?? 0}</div></div>
         ))}
       </div>
+      {s.zone ? (
+        <div className="rn-carte rn-pile" style={{ gap: 8 }}>
+          <h3>Ma zone{s.zone.nom ? ` : ${s.zone.nom}` : ""} (30 jours)</h3>
+          <div className="rn-kpis">
+            <div className="rn-kpi"><div className="rn-kpi-lab">Commandes</div><div className="rn-kpi-val">{s.zone.commandes_30j ?? 0}</div></div>
+            <div className="rn-kpi"><div className="rn-kpi-lab">Livrées</div><div className="rn-kpi-val">{s.zone.livrees_30j ?? 0}</div></div>
+            <div className="rn-kpi"><div className="rn-kpi-lab">Ventes livrées</div><div className="rn-kpi-val">{fmt(s.zone.ca_30j)}</div></div>
+            <div className="rn-kpi"><div className="rn-kpi-lab">Taux de réussite</div><div className="rn-kpi-val">{s.zone.taux_reussite != null ? `${s.zone.taux_reussite} %` : "—"}</div></div>
+          </div>
+          {s.rang ? <p className="rn-petit">Classement du réseau : <b>{s.rang}<sup>{s.rang === 1 ? "er" : "e"}</sup></b> sur {s.nb_representants} représentants (livraisons sur 30 jours).</p> : null}
+        </div>
+      ) : null}
       {s.encaisse_non_reverse > 0 ? <Message ton="alerte">Pensez à reverser {fmt(s.encaisse_non_reverse)} encaissés auprès des clients, selon les consignes de l'administration.</Message> : null}
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ transferts
+function Transferts({ supabase, rep }) {
+  const [liste, setListe] = useState(null);
+  const [erreur, setErreur] = useState("");
+  useEffect(() => { rpc(supabase, "rn_rep_mes_transferts", { p_ws: rep.workspace_id }).then((d) => setListe(d || [])).catch((e) => { setErreur(erreurTexte(e)); setListe([]); }); }, [supabase, rep.workspace_id]);
+  if (!liste) return <span className="rn-spin" />;
+  const libelle = { demande: ["En attente", "alerte"], valide: ["Validé", "ok"], refuse: ["Refusé", "danger"], en_cours: ["En cours", "info"], recu: ["Reçu", "ok"] };
+  return (
+    <>
+      <h2>Transferts de stock</h2>
+      <p className="rn-muet">Pour envoyer une pièce à un collègue, ouvrez « Mon stock » puis « Transférer ».</p>
+      <Message ton="danger">{erreur}</Message>
+      {liste.length ? liste.map((t) => (
+        <div className="rn-carte rn-entre" key={t.id}>
+          <span>
+            <b>{t.article}</b> × {t.quantite}<br />
+            <span className="rn-muet rn-petit">
+              {t.sens === "sortant" ? `Vers ${t.autre || "représentant à choisir par l'administration"}` : `Depuis ${t.autre}`}, {fmtDate(t.date)}
+            </span>
+            {t.note ? <><br /><span className="rn-petit">{t.note}</span></> : null}
+          </span>
+          <Pastille ton={(libelle[t.statut] || [])[1]}>{(libelle[t.statut] || [t.statut])[0]}</Pastille>
+        </div>
+      )) : <Vide titre="Aucun transfert">Vos demandes et les pièces qui vous sont envoyées apparaîtront ici.</Vide>}
     </>
   );
 }

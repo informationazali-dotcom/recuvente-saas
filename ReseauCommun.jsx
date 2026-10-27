@@ -141,6 +141,99 @@ export async function envoyerPhotos(supabase, workspaceId, fichiers) {
   return urls;
 }
 
+// Preuve de livraison (photo déjà compressée ou signature PNG) → URL publique
+export async function envoyerPreuve(supabase, workspaceId, blob, extension = "jpg") {
+  const chemin = `${workspaceId}/preuves/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+  const { error } = await supabase.storage.from("reseau-articles").upload(chemin, blob, {
+    contentType: extension === "png" ? "image/png" : "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw error;
+  return supabase.storage.from("reseau-articles").getPublicUrl(chemin).data.publicUrl;
+}
+
+// ------------------------------------------------------------------ alertes push (représentants, vendeurs)
+// Même clé publique que le reste de RecuVente (App.jsx) : le serveur signe avec la clé privée associée.
+const CLE_VAPID = "BNEWuL6J-c31X4sab428A92UjDE2GOirvhes0XlQz-bnNngVucHV22AdQzLq_FleLTsCNoFaxYkL_xDqR6WgHFs";
+function cleEnOctets(base64) {
+  const remplissage = "=".repeat((4 - (base64.length % 4)) % 4);
+  const brut = atob((base64 + remplissage).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...brut].map((c) => c.charCodeAt(0)));
+}
+export const alertesPossibles = () =>
+  typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+export async function activerAlertes(supabase, workspaceId, role) {
+  if (!alertesPossibles()) throw new Error("Ce téléphone ne permet pas les alertes. Sur iPhone, ajoutez d'abord la page à l'écran d'accueil.");
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") throw new Error("Alertes refusées. Autorisez les notifications pour ce site dans les réglages du navigateur.");
+  try { await navigator.serviceWorker.register("/sw.js"); } catch { /* déjà enregistré */ }
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: cleEnOctets(CLE_VAPID) });
+  const { data } = await supabase.auth.getSession();
+  const r = await fetch("/api/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + (data.session?.access_token || "") },
+    body: JSON.stringify({ type: "reseau_subscribe", workspaceId, role, subscription: sub.toJSON() }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Enregistrement des alertes impossible pour le moment.");
+  return true;
+}
+
+export function BoutonAlertes({ supabase, workspaceId, role, style }) {
+  const [etat, setEtat] = useState(() => (alertesPossibles() && Notification.permission === "granted" ? "actif" : "inactif"));
+  const [erreur, setErreur] = useState("");
+  // déjà autorisé : on renouvelle discrètement l'enregistrement (appareil changé, abonnement expiré)
+  useEffect(() => {
+    if (etat === "actif") activerAlertes(supabase, workspaceId, role).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!alertesPossibles()) return null;
+  if (etat === "actif") return null;
+  return (
+    <div className="rn-carte rn-entre" style={{ background: "#FBF5E8", ...style }}>
+      <span className="rn-petit" style={{ flex: 1 }}>
+        <b>Recevez les alertes même téléphone verrouillé.</b>{erreur ? <><br /><span style={{ color: "var(--rn-rouge)" }}>{erreur}</span></> : null}
+      </span>
+      <Bouton petit chargement={etat === "envoi"} onClick={async () => {
+        setEtat("envoi"); setErreur("");
+        try { await activerAlertes(supabase, workspaceId, role); setEtat("actif"); }
+        catch (e) { setErreur(e.message); setEtat("inactif"); }
+      }}>Activer</Bouton>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ signature du client (doigt ou souris)
+export function PadSignature({ onChange }) {
+  const ref = React.useRef(null);
+  const trace = React.useRef(false);
+  const vide = React.useRef(true);
+  useEffect(() => {
+    const c = ref.current;
+    const ratio = window.devicePixelRatio || 1;
+    c.width = c.offsetWidth * ratio; c.height = c.offsetHeight * ratio;
+    const ctx = c.getContext("2d");
+    ctx.scale(ratio, ratio); ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1d1b20";
+  }, []);
+  const pos = (e) => { const r = ref.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const debut = (e) => { e.preventDefault(); ref.current.setPointerCapture?.(e.pointerId); trace.current = true; const ctx = ref.current.getContext("2d"); ctx.beginPath(); ctx.moveTo(...pos(e)); };
+  const bouge = (e) => { if (!trace.current) return; const ctx = ref.current.getContext("2d"); ctx.lineTo(...pos(e)); ctx.stroke(); vide.current = false; };
+  const fin = () => {
+    if (!trace.current) return;
+    trace.current = false;
+    if (!vide.current) ref.current.toBlob((b) => onChange(b), "image/png");
+  };
+  const effacer = () => { const c = ref.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); vide.current = true; onChange(null); };
+  return (
+    <div className="rn-pile" style={{ gap: 6 }}>
+      <canvas ref={ref} className="rn-signature" onPointerDown={debut} onPointerMove={bouge} onPointerUp={fin} onPointerLeave={fin} aria-label="Zone de signature du client" />
+      <button type="button" className="rn-lien rn-petit" style={{ justifySelf: "start" }} onClick={effacer}>Effacer la signature</button>
+    </div>
+  );
+}
+
 // Export Excel (CSV avec BOM UTF-8 et « ; » : s'ouvre directement dans Excel en français)
 export function exporterExcel(nomFichier, colonnes, lignes) {
   const esc = (v) => {
@@ -542,6 +635,13 @@ const CSS = `
 .rn-interrupteur input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
 .rn-interrupteur input:checked{background:var(--rn-vert)}
 .rn-interrupteur input:checked::after{left:21px}
+.rn-signature{width:100%;height:170px;border:1.5px dashed var(--rn-trait);border-radius:14px;background:#fff;touch-action:none;cursor:crosshair}
+.rn .rn-lien{background:none;border:0;padding:0;color:var(--rn-prune);text-decoration:underline;cursor:pointer;font:inherit}
+.rn-preuves{display:flex;gap:8px;flex-wrap:wrap}.rn-preuves img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--rn-trait);background:#fff}
+.rn-carte-ci{width:100%;height:auto;max-height:520px;background:#F7F3EE;border-radius:16px}
+.rn-segment{display:inline-flex;background:var(--rn-perle);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
+.rn .rn-segment button{border:0;background:transparent;padding:6px 12px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer;color:var(--rn-texte)}
+.rn .rn-segment button[aria-pressed=true]{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
 `;
 
 export const Icone = {

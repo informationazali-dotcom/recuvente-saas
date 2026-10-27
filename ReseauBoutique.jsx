@@ -137,7 +137,8 @@ export default function BoutiqueReseau({ supabase, slug }) {
         ) : null}
         {nav.vue === "suivi" && nav.suivi ? <Suivi supabase={supabase} token={nav.suivi} boutique={boutique} /> : null}
         {nav.vue === "mes-commandes" ? <MesCommandes supabase={supabase} slug={slug} ouvrir={(t) => aller({ suivi: t, vue: "suivi" })} /> : null}
-        {nav.vue === "page" ? <PageInfo boutique={boutique} page={nav.page} /> : null}
+        {nav.vue === "page" && nav.page === "contact" ? <Contact supabase={supabase} slug={slug} boutique={boutique} /> : null}
+        {nav.vue === "page" && nav.page !== "contact" ? <PageInfo boutique={boutique} page={nav.page} /> : null}
       </main>
 
       <footer className="rn-pied">
@@ -154,6 +155,8 @@ export default function BoutiqueReseau({ supabase, slug }) {
           </div>
           <div className="rn-pile" style={{ gap: 8 }}>
             <button onClick={() => aller({ vue: "mes-commandes" })}>Suivre ma commande</button>
+            <button onClick={() => aller({ vue: "page", page: "contact" })}>Nous contacter</button>
+            {p.vendeurs_actifs ? <a href={`?reseau=${encodeURIComponent(slug)}&espace=vendeur`}>Devenir vendeur partenaire</a> : null}
             {boutique.whatsapp ? <a href={lienWhatsApp(boutique.whatsapp, "Bonjour, j'ai une question sur la boutique " + nom)} target="_blank" rel="noreferrer">Nous écrire sur WhatsApp</a> : null}
           </div>
         </div>
@@ -412,14 +415,17 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
   }, [zones]);
 
   const lignesRpc = useMemo(() => lignes.map((l) => ({ article_id: l.id, quantite: l.quantite })), [lignes]);
+  const [codeSaisi, setCodeSaisi] = useState("");
+  const [code, setCode] = useState("");
   useEffect(() => {
     if (!f.zone_id || !lignesRpc.length) { setDevis(null); return; }
     let actif = true;
-    rpc(supabase, "rn_devis", { p_slug: slug, p_lignes: lignesRpc, p_zone: f.zone_id })
+    rpc(supabase, "rn_devis_complet", { p_slug: slug, p_lignes: lignesRpc, p_zone: f.zone_id, p_code: code || null })
       .then((d) => actif && setDevis(d))
       .catch((e) => actif && setErreur(erreurTexte(e)));
     return () => { actif = false; };
-  }, [supabase, slug, f.zone_id, lignesRpc]);
+  }, [supabase, slug, f.zone_id, lignesRpc, code]);
+  const demain = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
   const maj = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const position = () =>
@@ -441,9 +447,10 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
       localStorage.setItem("rn_client", JSON.stringify({ client_nom: f.client_nom, client_tel: f.client_tel, client_email: f.client_email, zone_id: f.zone_id, adresse: f.adresse, repere: f.repere }));
     } catch { /* ignore */ }
     try {
+      if (code && devis && devis.code_valide === false) { setEnvoi(false); return setErreur(devis.message_code || "Code promo invalide."); }
       const r = await rpc(supabase, "rn_creer_commande", {
         p_slug: slug,
-        p: { ...f, idempotency_key: cle.current, lignes: lignesRpc },
+        p: { ...f, code_promo: code && devis?.code_valide ? code : null, idempotency_key: cle.current, lignes: lignesRpc },
       });
       commandeCreee(r);
     } catch (e2) {
@@ -526,7 +533,19 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
               </label>
             ))}
           </fieldset>
+          <Champ label="Date de livraison souhaitée (facultatif)" aide="Nous faisons au mieux pour respecter cette date.">
+            <input type="date" min={demain} value={f.date_livraison_souhaitee || ""} onChange={maj("date_livraison_souhaitee")} />
+          </Champ>
           <Champ label="Message pour le livreur (facultatif)"><textarea value={f.note || ""} onChange={maj("note")} /></Champ>
+          {p.codes_promo_actifs ? (
+            <Champ label="Code promo" erreur={code && devis?.code_valide === false ? devis.message_code : null} aide={code && devis?.code_valide ? devis.message_code : (!f.zone_id && codeSaisi ? "Choisissez d'abord votre ville pour appliquer le code." : null)}>
+              <div className="rn-ligne" style={{ flexWrap: "nowrap" }}>
+                <input value={codeSaisi} onChange={(e) => setCodeSaisi(e.target.value.toUpperCase())} placeholder="Ex. MISS10" style={{ flex: 1 }} />
+                {code ? <Bouton type="button" variante="discret" petit onClick={() => { setCode(""); setCodeSaisi(""); }}>Retirer</Bouton>
+                  : <Bouton type="button" variante="contour" petit disabled={!codeSaisi.trim()} onClick={() => setCode(codeSaisi.trim())}>Appliquer</Bouton>}
+              </div>
+            </Champ>
+          ) : null}
         </div>
       ) : null}
 
@@ -534,8 +553,14 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
         <div><span>Articles</span><span>{fmt(sousTotal)}</span></div>
         <div>
           <span>Livraison{devis ? (devis.type_livraison === "interurbaine" ? " (depuis une autre ville)" : "") : ""}</span>
-          <span>{devis ? fmt(devis.frais_livraison) : "Selon votre ville"}</span>
+          <span>{devis ? (Number(devis.frais_livraison) === 0 ? "Offerte" : fmt(devis.frais_livraison)) : "Selon votre ville"}</span>
         </div>
+        {devis && Number(devis.reduction) > 0 ? (
+          <div style={{ color: "var(--rn-vert)" }}><span>Réduction{code ? ` (${code})` : ""}</span><span>− {fmt(devis.reduction)}</span></div>
+        ) : null}
+        {p.livraison_offerte_des && sousTotal < p.livraison_offerte_des ? (
+          <div className="rn-muet rn-petit"><span>Encore {fmt(p.livraison_offerte_des - sousTotal)} d'achat pour la livraison offerte</span><span /></div>
+        ) : null}
         {devis ? (
           <div className="rn-muet rn-petit"><span>Délai estimé</span><span>{devis.delai_jours <= 1 ? "24 h" : `${devis.delai_jours} jours`}</span></div>
         ) : null}
@@ -644,6 +669,9 @@ function Suivi({ supabase, token, boutique }) {
         </div>
       ) : null}
 
+      {(c.expeditions || []).map((x, i) => (
+        <Message key={i} ton="info">Votre colis voyage avec <b>{x.transporteur}</b>{x.numero_colis ? <>, colis n° <b>{x.numero_colis}</b></> : null}. Un représentant vous le remettra à l'arrivée.</Message>
+      ))}
       {termineMal ? (
         <Message ton={c.statut === "annulee" ? "neutre" : "alerte"}>
           {c.statut === "annulee"
@@ -677,7 +705,9 @@ function Suivi({ supabase, token, boutique }) {
           </div>
         ))}
         <div className="rn-totaux">
-          <div><span>Livraison {c.zone ? `à ${c.zone}` : ""}</span><span>{fmt(c.frais_livraison)}</span></div>
+          <div><span>Livraison {c.zone ? `à ${c.zone}` : ""}</span><span>{Number(c.frais_livraison) === 0 ? "Offerte" : fmt(c.frais_livraison)}</span></div>
+          {Number(c.reduction) > 0 ? <div style={{ color: "var(--rn-vert)" }}><span>Réduction{c.code_promo ? ` (${c.code_promo})` : ""}</span><span>− {fmt(c.reduction)}</span></div> : null}
+          {c.date_livraison_souhaitee ? <div className="rn-muet rn-petit"><span>Date souhaitée</span><span>{new Date(c.date_livraison_souhaitee + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</span></div> : null}
           <div className="rn-total"><span>Total</span><span>{fmt(c.total)}</span></div>
           <div className="rn-muet rn-petit"><span>Paiement</span><span>{MODES_PAIEMENT[c.mode_paiement]?.court}{c.statut_paiement === "verifie" ? ", réglé" : ""}</span></div>
         </div>
@@ -778,5 +808,34 @@ function PageInfo({ boutique, page }) {
       <h2>{c.titre}</h2>
       <p style={{ whiteSpace: "pre-line", lineHeight: 1.7 }}>{c.texte}</p>
     </div>
+  );
+}
+
+function Contact({ supabase, slug, boutique }) {
+  const p = boutique.parametres || {};
+  const [f, setF] = useState(() => { try { const c = JSON.parse(localStorage.getItem("rn_client") || "{}"); return { nom: c.client_nom || "", tel: c.client_tel || "", message: "" }; } catch { return { nom: "", tel: "", message: "" }; } });
+  const [msg, setMsg] = useState({});
+  const [charge, setCharge] = useState(false);
+  const envoyer = async (e) => {
+    e.preventDefault(); setCharge(true); setMsg({});
+    try { await rpc(supabase, "rn_contacter", { p_slug: slug, p_nom: f.nom, p_tel: f.tel, p_message: f.message }); setMsg({ ton: "ok", texte: "Message envoyé. Nous vous répondons rapidement." }); setF({ ...f, message: "" }); }
+    catch (e2) { setMsg({ ton: "danger", texte: erreurTexte(e2) }); } finally { setCharge(false); }
+  };
+  return (
+    <form className="rn-panneau" onSubmit={envoyer}>
+      <h2>Nous contacter</h2>
+      <div className="rn-carte rn-pile" style={{ gap: 6 }}>
+        {p.contact_telephone ? <span>Téléphone : <a href={"tel:" + p.contact_telephone.replace(/[^0-9+]/g, "")}>{p.contact_telephone}</a></span> : null}
+        {boutique.whatsapp ? <span>WhatsApp : <a href={lienWhatsApp(boutique.whatsapp, "Bonjour")} target="_blank" rel="noreferrer">nous écrire</a></span> : null}
+        {p.contact_email ? <span>E-mail : <a href={"mailto:" + p.contact_email}>{p.contact_email}</a></span> : null}
+        {p.contact_adresse ? <span>Adresse : {p.contact_adresse}</span> : null}
+        {!p.contact_telephone && !boutique.whatsapp && !p.contact_email ? <span className="rn-muet">Laissez-nous un message, nous vous rappelons.</span> : null}
+      </div>
+      <Champ label="Nom"><input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} required /></Champ>
+      <Champ label="Téléphone"><input type="tel" inputMode="tel" value={f.tel} onChange={(e) => setF({ ...f, tel: e.target.value })} required /></Champ>
+      <Champ label="Votre message"><textarea value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} required /></Champ>
+      <Message ton={msg.ton}>{msg.texte}</Message>
+      <Bouton type="submit" chargement={charge}>Envoyer</Bouton>
+    </form>
   );
 }

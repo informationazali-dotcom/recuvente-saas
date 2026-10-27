@@ -360,6 +360,72 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, appareils: count || 1 });
   }
 
+  // ===== RÉSEAU NATIONAL : un représentant ou un vendeur partenaire active les alertes =====
+  // La session est vérifiée ET le compte doit être un représentant / vendeur actif de cette boutique.
+  if (type === "reseau_subscribe") {
+    const { workspaceId, subscription, role } = req.body || {};
+    const token = String(req.headers.authorization || "").replace("Bearer ", "");
+    if (!token || !workspaceId || !["representant", "vendeur"].includes(role)) return res.status(400).json({ error: "Données manquantes" });
+    const { data: u, error: eu } = await supabaseAdmin.auth.getUser(token);
+    if (eu || !u?.user) return res.status(401).json({ error: "Session invalide" });
+    const table = role === "vendeur" ? "rn_vendeurs" : "rn_representants";
+    const { data: compte } = await supabaseAdmin.from(table).select("id").eq("workspace_id", workspaceId).eq("user_id", u.user.id).eq("statut", "actif").maybeSingle();
+    if (!compte) return res.status(403).json({ error: "Compte non actif sur cette boutique" });
+    const endpoint = subscription?.endpoint;
+    const p256dh = subscription?.keys?.p256dh;
+    const auth = subscription?.keys?.auth;
+    if (!endpoint || !p256dh || !auth || !/^https:\/\//.test(endpoint)) return res.status(400).json({ error: "Abonnement invalide" });
+    const { error } = await supabaseAdmin.from("rn_push_abonnements").upsert(
+      [{ endpoint, workspace_id: workspaceId, user_id: u.user.id, role, p256dh, auth }],
+      { onConflict: "endpoint" }
+    );
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ ok: true });
+  }
+
+  // ===== RÉSEAU NATIONAL : envoi d'une notification (appelé par la base de données) =====
+  // Le texte vient TOUJOURS de la base ; chaque notification n'est envoyée qu'une seule fois
+  // (le drapeau push_envoye passe de false à true de façon atomique).
+  if (type === "reseau_notification") {
+    const { id, table } = req.body || {};
+    const nomTable = table === "rn_notifications_vendeur" ? "rn_notifications_vendeur" : "rn_notifications";
+    if (!id || !/^[0-9a-f-]{36}$/i.test(String(id))) return res.status(400).json({ error: "Identifiant invalide" });
+    const { data: n } = await supabaseAdmin.from(nomTable).update({ push_envoye: true }).eq("id", id).eq("push_envoye", false).select("*").maybeSingle();
+    if (!n) return res.status(200).json({ ok: true, deja: true });
+    const { data: ws } = await supabaseAdmin.from("workspaces").select("slug").eq("id", n.workspace_id).maybeSingle();
+    const slug = ws?.slug || "";
+    let abonnements = [];
+    let url = "/";
+    if (nomTable === "rn_notifications_vendeur") {
+      const { data: v } = await supabaseAdmin.from("rn_vendeurs").select("user_id").eq("id", n.vendeur_id).maybeSingle();
+      if (v?.user_id) ({ data: abonnements } = await supabaseAdmin.from("rn_push_abonnements").select("*").eq("workspace_id", n.workspace_id).eq("user_id", v.user_id).eq("role", "vendeur"));
+      url = `/?reseau=${encodeURIComponent(slug)}&espace=vendeur`;
+    } else if (n.cible === "representant") {
+      const { data: r } = await supabaseAdmin.from("rn_representants").select("user_id").eq("id", n.representant_id).maybeSingle();
+      if (r?.user_id) ({ data: abonnements } = await supabaseAdmin.from("rn_push_abonnements").select("*").eq("workspace_id", n.workspace_id).eq("user_id", r.user_id).eq("role", "representant"));
+      url = `/?reseau=${encodeURIComponent(slug)}&espace=representant`;
+    } else if (n.cible === "admin") {
+      // L'administration reçoit l'alerte sur les appareils déjà enregistrés pour la boutique.
+      const res2 = await envoyerAuxAbonnements(await abonnementsWorkspace(n.workspace_id), { title: n.titre, body: n.message || "", url: "/admin/", tag: "rn-" + n.id });
+      return res.status(200).json({ ok: true, ...res2 });
+    }
+    abonnements = abonnements || [];
+    const contenu = JSON.stringify({ title: n.titre, body: n.message || "", url, tag: "rn-" + n.id });
+    const morts = [];
+    let envoyes = 0;
+    await Promise.all(abonnements.map(async (abo) => {
+      try {
+        await webpush.sendNotification({ endpoint: abo.endpoint, keys: { p256dh: abo.p256dh, auth: abo.auth } }, contenu, { urgency: "high", TTL: 60 * 60 * 6 });
+        envoyes += 1;
+      } catch (e) {
+        const corps = String(e.body || e.message || "").toLowerCase();
+        if (e.statusCode === 404 || e.statusCode === 410 || (e.statusCode === 403 && corps.includes("vapid"))) morts.push(abo.endpoint);
+      }
+    }));
+    if (morts.length > 0) await supabaseAdmin.from("rn_push_abonnements").delete().in("endpoint", morts);
+    return res.status(200).json({ ok: true, envoyes, total: abonnements.length });
+  }
+
   // ===== Le navigateur a renouvelé l'abonnement tout seul (événement pushsubscriptionchange) =====
   // Appelé par le service worker (sans session) : on ne transfère que si l'ANCIEN abonnement existe
   // déjà en base — l'appareil garde exactement la même boutique et le même utilisateur.

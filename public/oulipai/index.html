@@ -31,7 +31,7 @@ if (/^\d{10,20}$/.test(window.PIXEL_ID)) {
   --titre:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --texte:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:76px}
+html{scroll-behavior:smooth;scroll-padding-top:112px}
 body{margin:0;background:var(--papier);color:var(--encre);font-family:var(--texte);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
 img{max-width:100%;display:block}
 a{color:inherit}
@@ -54,7 +54,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .btn-ligne:hover{box-shadow:inset 0 0 0 1.5px #fff}
 
 /* en-tête */
-.entete{position:sticky;top:0;z-index:50;background:rgba(11,22,36,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
+.entete{position:sticky;top:34px;z-index:50;background:rgba(11,22,36,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
 .entete .cadre{display:flex;align-items:center;gap:20px;min-height:70px}
 .marque{display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff}
 .marque img{height:38px;width:auto}
@@ -120,7 +120,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .besoin em{font-style:normal;font-weight:700;color:var(--bleu);font-size:14px;margin-top:4px}
 
 /* catalogue */
-.filtres{position:sticky;top:70px;z-index:20;background:rgba(244,247,250,.95);backdrop-filter:blur(8px);margin-top:26px;border-bottom:1px solid var(--trait)}
+.filtres{position:sticky;top:104px;z-index:20;background:rgba(244,247,250,.95);backdrop-filter:blur(8px);margin-top:26px;border-bottom:1px solid var(--trait)}
 .filtres .cadre{display:flex;gap:8px;overflow-x:auto;padding-top:12px;padding-bottom:12px;scrollbar-width:none}
 .puce{flex:none;border:1px solid var(--trait);background:#fff;color:var(--encre);border-radius:999px;padding:9px 16px;font:600 15px var(--texte);cursor:pointer;white-space:nowrap}
 .puce[aria-pressed="true"]{background:var(--nuit);border-color:var(--nuit);color:#fff}
@@ -256,8 +256,8 @@ body.mode-cible .chiffres{display:none}
 .a-partir b{font-family:var(--titre);font-size:32px;line-height:1;color:#fff}
 
 /* bandeau d'annonce */
-.annonce{background:linear-gradient(90deg,var(--bleu),#1670B0);color:#fff;font-size:13px;font-weight:700;overflow:hidden;white-space:nowrap}
-.annonce-defile{display:inline-flex;gap:42px;padding:8px 0;animation:defile 36s linear infinite}
+.annonce{position:sticky;top:0;z-index:55;height:34px;background:linear-gradient(90deg,var(--bleu),#1670B0);color:#fff;font-size:13px;font-weight:700;overflow:hidden;white-space:nowrap}
+.annonce-defile{display:inline-flex;gap:42px;line-height:34px;animation:defile 36s linear infinite}
 .annonce-defile span::before{content:"✦";color:var(--orange);margin-right:10px}
 @keyframes defile{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.annonce-defile{animation:none}}
@@ -342,7 +342,7 @@ body.mode-cible .chiffres{display:none}
 .compteur button{width:40px;height:40px;border-radius:50%;border:0;font:700 22px var(--texte);cursor:pointer;background:var(--papier);color:var(--nuit)}
 .compteur button.plus{background:var(--bleu);color:#fff}
 .compteur span{min-width:22px;font-family:var(--titre);font-size:24px;font-weight:800}
-.resultat{position:sticky;top:140px;background:var(--nuit);color:#fff;border-radius:22px;padding:24px;display:grid;gap:12px}
+.resultat{position:sticky;top:174px;background:var(--nuit);color:#fff;border-radius:22px;padding:24px;display:grid;gap:12px}
 .resultat .sur{color:var(--ciel)}
 .resultat .grand{font-family:var(--titre);font-size:56px;font-weight:800;line-height:.9}
 .resultat .grand small{font-size:24px;color:var(--ciel);margin-left:4px}

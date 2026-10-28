@@ -21,7 +21,7 @@ const FICHES = {
   },
   "GUIDE-CANDIDATS-2027": {
     public: "Pour les candidates et candidats au Concours Miss & Mister Excellence",
-    resume: "Le guide de référence pour se préparer au concours, de l'inscription à la finale.",
+    resume: "Les conditions de participation, les étapes du concours et la préparation, de l'inscription à la finale.",
     chapitres: [
       ["Le concours", "Les étapes, le calendrier et les critères de sélection."],
       ["La préparation", "Prise de parole, culture générale, présence sur scène."],
@@ -161,7 +161,7 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
             <p className="rnl-offre-note">Livré près de chez vous · vous payez à la réception · Wave, Orange Money, MTN</p>
             <button className="rnl-vu-tv" onClick={() => allerA("rnl-presse")}>
               <span className="rnl-vu-tv-jeu" aria-hidden="true">{P.jouer}</span>
-              <span><small>Vu à la télévision</small>Au journal de 13h de RTI 1</span>
+              <span><small>Vu à la télévision</small>Les deux guides présentés au 13h de RTI 1</span>
             </button>
           </div>
 
@@ -301,6 +301,7 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
                     </button>
                   </div>
                   <p className="rnl-guide-rassure">{P.coche} Exemplaire neuf · paiement à la réception</p>
+                  <button className="rnl-guide-rti" onClick={() => allerA("rnl-presse")}>{P.jouer} Présenté au journal de 13h de RTI 1</button>
                 </div>
               </article>
             );
@@ -417,10 +418,14 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
 
 // ------------------------------------------------------------------ section « vu à la télévision » (RTI 1)
 const PRESSE = "/excellence/presse/";
+// Propos tenus dans le reportage (journal de 13h de RTI 1)
 const PERSONNALITES = [
-  ["gboko-adjoumani.jpg", "Gboko Adjoumani", "Représentant du ministre de l'Éducation nationale, de l'Alphabétisation et de l'Enseignement technique"],
-  ["angele-elodie-kouame.jpg", "Angèle Élodie Kouamé", "Présidente du comité d'organisation"],
-  ["emmanuel-atta.jpg", "Emmanuel Atta", "Sous-directeur Partenariat et Mobilisation"],
+  ["gboko-adjoumani.jpg", "Gboko Adjoumani", "Représentant du ministre de l'Éducation nationale, de l'Alphabétisation et de l'Enseignement technique",
+    "Notre ambition est de faire de l'école un espace où chaque élève peut découvrir ses potentialités, développer ses compétences et apprendre à mettre ses talents au service de la collectivité."],
+  ["angele-elodie-kouame.jpg", "Angèle Élodie Kouamé", "Présidente du comité d'organisation",
+    "Les guides, c'est l'accompagnement que nous avons mis en place pour les élèves qui vont décider de suivre notre vision."],
+  ["emmanuel-atta.jpg", "Emmanuel Atta", "Sous-directeur Partenariat et Mobilisation",
+    "L'objectif, c'est de présenter les élèves méritants d'une autre manière."],
 ];
 function Presse() {
   const ref = useRef(null);
@@ -445,15 +450,22 @@ function Presse() {
           </div>
           <div className="rnl-presse-texte">
             <p className="rnl-surtitre">Vu à la télévision nationale</p>
-            <h2>Le lancement officiel du concours, au journal de 13h de RTI 1</h2>
-            <p>La rubrique Éducation du journal de 13h a consacré un reportage au lancement officiel du Concours Miss & Mister Excellence Côte d'Ivoire 2027, en présence d'un représentant du ministre de l'Éducation nationale, de l'Alphabétisation et de l'Enseignement technique.</p>
-            <ul className="rnl-personnalites" aria-label="Personnalités intervenues lors du lancement">
-              {PERSONNALITES.map(([img, n, r]) => (
-                <li key={n}><img src={PRESSE + img} alt={n} loading="lazy" /><span><b>{n}</b>{r}</span></li>
-              ))}
-            </ul>
+            <h2>Les deux guides présentés au journal de 13h de RTI 1</h2>
+            <figure className="rnl-citation-rti">
+              <blockquote>« Pour accompagner les candidats, deux guides sont présentés. Le premier, consacré à la réussite et à l'excellence, propose des outils pour progresser sur les plans scolaire et professionnel. Le second précise les conditions de participation. »</blockquote>
+              <figcaption>RTI 1 · Le 13H · Rubrique Éducation</figcaption>
+            </figure>
+            <p>Le reportage revient sur le lancement officiel du Concours Miss & Mister Excellence 2027 à Abidjan, une initiative qui veut promouvoir l'excellence scolaire, le leadership et le bon comportement chez les jeunes. Selon la RTI, la Direction de la vie scolaire salue l'initiative, qu'elle considère comme un cadre de valorisation des talents et de développement de la confiance en soi.</p>
           </div>
         </div>
+        <ul className="rnl-personnalites" aria-label="Ils ont pris la parole dans le reportage" data-apparait>
+          {PERSONNALITES.map(([img, n, r, c]) => (
+            <li key={n}>
+              <blockquote>« {c} »</blockquote>
+              <div className="rnl-personnalite"><img src={PRESSE + img} alt={n} loading="lazy" /><span><b>{n}</b>{r}</span></div>
+            </li>
+          ))}
+        </ul>
         <div className="rnl-theme" data-apparait>
           <span className="rnl-theme-tag">Thème officiel 2027</span>
           <p>« Les réseaux sociaux : levier d'excellence ou facteur de dérive chez les jeunes ? »</p>
@@ -935,11 +947,19 @@ const CSS = `
 .rnl-presse-texte{display:grid;gap:16px;align-content:start}
 .rnl-presse-texte h2{font-size:clamp(28px,3.4vw,40px);line-height:1.08;text-wrap:balance}
 .rnl-presse-texte > p:not(.rnl-surtitre){margin:0;color:rgba(255,255,255,.78);line-height:1.65}
-.rnl-personnalites{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
-.rnl-personnalites li{display:flex;gap:14px;align-items:center;padding:10px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
-.rnl-personnalites img{width:52px;height:64px;flex:none;object-fit:cover;border-radius:10px}
-.rnl-personnalites span{font-size:13px;line-height:1.45;color:rgba(255,255,255,.7)}
-.rnl-personnalites b{display:block;font-size:15px;color:#fff;font-family:var(--f-titre)}
+.rnl-citation-rti{margin:4px 0 0;padding:20px 22px;border-left:3px solid var(--or);border-radius:0 16px 16px 0;background:rgba(255,255,255,.06)}
+.rnl-citation-rti blockquote{margin:0;font-family:var(--f-titre);font-size:clamp(17px,1.7vw,20px);line-height:1.45;color:#fff}
+.rnl-citation-rti figcaption{margin-top:10px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--or)}
+.rnl-personnalites{list-style:none;margin:44px 0 0;padding:0;display:grid;gap:16px}
+@media (min-width:900px){.rnl-personnalites{grid-template-columns:repeat(3,1fr)}}
+.rnl-personnalites li{display:flex;flex-direction:column;justify-content:space-between;gap:18px;padding:22px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+.rnl-personnalites blockquote{margin:0;font-family:var(--f-titre);font-size:17px;line-height:1.5;color:rgba(255,255,255,.92)}
+.rnl-personnalite{display:flex;gap:12px;align-items:center;padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}
+.rnl-personnalites img{width:48px;height:58px;flex:none;object-fit:cover;border-radius:10px}
+.rnl-personnalite span{font-size:12.5px;line-height:1.45;color:rgba(255,255,255,.65)}
+.rnl-personnalite b{display:block;font-size:15px;color:#fff;font-family:var(--f-titre)}
+.rnl .rnl-guide-rti{font:inherit;display:inline-flex;align-items:center;gap:8px;justify-self:start;background:none;border:0;padding:0;cursor:pointer;font-size:13px;font-weight:600;color:var(--v);text-decoration:underline;text-underline-offset:3px}
+.rnl-guide-rti svg{width:14px;height:14px;color:var(--or)}
 .rnl-theme{margin-top:44px;display:grid;gap:12px;justify-items:center;text-align:center;padding:30px 24px;border-radius:22px;border:1px solid color-mix(in srgb,var(--or) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--or) 10%,transparent),transparent)}
 .rnl-theme-tag{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#21130C;background:var(--or);padding:6px 14px;border-radius:999px}
 .rnl-theme p{margin:0;font-family:var(--f-titre);font-size:clamp(20px,2.8vw,30px);line-height:1.25;max-width:30ch;text-wrap:balance}

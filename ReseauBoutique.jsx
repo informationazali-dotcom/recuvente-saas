@@ -910,7 +910,11 @@ function Contact({ supabase, slug, boutique }) {
     <form className="rn-panneau" onSubmit={envoyer}>
       <h2>Nous contacter</h2>
       <div className="rn-carte rn-pile" style={{ gap: 6 }}>
-        {p.contact_telephone ? <span>Téléphone : <a href={"tel:" + p.contact_telephone.replace(/[^0-9+]/g, "")}>{p.contact_telephone}</a></span> : null}
+        {p.contact_telephone ? (
+          <span>Téléphone : {p.contact_telephone.split(/[\/,;]/).map((n) => n.trim()).filter(Boolean).map((n, i) => (
+            <React.Fragment key={n}>{i ? " · " : ""}<a href={"tel:" + n.replace(/[^0-9+]/g, "")}>{n}</a></React.Fragment>
+          ))}</span>
+        ) : null}
         {boutique.whatsapp ? <span>WhatsApp : <a href={lienWhatsApp(boutique.whatsapp, "Bonjour")} target="_blank" rel="noreferrer">nous écrire</a></span> : null}
         {p.contact_email ? <span>E-mail : <a href={"mailto:" + p.contact_email}>{p.contact_email}</a></span> : null}
         {p.contact_adresse ? <span>Adresse : {p.contact_adresse}</span> : null}

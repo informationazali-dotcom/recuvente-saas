@@ -124,6 +124,11 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .filtres .cadre{display:flex;gap:8px;overflow-x:auto;padding-top:12px;padding-bottom:12px;scrollbar-width:none}
 .puce{flex:none;border:1px solid var(--trait);background:#fff;color:var(--encre);border-radius:999px;padding:9px 16px;font:600 15px var(--texte);cursor:pointer;white-space:nowrap}
 .puce[aria-pressed="true"]{background:var(--nuit);border-color:var(--nuit);color:#fff}
+.puce small{display:block;font-size:11px;font-weight:600;opacity:.7;margin-top:1px}
+@media (max-width:759px){
+  .filtres .cadre{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;overflow:visible;padding-top:8px;padding-bottom:8px}
+  .puce{padding:7px 4px;font-size:14px;border-radius:12px;white-space:normal;line-height:1.15;text-align:center}
+}
 .groupe-titre{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:42px 0 6px}
 .groupe-titre h3{font-size:30px;font-weight:800}
 .groupe-titre span{font-family:var(--titre);font-size:20px;color:var(--bleu);text-transform:uppercase}
@@ -815,7 +820,8 @@ function rendre(){
 }
 function puces(){
   const box = document.getElementById('puces');
-  box.innerHTML = [{id:'all', label:'Tous les groupes'}, ...CATS].map(c => `<button type="button" class="puce" aria-pressed="${c.id===filtre}" data-id="${c.id}">${c.label}</button>`).join('');
+  const court = { all:'Tous', petit:'Petits', maison:'Maison', pro:'Commerce', entreprise:'Entreprise', industrie:'Industrie' };
+  box.innerHTML = [{id:'all', label:'Tous les groupes'}, ...CATS].map(c => `<button type="button" class="puce" aria-pressed="${c.id===filtre}" data-id="${c.id}">${c.id === 'all' ? 'Tous' : c.label}${c.id === 'all' ? '<small>3 à 1000 kVA</small>' : '<small>' + court[c.id] + '</small>'}</button>`).join('');
 }
 function choisir(id){ filtre = id; puces(); rendre(); document.getElementById('prix').scrollIntoView(); pixel('ChoixGamme', {gamme:id}, true); }
 document.getElementById('puces').addEventListener('click', e => { const b = e.target.closest('.puce'); if (b) choisir(b.dataset.id); });

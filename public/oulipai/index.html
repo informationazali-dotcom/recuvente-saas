@@ -255,6 +255,38 @@ body.mode-cible .chiffres{display:none}
 .a-partir small{font-size:14px;color:rgba(255,255,255,.75)}
 .a-partir b{font-family:var(--titre);font-size:32px;line-height:1;color:#fff}
 
+/* bandeau d'annonce */
+.annonce{background:linear-gradient(90deg,var(--bleu),#1670B0);color:#fff;font-size:13px;font-weight:700;overflow:hidden;white-space:nowrap}
+.annonce-defile{display:inline-flex;gap:42px;padding:8px 0;animation:defile 36s linear infinite}
+.annonce-defile span::before{content:"✦";color:var(--orange);margin-right:10px}
+@keyframes defile{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.annonce-defile{animation:none}}
+/* déroulé entreprises */
+.deroule{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:12px;counter-reset:d}
+.deroule li{counter-increment:d;display:grid;grid-template-columns:40px 1fr;column-gap:12px;align-items:start}
+.deroule li::before{content:counter(d);grid-row:span 2;width:36px;height:36px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;font-family:var(--titre);font-weight:800;font-size:20px}
+.deroule b{font-family:var(--titre);font-size:21px;text-transform:uppercase}
+.deroule span{color:rgba(255,255,255,.75);font-size:15px}
+.fiche label{display:grid;gap:6px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.85)}
+.fiche input,.fiche select{font:500 15px var(--texte);padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.95);color:var(--encre);width:100%}
+.fiche-deux{display:grid;gap:12px}
+@media (min-width:520px){.fiche-deux{grid-template-columns:1fr 1fr}}
+.fiche .btn{width:100%}
+/* conseils */
+.conseils{display:grid;gap:14px;margin-top:26px}
+@media (min-width:860px){.conseils{grid-template-columns:repeat(4,1fr)}}
+.conseil{background:#fff;border:1px solid var(--trait);border-top:4px solid var(--bleu);border-radius:18px;padding:20px}
+.conseil b{display:block;font-family:var(--titre);font-size:22px;text-transform:uppercase;margin-bottom:6px}
+.conseil p{margin:0;color:var(--gris);font-size:15px}
+.verifier{margin-top:18px;background:var(--nuit);color:#fff;border-radius:22px;padding:26px}
+.verifier h3{font-size:clamp(22px,2.6vw,30px);font-weight:800;margin-bottom:14px}
+.verifier ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+@media (min-width:860px){.verifier ul{grid-template-columns:1fr 1fr}}
+.verifier li{display:flex;gap:10px;align-items:flex-start}
+.verifier li svg{width:22px;height:22px;color:#3ddc84;flex:none;margin-top:1px}
+.verifier li span{color:rgba(255,255,255,.8)}
+.verifier li b{color:#fff}
+
 /* visite du dépôt */
 .visite{display:grid;gap:26px;align-items:center;background:var(--nuit);color:#fff;border-radius:26px;padding:28px;overflow:hidden}
 @media (min-width:900px){.visite{grid-template-columns:1.1fr .9fr;padding:40px 44px}}
@@ -349,11 +381,12 @@ body.mode-cible .chiffres{display:none}
 </head>
 <body>
 
+<div class="annonce" role="note"><div class="annonce-defile"><span>Garantie 1 an sur chaque groupe</span><span>Transport et installation offerts à Abidjan</span><span>Visitez le dépôt de Yopougon avant d'acheter</span><span>Proforma au nom de votre société</span><span>Garantie 1 an sur chaque groupe</span><span>Transport et installation offerts à Abidjan</span><span>Visitez le dépôt de Yopougon avant d'acheter</span><span>Proforma au nom de votre société</span></div></div>
 <header class="entete">
   <div class="cadre">
     <a class="marque" href="#haut" aria-label="OU LI PAI IVOIRE, accueil"><img src="/oulipai/ailes.png" alt=""><span><b>OU LI PAI</b><small>Ivoire · Énergie</small></span></a>
     <nav class="menu" aria-label="Navigation">
-      <a href="#prix">Prix</a><a href="#calcul">Calculer ma puissance</a><a href="#garantie">Garantie</a><a href="#livraison">Livraison</a><a href="#entreprises">Entreprises</a><a href="#faq">Questions</a>
+      <a href="#prix">Prix</a><a href="#calcul">Calculer ma puissance</a><a href="#garantie">Garantie</a><a href="#livraison">Livraison</a><a href="#entreprises">Entreprises</a><a href="#choisir">Conseils</a><a href="#faq">Questions</a>
     </nav>
     <a class="btn btn-wa" data-wa="general" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i><span>WhatsApp</span></a>
   </div>
@@ -546,17 +579,50 @@ body.mode-cible .chiffres{display:none}
     <div>
       <p class="sur" style="color:var(--ciel)">Entreprises, électriciens, chantiers</p>
       <h2 class="titre">Un groupe pour votre société ?</h2>
-      <p class="sous">Supermarchés, boulangeries, immeubles, usines, chantiers : on dimensionne avec vous et on prépare la proforma au nom de votre société.</p>
-      <ul>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Proforma et devis sur simple demande</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Groupes industriels jusqu'à 1000 kVA</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Électriciens : on prépare l'offre pour votre client avec vous</li>
-      </ul>
+      <p class="sous">Supermarchés, boulangeries, hôtels, cliniques, immeubles, usines, chantiers : on dimensionne avec vous, on prépare la proforma au nom de votre société et on reste à vos côtés après l'installation.</p>
+      <ol class="deroule">
+        <li><b>Votre besoin</b><span>Vous nous dites ce que le groupe doit alimenter. On vous conseille la bonne puissance.</span></li>
+        <li><b>Proforma</b><span>Établie au nom de votre société, pour votre validation interne.</span></li>
+        <li><b>Visite du dépôt</b><span>Votre équipe ou votre électricien vient voir le groupe à Yopougon.</span></li>
+        <li><b>Livraison et installation</b><span>Par nos techniciens, avec tout le matériel d'installation. Offertes à Abidjan.</span></li>
+        <li><b>Suivi</b><span>Garantie 1 an, contrat d'entretien toutes les 100 heures, pièces d'origine de l'usine.</span></li>
+      </ol>
     </div>
-    <div class="pro-carte">
-      <b>Demander une proforma</b>
-      <p>Indiquez la puissance souhaitée et le nom de votre société : on vous répond rapidement sur WhatsApp.</p>
-      <a class="btn btn-wa" data-wa="proforma" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Demander ma proforma</a>
+    <form class="pro-carte fiche" id="fiche-besoin">
+      <b>Demander ma proforma</b>
+      <p>Remplissez ce qui vous concerne : votre demande arrive complète sur WhatsApp.</p>
+      <label>Nom de la société<input name="societe" autocomplete="organization" placeholder="Ex. Boulangerie du Plateau"></label>
+      <label>Type de site<select name="site"><option>Maison / villa</option><option>Boutique / maquis</option><option>Boulangerie</option><option>Supermarché</option><option>Hôtel / clinique</option><option>Immeuble / bureaux</option><option>Usine</option><option>Chantier</option><option>Autre</option></select></label>
+      <div class="fiche-deux">
+        <label>Puissance (si connue)<select name="kva"><option value="">Je ne sais pas</option></select></label>
+        <label>Ville<input name="ville" placeholder="Ex. Abidjan, Bouaké…"></label>
+      </div>
+      <label>Ce qu'il faut alimenter<input name="appareils" placeholder="Ex. 6 climatiseurs, 2 chambres froides, four"></label>
+      <button class="btn btn-wa" type="submit"><i class="ic-wa"></i>Envoyer ma demande</button>
+    </form>
+  </div>
+</section>
+
+<section class="section" id="choisir">
+  <div class="cadre apparait">
+    <p class="sur">Le conseil de l'expert</p>
+    <h2 class="titre">Bien choisir son groupe électrogène</h2>
+    <div class="conseils">
+      <div class="conseil"><b>kVA ou kW ?</b><p>La puissance d'un groupe s'écrit en kVA. La puissance réellement utilisable est d'environ 80 % : un groupe de 100 kVA fournit environ 80 kW.</p></div>
+      <div class="conseil"><b>Monophasé ou triphasé ?</b><p>Une maison est souvent en monophasé. Les commerces, usines et immeubles qui ont des moteurs, des chambres froides ou des grosses machines ont besoin du triphasé.</p></div>
+      <div class="conseil"><b>Insonorisé ou ouvert ?</b><p>Le groupe insonorisé est enfermé dans un capot qui réduit le bruit et le protège de la pluie et de la poussière : c'est le bon choix près des habitations et des clients.</p></div>
+      <div class="conseil"><b>Prévoir une marge</b><p>Les moteurs, climatiseurs et pompes demandent plus de courant au démarrage. Il faut donc choisir un groupe un peu plus puissant que la somme de vos appareils. Notre calculateur en tient compte.</p></div>
+    </div>
+    <div class="verifier">
+      <h3>Avant d'acheter un groupe, vérifiez toujours…</h3>
+      <ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>La marque du moteur.</b> Chez nous : moteur diesel Perkins.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>L'alternateur.</b> Chez nous : alternateur Stamford.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Une garantie claire.</b> Chez nous : 1 an sur chaque groupe.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Un entretien suivi.</b> Chez nous : un contrôle toutes les 100 heures avec le contrat d'entretien.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Des pièces d'origine.</b> Chez nous : commandées directement à l'usine de fabrication.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Pouvoir voir le groupe.</b> Chez nous : visite libre du dépôt de Yopougon, du lundi au samedi.</span></li>
+      </ul>
     </div>
   </div>
 </section>
@@ -587,6 +653,9 @@ body.mode-cible .chiffres{display:none}
       <details><summary>D'où viennent les pièces ?</summary><p>Nous commandons la pièce d'origine directement à l'usine de fabrication du groupe.</p></details>
       <details><summary>Puis-je voir le groupe avant d'acheter ?</summary><p>Oui, bien sûr. Passez au dépôt de Yopougon du lundi au samedi pour voir les groupes. Prévenez-nous sur WhatsApp, on vous indique le chemin.</p></details>
       <details><summary>Vendez-vous autre chose que des groupes ?</summary><p>Oui, nous vendons aussi des pondeuses de briques. Demandez les modèles et les prix sur WhatsApp.</p></details>
+      <details><summary>Le groupe peut-il démarrer tout seul pendant une coupure ?</summary><p>C'est possible avec un inverseur automatique adapté à votre installation. Parlez-en à notre conseiller sur WhatsApp : il vous propose la solution qui convient.</p></details>
+      <details><summary>Monophasé ou triphasé : comment savoir ?</summary><p>Regardez votre compteur ou demandez à votre électricien. En cas de doute, envoyez-nous une photo de votre compteur sur WhatsApp : on vous dit tout de suite.</p></details>
+      <details><summary>Pouvez-vous faire une proforma au nom de ma société ?</summary><p>Oui. Indiquez le nom de votre société et la puissance souhaitée : nous établissons la proforma à son nom.</p></details>
       <details><summary>Quelle marque de moteur ?</summary><p>Moteur diesel Perkins et alternateur Stamford sur les groupes insonorisés.</p></details>
       <details><summary>Je ne sais pas quelle puissance choisir.</summary><p>Écrivez-nous ce que vous voulez alimenter (climatiseurs, congélateurs, pompe, machines…) ou envoyez un vocal : on vous conseille la bonne puissance.</p></details>
       <details><summary>Vous travaillez le dimanche ?</summary><p>Non. Les livraisons et installations se font du lundi au samedi.</p></details>
@@ -723,6 +792,8 @@ function carte(g){
         <dt>Puissance</dt><dd>${kv(g.kw)} kW</dd>
         <dt>Courant</dt><dd>${g.a ? kv(g.a)+' A' : '—'}</dd>
         <dt>Alimentation</dt><dd>${phases}</dd>
+        <dt>Fréquence</dt><dd>50 Hz</dd>
+        ${ouvert ? '' : '<dt>Commande</dt><dd>Tableau numérique</dd><dt>Sécurité</dt><dd>Arrêt d\'urgence</dd>'}
       </dl>
       <div class="capacite"><i>${cap.ic === 'immeuble' ? IMMEUBLE : cap.ic === 'usine' ? USINE : cap.n ? CLIM : MAISON}</i><span>${cap.n ? '<b>' + cap.n + '</b> ' : ''}${cap.txt}</span></div>
       <div><div class="prix-ligne"><div class="prix">${fmt(g.p)}<small>FCFA</small></div>${voix ? '<button type="button" class="ecouter" data-dire-kva="' + g.kva + '" aria-label="Écouter le prix">' + HP + '</button>' : ''}</div>
@@ -768,6 +839,26 @@ document.addEventListener('click', e => {
 
 // Tuiles : vraies pages publicitaires en ligne (/oulipai/maison…), sinon paramètre « ?pour= »
 document.querySelectorAll('.tuile').forEach(t => { t.href = location.pathname.startsWith('/oulipai') ? '/oulipai/' + t.dataset.seg : '?pour=' + t.dataset.seg; });
+
+// Fiche besoin (entreprises) : le message WhatsApp arrive complet
+(() => {
+  const f = document.getElementById('fiche-besoin'); if (!f) return;
+  const sel = f.querySelector('select[name="kva"]');
+  DATA.forEach(g => { const o = document.createElement('option'); o.value = g.kva; o.textContent = kv(g.kva) + ' kVA — ' + fmt(g.p) + ' FCFA'; sel.appendChild(o); });
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(f));
+    const lignes = ['Bonjour OU LI PAI IVOIRE, je souhaite une proforma.'];
+    if (v.societe) lignes.push('Société : ' + v.societe);
+    lignes.push('Type de site : ' + v.site);
+    lignes.push('Puissance : ' + (v.kva ? kv(v.kva) + ' kVA' : 'à conseiller'));
+    if (v.ville) lignes.push('Ville : ' + v.ville);
+    if (v.appareils) lignes.push('À alimenter : ' + v.appareils);
+    const g = DATA.find(x => String(x.kva) === v.kva);
+    pixel('Lead', g ? { content_name: 'Proforma ' + v.kva + ' kVA', value: g.p, currency: 'XOF' } : { content_name: 'Proforma' });
+    window.open(lien(lignes.join('\n')), '_blank', 'noopener');
+  });
+})();
 
 // Boutons « Écouter »
 if (!voix) document.querySelectorAll('.ecouter').forEach(b => b.hidden = true);

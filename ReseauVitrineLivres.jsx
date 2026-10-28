@@ -4,7 +4,7 @@
 // Page d'accueil nationale : les guides, la commande pour les établissements,
 // la livraison dans tout le pays, les questions fréquentes.
 // =====================================================================
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fmt, rpc, erreurTexte, lienWhatsApp, Bouton, Champ, Message, Icone, useInstallation, BoutonInstaller } from "./ReseauCommun.jsx";
 
 // Contenu éditorial propre à chaque guide (repéré par sa référence)
@@ -71,6 +71,7 @@ const P = {
   ecole: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11.5V16c0 1.4 2.2 3 5 3s5-1.6 5-3v-4.5M21 9v6"/></svg>,
   couronne: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/><path d="M5 21h14"/></svg>,
   fleche: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>,
+  jouer: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 001.5.86l10.6-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg>,
   coche: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>,
 };
 
@@ -158,6 +159,10 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
               <button className="rnl-btn rnl-btn-ligne" onClick={() => allerA("rnl-etablissements")}>Équiper une classe</button>
             </div>
             <p className="rnl-offre-note">Livré près de chez vous · vous payez à la réception · Wave, Orange Money, MTN</p>
+            <button className="rnl-vu-tv" onClick={() => allerA("rnl-presse")}>
+              <span className="rnl-vu-tv-jeu" aria-hidden="true">{P.jouer}</span>
+              <span><small>Vu à la télévision</small>Au journal de 13h de RTI 1</span>
+            </button>
           </div>
 
           <div className="rnl-scene">
@@ -198,6 +203,9 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
           <li><span>{P.recu}</span><b>Reçu officiel</b><small>Téléchargeable après la commande</small></li>
         </ul>
       </section>
+
+      {/* ------------------------------------------------ vu à la télévision */}
+      <Presse />
 
       {/* ------------------------------------------------ pour qui */}
       <section className="rnl-section rnl-cadre" data-apparait>
@@ -325,11 +333,13 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
       {/* ------------------------------------------------ valeurs */}
       <section className="rnl-valeurs" data-apparait>
         <div className="rnl-cadre">
+          <p className="rnl-surtitre-sombre">L'Excellence, un modèle de réussite</p>
           <blockquote>« La beauté qui inspire, l'intelligence qui transforme. »</blockquote>
-          <div className="rnl-piliers">
-            <div><b>Beauté</b><span>Prendre soin de soi et de son image, avec dignité.</span></div>
+          <div className="rnl-piliers rnl-piliers-4">
+            <div><b>Beauté intellectuelle</b><span>Mettre en lumière l'intelligence, la culture et l'élégance de l'esprit.</span></div>
             <div><b>Leadership</b><span>Oser prendre la parole, décider et entraîner les autres.</span></div>
-            <div><b>Excellence</b><span>Viser le meilleur, à l'école comme dans la vie.</span></div>
+            <div><b>Responsabilité</b><span>Assumer ses choix et donner l'exemple, à l'école comme en ligne.</span></div>
+            <div><b>Engagement</b><span>Porter des projets utiles à sa communauté et à son pays.</span></div>
           </div>
         </div>
       </section>
@@ -402,6 +412,54 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
         </div>
       ) : null}
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ section « vu à la télévision » (RTI 1)
+const PRESSE = "/excellence/presse/";
+const PERSONNALITES = [
+  ["gboko-adjoumani.jpg", "Gboko Adjoumani", "Représentant du ministre de l'Éducation nationale, de l'Alphabétisation et de l'Enseignement technique"],
+  ["angele-elodie-kouame.jpg", "Angèle Élodie Kouamé", "Présidente du comité d'organisation"],
+  ["emmanuel-atta.jpg", "Emmanuel Atta", "Sous-directeur Partenariat et Mobilisation"],
+];
+function Presse() {
+  const ref = useRef(null);
+  const [lecture, setLecture] = useState(false);
+  const lancer = () => { setLecture(true); setTimeout(() => ref.current?.play?.().catch(() => {}), 30); };
+  return (
+    <section id="rnl-presse" className="rnl-presse">
+      <div className="rnl-cadre">
+        <div className="rnl-presse-grille" data-apparait>
+          <div className="rnl-video">
+            <div className="rnl-video-cadre">
+              <video ref={ref} src={PRESSE + "rti-13h-lancement.mp4"} poster={PRESSE + "rti-affiche.jpg"} preload="none" playsInline controls={lecture}
+                onPlay={() => setLecture(true)} aria-label="Reportage du journal de 13h de RTI 1 sur le lancement officiel du Concours Miss & Mister Excellence 2027" />
+              {!lecture ? (
+                <button className="rnl-video-jouer" onClick={lancer} aria-label="Lire le reportage (2 min)">
+                  <span className="rnl-video-rond">{P.jouer}</span>
+                  <span className="rnl-video-titre"><small>Le 13H · RTI 1 · Éducation · 2 min</small>Regarder le reportage</span>
+                </button>
+              ) : null}
+            </div>
+            <p className="rnl-video-legende">Journal de 13h de RTI 1, rubrique Éducation. Reportage : Grâce Guéladé, Didier N'Guessan, Djama Sow · Montage : Joseph Assiedou.</p>
+          </div>
+          <div className="rnl-presse-texte">
+            <p className="rnl-surtitre">Vu à la télévision nationale</p>
+            <h2>Le lancement officiel du concours, au journal de 13h de RTI 1</h2>
+            <p>La rubrique Éducation du journal de 13h a consacré un reportage au lancement officiel du Concours Miss & Mister Excellence Côte d'Ivoire 2027, en présence d'un représentant du ministre de l'Éducation nationale, de l'Alphabétisation et de l'Enseignement technique.</p>
+            <ul className="rnl-personnalites" aria-label="Personnalités intervenues lors du lancement">
+              {PERSONNALITES.map(([img, n, r]) => (
+                <li key={n}><img src={PRESSE + img} alt={n} loading="lazy" /><span><b>{n}</b>{r}</span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="rnl-theme" data-apparait>
+          <span className="rnl-theme-tag">Thème officiel 2027</span>
+          <p>« Les réseaux sociaux : levier d'excellence ou facteur de dérive chez les jeunes ? »</p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -510,6 +568,7 @@ const CSS = `
   --f-titre:"Fraunces",Georgia,"Times New Roman",serif;--f-texte:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   font-family:var(--f-texte);color:var(--encre);background:var(--papier)}
 .rnl *{box-sizing:border-box}
+.rnl section[id]{scroll-margin-top:84px}
 @media (max-width:959px){.rnl-avec-barre{padding-bottom:84px}}
 .rnl-cadre{max-width:1180px;margin:0 auto;padding-left:20px;padding-right:20px}
 .rnl h1,.rnl h2,.rnl h3{font-family:var(--f-titre);font-weight:700;letter-spacing:-.01em;margin:0}
@@ -848,6 +907,47 @@ const CSS = `
 
 .rnl-bientot{display:inline-block;margin-right:auto;font-weight:600;color:var(--v);background:var(--lavande);border:1px dashed color-mix(in srgb,var(--v) 40%,#fff);padding:8px 14px;border-radius:999px;font-size:14px}
 .rnl-guide-bientot .rnl-guide-couverture{cursor:default}
+/* badge « vu à la télévision » dans l'ouverture */
+.rnl .rnl-vu-tv{font:inherit;display:inline-flex;align-items:center;gap:12px;background:none;border:0;padding:4px 0;color:#fff;cursor:pointer;text-align:left}
+.rnl-vu-tv-jeu{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--v);box-shadow:0 0 0 6px rgba(255,255,255,.12)}
+.rnl-vu-tv-jeu svg{width:16px;height:16px;margin-left:2px}
+.rnl-vu-tv span:last-child{font-weight:700;font-size:14.5px;line-height:1.25}
+.rnl-vu-tv small{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--or)}
+.rnl .rnl-vu-tv:hover .rnl-vu-tv-jeu{transform:scale(1.06)}
+
+/* presse */
+.rnl-presse{background:#140818;color:#fff;padding:76px 0 64px;position:relative;overflow:hidden}
+.rnl-presse::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 70% at 15% 20%,color-mix(in srgb,var(--v) 75%,transparent),transparent 70%),radial-gradient(50% 60% at 90% 90%,color-mix(in srgb,var(--or) 18%,transparent),transparent 70%);pointer-events:none}
+.rnl-presse .rnl-cadre{position:relative}
+.rnl-presse-grille{display:grid;gap:36px;align-items:center}
+@media (min-width:980px){.rnl-presse-grille{grid-template-columns:1.25fr 1fr;gap:56px}}
+.rnl-video-cadre{position:relative;border-radius:20px;overflow:hidden;background:#000;aspect-ratio:16/9;box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.08)}
+.rnl-video video{display:block;width:100%;height:100%;object-fit:cover;background:#000}
+.rnl .rnl-video-jouer{position:absolute;inset:0;border:0;padding:0 0 22px 22px;cursor:pointer;display:flex;align-items:flex-end;gap:16px;color:#fff;font:inherit;text-align:left;background:linear-gradient(180deg,rgba(20,8,24,0) 30%,rgba(20,8,24,.92) 100%)}
+.rnl-video-rond{width:70px;height:70px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--or);color:#21130C;box-shadow:0 0 0 10px color-mix(in srgb,var(--or) 25%,transparent);transition:transform .25s}
+.rnl-video-rond svg{width:26px;height:26px;margin-left:4px}
+.rnl .rnl-video-jouer:hover .rnl-video-rond{transform:scale(1.08)}
+@media (prefers-reduced-motion:no-preference){.rnl-video-rond{animation:rnl-halo 2.4s infinite}@keyframes rnl-halo{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--or) 45%,transparent)}100%{box-shadow:0 0 0 22px transparent}}}
+.rnl-video-titre{display:grid;font-family:var(--f-titre);font-size:clamp(18px,2.2vw,24px);font-weight:700;line-height:1.15;padding-bottom:6px}
+.rnl-video-titre small{font-family:var(--f-texte);font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--or);margin-bottom:4px}
+.rnl-video-titre em{font-style:normal;font-family:var(--f-texte);font-size:13px;font-weight:600;opacity:.75;margin-left:6px}
+.rnl-video-legende{margin:12px 2px 0;font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.5}
+.rnl-presse-texte{display:grid;gap:16px;align-content:start}
+.rnl-presse-texte h2{font-size:clamp(28px,3.4vw,40px);line-height:1.08;text-wrap:balance}
+.rnl-presse-texte > p:not(.rnl-surtitre){margin:0;color:rgba(255,255,255,.78);line-height:1.65}
+.rnl-personnalites{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
+.rnl-personnalites li{display:flex;gap:14px;align-items:center;padding:10px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+.rnl-personnalites img{width:52px;height:64px;flex:none;object-fit:cover;border-radius:10px}
+.rnl-personnalites span{font-size:13px;line-height:1.45;color:rgba(255,255,255,.7)}
+.rnl-personnalites b{display:block;font-size:15px;color:#fff;font-family:var(--f-titre)}
+.rnl-theme{margin-top:44px;display:grid;gap:12px;justify-items:center;text-align:center;padding:30px 24px;border-radius:22px;border:1px solid color-mix(in srgb,var(--or) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--or) 10%,transparent),transparent)}
+.rnl-theme-tag{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#21130C;background:var(--or);padding:6px 14px;border-radius:999px}
+.rnl-theme p{margin:0;font-family:var(--f-titre);font-size:clamp(20px,2.8vw,30px);line-height:1.25;max-width:30ch;text-wrap:balance}
+
+/* valeurs à quatre piliers */
+@media (min-width:860px){.rnl-piliers-4{grid-template-columns:repeat(4,1fr)!important}}
+.rnl-piliers-4 b{font-size:20px!important}
+
 `;
 
 // ------------------------------------------------------------------ en-tête de la boutique des guides
@@ -869,6 +969,7 @@ export function EnteteLivres({ boutique, nbPanier, aller, vue }) {
         </button>
         <nav className="rnl-menu" aria-label="Navigation principale">
           <button onClick={() => versAccueil("rnl-guides")}>Les guides</button>
+          <button onClick={() => versAccueil("rnl-presse")}>Vu à la RTI</button>
           <button onClick={() => versAccueil("rnl-etablissements")}>Établissements</button>
           <button onClick={() => aller({ vue: "mes-commandes" })} aria-current={vue === "mes-commandes" ? "page" : undefined}>Suivre ma commande</button>
           <button onClick={() => aller({ vue: "page", page: "contact" })}>Contact</button>

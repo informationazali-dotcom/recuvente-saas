@@ -102,7 +102,6 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
   // la collection affichée en vitrine : les guides en vente, puis ceux annoncés
   const collection = [...guides, ...aParaitre].slice(0, 2);
   const enVente = guides.filter((a) => a.disponible);
-  const prixMin = enVente.length ? Math.min(...enVente.map((a) => Number(a.prix) || 0)) : null;
   const editions = [...new Set(collection.map((a) => (a.marque || "").match(/\d{4}/)?.[0]).filter(Boolean))].sort();
   const edition = editions.length ? editions.join(" – ") : String(new Date().getFullYear());
   const [ongletContenu, setOngletContenu] = useState(0);
@@ -394,9 +393,12 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
       {/* ------------------------------------------------ barre d'achat (téléphone) */}
       {enVente.length ? (
         <div className={"rnl-barre" + (barre ? " rnl-barre-on" : "")} aria-hidden={!barre}>
-          <span className="rnl-barre-livres">{collection.map((a) => (a.photos?.[0] ? <img key={a.id} src={a.photos[0]} alt="" /> : null))}</span>
-          <span><b>{enVente.length > 1 ? "Les guides officiels" : court(enVente[0])}</b>{enVente.length > 1 ? `dès ${fmt(prixMin)}` : fmt(enVente[0].prix)} · payé à la réception</span>
-          <button className="rnl-btn rnl-btn-or" tabIndex={barre ? 0 : -1} onClick={() => (enVente.length > 1 ? allerA("rnl-guides") : ajouter(enVente[0], 1))}>Commander</button>
+          {enVente.map((a) => (
+            <button key={a.id} className="rnl-barre-choix" tabIndex={barre ? 0 : -1} onClick={() => ajouter(a, 1)} aria-label={`Commander : ${court(a)}, ${fmt(a.prix)}`}>
+              {a.photos?.[0] ? <img src={a.photos[0]} alt="" /> : null}
+              <span><small>{a.reference === "GUIDE-CANDIDATS-2027" ? "Guide des candidats" : a.reference === "GUIDE-REUSSITE-2026" ? "Guide de la Réussite" : a.titre}</small><b>{fmt(a.prix)}</b></span>
+            </button>
+          ))}
         </div>
       ) : null}
     </div>
@@ -676,11 +678,15 @@ const CSS = `
 .rnl-telephone-nom{display:none}
 
 /* barre d'achat fixe (téléphone) */
-.rnl-barre{position:fixed;z-index:60;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 10px;border-radius:18px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);box-shadow:0 18px 40px -12px rgba(30,5,40,.45),0 0 0 1px var(--trait);transform:translateY(130%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.rnl-barre{position:fixed;z-index:60;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:8px;padding:8px;border-radius:18px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);box-shadow:0 18px 40px -12px rgba(30,5,40,.45),0 0 0 1px var(--trait);transform:translateY(130%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .rnl-barre-on{transform:none}
-.rnl-barre-livres{display:flex;flex:none!important}
-.rnl-barre img{width:34px;border-radius:2px 4px 4px 2px;box-shadow:0 6px 12px -4px rgba(0,0,0,.4)}
-.rnl-barre-livres img + img{margin-left:-12px;transform:rotate(6deg)}
+.rnl .rnl-barre-choix{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font:inherit;text-align:left;border:0;border-radius:12px;padding:6px 10px 6px 6px;cursor:pointer;background:var(--v);color:#fff}
+.rnl .rnl-barre-choix + .rnl-barre-choix{background:linear-gradient(180deg,color-mix(in srgb,var(--or) 82%,#fff),var(--or));color:#21130C}
+.rnl-barre-choix img{width:30px;flex:none;border-radius:2px 4px 4px 2px;box-shadow:0 4px 10px -3px rgba(0,0,0,.45)}
+.rnl .rnl-barre .rnl-barre-choix span{display:grid;min-width:0;flex:1;color:inherit;font-size:inherit}
+.rnl .rnl-barre .rnl-barre-choix b{color:inherit;font-size:16px}
+.rnl-barre-choix small{font-size:11px;font-weight:600;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rnl .rnl-barre-choix b{font-family:var(--f-titre);font-size:16px;color:inherit;white-space:nowrap}
 .rnl-barre span{flex:1;min-width:0;font-size:12.5px;color:var(--gris);line-height:1.3}
 .rnl-barre b{display:block;font-family:var(--f-titre);font-size:15px;color:var(--v);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rnl .rnl-barre .rnl-btn{min-height:44px;padding:10px 18px}

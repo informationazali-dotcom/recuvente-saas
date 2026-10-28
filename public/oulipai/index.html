@@ -532,7 +532,7 @@ body:has(dialog[open]){overflow:hidden}
   <div class="cadre apparait">
     <p class="sur">Catalogue et prix</p>
     <h2 class="titre">Tous nos groupes, tous nos prix</h2>
-    <p class="sous">Moteur Perkins, alternateur Stamford. Prix en FCFA hors taxe, matériel d'installation compris. Pour une facture avec taxe, le prix avec taxe (3 %) est indiqué sur chaque groupe.</p>
+    <p class="sous">Moteur Perkins, alternateur Stamford. Prix en FCFA, matériel d'installation compris. À partir de 100 kVA, le prix est hors taxe et le prix avec taxe (3 %) est indiqué sur le groupe.</p>
   </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre" id="puces"></div></nav>
   <div class="cadre" id="catalogue"></div>
@@ -739,7 +739,7 @@ body:has(dialog[open]){overflow:hidden}
       <details><summary>Le groupe peut-il démarrer tout seul pendant une coupure ?</summary><p>C'est possible avec un inverseur automatique adapté à votre installation. Parlez-en à notre conseiller sur WhatsApp : il vous propose la solution qui convient.</p></details>
       <details><summary>Monophasé ou triphasé : comment savoir ?</summary><p>Regardez votre compteur ou demandez à votre électricien. En cas de doute, envoyez-nous une photo de votre compteur sur WhatsApp : on vous dit tout de suite.</p></details>
       <details><summary>Pouvez-vous faire une proforma au nom de ma société ?</summary><p>Oui. Indiquez le nom de votre société et la puissance souhaitée : nous établissons la proforma à son nom, hors taxe ou avec taxe, selon ce dont votre société a besoin.</p></details>
-      <details><summary>Les prix sont-ils hors taxe ?</summary><p>Oui, les prix affichés sont hors taxe. Pour les sociétés qui ont besoin d'une facture avec taxe, la taxe est de 3 % : le prix avec taxe est indiqué sur chaque groupe.</p></details>
+      <details><summary>Et la taxe ?</summary><p>À partir de 100 kVA, les prix affichés sont hors taxe. Pour les sociétés qui ont besoin d'une facture avec taxe, la taxe est de 3 % : le prix avec taxe est indiqué sur chaque groupe concerné.</p></details>
       <details><summary>Quelle marque de moteur ?</summary><p>Moteur diesel Perkins et alternateur Stamford sur les groupes insonorisés.</p></details>
       <details><summary>Je ne sais pas quelle puissance choisir.</summary><p>Écrivez-nous ce que vous voulez alimenter (climatiseurs, congélateurs, pompe, machines…) ou envoyez un vocal : on vous conseille la bonne puissance.</p></details>
       <details><summary>Vous travaillez le dimanche ?</summary><p>Non. Les livraisons et installations se font du lundi au samedi.</p></details>
@@ -882,12 +882,14 @@ const REF = (() => {
   return r;
 })();
 const refTxt = () => REF ? '\n(Réf. pub : ' + REF + ')' : '';
+const avecTaxe = g => g.kva >= 100;
+const ht = g => avecTaxe(g) ? ' hors taxe' : '';
 const typeGroupe = g => g.c === 'petit' ? 'Groupe ouvert' : 'Insonorisé';
 const phasesDe = g => g.c === 'petit' ? 'Monophasé 230 V' : (g.kva <= 20 ? 'Mono ou triphasé' : 'Triphasé 400 V');
 function msgGroupe(g, q){
   q = q || 1;
-  const l = [`Bonjour OU LI PAI IVOIRE, je souhaite commander le groupe électrogène ${kv(g.kva)} kVA (${kv(g.kw)} kW), affiché à ${fmt(g.p)} FCFA hors taxe.`];
-  if (q > 1) l.push(`Quantité : ${q} groupes (total ${fmt(g.p * q)} FCFA hors taxe).`);
+  const l = [`Bonjour OU LI PAI IVOIRE, je souhaite commander le groupe électrogène ${kv(g.kva)} kVA (${kv(g.kw)} kW), affiché à ${fmt(g.p)} FCFA${ht(g)}.`];
+  if (q > 1) l.push(`Quantité : ${q} groupes (total ${fmt(g.p * q)} FCFA${ht(g)}).`);
   l.push('Est-il disponible ? Pouvez-vous me confirmer la livraison et la garantie ?');
   l.push('Fiche du groupe : ' + urlFiche(g));
   return l.join('\n') + refTxt();
@@ -904,8 +906,8 @@ function carte(g){
       <div class="resume">${kv(g.kw)} kW · ${phasesDe(g)}</div>
       <div class="capacite"><i>${cap.ic === 'immeuble' ? IMMEUBLE : cap.ic === 'usine' ? USINE : cap.n ? CLIM : MAISON}</i><span>${cap.n ? '<b>' + cap.n + '</b> ' : ''}${cap.txt}</span></div>
       <div><div class="prix-ligne"><div class="prix">${fmt(g.p)}<small>FCFA</small></div>${voix ? '<button type="button" class="ecouter" data-dire-kva="' + g.kva + '" aria-label="Écouter le prix">' + HP + '</button>' : ''}</div>
-      <div class="en-lettres">${enLettres(g.p)} francs CFA · hors taxe</div>
-      <div class="avec-taxe">Avec taxe (3 %) : <b>${fmt(Math.round(g.p * 1.03))} FCFA</b></div>
+      <div class="en-lettres">${enLettres(g.p)} francs CFA${avecTaxe(g) ? ' · hors taxe' : ''}</div>
+      ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}
       <div class="note">${COCHE}${ouvert ? 'Transport offert à Abidjan' : 'Transport et installation offerts à Abidjan'}</div>
       <div class="note">${COCHE}Garantie 1 an</div></div>
       <a class="btn btn-wa" href="${lien(msgGroupe(g))}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Commander sur WhatsApp</a>
@@ -936,12 +938,12 @@ function remplirDetail(){
       <div class="capacite"><i>${cap.ic === 'immeuble' ? IMMEUBLE : cap.ic === 'usine' ? USINE : cap.n ? CLIM : MAISON}</i><span>${cap.n ? 'Fait marcher environ <b>' + cap.n + '</b> ' : 'Idéal pour : '}${cap.txt}</span></div>
       <div class="detail-prix">
         <div class="prix">${fmt(g.p)}<small>FCFA</small></div>
-        <div class="en-lettres">${enLettres(g.p)} francs CFA · hors taxe</div>
-        <div class="avec-taxe">Avec taxe (3 %) : <b>${fmt(Math.round(g.p * 1.03))} FCFA</b></div>
+        <div class="en-lettres">${enLettres(g.p)} francs CFA${avecTaxe(g) ? ' · hors taxe' : ''}</div>
+        ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}
       </div>
       <div class="detail-qte"><span>Quantité</span>
         <div class="compteur"><button type="button" data-q="-1" aria-label="Retirer un groupe">−</button><span id="detail-n">${quantite}</span><button type="button" class="plus" data-q="1" aria-label="Ajouter un groupe">+</button></div>
-        <em id="detail-total">${quantite > 1 ? 'Total : ' + fmt(g.p * quantite) + ' FCFA HT' : ''}</em>
+        <em id="detail-total">${quantite > 1 ? 'Total : ' + fmt(g.p * quantite) + ' FCFA' + (avecTaxe(g) ? ' HT' : '') : ''}</em>
       </div>
       <a class="btn btn-wa btn-grand" id="detail-wa" href="${lien(msgGroupe(g, quantite))}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p * quantite}">${ICON_WA}Commander sur WhatsApp</a>
       <div class="detail-deux">
@@ -985,7 +987,7 @@ document.addEventListener('click', e => {
   if (q && enCours) {
     quantite = Math.min(50, Math.max(1, quantite + Number(q.dataset.q)));
     document.getElementById('detail-n').textContent = quantite;
-    document.getElementById('detail-total').textContent = quantite > 1 ? 'Total : ' + fmt(enCours.p * quantite) + ' FCFA HT' : '';
+    document.getElementById('detail-total').textContent = quantite > 1 ? 'Total : ' + fmt(enCours.p * quantite) + ' FCFA' + (avecTaxe(enCours) ? ' HT' : '') : '';
     const a = document.getElementById('detail-wa'); a.href = lien(msgGroupe(enCours, quantite)); a.dataset.prix = enCours.p * quantite;
   }
   if (e.target.closest('#detail-devis') && enCours) {
@@ -1148,13 +1150,13 @@ function dessinerAppareils(){
   const technique = besoin > max.kva || g.kva >= 100 || ['four', 'froide', 'soudure', 'moteur'].some(id => qte[id]);
   const msg = besoin > max.kva
     ? `Bonjour OU LI PAI IVOIRE, j'ai utilisé le calculateur. Mes appareils : ${detail}. Il me faut plus de ${fmt(max.kva)} kVA : pouvez-vous étudier mon installation ?`
-    : `Bonjour OU LI PAI IVOIRE, j'ai utilisé le calculateur. Mes appareils : ${detail}. Le site me conseille le groupe ${kv(g.kva)} kVA à ${fmt(g.p)} FCFA hors taxe. Pouvez-vous confirmer la bonne puissance ?`;
+    : `Bonjour OU LI PAI IVOIRE, j'ai utilisé le calculateur. Mes appareils : ${detail}. Le site me conseille le groupe ${kv(g.kva)} kVA à ${fmt(g.p)} FCFA${ht(g)}. Pouvez-vous confirmer la bonne puissance ?`;
   box.innerHTML = besoin > max.kva
     ? `<p class="sur">Étude technique</p><div class="grand">+${fmt(max.kva)}<small>kVA</small></div>
     <p>Votre besoin dépasse notre plus grand groupe. Notre technicien étudie votre installation avec vous (plusieurs groupes possibles).</p>
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-wa-info="calcul-etude">${ICON_WA}Envoyer ma liste sur WhatsApp</a>`
     : `<p class="sur">Groupe conseillé (estimation)</p><div class="grand">${kv(g.kva)}<small>kVA</small></div>
-    <div class="prix-r">${fmt(g.p)} FCFA <small>HT</small></div><p>Estimation pour ${detail}.</p>
+    <div class="prix-r">${fmt(g.p)} FCFA${avecTaxe(g) ? ' <small>HT</small>' : ''}</div><p>Estimation pour ${detail}.</p>
     ${technique ? '<p class="verif-tech">Avec des machines, fours, chambres froides ou une forte puissance, notre technicien vérifie avec vous le triphasé et le courant de démarrage avant de confirmer.</p>' : '<p>Un conseiller vous confirme la bonne puissance.</p>'}
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Envoyer ma liste sur WhatsApp</a>
     <button type="button" class="btn btn-detail btn-detail-clair" data-detail="${g.kva}">Voir la fiche du ${kv(g.kva)} kVA</button>`;

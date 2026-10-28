@@ -500,7 +500,7 @@ const CSS = `
 .rn-entete{position:sticky;top:0;z-index:50;background:rgba(251,248,246,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--rn-trait)}
 .rn-entete-in{display:flex;align-items:center;justify-content:space-between;gap:10px;height:62px}
 .rn-marque{display:flex;align-items:center;gap:10px;background:none;border:0;cursor:pointer;padding:0;text-align:left}
-.rn-marque img{width:38px;height:38px;object-fit:contain;border-radius:50%}
+.rn-marque img{width:46px;height:46px;object-fit:contain;border-radius:50%}
 .rn-marque-nom{font-family:var(--rn-titre);font-size:19px;font-weight:700;line-height:1.05;color:var(--rn-prune);max-width:52vw}
 .rn-entete-actions{display:flex;gap:6px;align-items:center}
 .rn-icone-btn{position:relative;background:none;border:0;cursor:pointer;padding:9px;border-radius:12px;display:inline-flex;color:var(--rn-encre)}
@@ -642,6 +642,16 @@ const CSS = `
 .rn-segment{display:inline-flex;background:var(--rn-perle);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
 .rn .rn-segment button{border:0;background:transparent;padding:6px 12px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer;color:var(--rn-texte)}
 .rn .rn-segment button[aria-pressed=true]{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.rn-univers{max-width:1180px;margin:8px auto 0;padding:0 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.rn .rn-univers-carte{aspect-ratio:4/5;border:0;border-radius:18px;background-size:cover;background-position:center;color:#fff;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;padding:14px;cursor:pointer;text-align:left;font:inherit}
+.rn-univers-carte b{font-size:16px;line-height:1.2}.rn-univers-carte span{font-size:12px;opacity:.85}
+.rn-etapes{max-width:1180px;margin:22px auto;padding:0 16px}.rn-etapes h2{margin-bottom:12px}
+.rn-etapes ol{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;counter-reset:e}
+.rn-etapes li{background:#fff;border:1px solid var(--rn-trait);border-radius:18px;padding:16px 16px 16px 58px;position:relative;display:grid;gap:4px;counter-increment:e}
+.rn-etapes li::before{content:counter(e);position:absolute;left:16px;top:16px;width:30px;height:30px;border-radius:50%;background:var(--rn-prune);color:#fff;display:grid;place-items:center;font-weight:700}
+.rn-etapes li span{font-size:14px;color:var(--rn-gris)}
+.rn-heros-logo{position:relative;z-index:2;display:block;margin:24px 0 -28px 16px;width:96px;height:96px;border-radius:50%;background:#fff;padding:3px;box-shadow:0 6px 24px rgba(0,0,0,.25);opacity:.97}
+@media (min-width:760px){.rn-heros-logo{position:absolute;margin:0;width:180px;height:180px;right:7%;top:50%;transform:translateY(-50%)}}
 `;
 
 export const Icone = {

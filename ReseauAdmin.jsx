@@ -391,7 +391,7 @@ function Commandes({ supabase, workspaceId, base, rechargerAlertes }) {
             <thead><tr><th>Commande</th><th>Client</th><th>Zone</th><th>Statut</th><th>Paiement</th><th className="rn-num">Total</th></tr></thead>
             <tbody>{visibles.map((c) => (
               <tr key={c.id} className="rn-cliquable" onClick={() => setOuverte(c.id)}>
-                <td><b>{c.numero}</b><br /><span className="rn-muet rn-petit">{fmtDate(c.created_at)}</span></td>
+                <td><b>{c.numero}</b>{c.express ? <> <Pastille ton="danger">Express</Pastille></> : null}<br /><span className="rn-muet rn-petit">{fmtDate(c.created_at)}</span></td>
                 <td>{c.client_nom}<br /><span className="rn-muet rn-petit">{c.client_tel}</span></td>
                 <td>{c.zone?.nom}{c.type_livraison === "interurbaine" ? <><br /><span className="rn-petit rn-muet">interurbaine</span></> : null}</td>
                 <td><StatutCommande statut={c.statut} /></td>
@@ -462,6 +462,7 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
           {c.note_client ? <span className="rn-petit">Message : {c.note_client}</span> : null}
           {c.date_livraison_souhaitee ? <span className="rn-petit"><b>Livraison souhaitée le {new Date(c.date_livraison_souhaitee + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</b></span> : null}
           {c.livraison_modifiee_at ? <span className="rn-petit rn-muet">Livraison modifiée le {fmtDate(c.livraison_modifiee_at)}</span> : null}
+          {c.express ? <Pastille ton="danger">Livraison express</Pastille> : null}
           <span className="rn-petit rn-muet">Code de remise : {c.code_livraison} · Livraison {c.type_livraison} {c.delai_jours ? `(${c.delai_jours} j)` : ""}{c.code_promo ? ` · Code promo ${c.code_promo}` : ""}</span>
         </div>
 
@@ -562,9 +563,15 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
 // =================================================================== ARTICLES
 function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
   const [liste, setListe] = useState(null);
-  const [filtre, setFiltre] = useState({ statut: "", q: "", cat: "" });
+  const [filtre, setFiltre] = useState({ statut: "", q: "", cat: "", zone: "" });
   const [edit, setEdit] = useState(null);
   const [vendeurs, setVendeurs] = useState([]);
+  // une zone englobe ses villes et communes : on remonte la hiérarchie depuis la zone du représentant
+  const dansZone = (repId, zoneId) => {
+    let z = base.zones.find((x) => x.id === base.reps.find((r) => r.id === repId)?.zone_id);
+    for (let i = 0; z && i < 5; i++) { if (z.id === zoneId) return true; z = base.zones.find((x) => x.id === z.parent_id); }
+    return false;
+  };
   const [msg, setMsg] = useState({});
   const charger = useCallback(async () => {
     const { data } = await supabase.from("rn_articles").select("*, stocks:rn_stocks(quantite, reservee, representant_id)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(1000);
@@ -575,7 +582,7 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
   const nomRep = (id) => base.reps.find((r) => r.id === id)?.nom || "—";
   const proposePar = (a) => (a.propose_par_type === "representant" ? nomRep(a.propose_par_id) : a.propose_par_type === "vendeur" ? `Vendeur : ${vendeurs.find((v) => v.id === a.vendeur_id)?.nom || "partenaire"}` : "Administration");
   const q = filtre.q.trim().toLowerCase();
-  const visibles = (liste || []).filter((a) => (!filtre.statut || a.statut === filtre.statut) && (!filtre.cat || a.categorie === filtre.cat) && (!q || [a.titre, a.reference, a.marque].some((v) => String(v || "").toLowerCase().includes(q))));
+  const visibles = (liste || []).filter((a) => (!filtre.statut || a.statut === filtre.statut) && (!filtre.cat || a.categorie === filtre.cat) && (!filtre.zone || (a.stocks || []).some((x) => x.quantite > x.reservee && dansZone(x.representant_id, filtre.zone))) && (!q || [a.titre, a.reference, a.marque].some((v) => String(v || "").toLowerCase().includes(q))));
   const aValider = (liste || []).filter((a) => a.statut === "en_attente").length;
 
   const enregistrer = async () => {
@@ -656,6 +663,9 @@ function Articles({ supabase, workspaceId, base, param, rechargerAlertes }) {
         </select>
         <select value={filtre.cat} onChange={(e) => setFiltre({ ...filtre, cat: e.target.value })} aria-label="Catégorie">
           <option value="">Toutes les catégories</option>{base.categories.filter((c) => !c.parent_id).map((c) => <option key={c.id}>{c.nom}</option>)}
+        </select>
+        <select value={filtre.zone} onChange={(e) => setFiltre({ ...filtre, zone: e.target.value })} aria-label="Zone">
+          <option value="">Toutes les zones</option>{[...base.zones].sort((a, b) => a.nom.localeCompare(b.nom, "fr")).map((z) => <option key={z.id} value={z.id}>Disponible : {z.nom}</option>)}
         </select>
         <input type="search" placeholder="Titre, référence, marque" value={filtre.q} onChange={(e) => setFiltre({ ...filtre, q: e.target.value })} aria-label="Rechercher" />
       </div>
@@ -1287,6 +1297,7 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
         modes_paiement: v.modes_paiement, numeros_paiement: v.numeros_paiement, vendeurs_actifs: v.vendeurs_actifs, whatsapp_service: v.whatsapp_service || null,
         couleur_principale: v.couleur_principale, couleur_or: v.couleur_or, logo_url: v.logo_url || null, textes: v.textes, updated_at: new Date().toISOString(),
         seuil_stock_faible: Number(v.seuil_stock_faible) || 0, livraison_offerte_des: v.livraison_offerte_des === "" || v.livraison_offerte_des == null ? null : Number(v.livraison_offerte_des),
+        express_actif: !!v.express_actif, frais_express: Number(v.frais_express) || 0, delai_express_heures: Number(v.delai_express_heures) || 4,
         frais_par_km: Number(v.frais_par_km) || 0, frais_par_kg: Number(v.frais_par_kg) || 0, photo_livraison_obligatoire: !!v.photo_livraison_obligatoire,
         contact_email: v.contact_email || null, contact_telephone: v.contact_telephone || null, contact_adresse: v.contact_adresse || null,
       }).eq("workspace_id", workspaceId);
@@ -1342,6 +1353,13 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
             <Champ label="Supplément par kg (FCFA)" aide="Selon le poids des articles. 0 = désactivé."><input inputMode="numeric" value={v.frais_par_kg ?? 0} onChange={maj("frais_par_kg")} /></Champ>
             <Champ label="Seuil de stock faible (pièces)"><input inputMode="numeric" value={v.seuil_stock_faible ?? 3} onChange={maj("seuil_stock_faible")} /></Champ>
           </div>
+          <label className="rn-interrupteur"><input type="checkbox" checked={!!v.express_actif} onChange={(e) => setV({ ...v, express_actif: e.target.checked })} /> Proposer la livraison express (livraisons locales)</label>
+          {v.express_actif ? (
+            <div className="rn-grille-2">
+              <Champ label="Supplément express (FCFA)"><input inputMode="numeric" value={v.frais_express ?? 1500} onChange={maj("frais_express")} /></Champ>
+              <Champ label="Délai express annoncé (heures)"><input inputMode="numeric" value={v.delai_express_heures ?? 4} onChange={maj("delai_express_heures")} /></Champ>
+            </div>
+          ) : null}
           <label className="rn-interrupteur"><input type="checkbox" checked={!!v.photo_livraison_obligatoire} onChange={(e) => setV({ ...v, photo_livraison_obligatoire: e.target.checked })} /> Photo de remise obligatoire à la livraison</label>
           <label className="rn-interrupteur"><input type="checkbox" checked={v.vendeurs_actifs} onChange={(e) => setV({ ...v, vendeurs_actifs: e.target.checked })} /> Activer les vendeurs partenaires</label>
         </div>
@@ -1376,6 +1394,7 @@ function Journal({ supabase, workspaceId }) {
   const ACTIONS = { paiement_valide: "Paiement validé", affectation_manuelle: "Affectation manuelle", article_valide: "Article publié", article_refuse: "Article refusé", stock_entree: "Entrée de stock", stock_sortie: "Sortie de stock", stock_retour: "Retour en stock", stock_ajustement: "Ajustement de stock" };
   return (
     <>
+      <Diagnostic supabase={supabase} workspaceId={workspaceId} />
       <h2>Journal des opérations</h2>
       {!liste ? <span className="rn-spin" /> : liste.length ? (
         <div className="rn-table-boite"><table className="rn-table">
@@ -1489,5 +1508,35 @@ function CarteReseau({ supabase, workspaceId, aller }) {
         </div>
       </div>
     </>
+  );
+}
+
+// =================================================================== DIAGNOSTIC (supervision)
+function Diagnostic({ supabase, workspaceId }) {
+  const [d, setD] = useState(null);
+  const charger = useCallback(() => { rpc(supabase, "rn_diagnostic", { p_ws: workspaceId }).then(setD).catch(() => setD(false)); }, [supabase, workspaceId]);
+  useEffect(() => { charger(); }, [charger]);
+  if (d === false) return null;
+  if (!d) return <span className="rn-spin" />;
+  const minutes = d.tache_minute?.derniere_execution ? Math.round((Date.now() - new Date(d.tache_minute.derniere_execution)) / 60000) : null;
+  const lignes = [
+    ["Moteur automatique (toutes les minutes)", minutes == null ? "Pas d'information" : minutes <= 3 ? `OK, il y a ${minutes} min` : `Arrêté depuis ${minutes} min`, minutes != null && minutes <= 3 && d.tache_minute.statut !== "failed"],
+    ["Missions sans réponse non réattribuées", d.missions_bloquees, !d.missions_bloquees],
+    ["Réservations expirées non libérées", d.reservations_bloquees, !d.reservations_bloquees],
+    ["Commandes sans livreur depuis plus d'1 h", d.sans_livreur_1h, !d.sans_livreur_1h],
+    ["Alertes non parvenues aux représentants (24 h)", d.push_non_envoyes_24h, !d.push_non_envoyes_24h],
+    ["Téléphones abonnés aux alertes", `${d.appareils?.representants || 0} représentant(s), ${d.appareils?.vendeurs || 0} vendeur(s)`, true],
+    ["Représentants actifs sans compte ouvert", d.representants_sans_compte, !d.representants_sans_compte],
+    ["Stocks incohérents", d.stock_incoherent, !d.stock_incoherent],
+    ["E-mails envoyés aux clients (24 h)", d.emails_24h, true],
+  ];
+  return (
+    <div className="rn-carte rn-pile" style={{ gap: 8 }}>
+      <div className="rn-entre"><h3>État du système</h3><Bouton petit variante="discret" onClick={charger}>Actualiser</Bouton></div>
+      {lignes.map(([l, v, ok]) => (
+        <div key={l} className="rn-entre rn-petit"><span>{l}</span><Pastille ton={ok ? "ok" : "alerte"}>{String(v)}</Pastille></div>
+      ))}
+      {d.push_non_envoyes_24h ? <p className="rn-petit rn-muet">Alertes non parvenues : vérifiez la clé SUPABASE_SERVICE_ROLE_KEY dans Vercel et que les représentants ont activé les alertes.</p> : null}
+    </div>
   );
 }

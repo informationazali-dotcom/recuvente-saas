@@ -202,7 +202,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
       {accueil ? (
         <>
           <section className="rn-heros">
-            {Icone.couronne}
+            {boutique.logo_url ? <img className="rn-heros-logo" src={boutique.logo_url} alt="" /> : Icone.couronne}
             <div className="rn-heros-in">
               <h1>{t.titre_accueil || "La mode qui a déjà du style, à petit prix"}</h1>
               <p>
@@ -223,6 +223,28 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
             <div>{Icone.oeil}<p><b>De vraies photos</b>Chaque défaut visible est indiqué sur la fiche.</p></div>
             <div>{Icone.camion}<p><b>Livré par un représentant proche</b>Le stock est réparti dans tout le pays.</p></div>
             <div>{Icone.bouclier}<p><b>Code de remise</b>Vous ne remettez le code qu'en recevant votre article.</p></div>
+          </section>
+          {cats.length ? (
+            <section className="rn-univers" aria-label="Rayons">
+              {cats.map((c, i) => {
+                const n = articles.filter((x) => x.categorie === c).length;
+                const ph = articles.find((x) => x.categorie === c && x.photos?.[0])?.photos[0];
+                return (
+                  <button key={c} className="rn-univers-carte" onClick={() => { setCat(c); grilleRef.current?.scrollIntoView({ behavior: "smooth" }); }}
+                    style={ph ? { backgroundImage: `linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.65)),url("${ph}")` } : { background: i % 2 ? "var(--rn-prune)" : "var(--rn-or)" }}>
+                    <b>{c}</b><span>{n ? `${n} pièce${n > 1 ? "s" : ""}` : "Bientôt"}</span>
+                  </button>
+                );
+              })}
+            </section>
+          ) : null}
+          <section className="rn-etapes">
+            <h2>Comment ça marche</h2>
+            <ol>
+              <li><b>Choisissez</b><span>Des pièces de seconde main photographiées en vrai, avec leurs défauts indiqués.</span></li>
+              <li><b>Commandez</b><span>Payez à la livraison ou par Wave, Orange Money, MTN. L'article est réservé pour vous.</span></li>
+              <li><b>Recevez</b><span>Le représentant le plus proche vous livre. Vous donnez votre code de remise à la réception.</span></li>
+            </ol>
           </section>
         </>
       ) : null}
@@ -420,11 +442,11 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
   useEffect(() => {
     if (!f.zone_id || !lignesRpc.length) { setDevis(null); return; }
     let actif = true;
-    rpc(supabase, "rn_devis_complet", { p_slug: slug, p_lignes: lignesRpc, p_zone: f.zone_id, p_code: code || null })
+    rpc(supabase, "rn_devis_v2", { p_slug: slug, p_lignes: lignesRpc, p_zone: f.zone_id, p_code: code || null, p_express: !!f.express })
       .then((d) => actif && setDevis(d))
       .catch((e) => actif && setErreur(erreurTexte(e)));
     return () => { actif = false; };
-  }, [supabase, slug, f.zone_id, lignesRpc, code]);
+  }, [supabase, slug, f.zone_id, lignesRpc, code, f.express]);
   const demain = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
   const maj = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -450,7 +472,7 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
       if (code && devis && devis.code_valide === false) { setEnvoi(false); return setErreur(devis.message_code || "Code promo invalide."); }
       const r = await rpc(supabase, "rn_creer_commande", {
         p_slug: slug,
-        p: { ...f, code_promo: code && devis?.code_valide ? code : null, idempotency_key: cle.current, lignes: lignesRpc },
+        p: { ...f, express: !!(f.express && devis?.express_possible), code_promo: code && devis?.code_valide ? code : null, idempotency_key: cle.current, lignes: lignesRpc },
       });
       commandeCreee(r);
     } catch (e2) {
@@ -506,6 +528,19 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
               ))}
             </select>
           </Champ>
+          {p.express_actif && devis?.express_possible ? (
+            <fieldset className="rn-choix" style={{ border: 0, padding: 0, margin: 0 }}>
+              <legend className="rn-champ-label" style={{ marginBottom: 8 }}>Type de livraison</legend>
+              <label>
+                <input type="radio" name="livraison" checked={!f.express} onChange={() => setF({ ...f, express: false })} />
+                <span><b>Standard</b><br /><span className="rn-muet rn-petit">{devis.delai_jours <= 1 ? "Sous 24 h" : `Sous ${devis.delai_jours} jours`}</span></span>
+              </label>
+              <label>
+                <input type="radio" name="livraison" checked={!!f.express} onChange={() => setF({ ...f, express: true })} />
+                <span><b>Express (+{fmt(p.frais_express)})</b><br /><span className="rn-muet rn-petit">Livré dans les {p.delai_express_heures || 4} heures environ, aux heures ouvrables.</span></span>
+              </label>
+            </fieldset>
+          ) : null}
           <Champ label="Quartier et adresse"><input autoComplete="street-address" placeholder="Ex. Riviera 3, rue des Jardins" value={f.adresse || ""} onChange={maj("adresse")} /></Champ>
           <Champ label="Point de repère" aide="Pharmacie, école, carrefour… ce qui aide le livreur à vous trouver.">
             <input value={f.repere || ""} onChange={maj("repere")} />
@@ -516,7 +551,7 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
             </Bouton>
             <span className="rn-muet rn-petit">Facultatif, pour une livraison plus rapide.</span>
           </div>
-          <Champ label="E-mail (facultatif)"><input type="email" autoComplete="email" value={f.client_email || ""} onChange={maj("client_email")} /></Champ>
+          <Champ label="E-mail (facultatif)" aide="Pour recevoir la confirmation et le suivi de votre commande par e-mail."><input type="email" autoComplete="email" value={f.client_email || ""} onChange={maj("client_email")} /></Champ>
 
           <fieldset className="rn-choix" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="rn-champ-label" style={{ marginBottom: 8 }}>Paiement</legend>
@@ -552,7 +587,7 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
       <div className="rn-carte rn-totaux">
         <div><span>Articles</span><span>{fmt(sousTotal)}</span></div>
         <div>
-          <span>Livraison{devis ? (devis.type_livraison === "interurbaine" ? " (depuis une autre ville)" : "") : ""}</span>
+          <span>Livraison{devis ? (devis.express ? " express" : devis.type_livraison === "interurbaine" ? " (depuis une autre ville)" : "") : ""}</span>
           <span>{devis ? (Number(devis.frais_livraison) === 0 ? "Offerte" : fmt(devis.frais_livraison)) : "Selon votre ville"}</span>
         </div>
         {devis && Number(devis.reduction) > 0 ? (
@@ -562,7 +597,7 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
           <div className="rn-muet rn-petit"><span>Encore {fmt(p.livraison_offerte_des - sousTotal)} d'achat pour la livraison offerte</span><span /></div>
         ) : null}
         {devis ? (
-          <div className="rn-muet rn-petit"><span>Délai estimé</span><span>{devis.delai_jours <= 1 ? "24 h" : `${devis.delai_jours} jours`}</span></div>
+          <div className="rn-muet rn-petit"><span>Délai estimé</span><span>{devis.express ? `${p.delai_express_heures || 4} h environ` : devis.delai_jours <= 1 ? "24 h" : `${devis.delai_jours} jours`}</span></div>
         ) : null}
         <div className="rn-total"><span>Total</span><span>{fmt(total)}</span></div>
       </div>
@@ -646,6 +681,12 @@ function Suivi({ supabase, token, boutique }) {
         </div>
         <StatutCommande statut={c.statut} />
       </div>
+      {c.express ? <Pastille ton="info">Livraison express</Pastille> : null}
+      {boutique.whatsapp && !["livree", "annulee", "remboursee"].includes(c.statut) ? (
+        <a className="rn-btn rn-btn-vert rn-btn-bloc" href={lienWhatsApp(boutique.whatsapp, `Bonjour, je viens de passer la commande ${c.numero} (${fmt(c.total)}). Pouvez-vous me la confirmer ? Mon suivi : ${window.location.href}`)} target="_blank" rel="noreferrer">
+          Recevoir ma confirmation sur WhatsApp
+        </a>
+      ) : null}
 
       {c.statut === "en_attente_paiement" ? (
         <div className="rn-carte rn-pile">

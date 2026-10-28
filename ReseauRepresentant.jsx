@@ -245,6 +245,7 @@ function CarteMission({ supabase, ws, m, recharger }) {
           <p className="rn-muet rn-petit">
             {c.zone}{m.distance_km != null ? `, à ${m.distance_km} km` : ""}{c.type_livraison === "interurbaine" ? ", envoi interurbain" : ""}
           </p>
+          {c.express ? <Pastille ton="danger">EXPRESS</Pastille> : null}
         </div>
         <div style={{ textAlign: "right" }}>
           <Pastille ton={st.ton}>{st.label}</Pastille>

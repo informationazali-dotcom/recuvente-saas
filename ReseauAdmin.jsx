@@ -1365,6 +1365,9 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
         </div>
         <div className="rn-carte rn-pile">
           <h3>Textes de la boutique</h3>
+          <Champ label="Ce que vend la boutique" aide="Adapte les textes de la boutique (accueil, fiches, conditions).">
+            <select value={v.textes.univers || "mode"} onChange={majTexte("univers")}><option value="mode">Mode de seconde main</option><option value="livres">Guides et publications</option></select>
+          </Champ>
           <Champ label="Titre de l'accueil"><input value={v.textes.titre_accueil || ""} onChange={majTexte("titre_accueil")} placeholder="La mode qui a déjà du style, à petit prix" /></Champ>
           <Champ label="Sous-titre de l'accueil"><textarea value={v.textes.sous_titre_accueil || ""} onChange={majTexte("sous_titre_accueil")} /></Champ>
           <Champ label="Page Livraison" aide="Laisser vide pour le texte par défaut."><textarea value={v.textes.page_livraison || ""} onChange={majTexte("page_livraison")} /></Champ>

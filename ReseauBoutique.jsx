@@ -14,6 +14,10 @@ const lirePanier = (slug) => {
 const ecrirePanier = (slug, p) => {
   try { localStorage.setItem("rn_panier_" + slug, JSON.stringify(p)); } catch { /* stockage indisponible */ }
 };
+// « univers » de la boutique : mode de seconde main (par défaut) ou livres / guides
+let LIVRES = false;
+const etatLibelle = (e) => (LIVRES && e === "neuf_etiquette" ? "Neuf" : ETATS[e] || e);
+
 const nouvelleCle = () =>
   (crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2));
 
@@ -50,6 +54,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
   const [panier, setPanier] = useState(() => lirePanier(slug));
   const [nav, aller] = useVue();
   const p = boutique?.parametres || {};
+  LIVRES = p.textes?.univers === "livres";
   useStylesReseau(p.couleur_principale, p.couleur_or);
 
   const charger = useCallback(async () => {
@@ -145,7 +150,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
         <div className="rn-pied-in">
           <div>
             <h3>{nom}</h3>
-            <p>Mode de seconde main sélectionnée, livrée partout en Côte d'Ivoire par notre réseau de représentants.</p>
+            <p>{LIVRES ? "Les publications officielles Miss & Mister Excellence, livrées partout en Côte d'Ivoire par notre réseau de représentants." : "Mode de seconde main sélectionnée, livrée partout en Côte d'Ivoire par notre réseau de représentants."}</p>
           </div>
           <div className="rn-pile" style={{ gap: 8 }}>
             <button onClick={() => aller({ vue: "page", page: "livraison" })}>Livraison</button>
@@ -210,7 +215,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
                   "Vêtements, chaussures, sacs et accessoires de seconde main, vérifiés pièce par pièce et livrés près de chez vous."}
               </p>
               <Bouton variante="or" onClick={() => grilleRef.current?.scrollIntoView({ behavior: "smooth" })}>
-                Voir les {articles.length} articles
+                Voir les {articles.length} {LIVRES ? (articles.length > 1 ? "guides" : "guide") : "articles"}
               </Bouton>
             </div>
             <div className="rn-echarpe" aria-hidden>
@@ -220,7 +225,8 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
             </div>
           </section>
           <section className="rn-reassurance">
-            <div>{Icone.oeil}<p><b>De vraies photos</b>Chaque défaut visible est indiqué sur la fiche.</p></div>
+            {LIVRES ? <div>{Icone.oeil}<p><b>Éditions officielles</b>Les guides du Concours Miss & Mister Excellence, neufs.</p></div>
+              : <div>{Icone.oeil}<p><b>De vraies photos</b>Chaque défaut visible est indiqué sur la fiche.</p></div>}
             <div>{Icone.camion}<p><b>Livré par un représentant proche</b>Le stock est réparti dans tout le pays.</p></div>
             <div>{Icone.bouclier}<p><b>Code de remise</b>Vous ne remettez le code qu'en recevant votre article.</p></div>
           </section>
@@ -232,7 +238,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
                 return (
                   <button key={c} className="rn-univers-carte" onClick={() => { setCat(c); grilleRef.current?.scrollIntoView({ behavior: "smooth" }); }}
                     style={ph ? { backgroundImage: `linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.65)),url("${ph}")` } : { background: i % 2 ? "var(--rn-prune)" : "var(--rn-or)" }}>
-                    <b>{c}</b><span>{n ? `${n} pièce${n > 1 ? "s" : ""}` : "Bientôt"}</span>
+                    <b>{c}</b><span>{n ? (LIVRES ? `${n} guide${n > 1 ? "s" : ""}` : `${n} pièce${n > 1 ? "s" : ""}`) : "Bientôt"}</span>
                   </button>
                 );
               })}
@@ -241,7 +247,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
           <section className="rn-etapes">
             <h2>Comment ça marche</h2>
             <ol>
-              <li><b>Choisissez</b><span>Des pièces de seconde main photographiées en vrai, avec leurs défauts indiqués.</span></li>
+              <li><b>Choisissez</b><span>{LIVRES ? "Votre guide : réussite scolaire ou préparation au concours." : "Des pièces de seconde main photographiées en vrai, avec leurs défauts indiqués."}</span></li>
               <li><b>Commandez</b><span>Payez à la livraison ou par Wave, Orange Money, MTN. L'article est réservé pour vous.</span></li>
               <li><b>Recevez</b><span>Le représentant le plus proche vous livre. Vous donnez votre code de remise à la réception.</span></li>
             </ol>
@@ -259,7 +265,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
         <div className="rn-barre-outils">
           <label className="rn-recherche">
             {Icone.loupe}
-            <input type="search" placeholder="Robe, baskets, Zara…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un article" />
+            <input type="search" placeholder={LIVRES ? "Rechercher un guide…" : "Robe, baskets, Zara…"} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un article" />
           </label>
           <Bouton variante="discret" onClick={() => setFeuille(true)} aria-label="Filtres">
             {Icone.filtres}
@@ -306,7 +312,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
                 {valeurs("taille").map((v) => <option key={v}>{v}</option>)}
               </select>
             </Champ>
-            <Champ label="Marque">
+            <Champ label={LIVRES ? "Édition" : "Marque"}>
               <select value={filtres.marque} onChange={(e) => setFiltres({ ...filtres, marque: e.target.value })}>
                 <option value="">Toutes</option>
                 {valeurs("marque").map((v) => <option key={v}>{v}</option>)}
@@ -338,7 +344,7 @@ function CarteArticle({ a, ouvrir }) {
     <button className="rn-produit" onClick={ouvrir}>
       <div className="rn-produit-photo">
         {a.photos?.[0] ? <img src={a.photos[0]} alt={a.titre} loading="lazy" /> : null}
-        <span className="rn-produit-badge"><Pastille>{ETATS[a.etat] || a.etat}</Pastille></span>
+        <span className="rn-produit-badge"><Pastille>{etatLibelle(a.etat)}</Pastille></span>
       </div>
       <span className="rn-produit-titre">{a.titre}</span>
       <span className="rn-produit-meta">
@@ -358,15 +364,15 @@ function FicheArticle({ article: a, dansPanier, ajouter, retour }) {
   if (!a)
     return (
       <Vide titre="Cet article vient d'être vendu" action={<Bouton variante="contour" onClick={retour}>Retour aux articles</Bouton>}>
-        Les pièces de seconde main sont souvent uniques. D'autres trouvailles vous attendent.
+        {LIVRES ? "Ce guide n'est plus disponible pour le moment. Revenez bientôt." : "Les pièces de seconde main sont souvent uniques. D'autres trouvailles vous attendent."}
       </Vide>
     );
   const details = [
     ["Catégorie", [a.categorie, a.sous_categorie].filter(Boolean).join(" / ")],
     ["Taille", a.taille],
-    ["Marque", a.marque],
+    [LIVRES ? "Édition" : "Marque", a.marque],
     ["Couleur", a.couleur],
-    ["État", ETATS[a.etat] || a.etat],
+    ["État", etatLibelle(a.etat)],
     ["Disponible à", (a.villes || []).join(", ")],
     ["Référence", a.reference],
   ].filter(([, v]) => v);
@@ -390,7 +396,7 @@ function FicheArticle({ article: a, dansPanier, ajouter, retour }) {
           {fmt(a.prix)}
           {a.prix_barre > a.prix ? <s>{fmt(a.prix_barre)}</s> : null}
         </p>
-        {a.disponible === 1 ? <p className="rn-muet rn-petit">Pièce unique : dès qu'elle est commandée, elle est réservée pour vous.</p> : null}
+        {a.disponible === 1 && !LIVRES ? <p className="rn-muet rn-petit">Pièce unique : dès qu'elle est commandée, elle est réservée pour vous.</p> : null}
         {a.defauts ? (
           <div className="rn-defauts"><b>Défauts signalés.</b> {a.defauts}</div>
         ) : null}
@@ -497,7 +503,7 @@ function Panier({ supabase, slug, boutique, lignes, changer, vider, continuer, c
           {l.article.photos?.[0] ? <img src={l.article.photos[0]} alt="" /> : <span />}
           <div>
             <p style={{ fontWeight: 600 }}>{l.article.titre}</p>
-            <p className="rn-muet rn-petit">{[l.article.taille && "Taille " + l.article.taille, ETATS[l.article.etat]].filter(Boolean).join(", ")}</p>
+            <p className="rn-muet rn-petit">{[l.article.taille && "Taille " + l.article.taille, LIVRES ? l.article.marque : etatLibelle(l.article.etat)].filter(Boolean).join(", ")}</p>
             {l.article.disponible > 1 && etape === "panier" ? (
               <span className="rn-qte" style={{ marginTop: 6 }}>
                 <button type="button" onClick={() => changer(l.id, l.quantite - 1)} aria-label="Retirer un">−</button>
@@ -830,12 +836,12 @@ function PageInfo({ boutique, page }) {
     retours: {
       titre: "Retours et réclamations",
       texte: t.page_retours || pol.retours ||
-        `Chaque fiche indique l'état réel de l'article et ses défauts visibles. Si l'article reçu ne correspond pas à sa description, signalez-le depuis votre page de suivi dans les 48 h suivant la livraison. Notre équipe vous recontacte pour un échange ou un remboursement selon le cas.`,
+        `${LIVRES ? "Chaque guide est livré neuf." : "Chaque fiche indique l'état réel de l'article et ses défauts visibles."} Si l'article reçu ne correspond pas à sa description, signalez-le depuis votre page de suivi dans les 48 h suivant la livraison. Notre équipe vous recontacte pour un échange ou un remboursement selon le cas.`,
     },
     conditions: {
       titre: "Conditions générales de vente",
       texte: t.page_conditions ||
-        `${nom} vend des articles de seconde main. Les prix sont indiqués en francs CFA, toutes taxes comprises. La commande est ferme après confirmation. Pour un paiement mobile, l'article est réservé pendant la durée indiquée ; sans paiement vérifié dans ce délai, la commande est annulée et l'article remis en vente. Un paiement n'est considéré comme reçu qu'après vérification par nos soins.`,
+        `${nom} vend ${LIVRES ? "des guides et publications" : "des articles de seconde main"}. Les prix sont indiqués en francs CFA, toutes taxes comprises. La commande est ferme après confirmation. Pour un paiement mobile, l'article est réservé pendant la durée indiquée ; sans paiement vérifié dans ce délai, la commande est annulée et l'article remis en vente. Un paiement n'est considéré comme reçu qu'après vérification par nos soins.`,
     },
     confidentialite: {
       titre: "Données personnelles",

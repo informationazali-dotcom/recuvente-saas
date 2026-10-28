@@ -239,6 +239,8 @@ body.mode-cible .tuiles{display:none}
 .capacite span{font-size:13.5px;line-height:1.3;color:var(--encre)}
 .capacite b{font-family:var(--titre);font-size:20px;color:var(--nuit)}
 .en-lettres{font-size:13px;color:var(--gris);margin-top:4px}
+.avec-taxe{display:inline-block;margin-top:6px;font-size:13px;color:var(--encre);background:var(--papier);border:1px dashed var(--trait);border-radius:8px;padding:4px 8px}
+.avec-taxe b{font-variant-numeric:tabular-nums}
 .prix-ligne{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
 
 /* page ciblée */
@@ -465,7 +467,7 @@ body.mode-cible .chiffres{display:none}
   <div class="cadre apparait">
     <p class="sur">Catalogue et prix</p>
     <h2 class="titre">Tous nos groupes, tous nos prix</h2>
-    <p class="sous">Moteur Perkins, alternateur Stamford. Prix en FCFA, matériel d'installation compris.</p>
+    <p class="sous">Moteur Perkins, alternateur Stamford. Prix en FCFA hors taxe, matériel d'installation compris. Pour une facture avec taxe, le prix avec taxe (3 %) est indiqué sur chaque groupe.</p>
   </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre" id="puces"></div></nav>
   <div class="cadre" id="catalogue"></div>
@@ -603,6 +605,7 @@ body.mode-cible .chiffres{display:none}
         <label>Ville<input name="ville" placeholder="Ex. Abidjan, Bouaké…"></label>
       </div>
       <label>Ce qu'il faut alimenter<input name="appareils" placeholder="Ex. 6 climatiseurs, 2 chambres froides, four"></label>
+      <label>Type de proforma<select name="taxe"><option value="ht">Hors taxe</option><option value="ttc">Avec taxe (3 %)</option></select></label>
       <button class="btn btn-wa" type="submit"><i class="ic-wa"></i>Envoyer ma demande</button>
     </form>
   </div>
@@ -662,7 +665,8 @@ body.mode-cible .chiffres{display:none}
       <details><summary>Vendez-vous autre chose que des groupes ?</summary><p>Oui, nous vendons aussi des pondeuses de briques. Demandez les modèles et les prix sur WhatsApp.</p></details>
       <details><summary>Le groupe peut-il démarrer tout seul pendant une coupure ?</summary><p>C'est possible avec un inverseur automatique adapté à votre installation. Parlez-en à notre conseiller sur WhatsApp : il vous propose la solution qui convient.</p></details>
       <details><summary>Monophasé ou triphasé : comment savoir ?</summary><p>Regardez votre compteur ou demandez à votre électricien. En cas de doute, envoyez-nous une photo de votre compteur sur WhatsApp : on vous dit tout de suite.</p></details>
-      <details><summary>Pouvez-vous faire une proforma au nom de ma société ?</summary><p>Oui. Indiquez le nom de votre société et la puissance souhaitée : nous établissons la proforma à son nom.</p></details>
+      <details><summary>Pouvez-vous faire une proforma au nom de ma société ?</summary><p>Oui. Indiquez le nom de votre société et la puissance souhaitée : nous établissons la proforma à son nom, hors taxe ou avec taxe, selon ce dont votre société a besoin.</p></details>
+      <details><summary>Les prix sont-ils hors taxe ?</summary><p>Oui, les prix affichés sont hors taxe. Pour les sociétés qui ont besoin d'une facture avec taxe, la taxe est de 3 % : le prix avec taxe est indiqué sur chaque groupe.</p></details>
       <details><summary>Quelle marque de moteur ?</summary><p>Moteur diesel Perkins et alternateur Stamford sur les groupes insonorisés.</p></details>
       <details><summary>Je ne sais pas quelle puissance choisir.</summary><p>Écrivez-nous ce que vous voulez alimenter (climatiseurs, congélateurs, pompe, machines…) ou envoyez un vocal : on vous conseille la bonne puissance.</p></details>
       <details><summary>Vous travaillez le dimanche ?</summary><p>Non. Les livraisons et installations se font du lundi au samedi.</p></details>
@@ -788,7 +792,7 @@ function img(src, alt, repli){ return src ? '<img src="'+src+'" alt="'+alt+'" lo
 function carte(g){
   const ouvert = g.c === 'petit';
   const phases = ouvert ? 'Monophasé 230 V' : (g.kva <= 20 ? 'Mono ou triphasé' : 'Triphasé 400 V');
-  const msg = `Bonjour OU LI PAI IVOIRE, je suis intéressé par le groupe électrogène ${kv(g.kva)} kVA à ${fmt(g.p)} FCFA. Est-il disponible ?`;
+  const msg = `Bonjour OU LI PAI IVOIRE, je suis intéressé par le groupe électrogène ${kv(g.kva)} kVA à ${fmt(g.p)} FCFA (hors taxe). Est-il disponible ?`;
   const photo = PHOTOS_KVA[g.kva] || PHOTOS[g.c];
   const cap = capacite(g);
   return `<article class="carte">
@@ -804,7 +808,8 @@ function carte(g){
       </dl>
       <div class="capacite"><i>${cap.ic === 'immeuble' ? IMMEUBLE : cap.ic === 'usine' ? USINE : cap.n ? CLIM : MAISON}</i><span>${cap.n ? '<b>' + cap.n + '</b> ' : ''}${cap.txt}</span></div>
       <div><div class="prix-ligne"><div class="prix">${fmt(g.p)}<small>FCFA</small></div>${voix ? '<button type="button" class="ecouter" data-dire-kva="' + g.kva + '" aria-label="Écouter le prix">' + HP + '</button>' : ''}</div>
-      <div class="en-lettres">${enLettres(g.p)} francs CFA</div>
+      <div class="en-lettres">${enLettres(g.p)} francs CFA · hors taxe</div>
+      <div class="avec-taxe">Avec taxe (3 %) : <b>${fmt(Math.round(g.p * 1.03))} FCFA</b></div>
       <div class="note">${COCHE}${ouvert ? 'Transport offert à Abidjan' : 'Transport et installation offerts à Abidjan'}</div>
       <div class="note">${COCHE}Garantie 1 an</div></div>
       <a class="btn btn-wa" href="${lien(msg)}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Commander sur WhatsApp</a>
@@ -862,6 +867,7 @@ document.querySelectorAll('.tuile').forEach(t => { t.href = location.pathname.st
     lignes.push('Puissance : ' + (v.kva ? kv(v.kva) + ' kVA' : 'à conseiller'));
     if (v.ville) lignes.push('Ville : ' + v.ville);
     if (v.appareils) lignes.push('À alimenter : ' + v.appareils);
+    lignes.push('Proforma : ' + (v.taxe === 'ttc' ? 'avec taxe (3 %)' : 'hors taxe'));
     const g = DATA.find(x => String(x.kva) === v.kva);
     pixel('Lead', g ? { content_name: 'Proforma ' + v.kva + ' kVA', value: g.p, currency: 'XOF' } : { content_name: 'Proforma' });
     window.open(lien(lignes.join('\n')), '_blank', 'noopener');

@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     const RESEAUX = {
       "miss-mister-excellence": {
         titre: "Boutique officielle Miss & Mister Excellence Côte d'Ivoire",
-        description: "Le Guide de la Réussite et de l'Excellence et le Guide officiel des candidats. Commandez en ligne, livré partout en Côte d'Ivoire, paiement à la livraison.",
+        description: "Les deux guides officiels présentés au journal de 13h de RTI 1 : le Guide de la Réussite et de l'Excellence (8 000 FCFA) et le Guide officiel des candidats (7 500 FCFA). Livrés partout en Côte d'Ivoire, paiement à la livraison.",
         image: "/og-guides.jpg",
         chemin: "/excellence",
       },

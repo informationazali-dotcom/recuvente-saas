@@ -355,6 +355,7 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
           <h2 className="rnl-titre">Livré partout en Côte d'Ivoire</h2>
           <p>Les guides sont stockés chez nos représentants régionaux. Votre commande est confiée automatiquement au représentant le plus proche de chez vous, qui vous la remet en main propre contre votre code de remise.</p>
           <p>Si aucun représentant n'est encore installé dans votre ville, le colis voyage par un transporteur partenaire. Les frais et le délai exacts s'affichent avant que vous confirmiez.</p>
+          <p className="rnl-tournee"><b>Après le lancement officiel à Abidjan,</b> le comité d'organisation se rend dans les régions pour présenter les guides aux élèves, aux parents et aux établissements.</p>
           <button className="rnl-btn rnl-btn-violet" onClick={() => allerA("rnl-guides")}>Choisir mon guide</button>
         </div>
         <svg viewBox="0 0 460 420" className="rnl-carte" role="img" aria-label="Carte de la Côte d'Ivoire avec les principales villes desservies">
@@ -394,6 +395,8 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
           ["Puis-je payer à la réception ?", "Oui. Vous pouvez aussi payer par Wave, Orange Money ou MTN Mobile Money ; votre commande part dès que le paiement est vérifié."],
           ["Comment suivre ma commande ?", "Après la commande, une page de suivi s'ouvre et reste accessible depuis « Suivre ma commande », avec votre téléphone et votre numéro de commande."],
           ["Notre école veut équiper une classe entière. Comment faire ?", "Remplissez le formulaire « Équipez toute une classe » : nous vous rappelons avec un devis et organisons la livraison à l'établissement."],
+          ["À quoi sert chacun des deux guides ?", "Comme l'a présenté le journal de 13h de RTI 1 : le Guide de la Réussite et de l'Excellence propose des outils pour progresser sur les plans scolaire et professionnel ; le Guide officiel des candidats précise les conditions de participation au Concours Miss & Mister Excellence et accompagne la préparation."],
+          ["Qu'est-ce que le Concours Miss & Mister Excellence ?", "Une initiative qui promeut l'excellence scolaire, le leadership et le bon comportement chez les jeunes, et qui met en lumière les élèves méritants autrement que par leurs seules notes. Le thème de l'édition 2027 : « Les réseaux sociaux : levier d'excellence ou facteur de dérive chez les jeunes ? »."],
           ["Comment installer l'application sur mon téléphone ?", "Sur Android, touchez « Installer l'application » sur cette page. Sur iPhone, ouvrez la page dans Safari, touchez Partager puis « Sur l'écran d'accueil »."],
           ["Le guide reçu est abîmé. Que faire ?", "Signalez-le depuis votre page de suivi dans les 48 heures ; nous organisons l'échange."],
         ].map(([qq, r]) => (
@@ -968,6 +971,8 @@ const CSS = `
 @media (min-width:860px){.rnl-piliers-4{grid-template-columns:repeat(4,1fr)!important}}
 .rnl-piliers-4 b{font-size:20px!important}
 
+.rnl-tournee{padding:14px 16px;border-radius:14px;background:var(--lavande);border-left:3px solid var(--or);color:var(--encre)!important}
+.rnl-tournee b{color:var(--v)}
 `;
 
 // ------------------------------------------------------------------ en-tête de la boutique des guides

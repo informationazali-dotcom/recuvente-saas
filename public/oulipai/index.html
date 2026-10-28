@@ -255,6 +255,19 @@ body.mode-cible .chiffres{display:none}
 .a-partir small{font-size:14px;color:rgba(255,255,255,.75)}
 .a-partir b{font-family:var(--titre);font-size:32px;line-height:1;color:#fff}
 
+/* visite du dépôt */
+.visite{display:grid;gap:26px;align-items:center;background:var(--nuit);color:#fff;border-radius:26px;padding:28px;overflow:hidden}
+@media (min-width:900px){.visite{grid-template-columns:1.1fr .9fr;padding:40px 44px}}
+.visite .sur{color:var(--orange)}
+.visite h2{font-size:clamp(30px,4vw,46px);font-weight:800}
+.visite p:not(.sur){color:rgba(255,255,255,.8);margin:12px 0 0;max-width:56ch}
+.visite ul{list-style:none;margin:18px 0 22px;padding:0;display:grid;gap:10px}
+.visite li{display:flex;gap:10px;align-items:center}
+.visite li svg{width:22px;height:22px;color:var(--ciel);flex:none}
+.visite figure{position:relative;margin:0;border-radius:18px;overflow:hidden;aspect-ratio:16/10}
+.visite figure img{width:100%;height:100%;object-fit:cover}
+.visite figcaption{position:absolute;left:12px;bottom:12px;background:var(--orange);color:#fff;font-weight:700;font-size:14px;padding:7px 12px;border-radius:10px}
+
 /* garantie */
 .garanties{display:grid;gap:14px;margin-top:26px}
 @media (min-width:860px){.garanties{grid-template-columns:repeat(3,1fr)}}
@@ -379,7 +392,7 @@ body.mode-cible .chiffres{display:none}
       <li><b>3 → 1000 kVA</b><span>Du petit groupe à l'industriel</span></li>
       <li><b>Garantie 1 an</b><span>Entretien et pièces d'usine</span></li>
       <li><b>Installation offerte</b><span>À Abidjan, matériel compris</span></li>
-      <li><b>Dépôt Yopougon</b><span>Bureau à Abobo Samaké</span></li>
+      <li><b>Visitez le dépôt</b><span>À Yopougon, du lundi au samedi</span></li>
     </ul>
   </div>
 </section>
@@ -431,6 +444,25 @@ body.mode-cible .chiffres{display:none}
       <div class="garantie"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6 4V10l6 4V6h4v15z"/><path d="M7 17h2M13 17h2"/></svg></i><b>Pièces d'origine</b><p>Les pièces sont commandées directement à l'usine de fabrication : votre groupe garde ses pièces d'origine.</p></div>
     </div>
     <a class="btn btn-wa" data-wa="entretien" href="#" target="_blank" rel="noopener" style="margin-top:22px"><i class="ic-wa"></i>Demander le contrat d'entretien</a>
+  </div>
+</section>
+
+<section class="section" id="visite">
+  <div class="cadre apparait">
+    <div class="visite">
+      <div>
+        <p class="sur">Voyez avant d'acheter</p>
+        <h2>Venez voir votre groupe au dépôt</h2>
+        <p>Nos groupes sont en stock à Yopougon. Passez au dépôt du lundi au samedi : vous voyez le groupe de vos propres yeux et vous choisissez en toute confiance. Prévenez-nous sur WhatsApp, on vous indique le chemin.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Voir le groupe de près, avant de payer</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/></svg>Dépôt à Yopougon, bureau à Abobo Samaké</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Du lundi au samedi</li>
+        </ul>
+        <a class="btn btn-wa btn-grand" data-wa="visite" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Je veux visiter le dépôt</a>
+      </div>
+      <figure><img src="/oulipai/photos/galerie-face.jpg" alt="Groupe électrogène OU LI PAI au dépôt" loading="lazy"><figcaption>En stock à Yopougon</figcaption></figure>
+    </div>
   </div>
 </section>
 
@@ -553,6 +585,7 @@ body.mode-cible .chiffres{display:none}
       <details><summary>Le groupe est-il garanti ?</summary><p>Oui, chaque groupe est garanti 1 an.</p></details>
       <details><summary>Comment se passe l'entretien ?</summary><p>Avec le contrat d'entretien, notre technicien vient contrôler votre groupe toutes les 100 heures de fonctionnement et vérifie que tout marche bien.</p></details>
       <details><summary>D'où viennent les pièces ?</summary><p>Nous commandons la pièce d'origine directement à l'usine de fabrication du groupe.</p></details>
+      <details><summary>Puis-je voir le groupe avant d'acheter ?</summary><p>Oui, bien sûr. Passez au dépôt de Yopougon du lundi au samedi pour voir les groupes. Prévenez-nous sur WhatsApp, on vous indique le chemin.</p></details>
       <details><summary>Vendez-vous autre chose que des groupes ?</summary><p>Oui, nous vendons aussi des pondeuses de briques. Demandez les modèles et les prix sur WhatsApp.</p></details>
       <details><summary>Quelle marque de moteur ?</summary><p>Moteur diesel Perkins et alternateur Stamford sur les groupes insonorisés.</p></details>
       <details><summary>Je ne sais pas quelle puissance choisir.</summary><p>Écrivez-nous ce que vous voulez alimenter (climatiseurs, congélateurs, pompe, machines…) ou envoyez un vocal : on vous conseille la bonne puissance.</p></details>
@@ -611,6 +644,7 @@ const MSG = {
   conseil: "Bonjour OU LI PAI IVOIRE, j'aimerais un conseil pour choisir la puissance de mon groupe électrogène.",
   proforma: "Bonjour OU LI PAI IVOIRE, je souhaite une proforma pour un groupe électrogène au nom de ma société.",
   vocal: "Bonjour OU LI PAI IVOIRE, je vous envoie un vocal pour mon groupe électrogène.",
+  visite: "Bonjour OU LI PAI IVOIRE, je voudrais passer au dépôt de Yopougon pour voir les groupes. Quand puis-je venir ?",
   entretien: "Bonjour OU LI PAI IVOIRE, je souhaite des informations sur le contrat d'entretien de groupe électrogène.",
   briques: "Bonjour OU LI PAI IVOIRE, je suis intéressé par vos pondeuses de briques. Pouvez-vous m'envoyer les modèles et les prix ?",
 };
@@ -665,7 +699,7 @@ function dire(texte, bouton){
   pixel('EcouteVocale', {}, true);
 }
 const TEXTES = {
-  intro: "Bienvenue chez OU LI PAI Ivoire. Nous vendons des groupes électrogènes Perkins, de 3 à 1000 kVA. Les prix sont affichés en francs CFA. Chaque groupe est garanti un an. À Abidjan, le transport et l'installation sont offerts. Touchez votre besoin : ma maison, mon commerce, mon entreprise ou mon usine. Ensuite, touchez le bouton vert pour commander sur WhatsApp. Vous pouvez aussi nous envoyer un message vocal.",
+  intro: "Bienvenue chez OU LI PAI Ivoire. Nous vendons des groupes électrogènes Perkins, de 3 à 1000 kVA. Les prix sont affichés en francs CFA. Chaque groupe est garanti un an, et vous pouvez venir le voir à notre dépôt de Yopougon. À Abidjan, le transport et l'installation sont offerts. Touchez votre besoin : ma maison, mon commerce, mon entreprise ou mon usine. Ensuite, touchez le bouton vert pour commander sur WhatsApp. Vous pouvez aussi nous envoyer un message vocal.",
 };
 const HP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg>';
 const CLIM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="8" rx="2"/><path d="M7 16c0 1.5-1 2-1 3M12 16c0 1.5-1 2-1 3M17 16c0 1.5-1 2-1 3M7 10h10"/></svg>';

@@ -63,6 +63,10 @@
       "destination": "/oulipai/index.html"
     },
     {
+      "source": "/oulipai/:seg(maison|commerce|entreprise|industrie)",
+      "destination": "/oulipai/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

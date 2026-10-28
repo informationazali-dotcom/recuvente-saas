@@ -59,6 +59,10 @@
       "destination": "/api/og-preview?reseau=:rs"
     },
     {
+      "source": "/oulipai",
+      "destination": "/oulipai/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -402,6 +402,10 @@ body.mode-cible .chiffres{display:none}
 .btn-detail:hover{box-shadow:inset 0 0 0 1.5px var(--nuit)}
 .carte .btn-detail{margin-top:-4px}
 .btn-detail-clair{color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.final{background:var(--nuit);color:#fff;border-radius:24px;padding:34px 24px;text-align:center;display:grid;gap:14px;justify-items:center}
+.final h2{font-family:var(--titre);text-transform:uppercase;font-size:clamp(28px,6vw,44px);font-weight:800}
+.final p{margin:0;color:rgba(255,255,255,.8);max-width:52ch}
+.final-btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:6px}
 .visite-btns{display:flex;flex-wrap:wrap;gap:12px}
 .carte-lien{display:inline-flex;align-items:center;gap:8px}
 .pied .carte-lien{text-decoration:underline}
@@ -652,7 +656,7 @@ body:has(dialog[open]){overflow:hidden}
     <div>
       <p class="sur" style="color:var(--ciel)">Entreprises, électriciens, chantiers</p>
       <h2 class="titre">Un groupe pour votre société ?</h2>
-      <p class="sous">Supermarchés, boulangeries, hôtels, cliniques, immeubles, usines, chantiers : on dimensionne avec vous, on prépare la proforma au nom de votre société et on reste à vos côtés après l'installation.</p>
+      <p class="sous">Supermarchés, boulangeries, hôtels, cliniques, immeubles, usines, chantiers : on dimensionne avec vous, on prépare la proforma au nom de votre société et on reste à vos côtés après l'installation. Pour les cliniques, les moteurs et les grosses installations triphasées, notre technicien vérifie l'installation avec vous avant la proforma.</p>
       <ol class="deroule">
         <li><b>Votre besoin</b><span>Vous nous dites ce que le groupe doit alimenter. On vous conseille la bonne puissance.</span></li>
         <li><b>Proforma</b><span>Établie au nom de votre société, pour votre validation interne.</span></li>
@@ -736,6 +740,9 @@ body:has(dialog[open]){overflow:hidden}
       <details><summary>D'où viennent les pièces ?</summary><p>Nous commandons la pièce d'origine directement à l'usine de fabrication du groupe.</p></details>
       <details><summary>Puis-je voir le groupe avant d'acheter ?</summary><p>Oui, bien sûr. Passez au dépôt de Yopougon du lundi au samedi pour voir les groupes. <a class="carte-lien" href="https://maps.app.goo.gl/TchHJ83Vw53s99Ni8" target="_blank" rel="noopener">Voir l'itinéraire sur Google Maps</a>.</p></details>
       <details><summary>En combien de temps suis-je livré ?</summary><p>Après le paiement : en 24 heures à Abidjan, et en 72 heures maximum hors d'Abidjan. Livraisons du lundi au samedi.</p></details>
+      <details><summary>Le groupe est-il livré prêt à l'emploi ?</summary><p>Oui. Nos techniciens l'installent et le mettent en marche devant vous, puis vous montrent comment l'utiliser.</p></details>
+      <details><summary>Comment obtenir une facture ?</summary><p>La facture est établie au nom du client ou de sa société lors du paiement à notre bureau d'Abobo. Pour les sociétés, nous préparons d'abord une proforma, hors taxe ou avec taxe.</p></details>
+      <details><summary>Et après l'achat, qui m'aide ?</summary><p>Écrivez-nous sur WhatsApp au 07 11 35 57 43. Garantie 1 an, contrat d'entretien avec un contrôle toutes les 100 heures et pièces d'origine commandées à l'usine.</p></details>
       <details><summary>Comment payer ?</summary><p>Tous les paiements se font à notre bureau d'Abobo : par virement bancaire, par chèque ou par Mobile Money.</p></details>
       <details><summary>Vendez-vous autre chose que des groupes ?</summary><p>Oui, nous vendons aussi des pondeuses de briques. Demandez les modèles et les prix sur WhatsApp.</p></details>
       <details><summary>Le groupe peut-il démarrer tout seul pendant une coupure ?</summary><p>C'est possible avec un inverseur automatique adapté à votre installation. Parlez-en à notre conseiller sur WhatsApp : il vous propose la solution qui convient.</p></details>
@@ -762,6 +769,19 @@ body:has(dialog[open]){overflow:hidden}
       <details><summary>Garantie 1 an</summary><p>Chaque groupe est garanti 1 an à partir de la livraison contre les défauts de fabrication. Pendant la garantie, nos techniciens réparent le groupe avec des pièces d'origine commandées à l'usine. La garantie s'applique pour une utilisation normale du groupe, avec l'entretien conseillé toutes les 100 heures de fonctionnement.</p></details>
       <details><summary>Retour et échange</summary><p>Si un défaut est constaté à la livraison ou à la mise en service, nous réparons ou remplaçons le groupe sans frais pour vous. Comme vous pouvez voir le groupe au dépôt avant l'achat et que notre conseiller vérifie la puissance avec vous, un groupe livré, installé et qui fonctionne bien n'est pas repris. En cas de besoin, écrivez-nous sur WhatsApp : nous cherchons toujours une solution avec vous.</p></details>
       <details><summary>Service après-vente</summary><p>Pour toute question après l'achat, écrivez-nous sur WhatsApp au 07 11 35 57 43. Le contrat d'entretien prévoit un contrôle de votre groupe toutes les 100 heures de fonctionnement.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="final">
+  <div class="cadre apparait">
+    <div class="final">
+      <h2>Prêt à ne plus subir les coupures ?</h2>
+      <p>Choisissez votre groupe ou écrivez-nous : un conseiller vous répond sur WhatsApp.</p>
+      <div class="final-btns">
+        <a class="btn btn-wa btn-grand" data-wa="general" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Écrire sur WhatsApp</a>
+        <a class="btn btn-bleu btn-grand" href="#prix">Voir les prix</a>
+      </div>
     </div>
   </div>
 </section>
@@ -922,7 +942,7 @@ function carte(g){
     <button type="button" class="img" data-detail="${g.kva}" aria-label="Voir la fiche du groupe ${kv(g.kva)} kVA">${img(photo, 'Groupe électrogène '+kv(g.kva)+' kVA', svgGroupe(ouvert))}<span class="ruban">${typeGroupe(g)}</span><span class="loupe">Voir la fiche</span></button>
     <div class="plaque"><div class="kva">${kv(g.kva)}<small>kVA</small></div><div class="mot">Perkins<br>Stamford</div></div>
     <div class="corps">
-      <div class="resume">${kv(g.kw)} kW · ${phasesDe(g)}</div>
+      <div class="resume">Diesel · ${kv(g.kw)} kW · ${phasesDe(g)}</div>
       <div class="capacite"><i>${cap.ic === 'immeuble' ? IMMEUBLE : cap.ic === 'usine' ? USINE : cap.n ? CLIM : MAISON}</i><span>${cap.n ? '<b>' + cap.n + '</b> ' : ''}${cap.txt}</span></div>
       <div><div class="prix-ligne"><div class="prix">${fmt(g.p)}<small>FCFA</small></div>${voix ? '<button type="button" class="ecouter" data-dire-kva="' + g.kva + '" aria-label="Écouter le prix">' + HP + '</button>' : ''}</div>
       <div class="en-lettres">${enLettres(g.p)} francs CFA${avecTaxe(g) ? ' · hors taxe' : ''}</div>

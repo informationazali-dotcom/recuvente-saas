@@ -132,7 +132,8 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .carte{background:#fff;border:1px solid var(--trait);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
 .carte:hover{transform:translateY(-4px);box-shadow:0 28px 50px -30px rgba(11,22,36,.5)}
 .carte .img{position:relative;aspect-ratio:16/10;background:linear-gradient(160deg,#EAF4FB,#D6E8F5);display:grid;place-items:center;overflow:hidden}
-.carte .img img{width:100%;height:100%;object-fit:cover}
+.carte .img img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.carte:hover .img img{transform:scale(1.04)}
 .carte .img svg{width:76%}
 .carte .ruban{position:absolute;left:12px;top:12px;background:var(--nuit);color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:8px}
 .plaque{background:var(--nuit);color:#fff;padding:12px 18px;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
@@ -257,7 +258,7 @@ body.mode-cible .chiffres{display:none}
 /* galerie */
 .galerie{display:grid;gap:12px;margin-top:26px}
 @media (min-width:860px){.galerie{grid-template-columns:1.4fr 1fr;grid-template-rows:1fr 1fr}.g-grand{grid-row:span 2}}
-.galerie figure{position:relative;margin:0;border-radius:20px;overflow:hidden;background:var(--acier);aspect-ratio:16/10}
+.galerie figure{position:relative;margin:0;border-radius:20px;overflow:hidden;background:#E6EEF6;aspect-ratio:16/10}
 @media (min-width:860px){.galerie .g-grand{aspect-ratio:auto}}
 .galerie img{width:100%;height:100%;object-fit:cover}
 .galerie figcaption{position:absolute;left:12px;bottom:12px;background:rgba(11,22,36,.82);color:#fff;font-weight:700;font-size:14px;padding:7px 12px;border-radius:10px;backdrop-filter:blur(6px)}
@@ -399,13 +400,13 @@ body.mode-cible .chiffres{display:none}
 
 <section class="section" id="photos">
   <div class="cadre apparait">
-    <p class="sur">Photos réelles</p>
-    <h2 class="titre">Nos groupes, en vrai</h2>
-    <p class="sous">Des groupes Perkins insonorisés, neufs, prêts à être livrés et installés.</p>
+    <p class="sur">Nos groupes</p>
+    <h2 class="titre">Neufs, insonorisés, prêts à livrer</h2>
+    <p class="sous">Moteur diesel Perkins, alternateur Stamford, tableau de commande numérique et arrêt d'urgence.</p>
     <div class="galerie">
-      <figure class="g-grand"><img src="/oulipai/photos/stock-usine.jpg" alt="Groupes électrogènes Perkins en stock" loading="lazy"><figcaption>Groupes Perkins en stock</figcaption></figure>
-      <figure><img src="/oulipai/photos/groupe-face.jpg" alt="Groupe électrogène insonorisé, vue de face" loading="lazy"><figcaption>Insonorisé, prêt à livrer</figcaption></figure>
-      <figure><img src="/oulipai/photos/groupe-ouvert.jpg" alt="Groupe électrogène portes ouvertes : moteur et tableau de commande" loading="lazy"><figcaption>Moteur et tableau de commande</figcaption></figure>
+      <figure class="g-grand"><img src="/oulipai/photos/galerie-face.jpg" alt="Groupe électrogène OU LI PAI insonorisé, vue de face" loading="lazy"><figcaption>Insonorisé, prêt à livrer</figcaption></figure>
+      <figure><img src="/oulipai/photos/galerie-ouvert.jpg" alt="Groupe électrogène portes ouvertes : moteur et tableau de commande" loading="lazy"><figcaption>Moteur et tableau de commande</figcaption></figure>
+      <figure><img src="/oulipai/photos/galerie-pro.jpg" alt="Groupe électrogène Perkins OU LI PAI de forte puissance" loading="lazy"><figcaption>Forte puissance, moteur Perkins</figcaption></figure>
     </div>
   </div>
 </section>
@@ -527,8 +528,9 @@ const DATA = [{"kva": 3, "kw": 2.4, "a": null, "p": 175000, "c": "petit"}, {"kva
 
 /* Photos : déposer les images dans le dossier « photos » avec ces noms.
    Une photo par gamme (et facultativement une photo par puissance : photos/kva-100.jpg). */
-const PHOTOS = { ouverture: "/oulipai/photos/groupe-face.jpg", petit: "/oulipai/photos/petit-groupe.jpg", maison: "/oulipai/photos/groupe-ouvert.jpg", pro: "/oulipai/photos/stock-usine.jpg", entreprise: "/oulipai/photos/groupe-industriel.jpg", industrie: "/oulipai/photos/groupe-industriel.jpg" };
-const PHOTOS_KVA = { 37.5: "/oulipai/photos/stock-usine.jpg" };
+// Photos produit : groupe détouré sur fond studio, avec la puissance inscrite sur la façade
+const PHOTOS = { ouverture: "/oulipai/photos/ouverture.jpg" };
+const PHOTOS_KVA = Object.fromEntries(DATA.map(g => [g.kva, "/oulipai/photos/kva-" + String(g.kva).replace('.', '-') + ".jpg"]));
 
 const CATS = [
   {id:'petit', label:'3 à 7 kVA', titre:'Petits groupes', sous:'Groupes ouverts pour la maison et les petites boutiques.'},

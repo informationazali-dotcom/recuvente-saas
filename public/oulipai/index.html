@@ -27,7 +27,7 @@ if (/^\d{10,20}$/.test(window.PIXEL_ID)) {
 :root{
   --nuit:#0B1624; --acier:#13243A; --acier2:#1B3150; --bleu:#1F8FD6; --ciel:#4FB3F0; --glace:#E6F3FC;
   --papier:#F4F7FA; --blanc:#FFFFFF; --encre:#0E1A28; --gris:#5B6B7D; --trait:#DCE4EC;
-  --wa:#1FA855; --jaune:#F6B500;
+  --wa:#1FA855; --jaune:#F6B500; --orange:#F26B1D;
   --titre:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --texte:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 *{box-sizing:border-box}
@@ -80,6 +80,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 @keyframes pouls{70%{box-shadow:0 0 0 10px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
 .ouverture h1{font-size:clamp(46px,8vw,92px);font-weight:800;margin:20px 0 0;line-height:.92;text-wrap:balance}
 .ouverture h1 em{font-style:normal;color:var(--ciel)}
+.ouverture h1 em::after{content:"";display:block;width:120px;height:6px;margin-top:14px;border-radius:3px;background:linear-gradient(90deg,var(--bleu) 0 45%,var(--orange) 45% 75%,#fff 75%)}
 .ouverture .chapeau{font-size:clamp(17px,1.8vw,20px);color:rgba(255,255,255,.8);max-width:52ch;margin:20px 0 0}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
 .offert{display:flex;align-items:center;gap:12px;margin-top:22px;font-size:15px;color:rgba(255,255,255,.85)}
@@ -90,7 +91,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 @media (max-width:699px){body.mode-cible .badge-stock,body.mode-cible .actions .btn-wa,body.mode-cible .offert:not(:last-of-type){display:none}body.mode-cible .ouverture h1{margin-top:0}body.mode-cible .actions{margin-top:18px}body.mode-cible .offert{margin-top:16px}}
 .visuel{position:relative;min-height:340px;display:grid;place-items:center}
 .visuel .halo{position:absolute;width:86%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(31,143,214,.45),transparent 65%);filter:blur(8px)}
-.visuel .photo{position:relative;width:100%;max-width:560px;aspect-ratio:4/3;border-radius:22px;overflow:hidden;background:linear-gradient(160deg,var(--acier2),var(--acier));box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.08);display:grid;place-items:center}
+.visuel .photo{position:relative;width:100%;max-width:600px;aspect-ratio:16/10;border-radius:22px;overflow:hidden;background:linear-gradient(160deg,var(--acier2),var(--acier));box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.08);display:grid;place-items:center}
 .visuel .photo img{width:100%;height:100%;object-fit:cover}
 .visuel .photo svg{width:78%}
 .etiquette{position:absolute;display:flex;align-items:center;gap:10px;background:#fff;color:var(--encre);border-radius:14px;padding:10px 14px;box-shadow:0 20px 40px -18px rgba(0,0,0,.6);font-size:13px;line-height:1.3}
@@ -104,7 +105,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .chiffres{background:var(--acier);color:#fff;border-top:1px solid rgba(255,255,255,.08)}
 .chiffres ul{list-style:none;margin:0 auto;padding-top:22px;padding-bottom:22px;display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
 @media (min-width:860px){.chiffres ul{grid-template-columns:repeat(4,1fr)}}
-.chiffres li{display:grid;gap:2px;padding-left:14px;border-left:2px solid var(--bleu);min-width:0}
+.chiffres li{display:grid;gap:2px;padding-left:14px;border-left:3px solid var(--orange);min-width:0}
 .chiffres b{font-family:var(--titre);font-size:clamp(20px,3vw,28px);text-transform:uppercase;line-height:1}
 .chiffres span{font-size:13.5px;color:rgba(255,255,255,.7)}
 
@@ -130,7 +131,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
 .carte{background:#fff;border:1px solid var(--trait);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
 .carte:hover{transform:translateY(-4px);box-shadow:0 28px 50px -30px rgba(11,22,36,.5)}
-.carte .img{position:relative;aspect-ratio:4/3;background:linear-gradient(160deg,#EAF4FB,#D6E8F5);display:grid;place-items:center;overflow:hidden}
+.carte .img{position:relative;aspect-ratio:16/10;background:linear-gradient(160deg,#EAF4FB,#D6E8F5);display:grid;place-items:center;overflow:hidden}
 .carte .img img{width:100%;height:100%;object-fit:cover}
 .carte .img svg{width:76%}
 .carte .ruban{position:absolute;left:12px;top:12px;background:var(--nuit);color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:8px}
@@ -252,6 +253,14 @@ body.mode-cible .chiffres{display:none}
 .a-partir{display:inline-flex;align-items:baseline;gap:8px;margin-top:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:10px 16px}
 .a-partir small{font-size:14px;color:rgba(255,255,255,.75)}
 .a-partir b{font-family:var(--titre);font-size:32px;line-height:1;color:#fff}
+
+/* galerie */
+.galerie{display:grid;gap:12px;margin-top:26px}
+@media (min-width:860px){.galerie{grid-template-columns:1.4fr 1fr;grid-template-rows:1fr 1fr}.g-grand{grid-row:span 2}}
+.galerie figure{position:relative;margin:0;border-radius:20px;overflow:hidden;background:var(--acier);aspect-ratio:16/10}
+@media (min-width:860px){.galerie .g-grand{aspect-ratio:auto}}
+.galerie img{width:100%;height:100%;object-fit:cover}
+.galerie figcaption{position:absolute;left:12px;bottom:12px;background:rgba(11,22,36,.82);color:#fff;font-weight:700;font-size:14px;padding:7px 12px;border-radius:10px;backdrop-filter:blur(6px)}
 
 /* calculateur */
 .calc{display:grid;gap:18px;margin-top:26px;align-items:start}
@@ -388,6 +397,19 @@ body.mode-cible .chiffres{display:none}
   <div class="cadre" id="catalogue"></div>
 </section>
 
+<section class="section" id="photos">
+  <div class="cadre apparait">
+    <p class="sur">Photos réelles</p>
+    <h2 class="titre">Nos groupes, en vrai</h2>
+    <p class="sous">Des groupes Perkins insonorisés, neufs, prêts à être livrés et installés.</p>
+    <div class="galerie">
+      <figure class="g-grand"><img src="/oulipai/photos/stock-usine.jpg" alt="Groupes électrogènes Perkins en stock" loading="lazy"><figcaption>Groupes Perkins en stock</figcaption></figure>
+      <figure><img src="/oulipai/photos/groupe-face.jpg" alt="Groupe électrogène insonorisé, vue de face" loading="lazy"><figcaption>Insonorisé, prêt à livrer</figcaption></figure>
+      <figure><img src="/oulipai/photos/groupe-ouvert.jpg" alt="Groupe électrogène portes ouvertes : moteur et tableau de commande" loading="lazy"><figcaption>Moteur et tableau de commande</figcaption></figure>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="calcul">
   <div class="cadre apparait">
     <p class="sur">Calculateur de puissance</p>
@@ -488,7 +510,7 @@ body.mode-cible .chiffres{display:none}
   <div class="cadre">
     <div><img src="/oulipai/logo-blanc.png" alt="OU LI PAI, Trading Company of Africa"></div>
     <div><h4>Nous trouver</h4><p>Bureau : Abobo Samaké, Abidjan</p><p>Dépôt : Yopougon, Abidjan</p><p>Du lundi au samedi</p></div>
-    <div><h4>Nous écrire</h4><p>WhatsApp : <a data-wa="general" href="#" target="_blank" rel="noopener">+225 07 11 35 57 43</a></p><p style="margin-top:18px;font-size:13px;opacity:.6">© <span id="annee"></span> OU LI PAI IVOIRE · Trading Company of Africa</p></div>
+    <div><h4>Nous écrire</h4><p>WhatsApp : <a data-wa="general" href="#" target="_blank" rel="noopener">+225 07 11 35 57 43</a></p><p style="margin-top:14px;font-family:var(--titre);font-size:18px;text-transform:uppercase;color:#fff">La puissance sur laquelle vous pouvez compter.</p><p style="margin-top:12px;font-size:13px;opacity:.6">© <span id="annee"></span> OU LI PAI IVOIRE · Trading Company of Africa</p></div>
   </div>
 </footer>
 
@@ -505,8 +527,8 @@ const DATA = [{"kva": 3, "kw": 2.4, "a": null, "p": 175000, "c": "petit"}, {"kva
 
 /* Photos : déposer les images dans le dossier « photos » avec ces noms.
    Une photo par gamme (et facultativement une photo par puissance : photos/kva-100.jpg). */
-const PHOTOS = { ouverture: "", petit: "", maison: "", pro: "", entreprise: "", industrie: "" };
-const PHOTOS_KVA = {};
+const PHOTOS = { ouverture: "/oulipai/photos/groupe-face.jpg", petit: "/oulipai/photos/petit-groupe.jpg", maison: "/oulipai/photos/groupe-ouvert.jpg", pro: "/oulipai/photos/stock-usine.jpg", entreprise: "/oulipai/photos/groupe-industriel.jpg", industrie: "/oulipai/photos/groupe-industriel.jpg" };
+const PHOTOS_KVA = { 37.5: "/oulipai/photos/stock-usine.jpg" };
 
 const CATS = [
   {id:'petit', label:'3 à 7 kVA', titre:'Petits groupes', sous:'Groupes ouverts pour la maison et les petites boutiques.'},

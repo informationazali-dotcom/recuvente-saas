@@ -31,6 +31,11 @@ const FICHES = {
   },
 };
 
+// Guides annoncés mais pas encore en vente (prix à venir) : affichés sans possibilité de commande
+const A_PARAITRE = [
+  { id: "a-paraitre-candidats", reference: "GUIDE-CANDIDATS-2027", titre: "Guide officiel des candidats — Miss & Mister Excellence", marque: "Édition 2027", photos: ["/guides/guide-candidats.jpg?v=2"] },
+];
+
 const VILLES = [
   ["Abidjan", -4.01, 5.36], ["Yamoussoukro", -5.28, 6.82], ["Bouaké", -5.03, 7.69], ["Korhogo", -5.63, 9.46],
   ["San-Pédro", -6.64, 4.75], ["Daloa", -6.45, 6.88], ["Man", -7.55, 7.41], ["Gagnoa", -5.95, 6.13],
@@ -62,6 +67,8 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
   const t = p.textes || {};
   const nom = p.nom_plateforme || boutique.nom;
   const guides = articles.slice(0, 4);
+  const aParaitre = A_PARAITRE.filter((x) => !articles.some((a) => a.reference === x.reference));
+  const etagere = [...guides, ...aParaitre].slice(0, 2);
   const [quantites, setQuantites] = useState({});
   const q = (id) => quantites[id] || 1;
 
@@ -85,8 +92,8 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
             </div>
           </div>
           <div className="rnl-etagere" aria-hidden="true">
-            {guides.slice(0, 2).map((a, i) => (
-              <button key={a.id} tabIndex={-1} className={"rnl-livre rnl-livre-" + i} onClick={() => ouvrir(a.id)}>
+            {etagere.map((a, i) => (
+              <button key={a.id} tabIndex={-1} className={"rnl-livre rnl-livre-" + i} onClick={() => (a.id.startsWith("a-paraitre") ? document.getElementById("rnl-guides")?.scrollIntoView({ behavior: "smooth" }) : ouvrir(a.id))}>
                 {a.photos?.[0] ? <img src={a.photos[0]} alt="" /> : null}
                 {i === 0 ? <span className="rnl-signet" /> : null}
               </button>
@@ -131,6 +138,26 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
                     <button className="rnl-btn rnl-btn-violet" disabled={!a.disponible} onClick={() => ajouter(a, q(a.id))}>
                       {a.disponible ? "Ajouter au panier" : "Bientôt disponible"}
                     </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+          {aParaitre.map((a) => {
+            const f = FICHES[a.reference] || { public: "", resume: "", chapitres: [] };
+            return (
+              <article key={a.id} className="rnl-guide rnl-guide-bientot">
+                <div className="rnl-guide-couverture">{a.photos?.[0] ? <img src={a.photos[0]} alt={`Couverture : ${a.titre}`} loading="lazy" /> : null}</div>
+                <div className="rnl-guide-corps">
+                  <p className="rnl-guide-public">{f.public}</p>
+                  <h3>{a.titre}</h3>
+                  <p className="rnl-guide-resume">{f.resume} {a.marque}.</p>
+                  {f.chapitres.length ? <dl className="rnl-chapitres">{f.chapitres.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl> : null}
+                  <div className="rnl-guide-achat">
+                    <span className="rnl-bientot">Bientôt disponible, prix annoncé prochainement</span>
+                    {boutique.whatsapp ? (
+                      <a className="rnl-btn rnl-btn-violet" href={lienWhatsApp(boutique.whatsapp, "Bonjour, je souhaite être prévenu(e) de la sortie du Guide officiel des candidats Miss & Mister Excellence.")} target="_blank" rel="noreferrer">Être prévenu sur WhatsApp</a>
+                    ) : null}
                   </div>
                 </div>
               </article>
@@ -438,6 +465,8 @@ const CSS = `
 .rnl-autres img{width:64px;border-radius:3px 6px 6px 3px;box-shadow:0 8px 16px -6px rgba(40,10,60,.4)}
 .rnl-autres b{display:block;font-family:var(--f-titre);color:var(--v);margin-bottom:4px}
 
+.rnl-bientot{display:inline-block;margin-right:auto;font-weight:600;color:var(--v);background:var(--lavande);border:1px dashed color-mix(in srgb,var(--v) 40%,#fff);padding:8px 14px;border-radius:999px;font-size:14px}
+.rnl-guide-bientot .rnl-guide-couverture{cursor:default}
 `;
 
 // ------------------------------------------------------------------ en-tête de la boutique des guides

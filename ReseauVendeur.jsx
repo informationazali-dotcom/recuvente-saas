@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, useStylesReseau, STATUTS_ARTICLE,
-  Bouton, Champ, Message, Vide, Pastille, BoutonAlertes,
+  Bouton, Champ, Message, Vide, Pastille, BoutonAlertes, useMarque, EnteteEspace,
 } from "./ReseauCommun.jsx";
 import { Connexion, FormulaireArticle } from "./ReseauRepresentant.jsx";
 
@@ -34,7 +34,7 @@ export default function EspaceVendeur({ supabase, slug }) {
     return <div className="rn" style={{ display: "grid", placeItems: "center" }}><span className="rn-spin" style={{ color: "var(--rn-prune)", width: 28, height: 28 }} /></div>;
   if (!session)
     return (
-      <Connexion supabase={supabase} titre="Espace vendeur partenaire"
+      <Connexion supabase={supabase} slug={slug} titre="Espace vendeur partenaire"
         texte="Déposez vos vêtements de seconde main : nous les vendons et les livrons partout en Côte d'Ivoire."
         texteCreation="Créez votre accès avec votre adresse e-mail, puis remplissez votre demande." />
     );
@@ -93,6 +93,7 @@ function Tableau({ supabase, slug, info }) {
   const ws = info.workspace_id;
   const v = info.vendeur;
   const [onglet, setOnglet] = useState("resume");
+  const marque = useMarque(supabase, slug);
   const [t, setT] = useState(null);
   const [erreur, setErreur] = useState("");
   const charger = useCallback(async () => {
@@ -111,13 +112,8 @@ function Tableau({ supabase, slug, info }) {
   return (
     <div className="rn rn-app">
       <div>
-        <header className="rn-app-tete">
-          <div>
-            <h1>{v.nom}</h1>
-            <p style={{ opacity: 0.8, fontSize: 13 }}>Vendeur partenaire, {info.boutique?.nom_plateforme}</p>
-          </div>
-          <button className="rn-btn rn-btn-petit" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }} onClick={() => supabase.auth.signOut()}>Quitter</button>
-        </header>
+        <EnteteEspace logo={marque?.logo} plateforme={info.boutique?.nom_plateforme} espace="Espace vendeur partenaire" titre={v.nom}
+          droite={<button className="rn-btn rn-btn-petit" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }} onClick={() => supabase.auth.signOut()}>Quitter</button>} />
         <nav className="rn-onglets">
           {onglets.map(([k, l, n]) => (
             <button key={k} className="rn-onglet" aria-current={onglet === k ? "page" : undefined} onClick={() => setOnglet(k)}>

@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fmt, fmtNombre, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, exporterExcel, exporterPDF,
   STATUTS, STATUTS_MISSION, STATUTS_ARTICLE, ETATS, MODES_PAIEMENT,
-  Bouton, Champ, Message, Modale, Vide, Pastille, StatutCommande, Barres, Icone,
+  Bouton, Champ, Message, Modale, Vide, Pastille, StatutCommande, Barres, Icone, EnteteEspace,
 } from "./ReseauCommun.jsx";
 import { FormulaireArticle } from "./ReseauRepresentant.jsx";
 
@@ -84,18 +84,12 @@ export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }
   return (
     <div className="rn rn-app" style={{ minHeight: "auto" }}>
       <div>
-        <header className="rn-app-tete">
-          <div>
-            <h1>{param.nom_plateforme}</h1>
-            <p style={{ opacity: 0.8, fontSize: 13 }}>Réseau national de vente</p>
-          </div>
-          <div className="rn-ligne">
+        <EnteteEspace logo={param.logo_url} plateforme={param.nom_plateforme} titre="Tableau de bord national" droite={<>
             <a className="rn-btn rn-btn-petit" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }} href={lienBoutique} target="_blank" rel="noreferrer">Voir la boutique</a>
             <button className="rn-icone-btn" style={{ color: "#fff" }} onClick={() => setPanneauNotifs(true)} aria-label={`Alertes (${nonLues})`}>
               {Icone.cloche}{nonLues ? <span className="rn-compteur">{nonLues}</span> : null}
             </button>
-          </div>
-        </header>
+          </>} />
         <nav className="rn-onglets">
           {ONGLETS.filter(([k]) => k !== "vendeurs" || param.vendeurs_actifs).map(([k, l]) => (
             <button key={k} className="rn-onglet" aria-current={onglet === k ? "page" : undefined} onClick={() => setOnglet(k)}>

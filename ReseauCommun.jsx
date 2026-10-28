@@ -385,13 +385,61 @@ export function Barres({ donnees, valeur, label, format = fmtNombre, max }) {
 
 // ------------------------------------------------------------------ styles
 let stylesInjectes = false;
+// Identité de la boutique (logo, nom, couleurs) pour les espaces représentant et vendeur
+export function useMarque(supabase, slug) {
+  const [m, setM] = useState(null);
+  useEffect(() => {
+    if (!slug) return;
+    rpc(supabase, "rn_boutique", { p_slug: slug })
+      .then((b) => b && setM({ logo: b.logo_url, nom: b.parametres?.nom_plateforme || b.nom, couleur: b.parametres?.couleur_principale, or: b.parametres?.couleur_or }))
+      .catch(() => {});
+  }, [supabase, slug]);
+  return m;
+}
+
+// En-tête commun aux espaces de travail : logo, nom de la plateforme, espace, actions
+export function EnteteEspace({ logo, plateforme, espace, titre, droite }) {
+  return (
+    <header className="rn-app-tete">
+      <div className="rn-app-marque">
+        {logo ? <img src={logo} alt="" /> : null}
+        <div>
+          <p className="rn-app-plateforme">{plateforme}{espace ? <span> {espace}</span> : null}</p>
+          {titre ? <h1>{titre}</h1> : null}
+        </div>
+      </div>
+      <div className="rn-ligne">{droite}</div>
+    </header>
+  );
+}
+
+// Carte d'identité du représentant (affichée dans son espace)
+export function CarteRepresentant({ logo, plateforme, nom, zone, depuis, reference }) {
+  return (
+    <div className="rn-badge" aria-label={`Carte de représentant de ${nom}`}>
+      <div className="rn-badge-tete">
+        {logo ? <img src={logo} alt="" /> : null}
+        <span>{plateforme}</span>
+      </div>
+      <p className="rn-badge-role">Représentant officiel</p>
+      <p className="rn-badge-nom">{nom}</p>
+      <dl>
+        <div><dt>Zone</dt><dd>{zone || "À définir"}</dd></div>
+        {depuis ? <div><dt>Depuis</dt><dd>{new Date(depuis).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</dd></div> : null}
+        {reference ? <div><dt>N°</dt><dd>{reference}</dd></div> : null}
+      </dl>
+      <span className="rn-badge-bande" />
+    </div>
+  );
+}
+
 export function useStylesReseau(couleur = "#4A1238", or = "#C9A24A") {
   useEffect(() => {
     if (!stylesInjectes) {
       const l = document.createElement("link");
       l.rel = "stylesheet";
       l.href =
-        "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700&display=swap";
+        "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&family=Public+Sans:wght@400;500;600;700&display=swap";
       document.head.appendChild(l);
       const s = document.createElement("style");
       s.id = "rn-styles";
@@ -409,7 +457,7 @@ export function useStylesReseau(couleur = "#4A1238", or = "#C9A24A") {
 const CSS = `
 .rn{--rn-perle:#FBF8F6;--rn-rose:#F3EAEE;--rn-rose-2:#E9DCE2;--rn-encre:#22161F;--rn-gris:#6E5A66;--rn-trait:#E3D6DC;
   --rn-vert:#1F7A4D;--rn-rouge:#B4232F;--rn-ambre:#A8620B;--rn-bleu:#2D5B8A;
-  --rn-titre:'Cormorant Garamond',Georgia,serif;--rn-texte:'Manrope',system-ui,-apple-system,sans-serif;
+  --rn-titre:'Fraunces',Georgia,serif;--rn-texte:'Public Sans',system-ui,-apple-system,sans-serif;
   font-family:var(--rn-texte);color:var(--rn-encre);background:var(--rn-perle);font-size:15px;line-height:1.5;
   -webkit-font-smoothing:antialiased;min-height:100vh}
 .rn *{box-sizing:border-box}
@@ -599,8 +647,26 @@ const CSS = `
 /* ========== ESPACES CONNECTÉS (admin / représentant) ========== */
 .rn-app{display:grid;min-height:100vh;grid-template-rows:auto 1fr;grid-template-columns:minmax(0,1fr)}
 .rn-app > *{min-width:0}
-.rn-app-tete{background:var(--rn-prune);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.rn-app-tete h1{font-size:22px;color:#fff}
+.rn-app-tete{position:relative;background:radial-gradient(80% 140% at 100% 0%,color-mix(in srgb,var(--rn-or) 30%,transparent),transparent 60%),var(--rn-prune);color:#fff;padding:16px 16px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:3px solid var(--rn-or)}
+.rn-app-tete::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
+.rn-app-tete h1{font-size:21px;color:#fff;line-height:1.15;margin-top:2px}
+.rn-app-marque{display:flex;align-items:center;gap:12px;min-width:0}
+.rn-app-marque img{width:46px;height:46px;border-radius:50%;background:#fff;padding:2px;flex:none}
+.rn-app-plateforme{margin:0;font-size:12px;font-weight:600;color:var(--rn-or);letter-spacing:.02em}
+.rn-app-plateforme span{color:rgba(255,255,255,.75);font-weight:500}
+.rn-badge{position:relative;overflow:hidden;border-radius:18px;padding:18px 18px 22px;color:#fff;background:radial-gradient(90% 120% at 100% 0%,color-mix(in srgb,var(--rn-or) 35%,transparent),transparent 60%),linear-gradient(160deg,var(--rn-prune),color-mix(in srgb,var(--rn-prune) 70%,#000));box-shadow:0 18px 40px -16px rgba(40,10,60,.6);max-width:420px}
+.rn-badge-tete{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:600;color:var(--rn-or)}
+.rn-badge-tete img{width:40px;height:40px;border-radius:50%;background:#fff;padding:2px}
+.rn-badge-role{margin:16px 0 2px;font-size:13px;opacity:.8}
+.rn-badge-nom{margin:0;font-family:var(--rn-titre);font-size:28px;font-weight:700;line-height:1.1}
+.rn-badge dl{display:flex;flex-wrap:wrap;gap:8px 22px;margin:14px 0 0}
+.rn-badge dl div{display:grid;gap:2px}.rn-badge dt{font-size:11px;opacity:.7}.rn-badge dd{margin:0;font-weight:600}
+.rn-badge-bande{position:absolute;left:0;right:0;bottom:0;height:6px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
+.rn-connexion{min-height:100vh;display:grid;place-items:center;padding:16px;background:radial-gradient(70% 60% at 85% 10%,color-mix(in srgb,var(--rn-or) 26%,transparent),transparent 60%),var(--rn-prune);position:relative}
+.rn-connexion::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
+.rn-connexion-marque{display:grid;justify-items:center;gap:8px;text-align:center;margin-bottom:6px}
+.rn-connexion-marque img{width:76px;height:76px;border-radius:50%;background:#fff;padding:3px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.rn-connexion-marque span{font-size:12px;font-weight:600;color:var(--rn-prune)}
 .rn-onglets{display:flex;flex-wrap:wrap;gap:4px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--rn-trait);scrollbar-width:none;position:sticky;top:0;z-index:30}
 .rn-onglets::-webkit-scrollbar{display:none}
 .rn-onglet{flex:none;border:0;background:none;padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600;color:var(--rn-gris);display:inline-flex;gap:6px;align-items:center}
@@ -608,7 +674,7 @@ const CSS = `
 .rn-onglet .rn-compteur{position:static}
 .rn-zone-travail{padding:16px;max-width:1240px;width:100%;margin:0 auto;display:grid;gap:16px;align-content:start}
 .rn-kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-.rn-kpi{background:#fff;border:1px solid var(--rn-trait);border-radius:16px;padding:14px}
+.rn-kpi{background:#fff;border:1px solid var(--rn-trait);border-radius:16px;padding:14px;border-top:3px solid var(--rn-or)}
 .rn-kpi-val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--rn-encre);margin-top:4px}
 .rn-kpi-lab{font-size:13px;color:var(--rn-gris)}
 .rn-kpi.rn-kpi-alerte{border-color:#EBC77F;background:#FFFBF2}

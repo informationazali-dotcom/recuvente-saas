@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, useCompteARebours, formatDuree, envoyerPhotos,
-  envoyerPreuve, compresserImage, BoutonAlertes, PadSignature,
+  envoyerPreuve, compresserImage, BoutonAlertes, PadSignature, useMarque, EnteteEspace, CarteRepresentant,
   ETATS, STATUTS_MISSION, STATUTS_ARTICLE, MODES_PAIEMENT, CATEGORIES_DEFAUT, Bouton, Champ, Message, Modale, Vide, Pastille, Icone,
 } from "./ReseauCommun.jsx";
 
@@ -29,7 +29,7 @@ export default function EspaceRepresentant({ supabase, slug }) {
 
   if (session === undefined || (session && rep === undefined))
     return <div className="rn" style={{ display: "grid", placeItems: "center" }}><span className="rn-spin" style={{ color: "var(--rn-prune)", width: 28, height: 28 }} /></div>;
-  if (!session) return <Connexion supabase={supabase} />;
+  if (!session) return <Connexion supabase={supabase} slug={slug} />;
   if (!rep)
     return (
       <div className="rn">
@@ -40,11 +40,12 @@ export default function EspaceRepresentant({ supabase, slug }) {
     );
   if (rep.statut !== "actif")
     return <div className="rn"><Vide titre="Compte suspendu">Contactez l'administration.</Vide></div>;
-  return <Tableau supabase={supabase} rep={rep} setRep={setRep} />;
+  return <Tableau supabase={supabase} rep={rep} setRep={setRep} slug={slug} />;
 }
 
-export function Connexion({ supabase, titre = "Espace représentant", texte = "Connectez-vous pour voir vos missions de livraison.", texteCreation = "Utilisez l'adresse e-mail que l'administration a enregistrée pour vous." }) {
-  useStylesReseau();
+export function Connexion({ supabase, slug, titre = "Espace représentant", texte = "Connectez-vous pour voir vos missions de livraison.", texteCreation = "Utilisez l'adresse e-mail que l'administration a enregistrée pour vous." }) {
+  const marque = useMarque(supabase, slug);
+  useStylesReseau(marque?.couleur, marque?.or);
   const [mode, setMode] = useState("connexion");
   const [f, setF] = useState({ email: "", mdp: "" });
   const [msg, setMsg] = useState({ ton: "", texte: "" });
@@ -70,8 +71,14 @@ export function Connexion({ supabase, titre = "Espace représentant", texte = "C
     } finally { setCharge(false); }
   };
   return (
-    <div className="rn" style={{ display: "grid", placeItems: "center", padding: 16 }}>
-      <form className="rn-carte rn-pile" style={{ width: "100%", maxWidth: 400, gap: 14 }} onSubmit={envoyer}>
+    <div className="rn rn-connexion">
+      <form className="rn-carte rn-pile" style={{ width: "100%", maxWidth: 400, gap: 14, position: "relative" }} onSubmit={envoyer}>
+        {marque ? (
+          <div className="rn-connexion-marque">
+            {marque.logo ? <img src={marque.logo} alt="" /> : null}
+            <span>{marque.nom}</span>
+          </div>
+        ) : null}
         <h2>{titre}</h2>
         <p className="rn-muet">{mode === "creation" ? texteCreation : texte}</p>
         <Champ label="E-mail"><input type="email" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required /></Champ>
@@ -93,7 +100,8 @@ export function Connexion({ supabase, titre = "Espace représentant", texte = "C
   );
 }
 
-function Tableau({ supabase, rep, setRep }) {
+function Tableau({ supabase, rep, setRep, slug }) {
+  const marque = useMarque(supabase, slug);
   const ws = rep.workspace_id;
   const [onglet, setOnglet] = useState("missions");
   const [missions, setMissions] = useState([]);
@@ -143,19 +151,13 @@ function Tableau({ supabase, rep, setRep }) {
   return (
     <div className="rn rn-app">
       <div>
-        <header className="rn-app-tete">
-          <div>
-            <h1>{rep.nom}</h1>
-            <p style={{ opacity: 0.8, fontSize: 13 }}>{rep.boutique?.nom_plateforme}{rep.zone ? `, ${rep.zone}` : ""}</p>
-          </div>
-          <div className="rn-ligne">
+        <EnteteEspace logo={marque?.logo} plateforme={rep.boutique?.nom_plateforme} espace="Espace représentant" titre={rep.nom} droite={<>
             <label className="rn-interrupteur" style={{ color: "#fff" }}>
               <input type="checkbox" checked={rep.disponible} onChange={basculer} aria-label="Disponible pour des missions" />
               <span className="rn-petit">{rep.disponible ? "Disponible" : "Indisponible"}</span>
             </label>
             <button className="rn-btn rn-btn-petit" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }} onClick={() => supabase.auth.signOut()}>Quitter</button>
-          </div>
-        </header>
+          </>} />
         <nav className="rn-onglets">
           {onglets.map(([k, l, n]) => (
             <button key={k} className="rn-onglet" aria-current={onglet === k ? "page" : undefined} onClick={() => { setOnglet(k); if (k === "notifs") marquerLues(supabase, notifs, chargerNotifs); }}>
@@ -173,7 +175,12 @@ function Tableau({ supabase, rep, setRep }) {
         {onglet === "proposer" ? <Proposer supabase={supabase} rep={rep} fini={() => setOnglet("stock")} /> : null}
         {onglet === "transferts" ? <Transferts supabase={supabase} rep={rep} /> : null}
         {onglet === "inventaire" ? <Inventaire supabase={supabase} rep={rep} /> : null}
-        {onglet === "perf" ? <Resultats supabase={supabase} rep={rep} missions={missions} /> : null}
+        {onglet === "perf" ? (
+          <>
+            <CarteRepresentant logo={marque?.logo} plateforme={rep.boutique?.nom_plateforme} nom={rep.nom} zone={rep.zone} depuis={rep.created_at} reference={rep.id?.slice(0, 8).toUpperCase()} />
+            <Resultats supabase={supabase} rep={rep} missions={missions} />
+          </>
+        ) : null}
         {onglet === "notifs" ? (
           notifs.length ? (
             <div className="rn-pile">

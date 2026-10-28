@@ -206,6 +206,36 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
     <>
       {accueil ? (
         <>
+          {LIVRES ? (
+            <section className="rn-vitrine">
+              <div className="rn-vitrine-in">
+                <div className="rn-vitrine-texte">
+                  {boutique.logo_url ? <img className="rn-vitrine-logo" src={boutique.logo_url} alt={p.nom_plateforme || boutique.nom} /> : null}
+                  <span className="rn-vitrine-sur">Éditions officielles · Beauté · Leadership · Excellence</span>
+                  <h1>{t.titre_accueil || "Les guides officiels Miss & Mister Excellence"}</h1>
+                  <p>{t.sous_titre_accueil || "Livrés partout en Côte d'Ivoire par notre réseau de représentants."}</p>
+                  <div className="rn-ligne">
+                    <Bouton variante="or" onClick={() => grilleRef.current?.scrollIntoView({ behavior: "smooth" })}>Commander mon guide</Bouton>
+                  </div>
+                  <ul className="rn-vitrine-atouts">
+                    <li>Paiement à la livraison ou Mobile Money</li>
+                    <li>Livré dans toute la Côte d'Ivoire</li>
+                  </ul>
+                </div>
+                <div className="rn-vitrine-livres">
+                  {articles.slice(0, 2).map((a, i) => (
+                    <button key={a.id} className={"rn-livre rn-livre-" + i} onClick={() => ouvrir(a.id)} aria-label={`${a.titre}, ${fmt(a.prix)}`}>
+                      {a.photos?.[0] ? <img src={a.photos[0]} alt="" /> : null}
+                      <span className="rn-livre-prix">{fmt(a.prix)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="rn-echarpe" aria-hidden>
+                <span>{Array.from({ length: 6 }, () => p.nom_plateforme || boutique.nom).join("   ✦   ")}</span>
+              </div>
+            </section>
+          ) : (
           <section className="rn-heros">
             {boutique.logo_url ? <img className="rn-heros-logo" src={boutique.logo_url} alt="" /> : Icone.couronne}
             <div className="rn-heros-in">
@@ -224,6 +254,7 @@ function Catalogue({ boutique, articles, accueil, ouvrir }) {
               </span>
             </div>
           </section>
+          )}
           <section className="rn-reassurance">
             {LIVRES ? <div>{Icone.oeil}<p><b>Éditions officielles</b>Les guides du Concours Miss & Mister Excellence, neufs.</p></div>
               : <div>{Icone.oeil}<p><b>De vraies photos</b>Chaque défaut visible est indiqué sur la fiche.</p></div>}

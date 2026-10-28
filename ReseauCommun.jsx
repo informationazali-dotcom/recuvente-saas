@@ -652,6 +652,25 @@ const CSS = `
 .rn-etapes li span{font-size:14px;color:var(--rn-gris)}
 .rn-heros-logo{position:relative;z-index:2;display:block;margin:24px 0 -28px 16px;width:96px;height:96px;border-radius:50%;background:#fff;padding:3px;box-shadow:0 6px 24px rgba(0,0,0,.25);opacity:.97}
 @media (min-width:760px){.rn-heros-logo{position:absolute;margin:0;width:180px;height:180px;right:7%;top:50%;transform:translateY(-50%)}}
+.rn-vitrine{position:relative;overflow:hidden;color:#fff;background:radial-gradient(120% 90% at 85% 20%,color-mix(in srgb,var(--rn-or) 28%,transparent),transparent 55%),radial-gradient(90% 80% at 0% 100%,color-mix(in srgb,var(--rn-prune) 55%,#000),transparent 70%),var(--rn-prune)}
+.rn-vitrine::before{content:"";position:absolute;inset:0;background-image:radial-gradient(color-mix(in srgb,var(--rn-or) 35%,transparent) 1px,transparent 1.5px);background-size:22px 22px;opacity:.25;pointer-events:none}
+.rn-vitrine-in{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:28px 16px 96px;display:grid;gap:28px;align-items:center}
+@media (min-width:860px){.rn-vitrine-in{grid-template-columns:1.05fr 1fr;padding:56px 24px 120px}.rn-vitrine-logo{width:84px;height:84px}}
+.rn-vitrine-texte{display:grid;gap:14px;justify-items:start}
+.rn-vitrine-logo{width:64px;height:64px;border-radius:50%;background:#fff;padding:3px;box-shadow:0 8px 28px rgba(0,0,0,.3)}
+.rn-vitrine-sur{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--rn-or);font-weight:600}
+.rn-vitrine h1{font-family:var(--rn-titre);font-size:clamp(32px,6vw,56px);line-height:1.04;color:#fff;margin:0}
+.rn-vitrine p{margin:0;opacity:.88;max-width:46ch;font-size:16px;line-height:1.55}
+.rn-vitrine-atouts{list-style:none;padding:0;margin:4px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+.rn-vitrine-atouts li{font-size:13px;padding:6px 12px;border:1px solid color-mix(in srgb,var(--rn-or) 60%,transparent);border-radius:999px;background:rgba(255,255,255,.06)}
+.rn-vitrine-livres{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;padding:10px 4px 0}
+@media (min-width:860px){.rn-vitrine-livres{gap:26px;padding:0 10px}}
+.rn .rn-livre{position:relative;border:0;padding:0;background:none;cursor:pointer;border-radius:6px 12px 12px 6px;box-shadow:-6px 0 0 rgba(0,0,0,.18) inset,0 24px 50px rgba(0,0,0,.45),0 4px 10px rgba(0,0,0,.3);transition:transform .35s ease}
+.rn .rn-livre img{display:block;width:100%;aspect-ratio:3/4.2;object-fit:cover;border-radius:6px 12px 12px 6px}
+.rn .rn-livre::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.12) 6%,transparent 12%,transparent 80%,rgba(255,255,255,.08));pointer-events:none}
+.rn .rn-livre-0{transform:rotate(-4deg) translateY(6px)}.rn .rn-livre-1{transform:rotate(3deg) translateY(-10px)}
+.rn .rn-livre:hover{transform:rotate(0) translateY(-14px) scale(1.02)}
+.rn-livre-prix{position:absolute;z-index:2;right:-8px;bottom:14px;background:var(--rn-or);color:#1d1320;font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
 `;
 
 export const Icone = {

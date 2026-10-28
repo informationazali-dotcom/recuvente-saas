@@ -41,7 +41,20 @@
         if (estBoutique) {
           try { id = JSON.parse(localStorage.getItem("rv_identite_" + cle) || "null"); } catch (e) {}
         }
-        window.__RV = { cle: cle, boutique: estBoutique, id: id };
+        // ----- Réseaux nationaux (ex. Miss & Mister Excellence) : identité et application propres -----
+        var RESEAUX = {
+          "miss-mister-excellence": {
+            nom: "Miss & Mister Excellence Côte d'Ivoire", court: "Miss & Mister Excellence", logo: "/logo-mme.png",
+            couleur: "#3D0C52", icone: "/excellence/icone-192.png", icone180: "/excellence/icone-180.png", icone512: "/excellence/icone-512.png",
+            manifeste: { boutique: "/excellence/manifest.json", representant: "/excellence/manifest-representants.json", vendeur: "/excellence/manifest-vendeurs.json" },
+            appli: { boutique: "Excellence CI", representant: "MME Représentants", vendeur: "MME Partenaires" }
+          }
+        };
+        var CHEMINS = { excellence: "miss-mister-excellence", guides: "miss-mister-excellence" };
+        var reseau = p.get("reseau") || CHEMINS[location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase()] || null;
+        var idReseau = reseau ? (RESEAUX[reseau] || null) : null;
+        var espace = p.get("espace") === "representant" ? "representant" : p.get("espace") === "vendeur" ? "vendeur" : "boutique";
+        window.__RV = { cle: cle, boutique: estBoutique, id: id, reseau: reseau, idReseau: idReseau, espace: espace };
 
         // ----- Démarrage anticipé (boutique publique uniquement) -----
         // Avant : téléchargement du code → 2 requêtes l'une après l'autre → seulement alors le
@@ -104,7 +117,39 @@
           } catch (e) {}
         }
 
-        if (estBoutique) {
+        if (reseau) {
+          // ----- RÉSEAU NATIONAL : identité officielle, application installable dédiée -----
+          var R0 = idReseau || {};
+          document.title = (R0.nom || "Boutique") + (espace === "representant" ? " — Espace représentant" : espace === "vendeur" ? " — Espace partenaire" : "");
+          if (R0.icone) {
+            lien({ rel: "icon", type: "image/png", sizes: "192x192", href: R0.icone });
+            lien({ rel: "apple-touch-icon", sizes: "180x180", href: R0.icone180 || R0.icone });
+          }
+          if (R0.manifeste) lien({ rel: "manifest", href: R0.manifeste[espace] });
+          meta("theme-color", R0.couleur || "#3D0C52");
+          meta("mobile-web-app-capable", "yes");
+          meta("apple-mobile-web-app-capable", "yes");
+          meta("apple-mobile-web-app-status-bar-style", "black-translucent");
+          meta("apple-mobile-web-app-title", (R0.appli && R0.appli[espace]) || R0.court || "Boutique");
+          meta("application-name", (R0.appli && R0.appli[espace]) || R0.court || "Boutique");
+          lien({ rel: "preconnect", href: "https://fonts.googleapis.com" });
+          lien({ rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" });
+          lien({ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&family=Public+Sans:wght@400;500;600;700&display=swap" });
+          if (R0.logo) lien({ rel: "preload", as: "image", href: R0.logo });
+          if (R0.couleur) document.documentElement.style.background = R0.couleur;
+          // Installation de l'application : on garde la proposition du navigateur pour l'offrir
+          // au bon moment, avec notre propre bouton « Installer l'application ».
+          window.addEventListener("beforeinstallprompt", function (ev) {
+            ev.preventDefault();
+            window.__rvInstall = ev;
+            window.dispatchEvent(new Event("rv-installable"));
+          });
+          window.addEventListener("appinstalled", function () {
+            window.__rvInstall = null;
+            try { localStorage.setItem("rv_appli_installee_" + reseau, "1"); } catch (e) {}
+            window.dispatchEvent(new Event("rv-installable"));
+          });
+        } else if (estBoutique) {
           // ----- BOUTIQUE : jamais la marque RecuVente -----
           var nom = id && id.nom;
           if (!nom && p.get("boutique")) {
@@ -139,7 +184,7 @@
         // Les polices Google servent uniquement à l'admin (les boutiques utilisent la police
         // du système). Avant, cette feuille de style bloquait le premier affichage de TOUTES
         // les boutiques. Insérée par script, elle ne bloque plus rien.
-        if (!estBoutique) {
+        if (!estBoutique && !reseau) {
           lien({ rel: "preconnect", href: "https://fonts.googleapis.com" });
           lien({ rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" });
           lien({ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" });
@@ -177,6 +222,12 @@
     .rvb-nom{font-weight:650;font-size:15px;letter-spacing:.02em;opacity:.92;max-width:80vw;text-align:center}
     .rvb-fil{position:absolute;left:0;top:0;height:2px;width:100%;transform-origin:left;background:var(--rvb-fg,#16231F);opacity:.5;animation:rvbFil 1.6s cubic-bezier(.4,0,.2,1) infinite}
     .rvb-neutre .rvb-fil{opacity:.28}
+    .rvb-reseau{background:radial-gradient(80% 60% at 50% 35%,rgba(184,145,63,.28),transparent 70%),var(--rvb-bg)}
+    .rvb-reseau .rvb-med{width:112px;height:112px;box-shadow:0 0 0 3px #B8913F,0 18px 50px rgba(0,0,0,.35)}
+    .rvb-reseau .rvb-med img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .rvb-reseau .rvb-ring{background:conic-gradient(from 0deg,#B8913F,transparent 72%)}
+    .rvb-reseau .rvb-nom{font-family:Georgia,"Times New Roman",serif;font-size:17px;letter-spacing:.04em}
+    .rvb-bande{position:absolute;left:0;right:0;bottom:0;height:5px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
     @keyframes rvbSpin{to{transform:rotate(360deg)}}
     @keyframes rvbFil{0%{transform:scaleX(0);opacity:.5}60%{transform:scaleX(1);opacity:.5}100%{transform:scaleX(1);opacity:0}}
     @media (prefers-reduced-motion:reduce){.rvb-ring,.rvb-fil{animation:none}}
@@ -192,9 +243,20 @@
     (function () {
       try {
         var R = window.__RV;
-        if (!R || !R.boutique) return;
         var root = document.getElementById("root");
-        if (!root) return;
+        if (!R || !root) return;
+        if (R.reseau && R.idReseau) {
+          // Écran d'ouverture officiel du réseau (identique à celui de l'application React)
+          var e0 = document.createElement("div");
+          e0.className = "rvb rvb-reseau";
+          e0.style.setProperty("--rvb-bg", R.idReseau.couleur);
+          e0.style.setProperty("--rvb-fg", "#FFFFFF");
+          e0.innerHTML = '<div class="rvb-fil"></div><div class="rvb-med"><i class="rvb-ring"></i><img alt="" src="' + R.idReseau.logo + '"></div><div class="rvb-nom"></div><div class="rvb-bande"></div>';
+          e0.querySelector(".rvb-nom").textContent = R.idReseau.nom;
+          root.appendChild(e0);
+          return;
+        }
+        if (!R.boutique) return;
         var id = R.id;
         var brande = !!(id && (id.logo || id.nom));
 

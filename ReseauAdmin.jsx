@@ -10,6 +10,23 @@ import {
 } from "./ReseauCommun.jsx";
 import { FormulaireArticle } from "./ReseauRepresentant.jsx";
 
+const IC = (d) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
+const ICONES_ONGLETS = {
+  tableau: IC(<><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>),
+  commandes: IC(<><path d="M6 7h12l-1 13H7z" /><path d="M9 7a3 3 0 016 0" /></>),
+  articles: IC(<><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z" /><path d="M5 17a3 3 0 013-3h11" /></>),
+  stocks: IC(<><path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5z" /><path d="M3 7.5l9 4.5 9-4.5M12 12v9" /></>),
+  representants: IC(<><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0112 0" /><circle cx="17" cy="9" r="2.3" /><path d="M15.5 14.2A5 5 0 0121 19" /></>),
+  zones: IC(<><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0C18.5 15.4 12 21 12 21z" /><circle cx="12" cy="10" r="2.3" /></>),
+  carte: IC(<><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" /><path d="M9 4v14M15 6v14" /></>),
+  reclamations: IC(<><path d="M4 5h16v11H9l-5 4z" /><path d="M12 8v3M12 13.5v.01" /></>),
+  finances: IC(<><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h3" /></>),
+  vendeurs: IC(<><path d="M4 9l1.5-5h13L20 9" /><path d="M4 9h16v2a2.7 2.7 0 01-5.3 0 2.7 2.7 0 01-5.4 0A2.7 2.7 0 014 11z" /><path d="M5.5 13v7h13v-7" /></>),
+  parametres: IC(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1a1.6 1.6 0 00-2.7-1.1l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 003 15.6H3a2 2 0 110-4h.1a1.6 1.6 0 001.1-2.7l-.1-.1a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 009.6 5V5a2 2 0 114 0v.1a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z" /></>),
+  journal: IC(<><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v5h5M9 13h7M9 17h5" /></>),
+};
+const GROUPES_ONGLETS = { tableau: "Pilotage", commandes: "Ventes", representants: "Réseau", finances: "Gestion" };
+
 const ONGLETS = [
   ["tableau", "Tableau de bord"],
   ["commandes", "Commandes"],
@@ -82,22 +99,27 @@ export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }
   const lienBoutique = `${window.location.origin}/?reseau=${encodeURIComponent(slug || "")}`;
   const ctx = { supabase, workspaceId, slug, param, base, rechargerRef: chargerRef, rechargerAlertes: chargerAlertes, aller: setOnglet };
   return (
-    <div className="rn rn-app" style={{ minHeight: "auto" }}>
-      <div>
+    <div className="rn rn-app rn-admin" style={{ minHeight: "auto" }}>
+      <div className="rn-admin-haut">
         <EnteteEspace logo={param.logo_url} plateforme={param.nom_plateforme} titre="Tableau de bord national" droite={<>
             <a className="rn-btn rn-btn-petit" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }} href={lienBoutique} target="_blank" rel="noreferrer">Voir la boutique</a>
             <button className="rn-icone-btn" style={{ color: "#fff" }} onClick={() => setPanneauNotifs(true)} aria-label={`Alertes (${nonLues})`}>
               {Icone.cloche}{nonLues ? <span className="rn-compteur">{nonLues}</span> : null}
             </button>
           </>} />
-        <nav className="rn-onglets">
-          {ONGLETS.filter(([k]) => k !== "vendeurs" || param.vendeurs_actifs).map(([k, l]) => (
-            <button key={k} className="rn-onglet" aria-current={onglet === k ? "page" : undefined} onClick={() => setOnglet(k)}>
-              {l}{compteurs[k] ? <span className="rn-compteur">{compteurs[k]}</span> : null}
-            </button>
-          ))}
-        </nav>
       </div>
+      <div className="rn-admin-corps">
+        <nav className="rn-onglets rn-admin-nav" aria-label="Sections du tableau de bord">
+          {ONGLETS.filter(([k]) => k !== "vendeurs" || param.vendeurs_actifs).map(([k, l]) => (
+            <React.Fragment key={k}>
+              {GROUPES_ONGLETS[k] ? <span className="rn-admin-groupe">{GROUPES_ONGLETS[k]}</span> : null}
+              <button className="rn-onglet" aria-current={onglet === k ? "page" : undefined} onClick={() => setOnglet(k)}>
+                {ICONES_ONGLETS[k]}<span className="rn-onglet-lib">{l}</span>{compteurs[k] ? <span className="rn-compteur">{compteurs[k]}</span> : null}
+              </button>
+            </React.Fragment>
+          ))}
+          <span className="rn-admin-nav-pied">{param.nom_plateforme}<br />Réseau national de distribution</span>
+        </nav>
       <main className="rn-zone-travail">
         {onglet === "tableau" ? <TableauDeBord {...ctx} /> : null}
         {onglet === "commandes" ? <Commandes {...ctx} /> : null}
@@ -112,6 +134,7 @@ export default function AdminReseau({ supabase, workspaceId, slug, nomBoutique }
         {onglet === "parametres" ? <Parametres {...ctx} /> : null}
         {onglet === "journal" ? <Journal {...ctx} /> : null}
       </main>
+      </div>
 
       {panneauNotifs ? (
         <div className="rn-panneau-lateral" role="dialog" aria-label="Alertes">
@@ -232,44 +255,69 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
       <Message ton="danger">{erreur}</Message>
       {!s ? <span className="rn-spin" /> : (
         <>
-          {(s.commandes.paiements_a_verifier || s.commandes.sans_representant || s.stocks.a_valider || s.stocks.ecarts_inventaire || s.commandes.echecs || s.transferts_demandes || s.contacts_nouveaux || s.stocks_faibles.length) ? (
-            <div className="rn-kpis">
-              {s.commandes.paiements_a_verifier ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Paiements à vérifier</div><div className="rn-kpi-val">{s.commandes.paiements_a_verifier}</div></button> : null}
-              {s.commandes.sans_representant ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Commandes sans livreur</div><div className="rn-kpi-val">{s.commandes.sans_representant}</div></button> : null}
-              {s.commandes.echecs ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("commandes")}><div className="rn-kpi-lab">Échecs de livraison</div><div className="rn-kpi-val">{s.commandes.echecs}</div></button> : null}
-              {s.stocks.a_valider ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("articles")}><div className="rn-kpi-lab">Articles à valider</div><div className="rn-kpi-val">{s.stocks.a_valider}</div></button> : null}
-              {s.transferts_demandes ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Demandes de transfert</div><div className="rn-kpi-val">{s.transferts_demandes}</div></button> : null}
-              {s.contacts_nouveaux ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("reclamations")}><div className="rn-kpi-lab">Messages clients</div><div className="rn-kpi-val">{s.contacts_nouveaux}</div></button> : null}
-              {s.stocks_faibles.length ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Représentants à stock faible</div><div className="rn-kpi-val">{s.stocks_faibles.length}</div></button> : null}
-              {s.stocks.ecarts_inventaire ? <button className="rn-kpi rn-kpi-alerte" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => aller("stocks")}><div className="rn-kpi-lab">Écarts d'inventaire</div><div className="rn-kpi-val">{s.stocks.ecarts_inventaire}</div></button> : null}
+          {(() => {
+            const actions = [
+              [s.commandes.paiements_a_verifier, "Paiements à vérifier", "commandes", "danger"],
+              [s.commandes.sans_representant, "Commandes sans livreur", "commandes", "danger"],
+              [s.commandes.echecs, "Échecs de livraison", "commandes", "danger"],
+              [s.stocks.a_valider, "Articles à valider", "articles", "alerte"],
+              [s.transferts_demandes, "Demandes de transfert", "stocks", "alerte"],
+              [s.contacts_nouveaux, "Messages clients", "reclamations", "alerte"],
+              [s.stocks_faibles.length, "Représentants à stock faible", "stocks", "alerte"],
+              [s.stocks.ecarts_inventaire, "Écarts d'inventaire", "stocks", "alerte"],
+            ].filter((x) => x[0]);
+            return actions.length ? (
+              <div className="rn-actions-requises">
+                <span className="rn-actions-titre">À traiter maintenant</span>
+                {actions.map(([n, l, o, ton]) => (
+                  <button key={l} className={"rn-action rn-action-" + ton} onClick={() => aller(o)}><b>{n}</b>{l}</button>
+                ))}
+              </div>
+            ) : <div className="rn-actions-requises rn-actions-ok"><span className="rn-actions-titre">Tout est à jour</span>Aucune action en attente sur le réseau.</div>;
+          })()}
+
+          <div className="rn-hero-kpis">
+            <div className="rn-hk rn-hk-principal">
+              <span className="rn-hk-lab">Chiffre d'affaires livré</span>
+              <span className="rn-hk-val">{fmt(s.finances.chiffre_affaires)}</span>
+              <span className="rn-hk-sous">Panier moyen {fmt(s.finances.panier_moyen)}</span>
+              <Courbe serie={s.par_jour.map((d) => Number(d.ca) || 0)} mini />
             </div>
-          ) : null}
-          <div className="rn-kpis">
+            <div className="rn-hk">
+              <span className="rn-hk-lab">Commandes reçues</span>
+              <span className="rn-hk-val">{fmtNombre(s.commandes.total)}</span>
+              <span className="rn-hk-sous"><b>{s.commandes.livrees}</b> livrées · <b>{s.commandes.en_cours}</b> en cours{s.commandes.en_retard ? <> · <b className="rn-rouge">{s.commandes.en_retard}</b> en retard</> : null}</span>
+            </div>
+            <div className="rn-hk rn-hk-anneau">
+              <Anneau valeur={s.livraisons.taux_reussite} />
+              <div>
+                <span className="rn-hk-lab">Livraisons réussies</span>
+                <span className="rn-hk-sous">Délai moyen {s.livraisons.delai_moyen_h != null ? s.livraisons.delai_moyen_h + " h" : "—"}<br />Acceptation {s.livraisons.taux_acceptation != null ? s.livraisons.taux_acceptation + " %" : "—"}</span>
+              </div>
+            </div>
+            <div className="rn-hk">
+              <span className="rn-hk-lab">À reverser par les représentants</span>
+              <span className="rn-hk-val">{fmt(s.finances.a_reverser)}</span>
+              <span className="rn-hk-sous">Encaissé {fmt(s.finances.encaisse_representants)}</span>
+            </div>
+          </div>
+
+          <div className="rn-grille-3">
             {[
-              ["Chiffre d'affaires (livré)", fmt(s.finances.chiffre_affaires)],
-              ["Commandes reçues", s.commandes.total],
-              ["Livrées", s.commandes.livrees],
-              ["En cours", s.commandes.en_cours],
-              ["En retard", s.commandes.en_retard],
-              ["Annulées", s.commandes.annulees],
-              ["Panier moyen", fmt(s.finances.panier_moyen)],
-              ["Frais de livraison encaissés", fmt(s.finances.frais_livraison)],
-              ["À reverser par les représentants", fmt(s.finances.a_reverser)],
-              ["Paiements en attente", fmt(s.finances.paiements_en_attente)],
-              ["Commissions", fmt(s.finances.commissions)],
-              ["Réductions accordées", fmt(s.finances.reductions)],
-              ["Écart de caisse", fmt(s.finances.ecart_total)],
-              ["Taux de réussite des livraisons", s.livraisons.taux_reussite != null ? s.livraisons.taux_reussite + " %" : "—"],
-              ["Taux d'acceptation des missions", s.livraisons.taux_acceptation != null ? s.livraisons.taux_acceptation + " %" : "—"],
-              ["Délai moyen de livraison", s.livraisons.delai_moyen_h != null ? s.livraisons.delai_moyen_h + " h" : "—"],
-              ["Pièces en stock", fmtNombre(s.stocks.quantite)],
-              ["Valeur du stock", fmt(s.stocks.valeur)],
-            ].map(([l, v]) => <div className="rn-kpi" key={l}><div className="rn-kpi-lab">{l}</div><div className="rn-kpi-val">{v}</div></div>)}
+              ["Commandes", [["En cours", s.commandes.en_cours], ["En retard", s.commandes.en_retard], ["Annulées", s.commandes.annulees], ["Échecs", s.commandes.echecs]]],
+              ["Finances", [["Frais de livraison encaissés", fmt(s.finances.frais_livraison)], ["Paiements en attente", fmt(s.finances.paiements_en_attente)], ["Commissions", fmt(s.finances.commissions)], ["Réductions accordées", fmt(s.finances.reductions)], ["Écart de caisse", fmt(s.finances.ecart_total)]]],
+              ["Stock du réseau", [["Pièces en stock", fmtNombre(s.stocks.quantite)], ["Réservées", fmtNombre(s.stocks.reservee || 0)], ["Valeur du stock", fmt(s.stocks.valeur)], ["Articles disponibles", fmtNombre(s.stocks.articles_disponibles || 0)]]],
+            ].map(([titre, lignes]) => (
+              <div key={titre} className="rn-carte rn-indicateurs">
+                <h3>{titre}</h3>
+                <dl>{lignes.map(([l, v]) => <div key={l}><dt>{l}</dt><dd>{v}</dd></div>)}</dl>
+              </div>
+            ))}
           </div>
           <div className="rn-grille-2">
-            <div className="rn-carte rn-pile">
+            <div className="rn-carte rn-pile rn-plein">
               <div className="rn-entre">
-                <h3>Chiffre d'affaires</h3>
+                <h3>Évolution du chiffre d'affaires</h3>
                 <div className="rn-segment" role="group" aria-label="Regrouper par">
                   {[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => <button key={k} type="button" aria-pressed={grain === k} onClick={() => setGrain(k)}>{l}</button>)}
                 </div>
@@ -277,7 +325,8 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
               {(() => {
                 const serie = grain === "jour" ? s.par_jour.map((d) => ({ periode: d.jour, ca: d.ca, nb: d.nb })) : grain === "semaine" ? s.par_semaine : grain === "mois" ? s.par_mois : s.par_annee;
                 const lab = (d) => { const x = new Date(d.periode); return grain === "annee" ? String(x.getFullYear()) : grain === "mois" ? x.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) : (grain === "semaine" ? "Sem. " : "") + x.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }); };
-                return serie.length ? <Barres donnees={serie.slice(-31)} label={lab} valeur={(d) => Number(d.ca) || 0} format={fmt} /> : <p className="rn-muet">Aucune commande sur la période.</p>;
+                const pts = serie.slice(-31);
+                return pts.length ? <Courbe serie={pts.map((d) => Number(d.ca) || 0)} etiquettes={pts.map(lab)} format={fmt} /> : <p className="rn-muet">Aucune commande sur la période.</p>;
               })()}
             </div>
             <div className="rn-carte rn-pile">
@@ -1542,5 +1591,53 @@ function Diagnostic({ supabase, workspaceId }) {
       ))}
       {d.push_non_envoyes_24h ? <p className="rn-petit rn-muet">Alertes non parvenues : vérifiez la clé SUPABASE_SERVICE_ROLE_KEY dans Vercel et que les représentants ont activé les alertes.</p> : null}
     </div>
+  );
+}
+
+
+// =================================================================== graphiques
+// Courbe d'évolution (aire dégradée) avec survol ; « mini » pour les cartes d'indicateurs
+function Courbe({ serie, etiquettes = [], format = fmtNombre, mini = false }) {
+  const [survol, setSurvol] = useState(null);
+  const W = 600, H = mini ? 70 : 220, pad = mini ? 2 : 24;
+  const n = serie.length;
+  if (!n) return null;
+  const max = Math.max(...serie, 1);
+  const x = (i) => (n === 1 ? W / 2 : pad + (i * (W - pad * 2)) / (n - 1));
+  const y = (v) => H - (mini ? 4 : 26) - (v / max) * (H - (mini ? 10 : 50));
+  const ligne = serie.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const aire = `${ligne} L${x(n - 1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z`;
+  const id = "rn-deg-" + (mini ? "m" : "g");
+  return (
+    <div className={"rn-courbe" + (mini ? " rn-courbe-mini" : "")}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Évolution du chiffre d'affaires"
+        onMouseLeave={() => setSurvol(null)}
+        onMouseMove={(e) => { if (mini) return; const r = e.currentTarget.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left) / r.width * W - pad) / ((W - pad * 2) / Math.max(n - 1, 1))); setSurvol(Math.max(0, Math.min(n - 1, i))); }}>
+        <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--rn-or)" stopOpacity={mini ? 0.55 : 0.35} /><stop offset="1" stopColor="var(--rn-or)" stopOpacity="0" /></linearGradient></defs>
+        {!mini ? [0.25, 0.5, 0.75, 1].map((f) => <line key={f} x1={pad} x2={W - pad} y1={y(max * f)} y2={y(max * f)} className="rn-courbe-grille" />) : null}
+        <path d={aire} fill={`url(#${id})`} />
+        <path d={ligne} className="rn-courbe-ligne" vectorEffect="non-scaling-stroke" />
+        {survol != null ? <><line x1={x(survol)} x2={x(survol)} y1={0} y2={H} className="rn-courbe-repere" /><circle cx={x(survol)} cy={y(serie[survol])} r="5" className="rn-courbe-point" /></> : null}
+      </svg>
+      {!mini ? (
+        <div className="rn-courbe-bas">
+          <span>{etiquettes[0]}</span>
+          <span className="rn-courbe-info">{survol != null ? <><b>{format(serie[survol])}</b> · {etiquettes[survol]}</> : <>Max <b>{format(max)}</b> · Total <b>{format(serie.reduce((a, b) => a + b, 0))}</b></>}</span>
+          <span>{etiquettes[n - 1]}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Anneau({ valeur }) {
+  const v = valeur == null ? null : Math.max(0, Math.min(100, Number(valeur)));
+  const C = 2 * Math.PI * 34;
+  return (
+    <svg className="rn-anneau" viewBox="0 0 80 80" role="img" aria-label={v == null ? "Pas encore de livraison" : `${v} % de livraisons réussies`}>
+      <circle cx="40" cy="40" r="34" className="rn-anneau-fond" />
+      <circle cx="40" cy="40" r="34" className="rn-anneau-val" strokeDasharray={`${((v || 0) / 100) * C} ${C}`} transform="rotate(-90 40 40)" />
+      <text x="40" y="45" textAnchor="middle">{v == null ? "—" : Math.round(v) + "%"}</text>
+    </svg>
   );
 }

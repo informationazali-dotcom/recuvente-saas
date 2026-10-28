@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, useCompteARebours, formatDuree, envoyerPhotos,
   envoyerPreuve, compresserImage, BoutonAlertes, PadSignature, useMarque, EnteteEspace, CarteRepresentant,
-  ETATS, STATUTS_MISSION, STATUTS_ARTICLE, MODES_PAIEMENT, CATEGORIES_DEFAUT, Bouton, Champ, Message, Modale, Vide, Pastille, Icone,
+  ETATS, STATUTS_MISSION, STATUTS_ARTICLE, MODES_PAIEMENT, CATEGORIES_DEFAUT, Bouton, Champ, Message, Modale, Vide, Pastille, Icone, EcranOuverture, BoutonInstaller,
 } from "./ReseauCommun.jsx";
 
 export default function EspaceRepresentant({ supabase, slug }) {
@@ -28,7 +28,7 @@ export default function EspaceRepresentant({ supabase, slug }) {
   }, [supabase, slug, session]);
 
   if (session === undefined || (session && rep === undefined))
-    return <div className="rn" style={{ display: "grid", placeItems: "center" }}><span className="rn-spin" style={{ color: "var(--rn-prune)", width: 28, height: 28 }} /></div>;
+    return <EcranOuverture />;
   if (!session) return <Connexion supabase={supabase} slug={slug} />;
   if (!rep)
     return (

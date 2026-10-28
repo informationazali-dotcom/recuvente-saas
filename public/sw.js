@@ -21,6 +21,19 @@ const VIBRATION = [300, 100, 300, 100, 600];
 self.addEventListener("install", () => { self.skipWaiting(); });
 self.addEventListener("activate", (event) => { event.waitUntil(self.clients.claim()); });
 
+// Application installable (téléphone / ordinateur) : les pages passent toujours par le réseau ;
+// sans connexion, on affiche un écran clair au lieu de la page d'erreur du navigateur.
+const HORS_LIGNE = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hors connexion</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#3D0C52;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;padding:24px}
+h1{font-family:Georgia,serif;font-size:26px;margin:0 0 10px}p{opacity:.85;max-width:32ch;margin:0 auto 22px;line-height:1.5}
+button{font:inherit;font-weight:600;background:#B8913F;color:#21130C;border:0;border-radius:999px;padding:13px 24px}</style></head>
+<body><div><h1>Pas de connexion internet</h1><p>Vérifiez vos données mobiles ou votre Wi-Fi, puis réessayez.</p><button onclick="location.reload()">Réessayer</button></div></body></html>`;
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.mode !== "navigate" || req.method !== "GET") return;
+  event.respondWith(fetch(req).catch(() => new Response(HORS_LIGNE, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
+});
+
 function lireDonnees(event) {
   try {
     return event.data ? event.data.json() : {};

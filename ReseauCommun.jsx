@@ -430,6 +430,68 @@ export function useMarque(supabase, slug) {
   return m;
 }
 
+// ------------------------------------------------------------------ application installable
+// Le navigateur propose l'installation (Android, ordinateur) : l'événement est capté dès
+// l'ouverture de la page (index.html) puis offert ici. Sur iPhone, on explique le geste.
+export function useInstallation() {
+  const lire = () => {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const ios = /iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua);
+    const installe = typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true);
+    return { possible: !!window.__rvInstall, ios, installe, android: /android/i.test(ua) };
+  };
+  const [etat, setEtat] = useState(lire);
+  useEffect(() => {
+    const f = () => setEtat(lire());
+    window.addEventListener("rv-installable", f);
+    return () => window.removeEventListener("rv-installable", f);
+  }, []);
+  const installer = async () => {
+    const ev = window.__rvInstall;
+    if (!ev) return false;
+    ev.prompt();
+    try { const r = await ev.userChoice; window.__rvInstall = null; setEtat(lire()); return r?.outcome === "accepted"; } catch { return false; }
+  };
+  return { ...etat, installer, proposable: !etat.installe && (etat.possible || etat.ios) };
+}
+
+// Bouton « Installer l'application » (affiche le mode d'emploi iPhone si besoin)
+export function BoutonInstaller({ className = "", libelle = "Installer l'application", children }) {
+  const app = useInstallation();
+  const [aide, setAide] = useState(false);
+  if (!app.proposable) return null;
+  return (
+    <>
+      <button type="button" className={className} onClick={() => (app.possible ? app.installer() : setAide(true))}>
+        {children || libelle}
+      </button>
+      {aide ? (
+        <Modale titre="Installer sur iPhone" onFermer={() => setAide(false)}>
+          <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 10, lineHeight: 1.5 }}>
+            <li>Touchez le bouton <b>Partager</b> en bas de Safari (le carré avec une flèche vers le haut).</li>
+            <li>Faites défiler puis touchez <b>« Sur l'écran d'accueil »</b>.</li>
+            <li>Touchez <b>Ajouter</b> : l'application apparaît avec son logo, comme toutes vos applications.</li>
+          </ol>
+        </Modale>
+      ) : null}
+    </>
+  );
+}
+
+// Écran d'ouverture officiel (même rendu que celui posé par index.html avant React)
+export function EcranOuverture({ logo, nom, couleur = "#3D0C52" }) {
+  const id = typeof window !== "undefined" ? window.__RV?.idReseau : null;
+  const l = logo || id?.logo, n = nom || id?.nom, c = id?.couleur || couleur;
+  return (
+    <div className="rvb rvb-reseau" style={{ "--rvb-bg": c, "--rvb-fg": "#fff" }} role="status" aria-label="Chargement">
+      <div className="rvb-fil" />
+      <div className="rvb-med"><i className="rvb-ring" />{l ? <img alt="" src={l} /> : null}</div>
+      {n ? <div className="rvb-nom">{n}</div> : null}
+      <div className="rvb-bande" />
+    </div>
+  );
+}
+
 // En-tête commun aux espaces de travail : logo, nom de la plateforme, espace, actions
 export function EnteteEspace({ logo, plateforme, espace, titre, droite }) {
   return (
@@ -488,6 +550,20 @@ export function useStylesReseau(couleur = "#4A1238", or = "#C9A24A") {
 }
 
 const CSS = `
+.rvb{position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--rvb-bg,#3D0C52);color:var(--rvb-fg,#fff);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.rvb-med{position:relative;width:92px;height:92px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 14px 44px rgba(0,0,0,.2)}
+.rvb-ring{position:absolute;inset:-8px;border-radius:50%;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));animation:rvbSpin 1.3s linear infinite}
+.rvb-nom{font-weight:650;font-size:15px;max-width:80vw;text-align:center}
+.rvb-fil{position:absolute;left:0;top:0;height:2px;width:100%;transform-origin:left;background:var(--rvb-fg,#fff);opacity:.5;animation:rvbFil 1.6s cubic-bezier(.4,0,.2,1) infinite}
+.rvb-reseau{background:radial-gradient(80% 60% at 50% 35%,rgba(184,145,63,.28),transparent 70%),var(--rvb-bg)}
+.rvb-reseau .rvb-med{width:112px;height:112px;box-shadow:0 0 0 3px #B8913F,0 18px 50px rgba(0,0,0,.35)}
+.rvb-reseau .rvb-med img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.rvb-reseau .rvb-ring{background:conic-gradient(from 0deg,#B8913F,transparent 72%)}
+.rvb-reseau .rvb-nom{font-family:Georgia,"Times New Roman",serif;font-size:17px;letter-spacing:.04em}
+.rvb-bande{position:absolute;left:0;right:0;bottom:0;height:5px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
+@keyframes rvbSpin{to{transform:rotate(360deg)}}
+@keyframes rvbFil{0%{transform:scaleX(0);opacity:.5}60%{transform:scaleX(1);opacity:.5}100%{transform:scaleX(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.rvb-ring,.rvb-fil{animation:none}}
 .rn{--rn-perle:#FBF8F6;--rn-rose:#F3EAEE;--rn-rose-2:#E9DCE2;--rn-encre:#22161F;--rn-gris:#6E5A66;--rn-trait:#E3D6DC;
   --rn-vert:#1F7A4D;--rn-rouge:#B4232F;--rn-ambre:#A8620B;--rn-bleu:#2D5B8A;
   --rn-titre:'Fraunces',Georgia,serif;--rn-texte:'Public Sans',system-ui,-apple-system,sans-serif;
@@ -711,6 +787,75 @@ const CSS = `
 .rn-kpi-val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--rn-encre);margin-top:4px}
 .rn-kpi-lab{font-size:13px;color:var(--rn-gris)}
 .rn-kpi.rn-kpi-alerte{border-color:#EBC77F;background:#FFFBF2}
+/* ---------- navigation des espaces : défilement horizontal sur téléphone ---------- */
+@media (max-width:1099px){
+  .rn-onglets{flex-wrap:nowrap;overflow-x:auto;-webkit-mask:linear-gradient(90deg,#000 88%,transparent);mask:linear-gradient(90deg,#000 88%,transparent);padding-right:40px}
+}
+.rn-onglet svg{width:19px;height:19px;flex:none}
+.rn-admin-groupe,.rn-admin-nav-pied{display:none}
+
+/* ---------- administration : barre latérale sur grand écran ---------- */
+@media (min-width:1100px){
+  .rn-admin .rn-app-tete{position:sticky;top:0;z-index:35}
+  .rn-admin-corps{display:grid;grid-template-columns:248px 1fr;align-items:start}
+  .rn-admin-nav{position:sticky;top:76px;flex-direction:column;flex-wrap:nowrap;gap:2px;padding:18px 12px;height:calc(100vh - 76px);overflow-y:auto;border-bottom:0;border-right:1px solid var(--rn-trait);background:linear-gradient(180deg,#fff,color-mix(in srgb,var(--rn-rose) 55%,#fff))}
+  .rn-admin-nav .rn-onglet{width:100%;justify-content:flex-start;gap:12px;padding:10px 12px;border-radius:12px;font-size:14.5px}
+  .rn-admin-nav .rn-onglet:hover{background:color-mix(in srgb,var(--rn-rose) 70%,#fff);color:var(--rn-prune)}
+  .rn-admin-nav .rn-onglet[aria-current=page]{background:var(--rn-prune);color:#fff;box-shadow:0 10px 22px -12px var(--rn-prune)}
+  .rn-admin-nav .rn-onglet[aria-current=page] svg{color:var(--rn-or)}
+  .rn-admin-nav .rn-compteur{margin-left:auto}
+  .rn-admin-groupe{display:block;margin:16px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb,var(--rn-or) 75%,#000)}
+  .rn-admin-groupe:first-child{margin-top:0}
+  .rn-admin-nav-pied{display:block;margin-top:auto;padding:14px 12px 0;border-top:1px solid var(--rn-trait);font-size:11.5px;line-height:1.5;color:var(--rn-gris)}
+  .rn-admin .rn-zone-travail{padding:28px 32px 48px;max-width:1320px}
+}
+
+/* ---------- tableau de bord : actions, indicateurs clés ---------- */
+.rn-actions-requises{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:16px;background:#fff;border:1px solid var(--rn-trait)}
+.rn-actions-titre{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--rn-gris);margin-right:6px}
+.rn-actions-ok{color:var(--rn-gris);font-size:14px}
+.rn-actions-ok .rn-actions-titre{color:var(--rn-vert)}
+.rn-action{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:999px;padding:7px 14px 7px 7px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:transform .15s}
+.rn-action:hover{transform:translateY(-1px)}
+.rn-action b{min-width:26px;height:26px;padding:0 7px;border-radius:999px;display:grid;place-items:center;color:#fff;font-size:13px}
+.rn-action-danger{background:#FDEEEE;color:#8E1F1F;border-color:#F4C9C9}.rn-action-danger b{background:#C62828}
+.rn-action-alerte{background:#FFF6E5;color:#7A4E00;border-color:#F0D9A6}.rn-action-alerte b{background:#C98A12}
+.rn-hero-kpis{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.rn-hk{position:relative;display:grid;align-content:start;gap:6px;padding:18px 18px 16px;border-radius:20px;background:#fff;border:1px solid var(--rn-trait);overflow:hidden;box-shadow:0 18px 40px -34px rgba(40,10,60,.5)}
+.rn-hk-principal{background:radial-gradient(90% 120% at 100% 0%,color-mix(in srgb,var(--rn-or) 35%,transparent),transparent 60%),var(--rn-prune);color:#fff;border-color:transparent}
+.rn-plein{grid-column:1/-1}
+.rn-hk-lab,.rn-hk-sous{display:block}
+.rn-hk-lab{font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--rn-gris)}
+.rn-hk-principal .rn-hk-lab{color:var(--rn-or)}
+.rn-hk-val{font-family:var(--rn-titre,Georgia,serif);font-size:clamp(26px,2.6vw,34px);font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--rn-encre)}
+.rn-hk-principal .rn-hk-val{color:#fff}
+.rn-hk-sous{font-size:13.5px;color:var(--rn-gris);line-height:1.5}
+.rn-hk-principal .rn-hk-sous{color:rgba(255,255,255,.78)}
+.rn-hk-anneau{grid-template-columns:auto 1fr;align-items:center;gap:16px}
+.rn-rouge{color:var(--rn-rouge)}
+.rn-grille-3{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.rn-indicateurs h3{margin-bottom:6px}
+.rn-indicateurs dl{margin:0;display:grid}
+.rn-indicateurs dl div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--rn-trait);font-size:14px}
+.rn-indicateurs dl div:first-child{border-top:0}
+.rn-indicateurs dt{color:var(--rn-gris)}
+.rn-indicateurs dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+/* courbes */
+.rn-courbe svg{display:block;width:100%;height:220px;overflow:visible;cursor:crosshair}
+.rn-courbe-mini{margin:6px -18px -16px}
+.rn-courbe-mini svg{height:70px;cursor:default}
+.rn-courbe-ligne{fill:none;stroke:var(--rn-prune);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.rn-hk-principal .rn-courbe-ligne{stroke:var(--rn-or)}
+.rn-courbe-grille{stroke:var(--rn-trait);stroke-dasharray:3 5}
+.rn-courbe-repere{stroke:var(--rn-or);stroke-width:1}
+.rn-courbe-point{fill:#fff;stroke:var(--rn-prune);stroke-width:3}
+.rn-courbe-bas{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--rn-gris);margin-top:6px}
+.rn-courbe-info{text-align:center}
+.rn-courbe-info b{color:var(--rn-encre)}
+.rn-anneau{width:84px;height:84px}
+.rn-anneau-fond{fill:none;stroke:var(--rn-rose);stroke-width:8}
+.rn-anneau-val{fill:none;stroke:var(--rn-vert,#1f8a4c);stroke-width:8;stroke-linecap:round;transition:stroke-dasharray .8s}
+.rn-anneau text{font-family:var(--rn-titre,Georgia,serif);font-size:19px;font-weight:700;fill:var(--rn-encre)}
 .rn-section-titre{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .rn-section-titre h2{font-size:26px}
 .rn-filtres{display:flex;gap:8px;flex-wrap:wrap}

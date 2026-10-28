@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, useStylesReseau, useCompteARebours, formatDuree,
-  ETATS, MODES_PAIEMENT, ETAPES_CLIENT, STATUTS, imprimerRecu, Bouton, Champ, Message, Vide, Pastille, StatutCommande, Icone,
+  ETATS, MODES_PAIEMENT, ETAPES_CLIENT, STATUTS, imprimerRecu, EcranOuverture, BoutonInstaller, Bouton, Champ, Message, Vide, Pastille, StatutCommande, Icone,
 } from "./ReseauCommun.jsx";
 import AccueilLivres, { EnteteLivres, PiedLivres, FicheLivre } from "./ReseauVitrineLivres.jsx";
 
@@ -94,9 +94,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
     );
   if (!boutique || !articles)
     return (
-      <div className="rn" style={{ display: "grid", placeItems: "center" }}>
-        <span className="rn-spin" style={{ color: "var(--rn-prune)", width: 28, height: 28 }} aria-label="Chargement" />
-      </div>
+      <EcranOuverture />
     );
 
   const nom = p.nom_plateforme || boutique.nom;

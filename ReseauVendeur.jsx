@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, useStylesReseau, STATUTS_ARTICLE,
-  Bouton, Champ, Message, Vide, Pastille, BoutonAlertes, useMarque, EnteteEspace,
+  Bouton, Champ, Message, Vide, Pastille, BoutonAlertes, useMarque, EnteteEspace, EcranOuverture, BoutonInstaller,
 } from "./ReseauCommun.jsx";
 import { Connexion, FormulaireArticle } from "./ReseauRepresentant.jsx";
 
@@ -31,7 +31,7 @@ export default function EspaceVendeur({ supabase, slug }) {
   }, [session, lier]);
 
   if (session === undefined || (session && info === undefined))
-    return <div className="rn" style={{ display: "grid", placeItems: "center" }}><span className="rn-spin" style={{ color: "var(--rn-prune)", width: 28, height: 28 }} /></div>;
+    return <EcranOuverture />;
   if (!session)
     return (
       <Connexion supabase={supabase} slug={slug} titre="Espace vendeur partenaire"

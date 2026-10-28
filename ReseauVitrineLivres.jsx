@@ -99,8 +99,13 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
   const guides = articles.slice(0, 4);
   const aParaitre = A_PARAITRE.filter((x) => !articles.some((a) => a.reference === x.reference));
   const phare = guides.find((a) => a.reference === "GUIDE-REUSSITE-2026") || guides[0] || null;
-  const fichePhare = (phare && FICHES[phare.reference]) || null;
-  const edition = (phare?.marque || "").match(/\d{4}/)?.[0] || String(new Date().getFullYear());
+  // la collection affichée en vitrine : les guides en vente, puis ceux annoncés
+  const collection = [...guides, ...aParaitre].slice(0, 2);
+  const enVente = guides.filter((a) => a.disponible);
+  const prixMin = enVente.length ? Math.min(...enVente.map((a) => Number(a.prix) || 0)) : null;
+  const editions = [...new Set(collection.map((a) => (a.marque || "").match(/\d{4}/)?.[0]).filter(Boolean))].sort();
+  const edition = editions.length ? editions.join(" – ") : String(new Date().getFullYear());
+  const [ongletContenu, setOngletContenu] = useState(0);
   const [quantites, setQuantites] = useState({});
   const q = (id) => quantites[id] || 1;
 
@@ -113,11 +118,13 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
     return () => window.removeEventListener("scroll", f);
   }, []);
 
-  const titre = t.titre_accueil && !/guides officiels/i.test(t.titre_accueil) ? t.titre_accueil : "Le guide qui accompagne chaque élève de Côte d'Ivoire";
-  const candidat = aParaitre[0] || guides.find((a) => a.reference === "GUIDE-CANDIDATS-2027");
+  const titre = t.titre_accueil || "Deux guides officiels pour révéler l'excellence ivoirienne";
+  const candidat = guides.find((a) => a.reference === "GUIDE-CANDIDATS-2027") || aParaitre[0] || null;
+  const court = (a) => (a.reference === "GUIDE-CANDIDATS-2027" ? "Guide officiel des candidats" : a.reference === "GUIDE-REUSSITE-2026" ? "Guide de la Réussite et de l'Excellence" : a.titre);
+  const pourQui = (a) => (a.reference === "GUIDE-CANDIDATS-2027" ? "Pour les candidat(e)s au concours" : a.reference === "GUIDE-REUSSITE-2026" ? "Pour les élèves et leurs parents" : a.categorie);
 
   return (
-    <div className={"rnl rnl-accueil" + (phare ? " rnl-avec-barre" : "")}>
+    <div className={"rnl rnl-accueil" + (enVente.length ? " rnl-avec-barre" : "")}>
 
       {/* ------------------------------------------------ ouverture */}
       <section className="rnl-ouverture">
@@ -128,53 +135,53 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
         </svg>
         <div className="rnl-cadre rnl-ouverture-grille">
           <div className="rnl-ouverture-texte">
-            <p className="rnl-surtitre"><span className="rnl-pulse" aria-hidden="true" />Édition officielle {edition} · Disponible maintenant</p>
+            <p className="rnl-surtitre"><span className="rnl-pulse" aria-hidden="true" />Collection officielle · Éditions {edition}</p>
             <h1>{titre}</h1>
             <p className="rnl-chapeau">
-              {t.sous_titre_accueil && !/livrés partout|Le Guide de la Réussite et de l'Excellence et le Guide officiel/i.test(t.sous_titre_accueil)
-                ? t.sous_titre_accueil
-                : "Apprendre, développer ses talents, faire les bons choix et servir sa communauté : le Guide de la Réussite et de l'Excellence donne à chaque élève une méthode claire pour réussir à l'école et dans la vie."}
+              {t.sous_titre_accueil || "Le Guide de la Réussite et de l'Excellence accompagne chaque élève à l'école et dans la vie. Le Guide officiel des candidats prépare au Concours Miss & Mister Excellence. Tous deux livrés partout en Côte d'Ivoire."}
             </p>
-            {phare ? (
-              <div className="rnl-offre">
-                <span className="rnl-offre-prix">{fmt(phare.prix)}</span>
-                <span className="rnl-offre-note">Livré près de chez vous<br />Vous payez à la réception</span>
+            {collection.length ? (
+              <div className="rnl-offres">
+                {collection.map((a) => {
+                  const vente = guides.includes(a) && a.disponible;
+                  return (
+                    <button key={a.id} className="rnl-offre2" onClick={() => (vente ? ajouter(a, 1) : allerA("rnl-guides"))}>
+                      {a.photos?.[0] ? <img src={a.photos[0]} alt="" /> : null}
+                      <span className="rnl-offre2-txt"><small>{pourQui(a)}</small><b>{court(a)}</b></span>
+                      <span className="rnl-offre2-prix">{vente ? fmt(a.prix) : "Bientôt"}<em>{vente ? "Commander" : "Être prévenu"} {P.fleche}</em></span>
+                    </button>
+                  );
+                })}
               </div>
             ) : null}
             <div className="rnl-actions">
-              {phare ? (
-                <button className="rnl-btn rnl-btn-or rnl-btn-grand" onClick={() => ajouter(phare, 1)}>Commander mon guide {P.fleche}</button>
-              ) : (
-                <button className="rnl-btn rnl-btn-or rnl-btn-grand" onClick={() => allerA("rnl-guides")}>Découvrir les guides {P.fleche}</button>
-              )}
+              <button className="rnl-btn rnl-btn-or rnl-btn-grand" onClick={() => allerA("rnl-guides")}>Découvrir les deux guides {P.fleche}</button>
               <button className="rnl-btn rnl-btn-ligne" onClick={() => allerA("rnl-etablissements")}>Équiper une classe</button>
             </div>
+            <p className="rnl-offre-note">Livré près de chez vous · vous payez à la réception · Wave, Orange Money, MTN</p>
           </div>
 
           <div className="rnl-scene">
             <span className="rnl-halo" aria-hidden="true" />
-            {phare ? (
-              <button className="rnl-livre3d" onClick={() => ouvrir(phare.id)} aria-label={`Voir le détail : ${phare.titre}`}>
-                <span className="rnl-livre3d-in">
-                  {phare.photos?.[0] ? <img src={phare.photos[0]} alt={`Couverture : ${phare.titre}`} fetchpriority="high" /> : null}
-                  <span className="rnl-reflet" />
-                </span>
-                <span className="rnl-tranche" />
-                <span className="rnl-signet" />
-              </button>
-            ) : null}
-            {candidat ? (
-              <button className="rnl-livre-second" onClick={() => allerA("rnl-guides")} aria-label="Guide officiel des candidats : bientôt disponible">
-                {candidat.photos?.[0] ? <img src={candidat.photos[0]} alt="" /> : null}
-                {aParaitre.length ? <em>Bientôt</em> : null}
-              </button>
-            ) : null}
+            <div className="rnl-duo">
+              {collection.map((a, i) => (
+                <button key={a.id} className={"rnl-livre3d rnl-livre3d-" + i} onClick={() => (guides.includes(a) ? ouvrir(a.id) : allerA("rnl-guides"))} aria-label={`Voir le détail : ${a.titre}`}>
+                  <span className="rnl-livre3d-in">
+                    {a.photos?.[0] ? <img src={a.photos[0]} alt={`Couverture : ${a.titre}`} fetchpriority={i === 0 ? "high" : undefined} /> : null}
+                    <span className="rnl-reflet" />
+                  </span>
+                  <span className="rnl-tranche" />
+                  {i === 0 ? <span className="rnl-signet" /> : null}
+                  {!guides.includes(a) ? <em className="rnl-ruban">Bientôt</em> : null}
+                </button>
+              ))}
+            </div>
             <div className="rnl-medaille" aria-hidden="true">
               <svg viewBox="0 0 120 120">
                 <defs><path id="rnl-cercle" d="M60 60m-46 0a46 46 0 1 1 92 0a46 46 0 1 1-92 0" /></defs>
                 <circle cx="60" cy="60" r="58" className="rnl-medaille-fond" />
                 <circle cx="60" cy="60" r="54" className="rnl-medaille-trait" />
-                <text><textPath href="#rnl-cercle">ÉDITION OFFICIELLE · {edition} · CÔTE D'IVOIRE ·</textPath></text>
+                <text><textPath href="#rnl-cercle">COLLECTION OFFICIELLE · CÔTE D'IVOIRE ·</textPath></text>
               </svg>
               {boutique.logo_url ? <img src={boutique.logo_url} alt="" /> : null}
             </div>
@@ -196,12 +203,12 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
       {/* ------------------------------------------------ pour qui */}
       <section className="rnl-section rnl-cadre" data-apparait>
         <p className="rnl-surtitre-sombre">Pour qui ?</p>
-        <h2 className="rnl-titre">Un guide, trois façons d'avancer</h2>
+        <h2 className="rnl-titre">Deux guides, trois façons d'avancer</h2>
         <div className="rnl-publics">
           <button className="rnl-public" onClick={() => (phare ? ouvrir(phare.id) : allerA("rnl-guides"))}>
             <span className="rnl-public-ic">{P.parent}</span>
-            <b>Je suis parent</b>
-            <span>Offrez à votre enfant une méthode, pas seulement des cours. Un guide qu'il garde toute l'année.</span>
+            <b>Je suis parent ou élève</b>
+            <span>Le Guide de la Réussite et de l'Excellence : une méthode pour réussir à l'école et dans la vie, à garder toute l'année.</span>
             <em>Voir le guide {P.fleche}</em>
           </button>
           <button className="rnl-public" onClick={() => allerA("rnl-etablissements")}>
@@ -210,38 +217,48 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
             <span>Écoles, collèges, lycées : équipez vos classes au tarif établissement, livré sur place.</span>
             <em>Demander un devis {P.fleche}</em>
           </button>
-          <button className="rnl-public" onClick={() => allerA("rnl-guides")}>
+          <button className="rnl-public" onClick={() => (candidat && guides.includes(candidat) ? ouvrir(candidat.id) : allerA("rnl-guides"))}>
             <span className="rnl-public-ic">{P.couronne}</span>
             <b>Je suis candidat(e) au concours</b>
-            <span>Le Guide officiel des candidats arrive bientôt : soyez prévenu(e) dès sa sortie.</span>
-            <em>Être prévenu(e) {P.fleche}</em>
+            <span>Le Guide officiel des candidats : les étapes, la préparation et le savoir-être pour aller jusqu'à la finale.</span>
+            <em>{candidat && guides.includes(candidat) ? "Voir le guide" : "Être prévenu(e)"} {P.fleche}</em>
           </button>
         </div>
       </section>
 
-      {/* ------------------------------------------------ les quatre piliers */}
-      {fichePhare ? (
-        <section className="rnl-piliers4" data-apparait>
-          <div className="rnl-cadre rnl-piliers4-grille">
-            <div className="rnl-piliers4-tete">
-              <p className="rnl-surtitre-sombre">Ce que votre enfant y gagne</p>
-              <h2 className="rnl-titre">Quatre piliers pour réussir à l'école et dans la vie</h2>
-              <p>Un manuel pratique, pensé pour être lu, relu et appliqué : à la maison, en classe et avec les parents.</p>
-              {phare?.photos?.[0] ? <img className="rnl-piliers4-livre" src={phare.photos[0]} alt="" loading="lazy" /> : null}
+      {/* ------------------------------------------------ ce que contient chaque guide */}
+      {collection.length ? (() => {
+        const g = collection[Math.min(ongletContenu, collection.length - 1)];
+        const f = FICHES[g.reference] || { public: g.categorie, resume: g.description, chapitres: [] };
+        const DETAILS = {
+          "GUIDE-REUSSITE-2026": ["Mieux comprendre ses leçons, mieux apprendre et aborder ses examens avec confiance.", "Révéler ses talents, exercer son intelligence et prendre l'assurance d'un leader.", "Adopter les bonnes habitudes au quotidien et faire les bons choix.", "Devenir un citoyen responsable, respectueux et engagé pour sa communauté."],
+        };
+        const lignes = f.chapitres.map(([k, v], i) => [k, DETAILS[g.reference]?.[i] || v]);
+        return (
+          <section className="rnl-piliers4" data-apparait>
+            <div className="rnl-cadre rnl-piliers4-grille">
+              <div className="rnl-piliers4-tete">
+                <p className="rnl-surtitre-sombre">À l'intérieur des guides</p>
+                <h2 className="rnl-titre">Ce que contient chaque guide</h2>
+                {collection.length > 1 ? (
+                  <div className="rnl-bascule" role="tablist" aria-label="Choisir un guide">
+                    {collection.map((c, i) => (
+                      <button key={c.id} role="tab" aria-selected={g.id === c.id} onClick={() => setOngletContenu(i)}>{c.reference === "GUIDE-CANDIDATS-2027" ? "Guide des candidats" : "Guide de la Réussite"}</button>
+                    ))}
+                  </div>
+                ) : null}
+                <p>{f.public}. {f.resume}</p>
+                {g.photos?.[0] ? <img key={g.id} className="rnl-piliers4-livre" src={g.photos[0]} alt="" loading="lazy" /> : null}
+              </div>
+              <ol className="rnl-piliers4-liste" key={g.id}>
+                {lignes.map(([k, v], i) => (
+                  <li key={k}><span className="rnl-num">0{i + 1}</span><div><b>{k}</b><p>{v}</p></div></li>
+                ))}
+              </ol>
             </div>
-            <ol className="rnl-piliers4-liste">
-              {[
-                ["Apprendre", "Mieux comprendre ses leçons, mieux apprendre et aborder ses examens avec confiance."],
-                ["Développer", "Révéler ses talents, exercer son intelligence et prendre l'assurance d'un leader."],
-                ["Agir", "Adopter les bonnes habitudes au quotidien et faire les bons choix."],
-                ["Servir", "Devenir un citoyen responsable, respectueux et engagé pour sa communauté."],
-              ].map(([k, v], i) => (
-                <li key={k}><span className="rnl-num">0{i + 1}</span><div><b>{k}</b><p>{v}</p></div></li>
-              ))}
-            </ol>
-          </div>
-        </section>
-      ) : null}
+          </section>
+        );
+      })() : null}
 
       {/* ------------------------------------------------ les guides */}
       <section id="rnl-guides" className="rnl-section rnl-cadre" data-apparait>
@@ -328,7 +345,7 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
           <h2 className="rnl-titre">Livré partout en Côte d'Ivoire</h2>
           <p>Les guides sont stockés chez nos représentants régionaux. Votre commande est confiée automatiquement au représentant le plus proche de chez vous, qui vous la remet en main propre contre votre code de remise.</p>
           <p>Si aucun représentant n'est encore installé dans votre ville, le colis voyage par un transporteur partenaire. Les frais et le délai exacts s'affichent avant que vous confirmiez.</p>
-          <button className="rnl-btn rnl-btn-violet" onClick={() => (phare ? ajouter(phare, 1) : allerA("rnl-guides"))}>Commander mon guide</button>
+          <button className="rnl-btn rnl-btn-violet" onClick={() => allerA("rnl-guides")}>Choisir mon guide</button>
         </div>
         <svg viewBox="0 0 460 420" className="rnl-carte" role="img" aria-label="Carte de la Côte d'Ivoire avec les principales villes desservies">
           <path d={"M" + CONTOUR.map(([x, y]) => proj(x, y).map((v) => v.toFixed(1)).join(" ")).join(" L") + " Z"} className="rnl-carte-pays" />
@@ -350,14 +367,14 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
         <p className="rnl-surtitre-sombre">Simple et sûr</p>
         <h2 className="rnl-titre">Commander en trois étapes</h2>
         <ol className="rnl-etapes">
-          <li><b>Choisissez le guide et la quantité</b><span>Un exemplaire pour votre enfant, ou plusieurs pour une fratrie ou un groupe.</span></li>
+          <li><b>Choisissez vos guides et la quantité</b><span>Le Guide de la Réussite, le Guide des candidats, ou les deux, pour vous, votre enfant ou un groupe.</span></li>
           <li><b>Indiquez votre ville et votre téléphone</b><span>Payez à la livraison, ou par Wave, Orange Money ou MTN. Le guide vous est réservé.</span></li>
           <li><b>Recevez-le près de chez vous</b><span>Le représentant vous appelle, puis vous remet le guide contre votre code à 6 chiffres.</span></li>
         </ol>
       </section>
 
       {/* ------------------------------------------------ application */}
-      <Application nom={nom} logo={boutique.logo_url} phare={phare} />
+      <Application nom={nom} logo={boutique.logo_url} guides={collection.filter((a) => guides.includes(a))} />
 
       {/* ------------------------------------------------ questions */}
       <section className="rnl-section rnl-cadre rnl-faq" data-apparait>
@@ -375,11 +392,11 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
       </section>
 
       {/* ------------------------------------------------ barre d'achat (téléphone) */}
-      {phare ? (
+      {enVente.length ? (
         <div className={"rnl-barre" + (barre ? " rnl-barre-on" : "")} aria-hidden={!barre}>
-          {phare.photos?.[0] ? <img src={phare.photos[0]} alt="" /> : null}
-          <span><b>Guide de la Réussite</b>{fmt(phare.prix)} · payé à la réception</span>
-          <button className="rnl-btn rnl-btn-or" tabIndex={barre ? 0 : -1} onClick={() => ajouter(phare, 1)}>Commander</button>
+          <span className="rnl-barre-livres">{collection.map((a) => (a.photos?.[0] ? <img key={a.id} src={a.photos[0]} alt="" /> : null))}</span>
+          <span><b>{enVente.length > 1 ? "Les guides officiels" : court(enVente[0])}</b>{enVente.length > 1 ? `dès ${fmt(prixMin)}` : fmt(enVente[0].prix)} · payé à la réception</span>
+          <button className="rnl-btn rnl-btn-or" tabIndex={barre ? 0 : -1} onClick={() => (enVente.length > 1 ? allerA("rnl-guides") : ajouter(enVente[0], 1))}>Commander</button>
         </div>
       ) : null}
     </div>
@@ -387,7 +404,7 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
 }
 
 // ------------------------------------------------------------------ section « application »
-function Application({ nom, logo, phare }) {
+function Application({ nom, logo, guides }) {
   const app = useInstallation();
   return (
     <section className="rnl-appli" data-apparait>
@@ -397,7 +414,7 @@ function Application({ nom, logo, phare }) {
           <h2>La boutique officielle, directement sur votre téléphone</h2>
           <p>Installez l'application Miss & Mister Excellence : elle s'ouvre en plein écran depuis votre écran d'accueil, sans passer par un magasin d'applications.</p>
           <ul>
-            <li>{P.coche} Commander un guide en quelques gestes</li>
+            <li>{P.coche} Commander vos guides en quelques gestes</li>
             <li>{P.coche} Suivre la livraison étape par étape</li>
             <li>{P.coche} Retrouver et télécharger vos reçus officiels</li>
           </ul>
@@ -415,9 +432,12 @@ function Application({ nom, logo, phare }) {
           <div className="rnl-telephone-ecran">
             <div className="rnl-tel-tete">{logo ? <img src={logo} alt="" /> : null}<span>Miss & Mister Excellence</span></div>
             <div className="rnl-tel-corps">
-              {phare?.photos?.[0] ? <img className="rnl-tel-livre" src={phare.photos[0]} alt="" /> : null}
-              <b>Guide de la Réussite et de l'Excellence</b>
-              {phare ? <span className="rnl-tel-prix">{fmt(phare.prix)}</span> : null}
+              <b>Les guides officiels</b>
+              <span className="rnl-tel-livres">
+                {guides.map((g) => (
+                  <span key={g.id}>{g.photos?.[0] ? <img src={g.photos[0]} alt="" /> : null}<i>{fmt(g.prix)}</i></span>
+                ))}
+              </span>
               <span className="rnl-tel-btn">Commander</span>
               <span className="rnl-tel-suivi"><i />Commande confirmée<i />Représentant en route<i className="rnl-tel-gris" />Remis en main propre</span>
             </div>
@@ -519,6 +539,17 @@ const CSS = `
 @keyframes rnl-pulse{70%{box-shadow:0 0 0 9px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
 .rnl-ouverture h1{font-size:clamp(38px,5.8vw,68px);line-height:1;font-weight:800;max-width:14ch;letter-spacing:-.025em;text-wrap:balance}
 .rnl-chapeau{margin:0;font-size:clamp(16px,1.6vw,18.5px);line-height:1.6;color:rgba(255,255,255,.86);max-width:50ch}
+.rnl-offres{display:grid;gap:10px;width:100%;max-width:560px}
+.rnl .rnl-offre2{font:inherit;color:#fff;text-align:left;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:10px 14px 10px 10px;border-radius:16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.rnl .rnl-offre2:hover{background:rgba(255,255,255,.12);border-color:color-mix(in srgb,var(--or) 70%,transparent);transform:translateX(3px)}
+.rnl-offre2 img{width:44px;border-radius:2px 4px 4px 2px;box-shadow:0 8px 16px -6px rgba(0,0,0,.6)}
+.rnl-offre2-txt small{display:block;font-size:12px;color:var(--or);font-weight:600}
+.rnl-offre2-txt b{display:block;font-family:var(--f-titre);font-size:17px;line-height:1.2}
+.rnl-offre2-prix{text-align:right;font-family:var(--f-titre);font-weight:800;font-size:20px;white-space:nowrap}
+.rnl-offre2-prix em{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-style:normal;font-family:var(--f-texte);font-size:12px;font-weight:600;color:rgba(255,255,255,.75)}
+.rnl-offre2-prix em svg{width:14px;height:14px}
+@media (max-width:420px){.rnl-offre2-txt b{font-size:15px}.rnl-offre2-prix{font-size:17px}}
+.rnl-ouverture-texte > .rnl-offre-note{margin:-4px 0 0;font-size:13px;color:rgba(255,255,255,.7)}
 .rnl-offre{display:flex;align-items:center;gap:16px;padding:12px 18px 12px 14px;border-radius:16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(6px)}
 .rnl-offre-prix{white-space:nowrap;font-family:var(--f-titre);font-size:clamp(26px,7vw,34px);font-weight:800;color:#fff;line-height:1;padding-right:16px;border-right:1px solid rgba(255,255,255,.22)}
 .rnl-offre-note{font-size:13.5px;line-height:1.45;color:rgba(255,255,255,.82)}
@@ -532,7 +563,12 @@ const CSS = `
 .rnl-scene{position:relative;min-height:420px;display:grid;place-items:center;perspective:1400px}
 @media (max-width:959px){.rnl-scene{min-height:400px;margin-top:8px}}
 .rnl-halo{position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--or) 55%,transparent) 0%,transparent 65%);filter:blur(10px);opacity:.75}
-.rnl .rnl-livre3d{position:relative;z-index:3;width:min(62%,300px);border:0;padding:0;background:none;cursor:pointer;transform-style:preserve-3d;transform:rotateY(-24deg) rotateX(4deg) rotateZ(-1deg);transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.rnl-duo{position:relative;z-index:3;display:flex;justify-content:center;align-items:flex-end;gap:0;width:100%}
+.rnl .rnl-livre3d-0{transform:rotateY(-22deg) rotateX(3deg) translateZ(0);z-index:2;margin-right:-6%}
+.rnl .rnl-livre3d-1{transform:rotateY(-22deg) rotateX(3deg) translateY(-34px);z-index:1}
+.rnl .rnl-livre3d-0:hover,.rnl .rnl-livre3d-1:hover{transform:rotateY(-10deg) translateY(-8px);z-index:4}
+.rnl-ruban{position:absolute;top:12px;left:-8px;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--or);color:#21130C;padding:5px 10px;border-radius:4px;box-shadow:0 6px 14px rgba(0,0,0,.3);z-index:2}
+.rnl .rnl-livre3d{position:relative;z-index:3;width:min(46%,250px);border:0;padding:0;background:none;cursor:pointer;transform-style:preserve-3d;transform:rotateY(-24deg) rotateX(4deg) rotateZ(-1deg);transition:transform .6s cubic-bezier(.2,.8,.2,1)}
 .rnl .rnl-livre3d:hover{transform:rotateY(-12deg) rotateX(2deg)}
 .rnl-livre3d-in{position:relative;display:block;border-radius:2px 6px 6px 2px;overflow:hidden;box-shadow:-2px 0 0 rgba(255,255,255,.35) inset,0 40px 60px -18px rgba(0,0,0,.65),0 18px 22px -12px rgba(0,0,0,.45)}
 .rnl-livre3d img{display:block;width:100%;aspect-ratio:3/4.2;object-fit:cover}
@@ -542,7 +578,7 @@ const CSS = `
 .rnl .rnl-livre-second{position:absolute;z-index:2;right:2%;bottom:6%;width:min(30%,150px);border:0;padding:0;background:none;cursor:pointer;transform:rotate(7deg);opacity:.92;filter:saturate(.9)}
 .rnl-livre-second img{display:block;width:100%;aspect-ratio:3/4.2;object-fit:cover;border-radius:2px 5px 5px 2px;box-shadow:0 24px 40px -14px rgba(0,0,0,.6)}
 .rnl-livre-second em{position:absolute;top:10px;left:-8px;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--or);color:#21130C;padding:5px 10px;border-radius:4px;box-shadow:0 6px 14px rgba(0,0,0,.3)}
-.rnl-medaille{position:absolute;z-index:4;top:4%;left:4%;width:112px;height:112px;display:grid;place-items:center}
+.rnl-medaille{position:absolute;z-index:4;top:2%;left:0;width:112px;height:112px;display:grid;place-items:center}
 .rnl-medaille svg{position:absolute;inset:0;width:100%;height:100%;animation:rnl-tourne 28s linear infinite}
 .rnl-medaille-fond{fill:color-mix(in srgb,var(--v) 85%,#000)}
 .rnl-medaille-trait{fill:none;stroke:var(--or);stroke-width:1}
@@ -554,9 +590,10 @@ const CSS = `
 .rnl-flottant span:last-child{font-size:12.5px;line-height:1.4;color:var(--gris)}
 .rnl-flottant-ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--lavande);color:var(--v)}
 .rnl-flottant-ic svg{width:22px;height:22px}
-@media (max-width:520px){.rnl-medaille{width:88px;height:88px;top:0;left:0}.rnl-medaille img{width:42px;height:42px}.rnl-flottant{max-width:230px;padding:10px 12px}.rnl .rnl-livre3d{width:62%}}
+@media (max-width:520px){.rnl-medaille{width:84px;height:84px;top:0;left:0}.rnl-medaille img{width:40px;height:40px}.rnl-flottant{max-width:230px;padding:10px 12px}.rnl .rnl-livre3d{width:47%}}
 @media (prefers-reduced-motion:no-preference){
   .rnl-livre3d{animation:rnl-entree 1.1s cubic-bezier(.2,.8,.2,1) both}
+  .rnl-livre3d-1{animation-delay:.15s}
   .rnl-livre-second{animation:rnl-entree2 1.1s .15s cubic-bezier(.2,.8,.2,1) both}
   .rnl-flottant{animation:rnl-monte .8s .5s cubic-bezier(.2,.8,.2,1) both}
   @keyframes rnl-entree{from{opacity:0;transform:rotateY(-50deg) translateY(40px)}}
@@ -597,6 +634,10 @@ const CSS = `
 .rnl-piliers4-tete > p:not(.rnl-surtitre-sombre){color:rgba(255,255,255,.8);line-height:1.6;max-width:44ch;margin:0}
 .rnl-piliers4-livre{display:none}
 @media (min-width:960px){.rnl-piliers4-livre{display:block;width:180px;margin-top:30px;border-radius:2px 6px 6px 2px;transform:rotate(-4deg);box-shadow:0 30px 50px -18px rgba(0,0,0,.6)}}
+.rnl-bascule{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);margin:0 0 18px}
+.rnl .rnl-bascule button{font:inherit;font-size:14px;font-weight:600;color:rgba(255,255,255,.8);background:none;border:0;border-radius:999px;padding:9px 16px;cursor:pointer}
+.rnl .rnl-bascule button[aria-selected=true]{background:var(--or);color:#21130C}
+@media (prefers-reduced-motion:no-preference){.rnl-piliers4-liste li{animation:rnl-monte .5s cubic-bezier(.2,.8,.2,1) both}.rnl-piliers4-liste li:nth-child(2){animation-delay:.06s}.rnl-piliers4-liste li:nth-child(3){animation-delay:.12s}.rnl-piliers4-liste li:nth-child(4){animation-delay:.18s}}
 .rnl-piliers4-liste{list-style:none;margin:0;padding:0;display:grid;gap:2px}
 .rnl-piliers4-liste li{display:grid;grid-template-columns:72px 1fr;gap:16px;padding:22px 0;border-top:1px solid rgba(255,255,255,.14)}
 .rnl-piliers4-liste li:last-child{border-bottom:1px solid rgba(255,255,255,.14)}
@@ -622,7 +663,10 @@ const CSS = `
 .rnl-tel-tete{display:flex;align-items:center;gap:8px;padding:22px 14px 12px;background:var(--v);color:#fff;font-family:var(--f-titre);font-size:14px;font-weight:700;border-bottom:3px solid var(--or)}
 .rnl-tel-tete img{width:28px;height:28px;border-radius:50%;background:#fff}
 .rnl-tel-corps{display:grid;justify-items:center;gap:8px;padding:18px 16px;color:var(--encre);text-align:center}
-.rnl-tel-livre{width:44%;border-radius:2px 5px 5px 2px;box-shadow:0 14px 24px -10px rgba(40,10,60,.5)}
+.rnl-tel-livres{display:flex;gap:12px;justify-content:center;width:100%}
+.rnl-tel-livres > span{display:grid;gap:6px;justify-items:center;width:42%}
+.rnl-tel-livres img{width:100%;border-radius:2px 5px 5px 2px;box-shadow:0 14px 24px -10px rgba(40,10,60,.5)}
+.rnl-tel-livres i{font-style:normal;font-family:var(--f-titre);font-weight:800;color:var(--v);font-size:14px}
 .rnl-tel-corps b{font-family:var(--f-titre);color:var(--v);font-size:15px;line-height:1.2}
 .rnl-tel-prix{font-family:var(--f-titre);font-weight:800;font-size:20px;color:var(--v)}
 .rnl-tel-btn{width:100%;background:var(--v);color:#fff;border-radius:999px;padding:10px;font-weight:700;font-size:13px}
@@ -634,7 +678,9 @@ const CSS = `
 /* barre d'achat fixe (téléphone) */
 .rnl-barre{position:fixed;z-index:60;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 10px;border-radius:18px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);box-shadow:0 18px 40px -12px rgba(30,5,40,.45),0 0 0 1px var(--trait);transform:translateY(130%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .rnl-barre-on{transform:none}
-.rnl-barre img{width:38px;border-radius:2px 4px 4px 2px;box-shadow:0 6px 12px -4px rgba(0,0,0,.4)}
+.rnl-barre-livres{display:flex;flex:none!important}
+.rnl-barre img{width:34px;border-radius:2px 4px 4px 2px;box-shadow:0 6px 12px -4px rgba(0,0,0,.4)}
+.rnl-barre-livres img + img{margin-left:-12px;transform:rotate(6deg)}
 .rnl-barre span{flex:1;min-width:0;font-size:12.5px;color:var(--gris);line-height:1.3}
 .rnl-barre b{display:block;font-family:var(--f-titre);font-size:15px;color:var(--v);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rnl .rnl-barre .rnl-btn{min-height:44px;padding:10px 18px}

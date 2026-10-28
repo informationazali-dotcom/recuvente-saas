@@ -7,6 +7,7 @@ import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, useStylesReseau, useCompteARebours, formatDuree,
   ETATS, MODES_PAIEMENT, ETAPES_CLIENT, STATUTS, Bouton, Champ, Message, Vide, Pastille, StatutCommande, Icone,
 } from "./ReseauCommun.jsx";
+import AccueilLivres from "./ReseauVitrineLivres.jsx";
 
 const lirePanier = (slug) => {
   try { return JSON.parse(localStorage.getItem("rn_panier_" + slug) || "[]"); } catch { return []; }
@@ -120,7 +121,13 @@ export default function BoutiqueReseau({ supabase, slug }) {
       </header>
 
       <main>
-        {nav.vue === "accueil" || nav.vue === "catalogue" ? (
+        {nav.vue === "accueil" && LIVRES ? (
+          <AccueilLivres supabase={supabase} slug={slug} boutique={boutique} articles={articles}
+            ouvrir={(id) => aller({ vue: "article", article: id })}
+            ajouter={(a, q) => { ajouter(a, q); aller({ vue: "panier" }); }}
+            voirCatalogue={() => aller({ vue: "catalogue" })} />
+        ) : null}
+        {(nav.vue === "accueil" && !LIVRES) || nav.vue === "catalogue" ? (
           <Catalogue boutique={boutique} articles={articles} accueil={nav.vue === "accueil"} ouvrir={(id) => aller({ vue: "article", article: id })} />
         ) : null}
         {nav.vue === "article" ? (

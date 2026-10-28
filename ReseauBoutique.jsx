@@ -7,7 +7,7 @@ import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, useStylesReseau, useCompteARebours, formatDuree,
   ETATS, MODES_PAIEMENT, ETAPES_CLIENT, STATUTS, imprimerRecu, Bouton, Champ, Message, Vide, Pastille, StatutCommande, Icone,
 } from "./ReseauCommun.jsx";
-import AccueilLivres from "./ReseauVitrineLivres.jsx";
+import AccueilLivres, { EnteteLivres, PiedLivres, FicheLivre } from "./ReseauVitrineLivres.jsx";
 
 const lirePanier = (slug) => {
   try { return JSON.parse(localStorage.getItem("rn_panier_" + slug) || "[]"); } catch { return []; }
@@ -102,6 +102,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
   const nom = p.nom_plateforme || boutique.nom;
   return (
     <div className="rn">
+      {LIVRES ? <EnteteLivres boutique={boutique} nbPanier={nbPanier} aller={aller} vue={nav.vue} /> : (
       <header className="rn-entete">
         <div className="rn-conteneur rn-entete-in">
           <button className="rn-marque" onClick={() => aller({})} aria-label="Accueil">
@@ -119,6 +120,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
           </div>
         </div>
       </header>
+      )}
 
       <main>
         {nav.vue === "accueil" && LIVRES ? (
@@ -130,7 +132,12 @@ export default function BoutiqueReseau({ supabase, slug }) {
         {(nav.vue === "accueil" && !LIVRES) || nav.vue === "catalogue" ? (
           <Catalogue boutique={boutique} articles={articles} accueil={nav.vue === "accueil"} ouvrir={(id) => aller({ vue: "article", article: id })} />
         ) : null}
-        {nav.vue === "article" ? (
+        {nav.vue === "article" && LIVRES && articles.some((a) => a.id === nav.id) ? (
+          <FicheLivre article={articles.find((a) => a.id === nav.id)} autres={articles.filter((a) => a.id !== nav.id)}
+            ajouter={(a, q) => { ajouter(a, q); aller({ vue: "panier" }); }}
+            ouvrir={(id) => aller({ vue: "article", article: id })} retour={() => aller({})} />
+        ) : null}
+        {nav.vue === "article" && !(LIVRES && articles.some((a) => a.id === nav.id)) ? (
           <FicheArticle
             article={articles.find((a) => a.id === nav.id)}
             dansPanier={panier.some((l) => l.id === nav.id)}
@@ -153,6 +160,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
         {nav.vue === "page" && nav.page !== "contact" ? <PageInfo boutique={boutique} page={nav.page} /> : null}
       </main>
 
+      {LIVRES ? <PiedLivres boutique={boutique} aller={aller} slug={slug} /> : (
       <footer className="rn-pied">
         <div className="rn-pied-in">
           <div>
@@ -173,6 +181,7 @@ export default function BoutiqueReseau({ supabase, slug }) {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

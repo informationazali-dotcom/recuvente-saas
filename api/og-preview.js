@@ -65,6 +65,44 @@ export default async function handler(req, res) {
 </html>`);
   }
 
+  // Réseau national (boutique des guides Miss & Mister Excellence) : balises fixes, sans base de données.
+  if (req.query.reseau) {
+    const RESEAUX = {
+      "miss-mister-excellence": {
+        titre: "Boutique officielle Miss & Mister Excellence Côte d'Ivoire",
+        description: "Le Guide de la Réussite et de l'Excellence et le Guide officiel des candidats. Commandez en ligne, livré partout en Côte d'Ivoire, paiement à la livraison.",
+        image: "/og-guides.jpg",
+        chemin: "/excellence",
+      },
+    };
+    const r = RESEAUX[String(req.query.reseau)];
+    if (!r) return res.redirect(302, "/");
+    const titre = r.titre, description = r.description;
+    const image = `https://${req.headers.host}${r.image}`;
+    const lienReel = `https://${req.headers.host}${r.chemin}`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=600");
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>${echapperHTML(titre)}</title>
+<meta name="description" content="${echapperHTML(description)}">
+<meta property="og:title" content="${echapperHTML(titre)}">
+<meta property="og:description" content="${echapperHTML(description)}">
+<meta property="og:image" content="${echapperHTML(image)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_CI">
+<meta property="og:url" content="${echapperHTML(lienReel)}">
+<meta name="twitter:card" content="summary_large_image">
+<script>window.location.replace(${JSON.stringify(lienReel)});</script>
+</head>
+<body>Redirection vers <a href="${echapperHTML(lienReel)}">${echapperHTML(titre)}</a>...</body>
+</html>`);
+  }
+
   const slug = req.query.boutique;
   const catalogueIdDirect = req.query.catalogue;
   const produitId = req.query.produit;

@@ -5,7 +5,7 @@
 // la livraison dans tout le pays, les questions fréquentes.
 // =====================================================================
 import React, { useEffect, useState } from "react";
-import { fmt, rpc, erreurTexte, lienWhatsApp, Bouton, Champ, Message } from "./ReseauCommun.jsx";
+import { fmt, rpc, erreurTexte, lienWhatsApp, Bouton, Champ, Message, Icone } from "./ReseauCommun.jsx";
 
 // Contenu éditorial propre à chaque guide (repéré par sa référence)
 const FICHES = {
@@ -41,6 +41,12 @@ const proj = (lng, lat) => [((lng + 8.7) / 6.4) * 360 + 20, ((10.8 - lat) / 6.6)
 
 function usePolices() {
   useEffect(() => {
+    if (!document.getElementById("rnl-css")) {
+      const st = document.createElement("style");
+      st.id = "rnl-css";
+      st.textContent = CSS;
+      document.head.appendChild(st);
+    }
     if (document.getElementById("rnl-polices")) return;
     const l = document.createElement("link");
     l.id = "rnl-polices";
@@ -61,7 +67,6 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
 
   return (
     <div className="rnl">
-      <style>{CSS}</style>
 
       {/* ------------------------------------------------ ouverture */}
       <section className="rnl-ouverture">
@@ -196,13 +201,6 @@ export default function AccueilLivres({ supabase, slug, boutique, articles, ouvr
         ))}
       </section>
 
-      <section className="rnl-initiative">
-        <div className="rnl-cadre">
-          {boutique.logo_url ? <img src={boutique.logo_url} alt="" /> : null}
-          <p>Une initiative du Concours Miss & Mister Excellence Côte d'Ivoire, avec la FUM-AMOV CI. Siège : Yopougon, Abidjan.</p>
-          {boutique.whatsapp ? <a className="rnl-btn rnl-btn-ligne" href={lienWhatsApp(boutique.whatsapp, "Bonjour, j'ai une question sur les guides Miss & Mister Excellence.")} target="_blank" rel="noreferrer">Écrire sur WhatsApp</a> : null}
-        </div>
-      </section>
     </div>
   );
 }
@@ -285,7 +283,6 @@ const CSS = `
 /* ouverture */
 .rnl-ouverture{position:relative;background:var(--v);color:#fff;overflow:hidden}
 .rnl-ouverture::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 90% at 82% 30%,color-mix(in srgb,var(--or) 30%,transparent),transparent 60%);pointer-events:none}
-.rnl-ouverture::after{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
 .rnl-ouverture-grille{position:relative;display:grid;gap:24px;padding-top:40px;padding-bottom:28px;align-items:end}
 @media (min-width:900px){.rnl-ouverture-grille{grid-template-columns:1.1fr .9fr;padding-top:64px;gap:40px}}
 .rnl-ouverture-texte{display:grid;gap:18px;justify-items:start;padding-bottom:12px}
@@ -380,4 +377,202 @@ const CSS = `
 .rnl-initiative img{width:56px;height:56px;border-radius:50%}
 .rnl-initiative p{margin:0;flex:1;min-width:220px;color:var(--gris)}
 .rnl .rnl-initiative .rnl-btn-ligne{color:var(--v);border-color:var(--v)}
+/* en-tête */
+.rnl-entete{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:saturate(1.2) blur(8px);border-bottom:1px solid var(--trait)}
+.rnl-entete-bande{height:4px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
+.rnl-entete-in{display:flex;align-items:center;gap:20px;min-height:68px}
+.rnl .rnl-marque{display:flex;align-items:center;gap:12px;border:0;background:none;padding:0;cursor:pointer;text-align:left;color:var(--encre);font:inherit;min-width:0}
+.rnl-marque img{width:46px;height:46px;border-radius:50%;flex:none}
+.rnl-marque b{display:block;font-family:var(--f-titre);font-size:18px;color:var(--v);line-height:1.1}
+.rnl-marque small{display:block;font-size:12px;color:var(--gris)}
+.rnl-menu{display:none;gap:4px;margin-left:auto}
+@media (min-width:980px){.rnl-menu{display:flex}}
+.rnl .rnl-menu button{font:inherit;font-size:14px;font-weight:600;color:var(--encre);background:none;border:0;padding:10px 12px;border-radius:999px;cursor:pointer}
+.rnl .rnl-menu button:hover,.rnl .rnl-menu button[aria-current=page]{background:var(--lavande);color:var(--v)}
+.rnl-entete-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+@media (min-width:980px){.rnl-entete-actions{margin-left:8px}.rnl-seul-mobile{display:none!important}}
+.rnl .rnl-icone{width:42px;height:42px;border-radius:50%;border:1px solid var(--trait);background:#fff;color:var(--v);display:grid;place-items:center;cursor:pointer}
+.rnl .rnl-panier{position:relative;display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;font-size:14px;background:var(--v);color:#fff;border:0;border-radius:999px;padding:10px 16px;cursor:pointer;min-height:42px}
+.rnl-panier svg,.rnl-icone svg{width:20px;height:20px}
+.rnl-panier em{font-style:normal;background:var(--or);color:#21130C;border-radius:999px;min-width:22px;height:22px;display:grid;place-items:center;font-size:12px;font-weight:700;padding:0 6px}
+@media (max-width:520px){.rnl-cache-mobile{display:none}.rnl-marque small{display:none}.rnl-marque b{font-size:16px}}
+.rnl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* pied */
+.rnl-pied{background:var(--v2);color:#fff;margin-top:0}
+.rn .rnl-pied button{width:auto;min-height:0;box-shadow:none}
+.rnl-pied-grille{display:grid;gap:30px;padding-top:48px;padding-bottom:32px}
+@media (min-width:860px){.rnl-pied-grille{grid-template-columns:1.4fr 1fr 1fr 1fr}}
+.rnl-pied-marque{display:grid;gap:14px;align-content:start}
+.rnl-pied-marque img{width:68px;height:68px;border-radius:50%;background:#fff;padding:2px}
+.rnl-pied-marque p{margin:0;opacity:.85;line-height:1.6;max-width:36ch}
+.rnl-pied-marque b{font-family:var(--f-titre);font-size:18px}
+.rnl-pied h4{margin:0 0 10px;font-family:var(--f-titre);font-size:16px;color:var(--or)}
+.rnl-pied-grille > div:not(.rnl-pied-marque){display:grid;gap:8px;align-content:start}
+.rn .rnl-pied button,.rnl-pied a,.rnl-pied span{font:inherit;font-size:14px;color:rgba(255,255,255,.85);background:none;border:0;padding:0;text-align:left;cursor:pointer;text-decoration:none}
+.rn .rnl-pied button:hover,.rnl-pied a:hover{color:#fff;text-decoration:underline}
+.rnl-pied-bas{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding-top:16px;padding-bottom:22px;border-top:1px solid rgba(255,255,255,.15);font-size:12px}
+.rnl-pied-bas span{font-size:12px;opacity:.7;cursor:default}
+
+/* fiche */
+.rnl-fiche{padding-top:22px;padding-bottom:72px}
+.rnl .rnl-retour{font:inherit;font-weight:600;font-size:14px;color:var(--v);background:none;border:0;padding:6px 0;cursor:pointer}
+.rnl .rnl-retour::before{content:"‹ "}
+.rnl-fiche-grille{display:grid;gap:36px;margin-top:14px;align-items:start}
+@media (min-width:900px){.rnl-fiche-grille{grid-template-columns:.9fr 1.1fr;gap:64px}}
+.rnl-fiche-visuel{background:radial-gradient(70% 70% at 50% 40%,color-mix(in srgb,var(--or) 25%,transparent),transparent 70%),var(--lavande);border-radius:24px;padding:48px 24px 56px;display:grid;place-items:center}
+.rnl .rnl-livre-seul{width:min(320px,80%);cursor:default;transform:rotate(-2deg)}
+.rnl-fiche-texte{display:grid;gap:14px;align-content:start}
+.rnl-fiche-texte h1{font-size:clamp(30px,4vw,44px);line-height:1.08;color:var(--v)}
+.rnl-fiche-edition{margin:0;font-weight:600;color:var(--gris)}
+.rnl-fiche-resume{margin:0;font-size:17px;line-height:1.65;color:var(--encre);max-width:58ch}
+.rnl-fiche-achat{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:18px 0;border-top:1px solid var(--trait);border-bottom:1px solid var(--trait);margin-top:6px}
+.rnl-fiche-garanties{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.rnl-fiche-garanties li{padding-left:26px;position:relative;color:var(--gris)}
+.rnl-fiche-garanties li::before{content:"";position:absolute;left:0;top:6px;width:14px;height:8px;border-left:2.5px solid var(--or);border-bottom:2.5px solid var(--or);transform:rotate(-45deg)}
+.rnl-fiche-texte h2{font-size:22px;color:var(--v);margin-top:14px}
+.rnl-fiche-autres{margin-top:56px}
+.rnl-fiche-autres h2{font-size:26px;color:var(--v);margin-bottom:16px}
+.rnl-autres{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.rnl .rnl-autres button{display:flex;gap:14px;align-items:center;text-align:left;font:inherit;background:#fff;border:1px solid var(--trait);border-radius:16px;padding:12px;cursor:pointer;color:var(--encre)}
+.rnl-autres img{width:64px;border-radius:3px 6px 6px 3px;box-shadow:0 8px 16px -6px rgba(40,10,60,.4)}
+.rnl-autres b{display:block;font-family:var(--f-titre);color:var(--v);margin-bottom:4px}
+
 `;
+
+// ------------------------------------------------------------------ en-tête de la boutique des guides
+export function EnteteLivres({ boutique, nbPanier, aller, vue }) {
+  usePolices();
+  const p = boutique.parametres || {};
+  const nom = p.nom_plateforme || boutique.nom;
+  const versAccueil = (ancre) => {
+    aller({});
+    if (ancre) setTimeout(() => document.getElementById(ancre)?.scrollIntoView({ behavior: "smooth" }), 80);
+  };
+  return (
+    <header className="rnl rnl-entete">
+      <div className="rnl-entete-bande" />
+      <div className="rnl-cadre rnl-entete-in">
+        <button className="rnl-marque" onClick={() => versAccueil()} aria-label="Accueil">
+          {boutique.logo_url ? <img src={boutique.logo_url} alt="" /> : null}
+          <span><b>Miss & Mister Excellence</b><small>Côte d'Ivoire · Boutique officielle</small></span>
+        </button>
+        <nav className="rnl-menu" aria-label="Navigation principale">
+          <button onClick={() => versAccueil("rnl-guides")}>Les guides</button>
+          <button onClick={() => versAccueil("rnl-etablissements")}>Établissements</button>
+          <button onClick={() => aller({ vue: "mes-commandes" })} aria-current={vue === "mes-commandes" ? "page" : undefined}>Suivre ma commande</button>
+          <button onClick={() => aller({ vue: "page", page: "contact" })}>Contact</button>
+        </nav>
+        <div className="rnl-entete-actions">
+          <button className="rnl-icone rnl-seul-mobile" onClick={() => aller({ vue: "mes-commandes" })} aria-label="Suivre ma commande">{Icone.colis}</button>
+          <button className="rnl-panier" onClick={() => aller({ vue: "panier" })} aria-label={`Panier, ${nbPanier} article${nbPanier > 1 ? "s" : ""}`}>
+            {Icone.panier}<span className="rnl-cache-mobile">Panier</span>{nbPanier ? <em>{nbPanier}</em> : null}
+          </button>
+        </div>
+      </div>
+      <span className="rnl-sr">{nom}</span>
+    </header>
+  );
+}
+
+// ------------------------------------------------------------------ pied de page institutionnel
+export function PiedLivres({ boutique, aller, slug }) {
+  usePolices();
+  const p = boutique.parametres || {};
+  const tels = String(p.contact_telephone || "").split(/[\/,;]/).map((x) => x.trim()).filter(Boolean);
+  return (
+    <footer className="rnl rnl-pied">
+      <div className="rnl-entete-bande" />
+      <div className="rnl-cadre rnl-pied-grille">
+        <div className="rnl-pied-marque">
+          {boutique.logo_url ? <img src={boutique.logo_url} alt="" /> : null}
+          <p><b>Miss & Mister Excellence Côte d'Ivoire</b><br />Beauté, leadership, excellence. Les publications officielles du concours, livrées dans tout le pays.</p>
+        </div>
+        <div>
+          <h4>Commander</h4>
+          <button onClick={() => aller({})}>Les guides</button>
+          <button onClick={() => aller({ vue: "mes-commandes" })}>Suivre ma commande</button>
+          <button onClick={() => aller({ vue: "page", page: "livraison" })}>Livraison</button>
+          <button onClick={() => aller({ vue: "page", page: "retours" })}>Retours et réclamations</button>
+        </div>
+        <div>
+          <h4>Informations</h4>
+          <button onClick={() => aller({ vue: "page", page: "conditions" })}>Conditions générales de vente</button>
+          <button onClick={() => aller({ vue: "page", page: "confidentialite" })}>Données personnelles</button>
+          <button onClick={() => aller({ vue: "page", page: "contact" })}>Nous contacter</button>
+          <a href={`?reseau=${encodeURIComponent(slug)}&espace=representant`}>Espace représentants</a>
+        </div>
+        <div>
+          <h4>Nous joindre</h4>
+          {tels.map((t) => <a key={t} href={"tel:" + t.replace(/[^0-9+]/g, "")}>{t}</a>)}
+          {boutique.whatsapp ? <a href={lienWhatsApp(boutique.whatsapp, "Bonjour, j'ai une question sur les guides Miss & Mister Excellence.")} target="_blank" rel="noreferrer">WhatsApp</a> : null}
+          {p.contact_email ? <a href={"mailto:" + p.contact_email}>{p.contact_email}</a> : null}
+          <span>Siège : Yopougon, Abidjan</span>
+        </div>
+      </div>
+      <div className="rnl-cadre rnl-pied-bas">
+        <span>© {new Date().getFullYear()} Miss & Mister Excellence Côte d'Ivoire{p.textes?.mentions_legales ? ` · ${p.textes.mentions_legales}` : ""}</span>
+        <span>Paiement à la livraison · Wave · Orange Money · MTN MoMo</span>
+      </div>
+    </footer>
+  );
+}
+
+// ------------------------------------------------------------------ fiche détaillée d'un guide
+export function FicheLivre({ article: a, autres, ajouter, ouvrir, retour }) {
+  usePolices();
+  const [q, setQ] = useState(1);
+  if (!a) return null;
+  const f = FICHES[a.reference] || { public: a.categorie, resume: a.description, chapitres: [] };
+  return (
+    <div className="rnl rnl-fiche">
+      <div className="rnl-cadre">
+        <button className="rnl-retour" onClick={retour}>Retour aux guides</button>
+        <div className="rnl-fiche-grille">
+          <div className="rnl-fiche-visuel">
+            <div className="rnl-livre rnl-livre-seul">{a.photos?.[0] ? <img src={a.photos[0]} alt={`Couverture : ${a.titre}`} /> : null}<span className="rnl-signet" /></div>
+          </div>
+          <div className="rnl-fiche-texte">
+            <p className="rnl-guide-public">{f.public}</p>
+            <h1>{a.titre}</h1>
+            {a.marque ? <p className="rnl-fiche-edition">{a.marque}</p> : null}
+            <p className="rnl-fiche-resume">{a.description || f.resume}</p>
+            <div className="rnl-fiche-achat">
+              <span className="rnl-prix">{fmt(a.prix)}</span>
+              <span className="rnl-qte" role="group" aria-label="Quantité">
+                <button onClick={() => setQ(Math.max(1, q - 1))} aria-label="Un de moins">−</button>
+                <span>{q}</span>
+                <button onClick={() => setQ(Math.min(a.disponible || 1, q + 1))} aria-label="Un de plus">+</button>
+              </span>
+              <button className="rnl-btn rnl-btn-violet" disabled={!a.disponible} onClick={() => ajouter(a, q)}>{a.disponible ? `Ajouter au panier · ${fmt(a.prix * q)}` : "Bientôt disponible"}</button>
+            </div>
+            <ul className="rnl-fiche-garanties">
+              <li>Livré par le représentant de votre région</li>
+              <li>Paiement à la livraison, Wave, Orange Money ou MTN</li>
+              <li>Exemplaire neuf, édition officielle</li>
+            </ul>
+            {f.chapitres.length ? (
+              <>
+                <h2>Au sommaire</h2>
+                <dl className="rnl-chapitres">{f.chapitres.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+              </>
+            ) : null}
+          </div>
+        </div>
+        {autres?.length ? (
+          <div className="rnl-fiche-autres">
+            <h2>Voir aussi</h2>
+            <div className="rnl-autres">
+              {autres.map((o) => (
+                <button key={o.id} onClick={() => ouvrir(o.id)}>
+                  {o.photos?.[0] ? <img src={o.photos[0]} alt="" /> : null}
+                  <span><b>{o.titre}</b>{fmt(o.prix)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}

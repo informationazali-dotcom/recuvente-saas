@@ -20,10 +20,43 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": { "re": "facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|vkShare|redditbot|Applebot|Googlebot|Bingbot" }
+          "value": {
+            "re": "facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|vkShare|redditbot|Applebot|Googlebot|Bingbot"
+          }
         }
       ],
       "destination": "/api/og-preview?boutique=:boutique&produit=:produit"
+    },
+    {
+      "source": "/(excellence|guides)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": "facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|vkShare|redditbot|Applebot|Googlebot|Bingbot"
+          }
+        }
+      ],
+      "destination": "/api/og-preview?reseau=miss-mister-excellence"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": "facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|vkShare|redditbot|Applebot|Googlebot|Bingbot"
+          }
+        },
+        {
+          "type": "query",
+          "key": "reseau",
+          "value": "(?<rs>[a-z0-9-]+)"
+        }
+      ],
+      "destination": "/api/og-preview?reseau=:rs"
     },
     {
       "source": "/(.*)",

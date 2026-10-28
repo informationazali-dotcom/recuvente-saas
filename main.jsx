@@ -58,7 +58,9 @@ const slugLocation = params.get("location");
 const ficheId = params.get("fiche");
 const ficheType = params.get("type");
 // Réseau national : "?reseau=<slug>" (boutique) ou "?reseau=<slug>&espace=representant".
-const reseauSlug = params.get("reseau");
+// Adresses courtes des réseaux nationaux (ex. /excellence) — à garder identique à ReseauNational.jsx
+const CHEMINS_RESEAU = { excellence: "miss-mister-excellence", guides: "miss-mister-excellence" };
+const reseauSlug = params.get("reseau") || CHEMINS_RESEAU[window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase()] || null;
 // Menu public d'un restaurant (LOT 5) : "?menu=<slug>" (ou "?menu_id=<id>" si la boutique n'a pas
 // encore de lien publié), avec "&table=<numéro ou id>" quand le client scanne le QR d'une table,
 // et "&suivi_menu=<id>" pour rouvrir directement la page de suivi d'une commande déjà passée.

@@ -15,13 +15,16 @@ import AdminReseau from "./ReseauAdmin.jsx";
 
 export { BoutiqueReseau, EspaceRepresentant, EspaceVendeur, AdminReseau };
 
+// Adresses courtes (recuvente-saas.vercel.app/excellence) — à garder identique à main.jsx
+export const CHEMINS_RESEAU = { excellence: "miss-mister-excellence", guides: "miss-mister-excellence" };
+
 export const lienBoutiqueReseau = (slug) => `${window.location.origin}/?reseau=${encodeURIComponent(slug || "")}`;
 export const lienEspaceRepresentant = (slug) => `${lienBoutiqueReseau(slug)}&espace=representant`;
 export const lienEspaceVendeur = (slug) => `${lienBoutiqueReseau(slug)}&espace=vendeur`;
 
 export default function RouteurReseau({ supabase }) {
   const q = new URLSearchParams(window.location.search);
-  const slug = q.get("reseau");
+  const slug = q.get("reseau") || CHEMINS_RESEAU[window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase()];
   if (!slug) return null;
   if (q.get("espace") === "representant") return <EspaceRepresentant supabase={supabase} slug={slug} />;
   if (q.get("espace") === "vendeur") return <EspaceVendeur supabase={supabase} slug={slug} />;

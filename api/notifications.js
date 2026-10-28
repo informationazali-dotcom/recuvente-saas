@@ -426,6 +426,56 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, envoyes, total: abonnements.length });
   }
 
+  // ===== RÉSEAU NATIONAL : e-mail au client à chaque étape clé (appelé par la base de données) =====
+  // Une seule fois par commande et par étape (table rn_emails_envoyes). Le contenu vient de la base.
+  if (type === "reseau_email") {
+    const { id, statut } = req.body || {};
+    if (!id || !/^[0-9a-f-]{36}$/i.test(String(id)) || !statut) return res.status(400).json({ error: "Données manquantes" });
+    const { data: c } = await supabaseAdmin.from("rn_commandes").select("id, workspace_id, numero, statut, client_nom, client_email, total, mode_paiement, suivi_token, code_livraison, express").eq("id", id).maybeSingle();
+    if (!c || c.statut !== statut || !c.client_email) return res.status(200).json({ ok: true, ignore: true });
+    const { error: dejaEnvoye } = await supabaseAdmin.from("rn_emails_envoyes").insert([{ commande_id: c.id, statut }]);
+    if (dejaEnvoye) return res.status(200).json({ ok: true, deja: true });
+    const [{ data: ws }, { data: par }, { data: lignes }] = await Promise.all([
+      supabaseAdmin.from("workspaces").select("slug, name").eq("id", c.workspace_id).maybeSingle(),
+      supabaseAdmin.from("rn_parametres").select("nom_plateforme, couleur_principale, numeros_paiement, whatsapp_service").eq("workspace_id", c.workspace_id).maybeSingle(),
+      supabaseAdmin.from("rn_commande_lignes").select("titre, prix, quantite").eq("commande_id", c.id),
+    ]);
+    const nom = par?.nom_plateforme || ws?.name || "Notre boutique";
+    const couleur = /^#[0-9a-f]{6}$/i.test(par?.couleur_principale || "") ? par.couleur_principale : "#4A1238";
+    const lien = `https://recuvente-saas.vercel.app/?reseau=${encodeURIComponent(ws?.slug || "")}&rn_suivi=${c.suivi_token}`;
+    const montant = (n) => new Intl.NumberFormat("fr-FR").format(Math.round(Number(n) || 0)) + " FCFA";
+    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[x]));
+    const numeroPaiement = par?.numeros_paiement?.[c.mode_paiement];
+    const textes = {
+      en_attente_paiement: ["Commande reçue, en attente de paiement", `Votre article est réservé. Envoyez ${montant(c.total)}${numeroPaiement ? ` au ${esc(numeroPaiement)}` : ""}, puis indiquez la référence de la transaction sur votre page de suivi.`],
+      confirmee: ["Commande confirmée", `Merci ! Nous recherchons le représentant le plus proche de chez vous pour vous livrer${c.express ? " en express" : ""}.`],
+      livraison_acceptee: ["Votre livreur est trouvé", "Un représentant a accepté votre livraison et prépare votre colis."],
+      en_cours_livraison: ["Votre commande est en route", `Gardez votre code de remise : <b style="font-size:20px;letter-spacing:3px">${esc(c.code_livraison)}</b>. Donnez-le au livreur uniquement quand vous avez l'article en main.`],
+      livree: ["Commande livrée", "Merci pour votre confiance ! En cas de souci avec un article, signalez-le depuis votre page de suivi dans les 48 heures."],
+      annulee: ["Commande annulée", "Votre commande a été annulée. Si vous pensez qu'il s'agit d'une erreur, répondez à cet e-mail ou contactez-nous sur WhatsApp."],
+      echec_livraison: ["Livraison reportée", "Le livreur n'a pas pu vous remettre votre commande. Notre équipe vous contacte pour convenir d'un nouveau passage."],
+    };
+    const [titre, corps] = textes[statut] || ["Mise à jour de votre commande", "Le statut de votre commande a changé."];
+    const lignesHtml = (lignes || []).map((l) => `<tr><td style="padding:4px 0">${esc(l.titre)}${l.quantite > 1 ? ` × ${l.quantite}` : ""}</td><td style="text-align:right">${montant(l.prix * l.quantite)}</td></tr>`).join("");
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#222">
+      <div style="background:${couleur};color:#fff;padding:18px 22px;border-radius:12px 12px 0 0"><b style="font-size:17px">${esc(nom)}</b></div>
+      <div style="border:1px solid #eee;border-top:0;padding:22px;border-radius:0 0 12px 12px">
+        <h2 style="margin:0 0 6px">${esc(titre)}</h2>
+        <p style="color:#666;margin:0 0 14px">Commande ${esc(c.numero)}</p>
+        <p>Bonjour ${esc(c.client_nom)},</p><p>${corps}</p>
+        <table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:14px">${lignesHtml}<tr><td style="border-top:1px solid #eee;padding-top:8px"><b>Total</b></td><td style="border-top:1px solid #eee;padding-top:8px;text-align:right"><b>${montant(c.total)}</b></td></tr></table>
+        <p style="text-align:center;margin:22px 0"><a href="${lien}" style="background:${couleur};color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;display:inline-block">Suivre ma commande</a></p>
+      </div></div>`;
+    try {
+      const envoi = await resend.emails.send({ from: process.env.RESEAU_EMAIL_FROM || "RecuVente <onboarding@resend.dev>", to: c.client_email, subject: `${titre} — ${c.numero}`, html });
+      if (envoi?.error) throw new Error(envoi.error.message || "Envoi refusé");
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      await supabaseAdmin.from("rn_emails_envoyes").delete().eq("commande_id", c.id).eq("statut", statut);
+      return res.status(500).json({ error: e.message || "Envoi impossible" });
+    }
+  }
+
   // ===== Le navigateur a renouvelé l'abonnement tout seul (événement pushsubscriptionchange) =====
   // Appelé par le service worker (sans session) : on ne transfère que si l'ANCIEN abonnement existe
   // déjà en base — l'appareil garde exactement la même boutique et le même utilisateur.

@@ -1193,11 +1193,11 @@ function dessinerAppareils(){
     : `Bonjour OU LI PAI IVOIRE, j'ai utilisé le calculateur. Mes appareils : ${detail}. Le site me conseille le groupe ${kv(g.kva)} kVA à ${fmt(g.p)} FCFA${ht(g)}. Pouvez-vous confirmer la bonne puissance ?`;
   box.innerHTML = besoin > max.kva
     ? `<p class="sur">Étude technique</p><div class="grand">+${fmt(max.kva)}<small>kVA</small></div>
-    <p>Votre besoin dépasse notre plus grand groupe. Notre technicien étudie votre installation avec vous (plusieurs groupes possibles).</p>
+    <p>Votre besoin dépasse notre plus grand groupe. Envoyez votre liste : un conseiller vous propose la bonne solution sur WhatsApp (plusieurs groupes possibles).</p>
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-wa-info="calcul-etude">${ICON_WA}Envoyer ma liste sur WhatsApp</a>`
     : `<p class="sur">Groupe conseillé (estimation)</p><div class="grand">${kv(g.kva)}<small>kVA</small></div>
     <div class="prix-r">${fmt(g.p)} FCFA${avecTaxe(g) ? ' <small>HT</small>' : ''}</div><p>Estimation pour ${detail}.</p>
-    ${technique ? '<p class="verif-tech">Avec des machines, fours, chambres froides ou une forte puissance, notre technicien vérifie avec vous le triphasé et le courant de démarrage avant de confirmer.</p>' : '<p>Un conseiller vous confirme la bonne puissance.</p>'}
+    <p>Envoyez votre liste : un conseiller vous confirme la bonne puissance sur WhatsApp.</p>
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Envoyer ma liste sur WhatsApp</a>
     <button type="button" class="btn btn-detail btn-detail-clair" data-detail="${g.kva}">Voir la fiche du ${kv(g.kva)} kVA</button>`;
 }

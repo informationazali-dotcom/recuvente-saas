@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fmt, fmtDate, rpc, erreurTexte, lienWhatsApp, useStylesReseau, useCompteARebours, formatDuree,
-  ETATS, MODES_PAIEMENT, ETAPES_CLIENT, STATUTS, Bouton, Champ, Message, Vide, Pastille, StatutCommande, Icone,
+  ETATS, MODES_PAIEMENT, ETAPES_CLIENT, STATUTS, imprimerRecu, Bouton, Champ, Message, Vide, Pastille, StatutCommande, Icone,
 } from "./ReseauCommun.jsx";
 import AccueilLivres from "./ReseauVitrineLivres.jsx";
 
@@ -803,6 +803,11 @@ function Suivi({ supabase, token, boutique }) {
         <a className="rn-btn rn-btn-contour rn-btn-petit" href={"https://wa.me/?text=" + encodeURIComponent(`Suivi de ma commande ${c.numero} : ${lien}`)} target="_blank" rel="noreferrer">
           Garder le lien sur WhatsApp
         </a>
+        <Bouton variante="discret" petit onClick={() => imprimerRecu({
+          marque: { nom: boutique.parametres?.nom_plateforme || boutique.nom, logo: boutique.logo_url, couleur: boutique.parametres?.couleur_principale, or: boutique.parametres?.couleur_or,
+            sous: "Reçu de commande", contact: [boutique.parametres?.contact_telephone, boutique.parametres?.contact_email].filter(Boolean).join(" · "), mentions: boutique.parametres?.textes?.mentions_legales },
+          c: { ...c, client_tel: null }, lignes: c.lignes,
+        })}>Télécharger mon reçu</Bouton>
         {boutique.whatsapp ? (
           <a className="rn-btn rn-btn-discret rn-btn-petit" href={lienWhatsApp(boutique.whatsapp, `Bonjour, je vous écris au sujet de ma commande ${c.numero}.`)} target="_blank" rel="noreferrer">Contacter la boutique</a>
         ) : null}

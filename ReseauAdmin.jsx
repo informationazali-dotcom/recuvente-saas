@@ -4,7 +4,7 @@
 // =====================================================================
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  fmt, fmtNombre, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, exporterExcel, exporterPDF,
+  fmt, fmtNombre, fmtDate, rpc, erreurTexte, lienWhatsApp, telLien, useStylesReseau, exporterExcel, exporterPDF, imprimerRecu,
   STATUTS, STATUTS_MISSION, STATUTS_ARTICLE, ETATS, MODES_PAIEMENT,
   Bouton, Champ, Message, Modale, Vide, Pastille, StatutCommande, Barres, Icone, EnteteEspace,
 } from "./ReseauCommun.jsx";
@@ -187,7 +187,7 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
   const exportPDF = () => {
     const [d, f] = bornes(periode, perso.debut, perso.fin);
     const t = (rows, cols) => `<table><tr>${cols.map((c) => `<th class="${c[2] || ""}">${c[0]}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map((c) => `<td class="${c[2] || ""}">${c[1](r) ?? ""}</td>`).join("")}</tr>`).join("")}</table>`;
-    exporterPDF(`Rapport ${param.nom_plateforme}`, `<h1>${param.nom_plateforme}</h1><p class="meta">Rapport du ${fmtDate(d, false)} au ${fmtDate(f, false)}</p>
+    exporterPDF(`Rapport ${param.nom_plateforme}`, `<h1>Rapport d'activité</h1><p class="meta">Rapport du ${fmtDate(d, false)} au ${fmtDate(f, false)}</p>
       <h2>Synthèse</h2>${t([
         ["Commandes reçues", s.commandes.total], ["Livrées", s.commandes.livrees], ["Annulées", s.commandes.annulees], ["En retard", s.commandes.en_retard],
         ["Chiffre d'affaires", fmt(s.finances.chiffre_affaires)], ["dont frais de livraison", fmt(s.finances.frais_livraison)],
@@ -201,7 +201,8 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
       <h2>Articles les plus vendus</h2>${t(s.top_articles, [["Article", (r) => r.titre], ["Pièces", (r) => r.nb, "n"], ["Ventes", (r) => fmt(r.ca), "n"]])}
       <h2>Chiffre d'affaires par mois</h2>${t(s.par_mois, [["Mois", (r) => new Date(r.periode).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })], ["Commandes", (r) => r.nb, "n"], ["CA livré", (r) => fmt(r.ca), "n"]])}
       <h2>Écarts de caisse</h2>${s.ecarts_caisse.length ? t(s.ecarts_caisse, [["Commande", (r) => r.numero], ["Représentant", (r) => r.representant], ["Dû", (r) => fmt(r.du), "n"], ["Encaissé", (r) => fmt(r.encaisse), "n"], ["Écart", (r) => fmt(r.ecart), "n"]]) : "<p>Aucun écart.</p>"}
-      <h2>Zones non couvertes</h2>${t(s.zones_non_couvertes, [["Zone", (r) => r.nom], ["Commandes reçues", (r) => r.commandes, "n"]])}`);
+      <h2>Zones non couvertes</h2>${t(s.zones_non_couvertes, [["Zone", (r) => r.nom], ["Commandes reçues", (r) => r.commandes, "n"]])}`,
+      { nom: param.nom_plateforme, logo: param.logo_url, couleur: param.couleur_principale, or: param.couleur_or, sous: "Rapport d'activité du réseau national", contact: param.contact_telephone, mentions: param.textes?.mentions_legales });
   };
   const exportXLS = () =>
     exporterExcel("representants-" + new Date().toISOString().slice(0, 10), [
@@ -342,7 +343,7 @@ function TableauDeBord({ supabase, workspaceId, param, aller }) {
 }
 
 // =================================================================== COMMANDES
-function Commandes({ supabase, workspaceId, base, rechargerAlertes }) {
+function Commandes({ supabase, workspaceId, base, param, rechargerAlertes }) {
   const [liste, setListe] = useState(null);
   const [filtre, setFiltre] = useState({ statut: "a_traiter", q: "" });
   const [ouverte, setOuverte] = useState(() => sessionStorage.getItem("rn_ouvrir_commande"));
@@ -396,12 +397,12 @@ function Commandes({ supabase, workspaceId, base, rechargerAlertes }) {
           </table>
         </div>
       ) : <Vide titre={filtre.statut === "a_traiter" ? "Rien à traiter" : "Aucune commande"}>{filtre.statut === "a_traiter" ? "Les paiements à vérifier, commandes sans livreur et échecs apparaîtront ici." : null}</Vide>}
-      {ouverte ? <DetailCommande supabase={supabase} id={ouverte} reps={base.reps} fermer={() => setOuverte(null)} apres={() => { charger(); rechargerAlertes(); }} /> : null}
+      {ouverte ? <DetailCommande supabase={supabase} param={param} id={ouverte} reps={base.reps} fermer={() => setOuverte(null)} apres={() => { charger(); rechargerAlertes(); }} /> : null}
     </>
   );
 }
 
-function DetailCommande({ supabase, id, reps, fermer, apres }) {
+function DetailCommande({ supabase, param, id, reps, fermer, apres }) {
   const [d, setD] = useState(null);
   const [modale, setModale] = useState(null);
   const [f, setF] = useState({});
@@ -443,6 +444,11 @@ function DetailCommande({ supabase, id, reps, fermer, apres }) {
           {!clos && c.statut !== "en_attente_paiement" ? <Bouton variante="contour" petit onClick={() => { setF({ groupe: groupes[0], rep: "" }); setModale("affecter"); }}>Affecter manuellement</Bouton> : null}
           {!clos ? <Bouton variante="discret" petit onClick={() => { setF({ adresse: c.adresse || "", repere: c.repere || "", client_tel: c.client_tel || "", date_livraison_souhaitee: c.date_livraison_souhaitee || "", note_client: c.note_client || "" }); setModale("modifier"); }}>Modifier la livraison</Bouton> : null}
           {!clos ? <Bouton variante="danger" petit onClick={() => { setF({ motif: "" }); setModale("annuler"); }}>Annuler</Bouton> : null}
+          <Bouton variante="discret" petit onClick={() => imprimerRecu({
+            marque: { nom: param?.nom_plateforme, logo: param?.logo_url, couleur: param?.couleur_principale, or: param?.couleur_or, sous: "Reçu de commande",
+              contact: [param?.contact_telephone, param?.contact_email].filter(Boolean).join(" · "), mentions: param?.textes?.mentions_legales },
+            c: { ...c, zone: c.zone?.nom }, lignes: d.lignes,
+          })}>Reçu PDF</Bouton>
           {["livree", "retour_demande"].includes(c.statut) || (c.statut === "annulee" && c.statut_paiement === "verifie") ? <Bouton variante="discret" petit onClick={() => { setF({ montant: c.total, reference: "" }); setModale("rembourser"); }}>Rembourser</Bouton> : null}
         </div>
         {c.reference_paiement_client && c.statut === "en_attente_paiement" ? <Message ton="alerte">Le client indique avoir payé, référence {c.reference_paiement_client}. Vérifiez-la sur votre compte marchand avant de valider.</Message> : null}
@@ -1367,6 +1373,7 @@ function Parametres({ supabase, workspaceId, param, base, rechargerRef }) {
           <Champ label="Page Livraison" aide="Laisser vide pour le texte par défaut."><textarea value={v.textes.page_livraison || ""} onChange={majTexte("page_livraison")} /></Champ>
           <Champ label="Page Retours"><textarea value={v.textes.page_retours || ""} onChange={majTexte("page_retours")} /></Champ>
           <Champ label="Conditions générales de vente"><textarea value={v.textes.page_conditions || ""} onChange={majTexte("page_conditions")} /></Champ>
+          <Champ label="Mentions légales (pied des reçus et rapports)" aide="Ex. raison sociale, RCCM, compte contribuable, adresse du siège."><input value={v.textes.mentions_legales || ""} onChange={majTexte("mentions_legales")} /></Champ>
         </div>
         <div className="rn-carte rn-pile">
           <h3>Catégories</h3>

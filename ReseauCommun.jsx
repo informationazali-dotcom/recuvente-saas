@@ -254,16 +254,49 @@ export function exporterExcel(nomFichier, colonnes, lignes) {
 }
 
 // Export PDF : ouvre une page de rapport propre et lance l'impression (« Enregistrer en PDF »)
-export function exporterPDF(titre, html) {
+export function exporterPDF(titre, html, marque) {
   const w = window.open("", "_blank");
   if (!w) return alert("Autorisez les fenêtres pop-up pour exporter en PDF.");
-  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${titre}</title>
-  <style>body{font:12px/1.45 Manrope,Arial,sans-serif;color:#22161F;margin:28px}h1{font:600 22px Georgia,serif;margin:0 0 4px}
-  h2{font:600 15px Georgia,serif;margin:22px 0 8px}table{width:100%;border-collapse:collapse;margin:6px 0}
-  th,td{border-bottom:1px solid #e6dce1;padding:5px 6px;text-align:left}th{background:#f6eff2}td.n,th.n{text-align:right}
-  .meta{color:#6e5a66;margin-bottom:18px}@page{margin:14mm}</style></head><body>${html}
-  <script>setTimeout(function(){window.print()},300)</script></body></html>`);
+  const m = marque || {};
+  const couleur = /^#[0-9a-f]{6}$/i.test(m.couleur || "") ? m.couleur : "#3D0C52";
+  const or = /^#[0-9a-f]{6}$/i.test(m.or || "") ? m.or : "#B8913F";
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[x]));
+  const entete = m.nom
+    ? `<header class="ent"><div class="bande"></div><div class="ent-in">${m.logo ? `<img src="${esc(m.logo)}" alt="">` : ""}<div><b>${esc(m.nom)}</b>${m.sous ? `<span>${esc(m.sous)}</span>` : ""}</div></div></header>`
+    : "";
+  const pied = m.nom ? `<footer>${esc([m.nom, m.contact, m.mentions].filter(Boolean).join(" · "))}</footer>` : "";
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titre)}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Public+Sans:wght@400;600;700&display=swap">
+  <style>body{font:12px/1.5 "Public Sans",Arial,sans-serif;color:#21162A;margin:0}main{padding:0 28px 28px}
+  h1{font:800 22px Fraunces,Georgia,serif;color:${couleur};margin:18px 0 4px}h2{font:600 15px Fraunces,Georgia,serif;color:${couleur};margin:22px 0 8px}
+  table{width:100%;border-collapse:collapse;margin:6px 0}th,td{border-bottom:1px solid #e6dce9;padding:6px;text-align:left;vertical-align:top}
+  th{background:#f5f0f8;color:${couleur}}td.n,th.n{text-align:right}.meta{color:#5f5468;margin-bottom:14px}
+  .ent{background:${couleur};color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bande{height:5px;background:linear-gradient(90deg,#F77F00 0 33.3%,#fff 33.3% 66.6%,#009E60 66.6%)}
+  .ent-in{display:flex;align-items:center;gap:12px;padding:12px 28px;border-bottom:3px solid ${or}}.ent img{width:46px;height:46px;border-radius:50%;background:#fff;padding:2px}
+  .ent b{display:block;font:700 15px Fraunces,Georgia,serif}.ent span{font-size:11px;opacity:.85}
+  .bloc{display:flex;gap:24px;flex-wrap:wrap;margin:10px 0}.bloc div{flex:1;min-width:180px}.bloc small{display:block;color:#5f5468}
+  .total td{font-weight:700;font-size:14px;border-top:2px solid ${couleur}}.tampon{display:inline-block;border:2px solid ${or};color:${couleur};padding:4px 10px;border-radius:6px;font-weight:700;margin-top:8px}
+  footer{margin:24px 28px 0;padding-top:10px;border-top:1px solid #e6dce9;color:#5f5468;font-size:10px}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:10mm}</style></head><body>${entete}<main>${html}</main>${pied}
+  <script>window.onload=function(){setTimeout(function(){window.print()},400)}</script></body></html>`);
   w.document.close();
+}
+
+// Reçu de commande (client ou administration)
+export function imprimerRecu({ marque, c, lignes }) {
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[x]));
+  const paye = c.statut_paiement === "verifie" || c.statut === "livree";
+  const html = `<h1>Reçu de commande ${esc(c.numero)}</h1>
+  <p class="meta">Émis le ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · Commande du ${fmtDate(c.created_at, false)}</p>
+  <div class="bloc"><div><small>Client</small><b>${esc(c.client_nom)}</b>${[c.client_tel, [c.adresse, c.zone].filter(Boolean).join(", ")].filter(Boolean).map((x) => "<br>" + esc(x)).join("")}</div>
+  <div><small>Paiement</small><b>${esc(MODES_PAIEMENT[c.mode_paiement]?.label || c.mode_paiement)}</b><br>${paye ? "Réglé" : "En attente de règlement"}</div></div>
+  <table><tr><th>Désignation</th><th class="n">Qté</th><th class="n">Prix unitaire</th><th class="n">Montant</th></tr>
+  ${(lignes || []).map((l) => `<tr><td>${esc(l.titre)}</td><td class="n">${l.quantite}</td><td class="n">${fmt(l.prix)}</td><td class="n">${fmt(l.prix * l.quantite)}</td></tr>`).join("")}
+  <tr><td colspan="3">Livraison${c.express ? " express" : ""}</td><td class="n">${Number(c.frais_livraison) ? fmt(c.frais_livraison) : "Offerte"}</td></tr>
+  ${Number(c.reduction) ? `<tr><td colspan="3">Réduction${c.code_promo ? " (" + esc(c.code_promo) + ")" : ""}</td><td class="n">− ${fmt(c.reduction)}</td></tr>` : ""}
+  <tr class="total"><td colspan="3">Total TTC</td><td class="n">${fmt(c.total)}</td></tr></table>
+  ${paye ? `<span class="tampon">PAYÉ</span>` : ""}`;
+  exporterPDF(`Reçu ${c.numero}`, html, marque);
 }
 
 export function useCompteARebours(fin) {

@@ -224,14 +224,21 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 @media (min-width:700px){.flottant span{display:inline}}
 
 /* tuiles « je choisis pour » */
-.tuiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:26px;max-width:620px}
-.tuile{display:grid;justify-items:center;gap:8px;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:14px 6px 12px;text-align:center;transition:background .2s,border-color .2s,transform .2s}
-.tuile:hover{background:rgba(79,179,240,.14);border-color:var(--ciel);transform:translateY(-3px)}
-.tuile i{width:52px;height:52px;border-radius:16px;background:var(--bleu);display:grid;place-items:center;color:#fff;box-shadow:0 10px 22px -10px rgba(31,143,214,.9)}
-.tuile i svg{width:28px;height:28px}
-.tuile b{font-size:14px;line-height:1.15;font-weight:700}
-.tuile small{font-size:11.5px;line-height:1.2;color:rgba(255,255,255,.7);margin-top:-4px}
-@media (max-width:420px){.tuiles{gap:7px}.tuile{padding:12px 4px 10px;border-radius:14px}.tuile i{width:44px;height:44px}.tuile b{font-size:12.5px}.tuile small{font-size:10.5px}}
+.tuiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px;max-width:680px;padding-bottom:6px}
+.tuile{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:var(--nuit);text-align:center;padding:16px 8px 14px;border-radius:20px;
+  background:linear-gradient(180deg,#FFFFFF 0%,#E6F1FA 100%);border:2px solid #fff;
+  box-shadow:0 6px 0 #0E5C95,0 14px 26px -6px rgba(0,0,0,.55),inset 0 1px 0 #fff;transform:translateY(0);transition:transform .12s,box-shadow .12s}
+.tuile:hover{transform:translateY(-3px);box-shadow:0 9px 0 #0E5C95,0 18px 30px -6px rgba(0,0,0,.6),inset 0 1px 0 #fff}
+.tuile:active{transform:translateY(5px);box-shadow:0 1px 0 #0E5C95,0 6px 12px -4px rgba(0,0,0,.5),inset 0 1px 0 #fff}
+.tuile i{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(145deg,#4FB3F0 0%,#1F8FD6 45%,#1670B0 100%);
+  box-shadow:0 5px 0 #0E5C95,0 10px 18px -6px rgba(14,92,149,.8),inset 0 2px 0 rgba(255,255,255,.45)}
+.tuile i svg{width:36px;height:36px;filter:drop-shadow(0 2px 1px rgba(0,0,0,.25))}
+.tuile b{font-family:var(--titre);font-size:21px;line-height:1;font-weight:800;text-transform:uppercase;letter-spacing:.01em;color:var(--nuit);margin-top:4px}
+.tuile small{font-size:12.5px;line-height:1.25;color:#3B4B5C;font-weight:600}
+.tuile::after{content:"Voir →";display:inline-block;margin-top:auto;font:800 12.5px var(--texte);color:#fff;background:var(--orange);border-radius:999px;padding:5px 12px;box-shadow:0 3px 0 #B84A0E}
+@media (max-width:699px){.ouverture .badge-stock{display:none}.ouverture h1{margin-top:4px}.tuiles{grid-template-columns:1fr 1fr;gap:14px}.tuile{padding:16px 10px 14px}.tuile b{font-size:22px}}
+@media (max-width:360px){.tuile i{width:56px;height:56px}.tuile b{font-size:19px}}
 .chapeau-court{margin-top:14px!important;font-weight:600;color:#fff!important}
 .ouverture .tuiles{margin-top:12px}
 @media (max-width:699px){

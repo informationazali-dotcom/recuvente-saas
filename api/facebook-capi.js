@@ -157,7 +157,67 @@ async function traiterEvenementEntonnoir(req, res) {
   }
 }
 
+// ============================================================================
+//  OU LI PAI IVOIRE (site /oulipai) : événements envoyés aussi par le serveur
+//  (Conversions API), en plus du Pixel du navigateur, avec le même event_id pour
+//  que Meta ne les compte qu'une fois. Le jeton est dans la variable d'environnement
+//  OULIPAI_CAPI_TOKEN (jamais dans le code). Aucun événement « Purchase » : la vente
+//  se conclut au bureau, une conversation WhatsApp n'est pas un achat.
+// ============================================================================
+const OULIPAI_PIXEL = "2183714672563572";
+const OULIPAI_EVENEMENTS = new Set(["PageView", "ViewContent", "Contact", "Lead"]);
+async function traiterOulipai(req, res) {
+  const corps = req.body && typeof req.body === "object" ? req.body : {};
+  const { nom, eventId } = corps;
+  if (!OULIPAI_EVENEMENTS.has(nom)) return res.status(400).json({ error: "Événement non autorisé" });
+  if (typeof eventId !== "string" || eventId.length < 6 || eventId.length > 80) return res.status(400).json({ error: "eventId invalide" });
+  const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || undefined;
+  if (tropDeRequetes(ip || "inconnue")) return res.status(429).json({ error: "Trop de requêtes" });
+  const jeton = process.env.OULIPAI_CAPI_TOKEN;
+  if (!jeton) return res.status(200).json({ envoye: false, raison: "Jeton absent" });
+  const url = texte(corps.url, 500);
+  if (url && !/^https:\/\/[^/]+\/oulipai/.test(url)) return res.status(400).json({ error: "Adresse invalide" });
+  try {
+    const evenement = {
+      event_name: nom,
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: "website",
+      event_id: eventId,
+      event_source_url: url,
+      user_data: {
+        client_ip_address: ip,
+        client_user_agent: texte(req.headers["user-agent"], 500),
+        fbp: texte(corps.fbp, 120) || undefined,
+        fbc: texte(corps.fbc, 200) || undefined,
+      },
+      custom_data: nettoyerParametres(corps.params, "XOF"),
+    };
+    const reponse = await fetch(
+      `https://graph.facebook.com/v25.0/${OULIPAI_PIXEL}/events?access_token=${encodeURIComponent(jeton)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: [evenement] }) }
+    );
+    if (!reponse.ok) {
+      const detail = await reponse.json().catch(() => ({}));
+      return res.status(200).json({ envoye: false, error: detail?.error?.message || "Erreur Facebook" });
+    }
+    return res.status(200).json({ envoye: true });
+  } catch (e) {
+    return res.status(200).json({ envoye: false, error: e.message });
+  }
+}
+
 export default async function handler(req, res) {
+  // Contrôle OU LI PAI : le jeton Conversions API est-il valable ? (ne renvoie jamais le jeton)
+  if (req.method === "GET" && req.query && req.query.oulipai_capi) {
+    res.setHeader("Cache-Control", "no-store");
+    const jeton = process.env.OULIPAI_CAPI_TOKEN;
+    if (!jeton) return res.status(200).json({ jeton: false });
+    try {
+      const r = await fetch(`https://graph.facebook.com/v25.0/${OULIPAI_PIXEL}?fields=id,name&access_token=${encodeURIComponent(jeton)}`);
+      const j = await r.json().catch(() => ({}));
+      return res.status(200).json({ jeton: true, valide: r.ok, pixel: j.id || null, nom: j.name || null, erreur: r.ok ? null : (j?.error?.message || "inconnue") });
+    } catch (e) { return res.status(200).json({ jeton: true, valide: false, erreur: e.message }); }
+  }
   // Boutique multi-pays : « GET ?pays=1 » renvoie seulement le PAYS du visiteur (code à 2 lettres, fourni
   // par Vercel), pour préchoisir sa monnaie. Rien n'est enregistré. Placé ici (et non dans un nouveau
   // fichier) car l'offre gratuite de Vercel limite le nombre de fonctions serveur.
@@ -215,6 +275,7 @@ export default async function handler(req, res) {
     try { return await (await import("../lib/paiements.js")).creerPaiementPublic(req, res); }
     catch (e) { return res.status(500).json({ error: "Paiement en ligne indisponible pour l'instant." }); }
   }
+  if (req.body && typeof req.body === "object" && req.body.site === "oulipai") return traiterOulipai(req, res);
   // Événement d'entonnoir (vue produit, ajout au panier, début de commande) → traitement dédié.
   if (req.body && typeof req.body === "object" && typeof req.body.nom === "string") return traiterEvenementEntonnoir(req, res);
 

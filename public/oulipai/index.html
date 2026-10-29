@@ -27,7 +27,8 @@ window.PIXEL_ID = "2183714672563572";
 if (/^\d{10,20}$/.test(window.PIXEL_ID)) {
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
   fbq('init', window.PIXEL_ID);
-  fbq('track', 'PageView');
+  window.PV_ID = 'olp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  fbq('track', 'PageView', {}, { eventID: window.PV_ID });
 }
 </script>
 <style>
@@ -842,7 +843,25 @@ const MSG = {
   entretien: "Bonjour OU LI PAI IVOIRE, je souhaite des informations sur le contrat d'entretien de groupe électrogène.",
   briques: "Bonjour OU LI PAI IVOIRE, je suis intéressé par vos pondeuses de briques. Pouvez-vous m'envoyer les modèles et les prix ?",
 };
-const pixel = (ev, data, custom) => { try { if (window.fbq) fbq(custom ? 'trackCustom' : 'track', ev, data || {}); } catch (e) {} };
+/* Pixel (navigateur) + API Conversions (serveur), même identifiant d'événement : Meta ne compte qu'une fois */
+const EV_SERVEUR = new Set(['PageView', 'ViewContent', 'Contact', 'Lead']);
+function cookie(n){ const m = document.cookie.match('(?:^|; )' + n + '=([^;]*)'); return m ? decodeURIComponent(m[1]) : ''; }
+function capi(ev, id, data){
+  if (!window.PIXEL_ID || !location.pathname.startsWith('/oulipai')) return;
+  let fbc = cookie('_fbc');
+  const clid = new URLSearchParams(location.search).get('fbclid');
+  if (!fbc && clid) fbc = 'fb.1.' + Date.now() + '.' + clid;
+  try {
+    fetch('/api/facebook-capi', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site: 'oulipai', nom: ev, eventId: id, url: location.href.split('#')[0], fbp: cookie('_fbp'), fbc, params: data || {} }) }).catch(() => {});
+  } catch (e) {}
+}
+const pixel = (ev, data, custom) => {
+  const id = 'olp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  try { if (window.fbq) fbq(custom ? 'trackCustom' : 'track', ev, data || {}, { eventID: id }); } catch (e) {}
+  if (!custom && EV_SERVEUR.has(ev)) capi(ev, id, data);
+};
+if (window.PV_ID) setTimeout(() => capi('PageView', window.PV_ID, {}), 800);
 
 function svgGroupe(ouvert){
   if (ouvert) return '<svg viewBox="0 0 200 130" aria-hidden="true"><rect x="22" y="104" width="156" height="10" rx="2" fill="#0B1624"/><rect x="32" y="40" width="136" height="64" rx="4" fill="none" stroke="#13243A" stroke-width="6"/><rect x="50" y="56" width="54" height="40" rx="6" fill="#1F8FD6"/><circle cx="136" cy="76" r="20" fill="#1F8FD6"/><circle cx="136" cy="76" r="8" fill="#D6E8F5"/><rect x="58" y="46" width="28" height="12" rx="3" fill="#13243A"/></svg>';

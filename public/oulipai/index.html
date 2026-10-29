@@ -409,8 +409,15 @@ body.mode-cible .chiffres{display:none}
 .final h2{font-family:var(--titre);text-transform:uppercase;font-size:clamp(28px,6vw,44px);font-weight:800}
 .final p{margin:0;color:rgba(255,255,255,.8);max-width:52ch}
 .final-btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:6px}
-.voir-autres{display:flex;flex-direction:column;gap:2px;width:100%;margin-top:14px}
-.voir-autres small{font-weight:600;color:var(--gris);font-size:13px}
+.voir-autres{display:flex;align-items:center;gap:14px;width:100%;margin-top:16px;padding:14px 18px;border:0;border-radius:18px;cursor:pointer;text-align:left;color:#fff;background:linear-gradient(135deg,var(--orange),#F59E0B);box-shadow:0 14px 30px -12px rgba(242,107,29,.8);font-family:var(--texte);animation:va-pulse 2.4s ease-in-out infinite}
+.voir-autres .va-plus{flex:none;width:52px;height:52px;border-radius:50%;background:#fff;color:var(--orange);display:grid;place-items:center;font:800 22px var(--titre)}
+.voir-autres .va-texte{flex:1;display:grid;gap:2px}
+.voir-autres b{font-size:19px;font-weight:800;line-height:1.15}
+.voir-autres small{font-size:15px;font-weight:600;opacity:.95}
+.voir-autres .va-fleche{font-size:20px;animation:va-saut 1.2s ease-in-out infinite}
+@keyframes va-pulse{0%,100%{box-shadow:0 14px 30px -12px rgba(242,107,29,.8),0 0 0 0 rgba(242,107,29,.45)}50%{box-shadow:0 14px 30px -12px rgba(242,107,29,.8),0 0 0 9px rgba(242,107,29,0)}}
+@keyframes va-saut{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+@media (prefers-reduced-motion:reduce){.voir-autres,.voir-autres .va-fleche{animation:none}}
 .visite-btns{display:flex;flex-wrap:wrap;gap:12px}
 .carte-lien{display:inline-flex;align-items:center;gap:8px}
 .pied .carte-lien{text-decoration:underline}
@@ -1079,7 +1086,7 @@ function rendre(){
     const autres = tous.slice(PAR_CAT).map(g => kv(g.kva)).join(', ');
     return `<div class="groupe-titre"><h3>${c.titre}</h3><span>${c.label}</span></div><p class="groupe-sous">${c.sous}</p>
      <div class="grille">${montrer.map(carte).join('')}</div>
-     ${reste > 0 ? `<button type="button" class="btn btn-ligne-sombre voir-autres" data-ouvrir="${c.id}">${reste > 1 ? 'Voir les ' + reste + ' autres puissances' : 'Voir l\'autre puissance'} <small>(${autres} kVA)</small></button>` : ''}`;
+     ${reste > 0 ? `<button type="button" class="voir-autres" data-ouvrir="${c.id}"><span class="va-plus">+${reste}</span><span class="va-texte"><b>${reste > 1 ? 'Voir ' + reste + ' autres groupes' : 'Voir 1 autre groupe'}</b><small>${autres.replace(/, ([^,]*)$/, ' et $1')} kVA</small></span><span class="va-fleche" aria-hidden="true">▼</span></button>` : ''}`;
   }).join('');
 }
 document.getElementById('catalogue').addEventListener('click', e => {

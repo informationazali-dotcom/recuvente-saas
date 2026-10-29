@@ -142,9 +142,18 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .groupe-titre h3{font-size:30px;font-weight:800}
 .groupe-titre span{font-family:var(--titre);font-size:20px;color:#1670B0;text-transform:uppercase}
 .groupe-sous{color:var(--gris);margin:0 0 16px}
-.grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
-.carte{background:#fff;border:1px solid var(--trait);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
-.carte:hover{transform:translateY(-4px);box-shadow:0 28px 50px -30px rgba(11,22,36,.5)}
+.grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:26px;perspective:1200px}
+.carte{position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:22px;border:2.5px solid transparent;
+  background:linear-gradient(#fff,#fff) padding-box,linear-gradient(150deg,#7FD0FF 0%,#1F8FD6 30%,#0B1624 62%,#F26B1D 100%) border-box;
+  box-shadow:0 7px 0 #0E5C95,0 22px 40px -16px rgba(11,22,36,.55),0 0 0 1px rgba(79,179,240,.15);
+  transform-style:preserve-3d;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.carte:hover{transform:translateY(-6px) rotateX(3deg);box-shadow:0 11px 0 #0E5C95,0 32px 50px -18px rgba(11,22,36,.6),0 0 26px -4px rgba(79,179,240,.55)}
+.carte:active{transform:translateY(3px);box-shadow:0 3px 0 #0E5C95,0 10px 20px -10px rgba(11,22,36,.5)}
+/* coins « futuristes » autour de la photo */
+.carte .img::before,.carte .img::after,.detail-img::before,.detail-img::after{content:"";position:absolute;width:34px;height:34px;z-index:2;pointer-events:none}
+.carte .img::before,.detail-img::before{left:10px;bottom:10px;border-left:3px solid #1F8FD6;border-bottom:3px solid #1F8FD6;border-bottom-left-radius:10px}
+.carte .img::after,.detail-img::after{right:10px;top:10px;border-right:3px solid var(--orange);border-top:3px solid var(--orange);border-top-right-radius:10px}
+.carte .img{box-shadow:inset 0 -18px 30px -20px rgba(11,22,36,.35),inset 0 1px 0 #fff}
 .carte .img{position:relative;aspect-ratio:16/10;background:linear-gradient(160deg,#EAF4FB,#D6E8F5);display:grid;place-items:center;overflow:hidden}
 .carte .img img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
 .carte:hover .img img{transform:scale(1.04)}
@@ -439,7 +448,7 @@ body.mode-cible .chiffres{display:none}
 .detail-haut b{font-family:var(--titre);text-transform:uppercase;font-size:18px;letter-spacing:.04em}
 .detail-fermer{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer}
 .detail-fermer svg{width:22px;height:22px}
-.detail-img{position:relative;aspect-ratio:16/10;background:linear-gradient(160deg,#EAF4FB,#D6E8F5)}
+.detail-img{position:relative;aspect-ratio:16/10;margin:16px 16px 4px;border-radius:20px;overflow:hidden;border:2.5px solid transparent;background:linear-gradient(160deg,#EAF4FB,#D6E8F5) padding-box,linear-gradient(150deg,#7FD0FF 0%,#1F8FD6 30%,#0B1624 62%,#F26B1D 100%) border-box;box-shadow:0 7px 0 #0E5C95,0 20px 36px -16px rgba(11,22,36,.55)}
 .detail-img img{width:100%;height:100%;object-fit:cover}
 .detail-img .ruban{position:absolute;left:12px;top:12px;background:var(--nuit);color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:8px}
 .detail-corps{padding:20px 20px 30px;display:grid;gap:14px}

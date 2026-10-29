@@ -464,6 +464,11 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 }
 
 @media (min-width:980px){.ouverture h1{font-size:clamp(46px,5.6vw,78px)}.ouverture .cadre{align-items:start}.ouverture .visuel{margin-top:70px}}
+.pf-raccourci{display:block;margin-top:14px;border:1px dashed #1670B0;background:var(--glace);color:var(--encre);border-radius:12px;padding:12px 14px;font:500 15px var(--texte);text-align:left;cursor:pointer;width:100%;max-width:62ch}
+.pf-raccourci b{color:#1670B0}
+.pf-surligne{animation:surligne 2.2s ease}
+@keyframes surligne{0%,30%{box-shadow:0 0 0 4px var(--ciel)}100%{box-shadow:0 0 0 0 transparent}}
+#fiche-besoin{scroll-margin-top:120px}
 /* apparition */
 @media (prefers-reduced-motion:no-preference){
   .apparait{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
@@ -548,6 +553,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
     <p class="sur">Catalogue et prix</p>
     <h2 class="titre">Tous nos groupes, tous nos prix</h2>
     <p class="sous">Moteur Perkins, alternateur Stamford. Prix en FCFA, matériel d'installation compris. À partir de 100 kVA, le prix est hors taxe et le prix avec taxe (3 %) est indiqué sur le groupe.</p>
+    <button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button>
   </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre" id="puces"></div></nav>
   <div class="cadre" id="catalogue"></div>
@@ -1002,7 +1008,7 @@ function remplirDetail(){
       </div>
       <a class="btn btn-wa btn-grand" id="detail-wa" href="${lien(msgGroupe(g, quantite))}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p * quantite}">${ICON_WA}Commander sur WhatsApp</a>
       <div class="detail-deux">
-        <button type="button" class="btn btn-ligne-sombre" id="detail-devis">Demander un devis professionnel</button>
+        <button type="button" class="btn btn-ligne-sombre" id="detail-devis">Recevoir ma pro forma (PDF)</button>
         <a class="btn btn-ligne-sombre" href="/oulipai/fiches/fiche-technique-${String(g.kva).replace('.', '-')}kva.jpg" target="_blank" rel="noopener" download data-fiche-tech="${g.kva}">Télécharger la fiche technique</a>
       </div>
       <h3>Ce qui est compris</h3>
@@ -1046,13 +1052,21 @@ document.addEventListener('click', e => {
     document.getElementById('detail-total').textContent = quantite > 1 ? 'Total : ' + fmt(enCours.p * quantite) + ' FCFA' + (avecTaxe(enCours) ? ' HT' : '') : '';
     const a = document.getElementById('detail-wa'); a.href = lien(msgGroupe(enCours, quantite)); a.dataset.prix = enCours.p * quantite;
   }
-  if (e.target.closest('#detail-devis') && enCours) {
-    const f = document.getElementById('fiche-besoin');
-    f.elements.kva.value = String(enCours.kva); f.elements.quantite.value = quantite;
-    fermerDetail(); document.getElementById('entreprises').scrollIntoView();
-    setTimeout(() => f.elements.societe.focus({ preventScroll: true }), 400);
-  }
+  if (e.target.closest('#detail-devis') && enCours) { const k = enCours.kva; fermerDetail(); versProforma(k, quantite); }
+  const v = e.target.closest('[data-pf]');
+  if (v) versProforma(v.dataset.pf || '', 1, v.dataset.pfApp || '');
 });
+/* Accès direct au formulaire de pro forma, prérempli (depuis la fiche, le calculateur ou le catalogue) */
+function versProforma(kva, qte, appareils){
+  const f = document.getElementById('fiche-besoin');
+  if (kva) f.elements.kva.value = String(kva);
+  if (qte) f.elements.quantite.value = qte;
+  if (appareils && !f.elements.appareils.value) f.elements.appareils.value = appareils.slice(0, 200);
+  f.scrollIntoView({ block: 'start' });
+  f.classList.remove('pf-surligne'); void f.offsetWidth; f.classList.add('pf-surligne');
+  setTimeout(() => f.elements.nom.focus({ preventScroll: true }), 500);
+  pixel('VersProforma', { kva: kva || 'inconnue' }, true);
+}
 
 let filtre = 'all';
 const ouverts = {};  // catégories dépliées (« Voir les autres puissances »)
@@ -1370,7 +1384,8 @@ function dessinerAppareils(){
     <div class="prix-r">${fmt(g.p)} FCFA${avecTaxe(g) ? ' <small>HT</small>' : ''}</div><p>Estimation pour ${detail}.</p>
     <p>Envoyez votre liste : un conseiller vous confirme la bonne puissance sur WhatsApp.</p>
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Envoyer ma liste sur WhatsApp</a>
-    <button type="button" class="btn btn-detail btn-detail-clair" data-detail="${g.kva}">Voir la fiche du ${kv(g.kva)} kVA</button>`;
+    <button type="button" class="btn btn-detail btn-detail-clair" data-detail="${g.kva}">Voir la fiche du ${kv(g.kva)} kVA</button>
+    <button type="button" class="btn btn-bleu" data-pf="${g.kva}" data-pf-app="${detail.replace(/"/g, '')}">Recevoir ma pro forma (PDF)</button>`;
 }
 document.getElementById('appareils').addEventListener('click', e => {
   const p = e.target.closest('[data-plus]'), m = e.target.closest('[data-moins]');

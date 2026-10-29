@@ -212,10 +212,18 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     const jeton = process.env.OULIPAI_CAPI_TOKEN;
     if (!jeton) return res.status(200).json({ jeton: false });
+    // Un jeton « API Conversions » ne peut qu'ENVOYER des événements : on vérifie donc en envoyant
+    // un seul événement de test (visible dans « Tester les événements » si un code test est fourni).
     try {
-      const r = await fetch(`https://graph.facebook.com/v25.0/${OULIPAI_PIXEL}?fields=id,name&access_token=${encodeURIComponent(jeton)}`);
+      const code = typeof req.query.code === "string" && /^TEST[0-9A-Z]{1,20}$/i.test(req.query.code) ? req.query.code : undefined;
+      const corps = { data: [{ event_name: "PageView", event_time: Math.floor(Date.now() / 1000), action_source: "website",
+        event_id: "diag-" + Date.now(), event_source_url: "https://recuvente-saas.vercel.app/oulipai",
+        user_data: { client_ip_address: (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || undefined, client_user_agent: texte(req.headers["user-agent"], 500) || "diagnostic" } }] };
+      if (code) corps.test_event_code = code;
+      const r = await fetch(`https://graph.facebook.com/v25.0/${OULIPAI_PIXEL}/events?access_token=${encodeURIComponent(jeton)}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
       const j = await r.json().catch(() => ({}));
-      return res.status(200).json({ jeton: true, valide: r.ok, pixel: j.id || null, nom: j.name || null, erreur: r.ok ? null : (j?.error?.message || "inconnue") });
+      return res.status(200).json({ jeton: true, valide: r.ok, recus: j.events_received ?? null, test: !!code, erreur: r.ok ? null : (j?.error?.message || "inconnue") });
     } catch (e) { return res.status(200).json({ jeton: true, valide: false, erreur: e.message }); }
   }
   // Boutique multi-pays : « GET ?pays=1 » renvoie seulement le PAYS du visiteur (code à 2 lettres, fourni

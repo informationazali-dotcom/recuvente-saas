@@ -449,6 +449,20 @@ body.mode-cible .chiffres{display:none}
 .detail-conseil{font-size:14px;color:var(--gris);margin:0}
 body:has(dialog[open]){overflow:hidden}
 
+/* passe « premium » : cartes sobres, sections resserrées */
+.lien-fiche{border:0;background:none;padding:6px 0 0;font:700 14px var(--texte);color:#1670B0;cursor:pointer;text-align:center;width:100%}
+.lien-fiche:hover{text-decoration:underline}
+.carte .corps{gap:12px}
+body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court #choisir{display:none}
+.faq-plus{margin-top:18px}
+.faq.repliee details:nth-of-type(n+9){display:none}
+@media (max-width:699px){
+  .ouverture .chapeau:not(.chapeau-court){display:none}
+  .section{padding-top:64px}
+  .carte .img{aspect-ratio:16/9}
+}
+
+@media (min-width:980px){.ouverture h1{font-size:clamp(46px,5.6vw,78px)}.ouverture .cadre{align-items:start}.ouverture .visuel{margin-top:70px}}
 /* apparition */
 @media (prefers-reduced-motion:no-preference){
   .apparait{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
@@ -528,15 +542,6 @@ body:has(dialog[open]){overflow:hidden}
   </div>
 </section>
 
-<section class="section" id="besoins">
-  <div class="cadre apparait">
-    <p class="sur">Quelle puissance pour vous ?</p>
-    <h2 class="titre">Dites-nous ce que vous voulez alimenter</h2>
-    <p class="sous">Touchez votre besoin : on vous montre la gamme adaptée. En cas de doute, un conseiller vous répond sur WhatsApp.</p>
-    <div class="besoins" id="liste-besoins"></div>
-  </div>
-</section>
-
 <section class="section" id="prix" style="padding-top:72px">
   <div class="cadre apparait">
     <p class="sur">Catalogue et prix</p>
@@ -545,6 +550,18 @@ body:has(dialog[open]){overflow:hidden}
   </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre" id="puces"></div></nav>
   <div class="cadre" id="catalogue"></div>
+</section>
+
+<section class="section" id="calcul">
+  <div class="cadre apparait">
+    <p class="sur">Calculateur de puissance</p>
+    <h2 class="titre">Touchez vos appareils, on calcule pour vous</h2>
+    <p class="sous">Appuyez sur « + » pour chaque appareil que vous voulez faire marcher en même temps. Le site vous indique le groupe qu'il vous faut.</p>
+    <div class="calc">
+      <div class="appareils" id="appareils"></div>
+      <aside class="resultat" id="resultat" aria-live="polite"></aside>
+    </div>
+  </div>
 </section>
 
 <section class="section" id="garantie">
@@ -593,68 +610,6 @@ body:has(dialog[open]){overflow:hidden}
   </div>
 </section>
 
-<section class="section" id="calcul">
-  <div class="cadre apparait">
-    <p class="sur">Calculateur de puissance</p>
-    <h2 class="titre">Touchez vos appareils, on calcule pour vous</h2>
-    <p class="sous">Appuyez sur « + » pour chaque appareil que vous voulez faire marcher en même temps. Le site vous indique le groupe qu'il vous faut.</p>
-    <div class="calc">
-      <div class="appareils" id="appareils"></div>
-      <aside class="resultat" id="resultat" aria-live="polite"></aside>
-    </div>
-  </div>
-</section>
-
-<section class="vocal">
-  <div class="cadre apparait">
-    <span class="micro" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></span>
-    <div>
-      <h2>Vous préférez parler ?</h2>
-      <p>Pas besoin d'écrire. Ouvrez WhatsApp et <b>envoyez-nous un message vocal</b> : dites ce que vous voulez alimenter, on vous répond avec le bon groupe et le prix.</p>
-    </div>
-    <a class="btn btn-wa btn-grand" data-wa="vocal" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Ouvrir WhatsApp</a>
-  </div>
-</section>
-
-<section class="section" id="livraison">
-  <div class="cadre apparait">
-    <p class="sur">Livraison et installation</p>
-    <h2 class="titre">Partout en Côte d'Ivoire</h2>
-    <div class="zones">
-      <div class="zone zone-abj">
-        <p class="sur">À Abidjan</p>
-        <h3>Transport et installation offerts</h3>
-        <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Les frais de transport sont offerts : on livre gratuitement chez vous.</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>L'installation est offerte, faite par nos techniciens.</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tout le matériel d'installation est compris dans le prix.</li>
-        </ul>
-      </div>
-      <div class="zone zone-hors">
-        <p class="sur">Hors d'Abidjan</p>
-        <h3>Livraison et installation dans toutes les villes</h3>
-        <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg>Les frais de transport sont à la charge du client, calculés selon la distance (kilométrage) depuis Abidjan.</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>Les frais d'installation sont à la charge du client, calculés selon la distance (kilométrage).</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>Le montant exact vous est donné sur WhatsApp avant la commande.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="cadre apparait">
-    <p class="sur">Comment commander</p>
-    <h2 class="titre">Trois étapes, c'est tout</h2>
-    <ol class="etapes">
-      <li><b>Choisissez votre groupe</b><span>Regardez les puissances et les prix ci-dessus, ou décrivez votre besoin.</span></li>
-      <li><b>Écrivez-nous sur WhatsApp</b><span>Un message ou un vocal suffit : on confirme la disponibilité et le prix.</span></li>
-      <li><b>On livre et on installe</b><span>Nos techniciens installent le groupe et le mettent en marche avec vous.</span></li>
-    </ol>
-  </div>
-</section>
-
 <section class="pro" id="entreprises">
   <div class="cadre apparait">
     <div>
@@ -692,6 +647,44 @@ body:has(dialog[open]){overflow:hidden}
   </div>
 </section>
 
+<section class="section" id="livraison">
+  <div class="cadre apparait">
+    <p class="sur">Livraison et installation</p>
+    <h2 class="titre">Partout en Côte d'Ivoire</h2>
+    <div class="zones">
+      <div class="zone zone-abj">
+        <p class="sur">À Abidjan</p>
+        <h3>Transport et installation offerts</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Les frais de transport sont offerts : on livre gratuitement chez vous.</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>L'installation est offerte, faite par nos techniciens.</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tout le matériel d'installation est compris dans le prix.</li>
+        </ul>
+      </div>
+      <div class="zone zone-hors">
+        <p class="sur">Hors d'Abidjan</p>
+        <h3>Livraison et installation dans toutes les villes</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg>Les frais de transport sont à la charge du client, calculés selon la distance (kilométrage) depuis Abidjan.</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>Les frais d'installation sont à la charge du client, calculés selon la distance (kilométrage).</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>Le montant exact vous est donné sur WhatsApp avant la commande.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="vocal">
+  <div class="cadre apparait">
+    <span class="micro" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></span>
+    <div>
+      <h2>Vous préférez parler ?</h2>
+      <p>Pas besoin d'écrire. Ouvrez WhatsApp et <b>envoyez-nous un message vocal</b> : dites ce que vous voulez alimenter, on vous répond avec le bon groupe et le prix.</p>
+    </div>
+    <a class="btn btn-wa btn-grand" data-wa="vocal" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Ouvrir WhatsApp</a>
+  </div>
+</section>
+
 <section class="section" id="choisir">
   <div class="cadre apparait">
     <p class="sur">Le conseil de l'expert</p>
@@ -717,25 +710,11 @@ body:has(dialog[open]){overflow:hidden}
   </div>
 </section>
 
-<section class="section" id="briques">
-  <div class="cadre apparait">
-    <div class="briques">
-      <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="8" height="4" rx=".5"/><rect x="13" y="5" width="8" height="4" rx=".5"/><rect x="7" y="11" width="10" height="4" rx=".5"/><rect x="3" y="17" width="8" height="4" rx=".5"/><rect x="13" y="17" width="8" height="4" rx=".5"/></svg></i>
-      <div>
-        <p class="sur">Aussi chez OU LI PAI</p>
-        <h2>Pondeuses de briques</h2>
-        <p>Vous construisez ou vous voulez produire des briques ? Nous vendons aussi des pondeuses de briques. Demandez les modèles et les prix sur WhatsApp.</p>
-      </div>
-      <a class="btn btn-bleu" data-wa="briques" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Voir les modèles</a>
-    </div>
-  </div>
-</section>
-
 <section class="section" id="faq">
   <div class="cadre apparait">
     <p class="sur">Questions fréquentes</p>
     <h2 class="titre">Vous vous demandez…</h2>
-    <div class="faq">
+    <div class="faq repliee" id="faq-liste">
       <details><summary>Pourquoi vos prix sont-ils si intéressants ?</summary><p>Nous sommes le premier importateur de groupes électrogènes en Côte d'Ivoire : nous faisons venir nos groupes directement, sans intermédiaire. Vous payez le prix importateur.</p></details>
       <details><summary>Les prix affichés comprennent quoi ?</summary><p>Le groupe électrogène et tout le matériel d'installation. À Abidjan, le transport et l'installation sont offerts.</p></details>
       <details><summary>Et si je suis hors d'Abidjan ?</summary><p>On livre et on installe partout en Côte d'Ivoire. Les frais de transport et d'installation sont à la charge du client et calculés selon la distance (kilométrage). On vous donne le montant exact sur WhatsApp avant la commande.</p></details>
@@ -757,6 +736,7 @@ body:has(dialog[open]){overflow:hidden}
       <details><summary>Je ne sais pas quelle puissance choisir.</summary><p>Écrivez-nous ce que vous voulez alimenter (climatiseurs, congélateurs, pompe, machines…) ou envoyez un vocal : on vous conseille la bonne puissance.</p></details>
       <details><summary>Vous travaillez le dimanche ?</summary><p>Non. Les livraisons et installations se font du lundi au samedi.</p></details>
     </div>
+    <button type="button" class="btn btn-ligne-sombre faq-plus" id="faq-plus">Voir toutes les questions (20)</button>
   </div>
 </section>
 
@@ -773,6 +753,20 @@ body:has(dialog[open]){overflow:hidden}
       <details><summary>Garantie 1 an</summary><p>Chaque groupe est garanti 1 an à partir de la livraison contre les défauts de fabrication. Pendant la garantie, nos techniciens réparent le groupe avec des pièces d'origine commandées à l'usine. La garantie s'applique pour une utilisation normale du groupe, avec l'entretien conseillé toutes les 100 heures de fonctionnement.</p></details>
       <details><summary>Retour et échange</summary><p>Si un défaut est constaté à la livraison ou à la mise en service, nous réparons ou remplaçons le groupe sans frais pour vous. Comme vous pouvez voir le groupe au dépôt avant l'achat et que notre conseiller vérifie la puissance avec vous, un groupe livré, installé et qui fonctionne bien n'est pas repris. En cas de besoin, écrivez-nous sur WhatsApp : nous cherchons toujours une solution avec vous.</p></details>
       <details><summary>Service après-vente</summary><p>Pour toute question après l'achat, écrivez-nous sur WhatsApp au 07 11 35 57 43. Le contrat d'entretien prévoit un contrôle de votre groupe toutes les 100 heures de fonctionnement.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="briques">
+  <div class="cadre apparait">
+    <div class="briques">
+      <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="8" height="4" rx=".5"/><rect x="13" y="5" width="8" height="4" rx=".5"/><rect x="7" y="11" width="10" height="4" rx=".5"/><rect x="3" y="17" width="8" height="4" rx=".5"/><rect x="13" y="17" width="8" height="4" rx=".5"/></svg></i>
+      <div>
+        <p class="sur">Aussi chez OU LI PAI</p>
+        <h2>Pondeuses de briques</h2>
+        <p>Vous construisez ou vous voulez produire des briques ? Nous vendons aussi des pondeuses de briques. Demandez les modèles et les prix sur WhatsApp.</p>
+      </div>
+      <a class="btn btn-bleu" data-wa="briques" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Voir les modèles</a>
     </div>
   </div>
 </section>
@@ -951,10 +945,9 @@ function carte(g){
       <div><div class="prix-ligne"><div class="prix">${fmt(g.p)}<small>FCFA</small></div>${voix ? '<button type="button" class="ecouter" data-dire-kva="' + g.kva + '" aria-label="Écouter le prix">' + HP + '</button>' : ''}</div>
       <div class="en-lettres">${enLettres(g.p)} francs CFA${avecTaxe(g) ? ' · hors taxe' : ''}</div>
       ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}
-      <div class="note">${COCHE}${ouvert ? 'Transport offert à Abidjan' : 'Transport et installation offerts à Abidjan'}</div>
-      <div class="note">${COCHE}Garantie 1 an</div></div>
+      </div>
       <a class="btn btn-wa" href="${lien(msgGroupe(g))}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Commander sur WhatsApp</a>
-      <button type="button" class="btn btn-detail" data-detail="${g.kva}">Voir la fiche complète</button>
+      <button type="button" class="lien-fiche" data-detail="${g.kva}">Voir la fiche complète, garantie et livraison →</button>
     </div>
   </article>`;
 }
@@ -1068,9 +1061,9 @@ function puces(){
 function choisir(id){ filtre = id; puces(); rendre(); document.getElementById('prix').scrollIntoView(); pixel('ChoixGamme', {gamme:id}, true); }
 document.getElementById('puces').addEventListener('click', e => { const b = e.target.closest('.puce'); if (b) choisir(b.dataset.id); });
 
-document.getElementById('liste-besoins').innerHTML = BESOINS.map(b =>
+if (document.getElementById('liste-besoins')) document.getElementById('liste-besoins').innerHTML = BESOINS.map(b =>
   `<button class="besoin" data-c="${b.c}"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${b.ic}</svg></i><b>${b.t}</b><span>${b.s}</span><em>${CATS.find(c=>c.id===b.c).label} →</em></button>`).join('');
-document.getElementById('liste-besoins').addEventListener('click', e => { const b = e.target.closest('.besoin'); if (b) choisir(b.dataset.c); });
+document.getElementById('liste-besoins') && document.getElementById('liste-besoins').addEventListener('click', e => { const b = e.target.closest('.besoin'); if (b) choisir(b.dataset.c); });
 
 document.getElementById('photo-ouverture').innerHTML = img(PHOTOS.ouverture, 'Groupe électrogène Perkins OU LI PAI', svgGroupe(false));
 document.querySelectorAll('.ic-wa').forEach(i => i.outerHTML = ICON_WA);
@@ -1274,6 +1267,7 @@ document.addEventListener('click', e => {
   dire(`Groupe électrogène de ${kv(g.kva)} kVA. Prix : ${enLettres(g.p)} francs CFA. ${cap.n ? 'Il peut faire marcher environ ' + cap.n + ' ' + cap.txt + '.' : 'Idéal pour : ' + cap.txt + '.'} ${g.c === 'petit' ? 'Transport offert à Abidjan.' : 'Transport et installation offerts à Abidjan.'} Garantie un an. Pour commander, touchez le bouton vert WhatsApp.`, b);
 });
 
+document.getElementById('faq-plus').addEventListener('click', e => { document.getElementById('faq-liste').classList.remove('repliee'); e.currentTarget.remove(); });
 // Apparition au défilement
 const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { x.target.classList.add('vu'); io.unobserve(x.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
 document.querySelectorAll('.apparait').forEach(el => io ? io.observe(el) : el.classList.add('vu'));
@@ -1292,7 +1286,7 @@ const seg = (() => {
 if (SEGMENTS[seg]) {
   const S = SEGMENTS[seg];
   const liste = DATA.filter(g => S.cats.includes(g.c));
-  document.body.classList.add('mode-cible');
+  document.body.classList.add('mode-cible', 'mode-cible-court');
   document.getElementById('cible').hidden = false;
   document.getElementById('cible-sur').textContent = S.sur;
   document.getElementById('cible-titre').textContent = 'Choisissez votre groupe';
@@ -1311,7 +1305,7 @@ if (SEGMENTS[seg]) {
   document.title = S.titre + ' · OU LI PAI IVOIRE';
   pixel('ViewContent', { content_category: 'Groupe électrogène', content_name: S.titre });
 }
-document.getElementById('voir-tout').addEventListener('click', () => { filtre = 'all'; puces(); rendre(); document.getElementById('prix').scrollIntoView(); });
+document.getElementById('voir-tout').addEventListener('click', () => { document.body.classList.remove('mode-cible-court'); filtre = 'all'; puces(); rendre(); document.getElementById('prix').scrollIntoView(); });
 
 /* ---------- Calculateur de puissance (en images, sans rien écrire) ---------- */
 const APPAREILS = [

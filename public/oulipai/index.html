@@ -671,7 +671,7 @@ body:has(dialog[open]){overflow:hidden}
     </div>
     <form class="pro-carte fiche" id="fiche-besoin">
       <b>Demander ma proforma</b>
-      <p>Remplissez ce qui vous concerne : votre demande arrive complète sur WhatsApp.</p>
+      <p>Choisissez la puissance : votre pro forma PDF est créée tout de suite, et vous l'envoyez à OU LI PAI sur WhatsApp en un geste.</p>
       <div class="fiche-deux">
         <label>Votre nom<input name="nom" autocomplete="name" placeholder="Ex. M. Koné"></label>
         <label>Nom de la société<input name="societe" autocomplete="organization" placeholder="Ex. Boulangerie du Plateau"></label>
@@ -687,7 +687,7 @@ body:has(dialog[open]){overflow:hidden}
         <label>Pour quand ?<select name="delai"><option>Dès que possible</option><option>Dans le mois</option><option>Dans 1 à 3 mois</option><option>Je me renseigne</option></select></label>
       </div>
       <label>Type de proforma<select name="taxe"><option value="ht">Hors taxe</option><option value="ttc">Avec taxe (3 %)</option></select></label>
-      <button class="btn btn-wa" type="submit"><i class="ic-wa"></i>Envoyer ma demande</button>
+      <button class="btn btn-wa" type="submit"><i class="ic-wa"></i>Créer ma pro forma</button>
     </form>
   </div>
 </section>
@@ -800,7 +800,7 @@ body:has(dialog[open]){overflow:hidden}
 
 <a class="btn btn-wa flottant" data-wa="general" href="#" target="_blank" rel="noopener" aria-label="Écrire sur WhatsApp"><i class="ic-wa"></i><span>Écrire sur WhatsApp</span></a>
 <dialog class="detail" id="detail" aria-labelledby="detail-titre">
-  <div class="detail-haut"><b>Fiche du groupe</b><button type="button" class="detail-fermer" id="detail-fermer" aria-label="Fermer la fiche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="detail-haut"><b id="detail-haut-titre">Fiche du groupe</b><button type="button" class="detail-fermer" id="detail-fermer" aria-label="Fermer la fiche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div id="detail-contenu"></div>
 </dialog>
 <nav class="barre-mobile" aria-label="Actions rapides">
@@ -1014,7 +1014,7 @@ function remplirDetail(){
 }
 function ouvrirDetail(kva, depuisAdresse){
   const g = DATA.find(x => String(x.kva) === String(kva)); if (!g) return;
-  enCours = g; quantite = 1; remplirDetail();
+  enCours = g; quantite = 1; document.getElementById('detail-haut-titre').textContent = 'Fiche du groupe'; remplirDetail();
   const d = document.getElementById('detail');
   if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
   d.scrollTop = 0;
@@ -1105,22 +1105,164 @@ document.querySelectorAll('.tuile').forEach(t => { t.href = location.pathname.st
   f.addEventListener('submit', e => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
-    const lignes = ['Bonjour OU LI PAI IVOIRE, je souhaite une proforma.'];
-    if (v.nom) lignes.push('Nom : ' + v.nom);
-    if (v.societe) lignes.push('Société : ' + v.societe);
-    if (v.site) lignes.push('Type de site : ' + v.site);
-    lignes.push('Puissance : ' + (v.kva ? kv(v.kva) + ' kVA' : 'à conseiller'));
-    const n = Math.max(1, parseInt(v.quantite, 10) || 1);
-    lignes.push('Quantité : ' + n);
-    if (v.ville) lignes.push('Ville : ' + v.ville);
-    if (v.appareils) lignes.push('À alimenter : ' + v.appareils);
-    lignes.push('Délai : ' + v.delai);
-    lignes.push('Proforma : ' + (v.taxe === 'ttc' ? 'avec taxe (3 %)' : 'hors taxe'));
+    const n = Math.max(1, Math.min(50, parseInt(v.quantite, 10) || 1));
     const g = DATA.find(x => String(x.kva) === v.kva);
     pixel('Lead', g ? { content_ids: ['G' + g.kva], content_name: 'Proforma ' + v.kva + ' kVA', value: g.p * n, currency: 'XOF' } : { content_name: 'Proforma' });
-    window.open(lien(lignes.join('\n') + refTxt()), '_blank', 'noopener');
+    if (!g) {
+      // Puissance inconnue : pas de proforma automatique, le conseiller la prépare
+      const lignes = ['Bonjour OU LI PAI IVOIRE, je souhaite une proforma.'];
+      if (v.nom) lignes.push('Nom : ' + v.nom);
+      if (v.societe) lignes.push('Société : ' + v.societe);
+      if (v.site) lignes.push('Type de site : ' + v.site);
+      lignes.push('Puissance : à conseiller', 'Quantité : ' + n);
+      if (v.ville) lignes.push('Ville : ' + v.ville);
+      if (v.appareils) lignes.push('À alimenter : ' + v.appareils);
+      lignes.push('Délai : ' + v.delai, 'Proforma : ' + (v.taxe === 'ttc' ? 'avec taxe (3 %)' : 'hors taxe'));
+      window.open(lien(lignes.join('\n') + refTxt()), '_blank', 'noopener');
+      return;
+    }
+    const d = new Date();
+    const pf = { r: 'OLP-' + String(d.getFullYear()).slice(2) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(),
+      t: d.toISOString().slice(0, 10), k: g.kva, p: g.p, q: n, x: avecTaxe(g) && v.taxe === 'ttc' ? 1 : 0,
+      n: v.nom || '', s: v.societe || '', v: v.ville || '', y: v.site || '', a: v.appareils || '', l: v.delai || '' };
+    montrerProforma(pf, false);
   });
 })();
+
+/* ---------- Proforma PDF (générée dans le téléphone du client, sans serveur) ---------- */
+const VALIDITE_JOURS = 15;
+const ASSET = location.pathname.startsWith('/oulipai') ? '/oulipai/' : '';
+const COMMUNES_ABIDJAN = /abidjan|yopougon|cocody|abobo|plateau|marcory|koumassi|treichville|adjam|port-bou|attécoubé|attecoube|bingerville|anyama|songon|riviera|angré|angre/i;
+const encoderPf = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const decoderPf = s => { try { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; } };
+const lienPf = pf => SITE + '?pf=' + encoderPf(pf);
+const dateFr = iso => { const [a, m, j] = iso.split('-'); return j + '/' + m + '/' + a; };
+const plusJours = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+let jspdfPret = null;
+function chargerJsPDF(){
+  if (window.jspdf) return Promise.resolve();
+  if (!jspdfPret) jspdfPret = new Promise((ok, ko) => { const s = document.createElement('script'); s.src = ASSET + 'jspdf.umd.min.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+  return jspdfPret;
+}
+function imageEnData(src){
+  return new Promise(ok => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); ok({ d: c.toDataURL('image/png'), w: i.naturalWidth, h: i.naturalHeight }); }; i.onerror = () => ok(null); i.src = src; });
+}
+async function pdfProforma(pf){
+  await chargerJsPDF();
+  const g = DATA.find(x => String(x.kva) === String(pf.k)) || { kva: pf.k, kw: pf.k * 0.8, c: pf.k >= 100 ? 'entreprise' : 'pro' };
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const BLEU = [31, 143, 214], NUIT = [11, 22, 36], GRIS = [91, 107, 125];
+  const n2 = x => fmt(Math.round(x)).replace(/\s/g, ' ');
+  const logo = await imageEnData(ASSET + 'logo-complet.png');
+  // En-tête
+  doc.setFillColor(...NUIT); doc.rect(0, 0, 210, 38, 'F');
+  doc.setFillColor(...BLEU); doc.rect(0, 38, 210, 2.2, 'F');
+  if (logo) { doc.setFillColor(255, 255, 255); doc.roundedRect(12, 6, 38, 27, 3, 3, 'F'); const h = 23, w = h * logo.w / logo.h; doc.addImage(logo.d, 'PNG', 12 + (38 - w) / 2, 8, w, h); }
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text('OU LI PAI IVOIRE', 56, 15);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Trading Company of Africa · Groupes électrogènes', 56, 21);
+  doc.text('Premier importateur de groupes électrogènes en Côte d\'Ivoire', 56, 26);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('PRO FORMA', 198, 16, { align: 'right' });
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'normal');
+  doc.text('N° ' + pf.r, 198, 23, { align: 'right' });
+  doc.text('Date : ' + dateFr(pf.t), 198, 28, { align: 'right' });
+  doc.text('Valable jusqu\'au ' + dateFr(plusJours(pf.t, VALIDITE_JOURS)), 198, 33, { align: 'right' });
+  // Client
+  let y = 50;
+  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Client', 14, y);
+  doc.setDrawColor(220, 228, 236); doc.line(14, y + 2, 196, y + 2);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  const infos = [['Société', pf.s], ['Nom', pf.n], ['Ville', pf.v], ['Type de site', pf.y], ['À alimenter', pf.a], ['Délai souhaité', pf.l]].filter(r => r[1]);
+  y += 8;
+  infos.forEach(([a, b]) => { doc.setTextColor(...GRIS); doc.text(a, 14, y); doc.setTextColor(...NUIT); doc.text(doc.splitTextToSize(String(b), 140), 50, y); y += 6; });
+  // Tableau
+  y += 4;
+  doc.setFillColor(...BLEU); doc.rect(14, y, 182, 9, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+  const taxeOk = pf.k >= 100;
+  doc.text('Désignation', 17, y + 6); doc.text('Qté', 128, y + 6, { align: 'center' });
+  doc.text('Prix unitaire' + (taxeOk ? ' HT' : ''), 158, y + 6, { align: 'right' }); doc.text('Total' + (taxeOk ? ' HT' : ''), 194, y + 6, { align: 'right' });
+  y += 9;
+  const petit = g.c === 'petit';
+  const des = ['Groupe électrogène OU LI PAI ' + kv(pf.k) + ' kVA (' + kv(g.kw) + ' kW)',
+    'Moteur diesel Perkins · alternateur Stamford',
+    (petit ? 'Groupe ouvert · monophasé 230 V' : 'Insonorisé · ' + (pf.k <= 20 ? 'mono ou triphasé' : 'triphasé 400 V') + ' · 50 Hz'),
+    'Matériel d\'installation inclus · garantie 1 an'];
+  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  const h = des.length * 5 + 6;
+  doc.setFillColor(244, 247, 250); doc.rect(14, y, 182, h, 'F');
+  des.forEach((t, i) => { if (i === 0) doc.setFont('helvetica', 'bold'); else doc.setFont('helvetica', 'normal'); doc.text(t, 17, y + 6 + i * 5); });
+  doc.setFont('helvetica', 'normal');
+  doc.text(String(pf.q), 128, y + 6, { align: 'center' });
+  doc.text(n2(pf.p) + ' FCFA', 158, y + 6, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.text(n2(pf.p * pf.q) + ' FCFA', 194, y + 6, { align: 'right' });
+  y += h + 3;
+  // Transport et installation
+  const abj = !pf.v || COMMUNES_ABIDJAN.test(pf.v);
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRIS); doc.setFontSize(9);
+  const transp = abj ? (petit ? 'Transport : offert à Abidjan' : 'Transport et installation : offerts à Abidjan')
+    : 'Transport et installation hors d\'Abidjan : à la charge du client, selon la distance (montant communiqué avant la commande)';
+  doc.text(doc.splitTextToSize(transp, 180), 17, y + 2); y += 10;
+  // Totaux
+  const total = pf.p * pf.q;
+  const lignesT = taxeOk ? (pf.x ? [['Total HT', total], ['Taxe (3 %)', Math.round(total * 0.03)], ['Total TTC', Math.round(total * 1.03)]] : [['Total HT', total]]) : [['Total', total]];
+  lignesT.forEach(([a, b], i) => {
+    const der = i === lignesT.length - 1;
+    if (der) { doc.setFillColor(...NUIT); doc.rect(118, y - 5, 78, 9, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); }
+    else { doc.setTextColor(...NUIT); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); }
+    doc.text(a, 121, y + 1); doc.text(n2(b) + ' FCFA', 194, y + 1, { align: 'right' }); y += 9;
+  });
+  doc.setTextColor(...GRIS); doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5);
+  doc.text(doc.splitTextToSize('Arrêté la présente pro forma à la somme de ' + enLettres(lignesT[lignesT.length - 1][1]) + ' francs CFA.', 182), 14, y + 2);
+  y += 12;
+  // Conditions
+  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Conditions', 14, y);
+  doc.line(14, y + 2, 196, y + 2); y += 8;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  ['Paiement à notre bureau d\'Abobo : virement bancaire, chèque ou Mobile Money.',
+   'Livraison après paiement : 24 heures à Abidjan, 72 heures maximum hors d\'Abidjan.',
+   'Mise en service par nos techniciens, devant le client.',
+   'Garantie 1 an. Contrat d\'entretien : contrôle toutes les 100 heures. Pièces d\'origine commandées à l\'usine.',
+   'Pro forma valable ' + VALIDITE_JOURS + ' jours. Disponibilité confirmée par notre conseiller.',
+   'Visite libre du dépôt de Yopougon, du lundi au samedi de 8 h à 18 h.'
+  ].forEach(t => { doc.setFillColor(...BLEU); doc.circle(16, y - 1.2, 0.9, 'F'); doc.text(doc.splitTextToSize(t, 174), 19, y); y += 6; });
+  // Pied
+  doc.setFillColor(...BLEU); doc.rect(0, 272, 210, 25, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  doc.text('WhatsApp : +225 07 11 35 57 43', 105, 281, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text('Dépôt : Yopougon · Bureau : Abobo · 13 BP 2302 Abidjan 13 · Lundi–samedi, 8 h–18 h', 105, 287, { align: 'center' });
+  doc.text('facebook.com/oulipai · recuvente-saas.vercel.app/oulipai', 105, 292, { align: 'center' });
+  return doc;
+}
+async function montrerProforma(pf, depuisLien){
+  const g = DATA.find(x => String(x.kva) === String(pf.k));
+  const total = pf.p * pf.q * (pf.x ? 1.03 : 1);
+  const msg = ['Bonjour OU LI PAI IVOIRE, voici ma demande de proforma N° ' + pf.r + '.',
+    pf.s ? 'Société : ' + pf.s : '', pf.n ? 'Nom : ' + pf.n : '',
+    'Groupe : ' + kv(pf.k) + ' kVA × ' + pf.q, 'Total : ' + fmt(Math.round(total)) + ' FCFA' + (pf.k >= 100 ? (pf.x ? ' TTC' : ' HT') : ''),
+    pf.v ? 'Ville : ' + pf.v : '', 'Proforma : ' + lienPf(pf)].filter(Boolean).join('\n') + refTxt();
+  document.getElementById('detail-haut-titre').textContent = 'Pro forma';
+  document.getElementById('detail-contenu').innerHTML = `<div class="detail-corps pf-corps">
+    <p class="sur">${depuisLien ? 'Pro forma OU LI PAI' : 'C\'est prêt'}</p>
+    <h2 id="detail-titre">Pro forma <span style="white-space:nowrap">N° ${pf.r}</span></h2>
+    <p class="detail-sous">${g ? 'Groupe électrogène ' + kv(pf.k) + ' kVA' : ''} × ${pf.q} · <span style="white-space:nowrap">${fmt(Math.round(total))} FCFA${pf.k >= 100 ? (pf.x ? ' TTC' : ' HT') : ''}</span> · valable ${VALIDITE_JOURS} jours</p>
+    <button type="button" class="btn btn-bleu btn-grand" id="pf-telecharger">Télécharger la pro forma (PDF)</button>
+    ${depuisLien ? '' : `<a class="btn btn-wa btn-grand" href="${lien(msg)}" target="_blank" rel="noopener" data-wa-info="proforma">${ICON_WA}Envoyer à OU LI PAI sur WhatsApp</a>
+    <p class="detail-conseil">Gardez le PDF : c'est votre copie. En touchant le bouton vert, OU LI PAI reçoit votre demande avec le lien de la même pro forma, et un conseiller vous confirme la disponibilité.</p>`}
+    ${depuisLien ? `<a class="btn btn-wa" href="${lien('Bonjour OU LI PAI IVOIRE, je reviens vers vous pour la pro forma N° ' + pf.r + '.' + refTxt())}" target="_blank" rel="noopener" data-wa-info="proforma-suivi">${ICON_WA}Écrire à OU LI PAI</a>` : ''}
+  </div>`;
+  enCours = null;
+  const dlg = document.getElementById('detail');
+  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+  const bouton = document.getElementById('pf-telecharger');
+  bouton.addEventListener('click', async () => {
+    bouton.disabled = true; bouton.textContent = 'Préparation…';
+    try { const doc = await pdfProforma(pf); doc.save('Proforma-OU-LI-PAI-' + pf.r + '.pdf'); pixel('TelechargementProforma', { ref: pf.r }, true); bouton.textContent = 'Télécharger à nouveau (PDF)'; }
+    catch (e) { bouton.textContent = 'Réessayer le téléchargement'; }
+    bouton.disabled = false;
+  });
+  chargerJsPDF().catch(() => {});
+}
 
 // Boutons « Écouter »
 if (!voix) document.querySelectorAll('.ecouter').forEach(b => b.hidden = true);
@@ -1228,7 +1370,8 @@ dessinerAppareils();
 
 puces(); rendre();
 // Publicité pour un modèle précis : /oulipai?kva=100 ouvre directement sa fiche
-(() => { const k = new URLSearchParams(location.search).get('kva'); if (k) ouvrirDetail(k, true); })();
+(() => { const q = new URLSearchParams(location.search); const k = q.get('kva'); if (k) ouvrirDetail(k, true);
+  const pf = q.get('pf') && decoderPf(q.get('pf')); if (pf && pf.r && pf.k) montrerProforma(pf, true); })();
 </script>
 </body>
 </html>

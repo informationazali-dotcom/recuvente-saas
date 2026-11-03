@@ -276,6 +276,7 @@ body.mode-cible .tuiles{display:none}
 .en-lettres{font-size:13px;color:var(--gris);margin-top:4px}
 .avec-taxe{display:inline-block;margin-top:6px;font-size:13px;color:var(--encre);background:var(--papier);border:1px dashed var(--trait);border-radius:8px;padding:4px 8px}
 .avec-taxe b{font-variant-numeric:tabular-nums}
+.negociable{display:inline-flex;align-items:center;gap:5px;margin-top:6px;margin-left:4px;font-size:12.5px;font-weight:800;color:#B84A0E;background:#FFF1E6;border:1px solid #F6C39B;border-radius:999px;padding:3px 10px}
 .prix-ligne{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
 
 /* page ciblée */
@@ -873,7 +874,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
     <p class="sur">Questions fréquentes</p>
     <h2 class="titre">Vous vous demandez…</h2>
     <div class="faq repliee" id="faq-liste">
-      <details><summary>Les prix sont-ils affichés ?</summary><p>Oui. Tous nos prix sont affichés sur ce site, pour chaque puissance. Comparez : moteur Perkins, alternateur Stamford, garantie 1 an et, à Abidjan, transport et installation offerts.</p></details>
+      <details><summary>Les prix sont-ils affichés ?</summary><p>Oui. Tous nos prix sont affichés sur ce site, pour chaque puissance. À partir de 100 kVA, le prix est légèrement négociable : écrivez-nous sur WhatsApp. Comparez : moteur Perkins, alternateur Stamford, garantie 1 an et, à Abidjan, transport et installation offerts.</p></details>
       <details><summary>Les prix affichés comprennent quoi ?</summary><p>Le groupe électrogène et tout le matériel d'installation. À Abidjan, le transport et l'installation sont offerts.</p></details>
       <details><summary>Et si je suis hors d'Abidjan ?</summary><p>On livre et on installe partout en Côte d'Ivoire. Les frais de transport et d'installation sont à la charge du client et calculés selon la distance (kilométrage). On vous donne le montant exact sur WhatsApp avant la commande.</p></details>
       <details><summary>Le groupe est-il garanti ?</summary><p>Oui, chaque groupe est garanti 1 an.</p></details>
@@ -1121,7 +1122,7 @@ function carte(g){
       <div class="capacite"><i>${cap.ic === 'immeuble' ? IMMEUBLE : cap.ic === 'usine' ? USINE : cap.n ? CLIM : MAISON}</i><span>${cap.n ? '<b>' + cap.n + '</b> ' : ''}${cap.txt}</span></div>
       <div><div class="prix-ligne"><div class="prix">${fmt(g.p)}<small>FCFA</small></div>${voix ? '<button type="button" class="ecouter" data-dire-kva="' + g.kva + '" aria-label="Écouter le prix">' + HP + '</button>' : ''}</div>
       <div class="en-lettres">${enLettres(g.p)} francs CFA${avecTaxe(g) ? ' · hors taxe' : ''}</div>
-      ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}
+      ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}${g.kva >= 100 ? '<div class="negociable">🤝 Prix légèrement négociable</div>' : ''}
       </div>
       <a class="btn btn-wa" href="${lien(msgGroupe(g))}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Commander sur WhatsApp</a>
       <button type="button" class="lien-fiche" data-detail="${g.kva}">Voir la fiche complète, garantie et livraison →</button>
@@ -1152,7 +1153,7 @@ function remplirDetail(){
       <div class="detail-prix">
         <div class="prix">${fmt(g.p)}<small>FCFA</small></div>
         <div class="en-lettres">${enLettres(g.p)} francs CFA${avecTaxe(g) ? ' · hors taxe' : ''}</div>
-        ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}
+        ${avecTaxe(g) ? '<div class=\"avec-taxe\">Avec taxe (3 %) : <b>' + fmt(Math.round(g.p * 1.03)) + ' FCFA</b></div>' : ''}${g.kva >= 100 ? '<div class="negociable">🤝 Prix légèrement négociable</div>' : ''}
       </div>
       <div class="detail-qte"><span>Quantité</span>
         <div class="compteur"><button type="button" data-q="-1" aria-label="Retirer un groupe">−</button><span id="detail-n">${quantite}</span><button type="button" class="plus" data-q="1" aria-label="Ajouter un groupe">+</button></div>
@@ -1611,7 +1612,7 @@ function dessinerAppareils(){
     <p>Votre besoin dépasse notre plus grand groupe. Envoyez votre liste : un conseiller vous propose la bonne solution sur WhatsApp (plusieurs groupes possibles).</p>
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-wa-info="calcul-etude">${ICON_WA}Envoyer ma liste sur WhatsApp</a>`
     : `<p class="sur">Groupe conseillé (estimation)</p><div class="grand">${kv(g.kva)}<small>kVA</small></div>
-    <div class="prix-r">${fmt(g.p)} FCFA${avecTaxe(g) ? ' <small>HT</small>' : ''}</div><p>Estimation pour ${detail}.</p>
+    <div class="prix-r">${fmt(g.p)} FCFA${avecTaxe(g) ? ' <small>HT</small>' : ''}</div><p>Estimation pour ${detail}.${g.kva >= 100 ? ' Prix légèrement négociable.' : ''}</p>
     <p>Envoyez votre liste : un conseiller vous confirme la bonne puissance sur WhatsApp.</p>
     <a class="btn btn-wa" href="${lien(msg + refTxt())}" target="_blank" rel="noopener" data-kva="${g.kva}" data-prix="${g.p}">${ICON_WA}Envoyer ma liste sur WhatsApp</a>
     <button type="button" class="btn btn-detail btn-detail-clair" data-detail="${g.kva}">Voir la fiche du ${kv(g.kva)} kVA</button>

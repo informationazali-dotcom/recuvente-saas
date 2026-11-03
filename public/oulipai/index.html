@@ -530,6 +530,26 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 #prix .puce[aria-pressed="true"]{background:linear-gradient(160deg,#4FB3F0,#1670B0 60%,#0E5C95);border-color:#1670B0;color:#fff;box-shadow:0 5px 0 #0B4A78,0 0 18px rgba(79,179,240,.55),inset 0 1px 0 rgba(255,255,255,.35)}
 #prix .puce[aria-pressed="true"] small{color:#DDF0FF}
 #prix .puce[aria-pressed="true"]::after{content:"";position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-18deg);animation:reflet 2.8s ease-in-out infinite}
+/* Console 3D autour des filtres de puissance */
+#prix .filtres{background:transparent;backdrop-filter:none;border-bottom:0}
+#prix .filtres .cadre{display:block!important;overflow:visible;padding-top:12px;padding-bottom:16px}
+.console{position:relative;padding:14px 12px 12px;border-radius:22px;border:2px solid transparent;
+  background:linear-gradient(160deg,#173A60,#0B1624 72%) padding-box,linear-gradient(110deg,#4FB3F0,#1670B0,#F27A26,#FFB070,#4FB3F0) border-box;
+  background-size:100% 100%,300% 100%;animation:console-bord 6s linear infinite;
+  box-shadow:0 8px 0 #071019,0 24px 38px -16px rgba(11,22,36,.75),inset 0 1px 0 rgba(255,255,255,.14),inset 0 -18px 30px -20px rgba(79,179,240,.35)}
+.console::before,.console::after{content:"";position:absolute;width:26px;height:26px;pointer-events:none}
+.console::before{top:-7px;right:-7px;border-top:3px solid var(--orange);border-right:3px solid var(--orange);border-top-right-radius:12px;filter:drop-shadow(0 0 6px rgba(242,122,38,.8))}
+.console::after{bottom:-7px;left:-7px;border-bottom:3px solid #4FB3F0;border-left:3px solid #4FB3F0;border-bottom-left-radius:12px;filter:drop-shadow(0 0 6px rgba(79,179,240,.8))}
+.console-titre{display:flex;align-items:center;gap:8px;margin:0 0 12px 4px;font:800 12px var(--texte);letter-spacing:.16em;text-transform:uppercase;color:#8FD3FA}
+.console-titre i{width:8px;height:8px;border-radius:50%;background:#7CF0A9;box-shadow:0 0 0 0 rgba(124,240,169,.7);animation:point 1.8s ease-out infinite}
+.puces{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 2px 6px}
+.puces::-webkit-scrollbar{display:none}
+#prix .puce{border-color:rgba(255,255,255,.6)}
+#prix .puce[aria-pressed="true"]{border-color:#8FD3FA;box-shadow:0 5px 0 #0B4A78,0 0 0 2px rgba(143,211,250,.35),0 0 22px rgba(79,179,240,.75),inset 0 1px 0 rgba(255,255,255,.35)}
+@media (max-width:759px){.puces{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow:visible}}
+@keyframes console-bord{to{background-position:0 0,300% 0}}
+@keyframes point{0%{box-shadow:0 0 0 0 rgba(124,240,169,.7)}70%,100%{box-shadow:0 0 0 9px rgba(124,240,169,0)}}
+@media (prefers-reduced-motion:reduce){.console,.console-titre i{animation:none}}
 @media (prefers-reduced-motion:reduce){.outil::after,.outil i,#prix .puce[aria-pressed="true"]::after{animation:none}}
 @media (max-width:699px){
   .ouverture{background:linear-gradient(180deg,rgba(11,22,36,.78),rgba(11,22,36,.96) 70%),url(/oulipai/photos/ouverture.webp) center 30%/cover no-repeat}
@@ -649,7 +669,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
       </button>
     </div>
   </div>
-  <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre" id="puces"></div></nav>
+  <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre"><div class="console"><p class="console-titre"><i aria-hidden="true"></i>Choisissez votre puissance</p><div class="puces" id="puces"></div></div></div></nav>
   <div class="cadre" id="catalogue"></div>
   <div class="cadre"><button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button></div>
 </section>

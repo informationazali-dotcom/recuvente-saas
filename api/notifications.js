@@ -295,6 +295,63 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ===== OU LI PAI : un client vient de créer une pro forma sur le site (/oulipai) =====
+  // Le propriétaire reçoit tout de suite un e-mail avec le PDF en pièce jointe et le numéro du client,
+  // plus une notification sur ses téléphones abonnés. Rien n'est envoyé au client ici.
+  if (type === "oulipai_proforma") {
+    const b = req.body || {};
+    const t = (v, n = 200) => String(v == null ? "" : v).replace(/[<>]/g, "").slice(0, n).trim();
+    const pf = b.pf || {};
+    const ref = t(pf.r, 40);
+    if (!/^OLP-\d{6}-[A-Z0-9]{4}$/.test(ref)) return res.status(400).json({ error: "Référence invalide" });
+    if (dejaNotifiees.has("pf-" + ref)) return res.status(200).json({ ok: true, doublon: true });
+    dejaNotifiees.set("pf-" + ref, Date.now());
+    const pdf = typeof b.pdf === "string" && b.pdf.length < 3_000_000 && /^[A-Za-z0-9+/=]+$/.test(b.pdf) ? b.pdf : null;
+    const kva = Number(pf.k) || 0, q = Math.max(1, Math.min(50, Number(pf.q) || 1)), prix = Number(pf.p) || 0;
+    const total = Math.round(prix * q * (pf.x ? 1.03 : 1));
+    const f = (n) => Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ");
+    const kv = String(kva).replace(".", ",");
+    const tel = t(pf.w, 30);
+    const telWa = tel.replace(/\D/g, "").replace(/^0(?=\d{9}$)/, "225$&").replace(/^(?!225)(\d{10})$/, "225$1");
+    const lignes = [
+      ["Référence", ref], ["Société", t(pf.s)], ["Nom", t(pf.n)], ["WhatsApp / téléphone", tel],
+      ["Groupe", `${kv} kVA × ${q}`], ["Total", `${f(total)} FCFA${kva >= 100 ? (pf.x ? " TTC" : " HT") : ""}`],
+      ["Ville", t(pf.v)], ["Type de site", t(pf.y)], ["À alimenter", t(pf.a, 300)], ["Délai", t(pf.l)],
+    ].filter((l) => l[1]);
+    const lien = t(b.lien, 1500);
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #d9e1ea;border-radius:14px;overflow:hidden">
+      <div style="background:#0B1624;color:#fff;padding:18px 20px"><div style="font-size:12px;letter-spacing:2px;color:#4FB3F0;font-weight:bold">OU LI PAI IVOIRE</div>
+      <div style="font-size:20px;font-weight:bold;margin-top:4px">Nouvelle pro forma : ${kv} kVA × ${q}</div>
+      <div style="font-size:15px;margin-top:4px;color:#FFB070;font-weight:bold">${f(total)} FCFA${kva >= 100 ? (pf.x ? " TTC" : " HT") : ""}</div></div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">${lignes.map(([a, v], i) => `<tr style="background:${i % 2 ? "#f4f7fa" : "#fff"}"><td style="padding:9px 20px;color:#5a6878;width:40%">${a}</td><td style="padding:9px 20px;color:#14202e;font-weight:bold">${v}</td></tr>`).join("")}</table>
+      <div style="padding:16px 20px">${telWa ? `<a href="https://wa.me/${telWa}?text=${encodeURIComponent(`Bonjour${pf.n ? " " + t(pf.n) : ""}, ici OU LI PAI IVOIRE. Nous avons bien reçu votre pro forma N° ${ref} (${kv} kVA × ${q}). Le groupe est disponible. Quand souhaitez-vous être livré ?`)}" style="display:inline-block;background:#1FA855;color:#fff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:10px">Répondre au client sur WhatsApp</a>` : `<p style="color:#b84a0e">Le client n'a pas laissé de numéro.</p>`}
+      ${lien ? `<p style="font-size:13px;margin-top:14px"><a href="${lien}" style="color:#1670B0">Ouvrir la pro forma en ligne</a></p>` : ""}
+      <p style="font-size:12px;color:#5a6878">Le PDF est en pièce jointe.</p></div></div>`;
+    const destinataires = [process.env.RECUVENTE_ADMIN_EMAIL, process.env.OULIPAI_ALERTE_EMAIL].filter(Boolean);
+    let email = false;
+    if (destinataires.length) {
+      try {
+        const r = await resend.emails.send({
+          from: process.env.RESEAU_EMAIL_FROM || "OU LI PAI <onboarding@resend.dev>",
+          to: destinataires,
+          subject: `🧾 Pro forma ${ref} · ${kv} kVA × ${q} · ${f(total)} FCFA${t(pf.s) ? " · " + t(pf.s) : ""}`,
+          html,
+          attachments: pdf ? [{ filename: `Proforma-${ref}.pdf`, content: pdf }] : undefined,
+        });
+        email = !r?.error;
+        if (r?.error) console.error("Pro forma OU LI PAI, e-mail :", r.error);
+      } catch (e) { console.error("Pro forma OU LI PAI, e-mail :", e.message); }
+    }
+    let push = 0;
+    try {
+      const emails = [process.env.RECUVENTE_ADMIN_EMAIL, "oulipaiexpress@gmail.com"].filter(Boolean);
+      const { data: abos } = await supabaseAdmin.from("push_subscriptions").select("*").in("user_email", emails);
+      const r2 = await envoyerAuxAbonnements(abos || [], { title: `🧾 Pro forma ${kv} kVA × ${q}`, body: `${f(total)} FCFA · ${t(pf.s) || t(pf.n) || "Client"}${tel ? " · " + tel : ""}`, url: lien || "/oulipai", tag: "pf-" + ref });
+      push = r2?.envoyes || 0;
+    } catch (e) { console.error("Pro forma OU LI PAI, push :", e.message); }
+    return res.status(200).json({ ok: true, email, push });
+  }
+
   // ===== Boutique publique (sans session) : une commande vient d'être passée =====
   // Sûr sans connexion : la commande doit exister ET dater de moins de 10 minutes (impossible à
   // deviner ou à rejouer plus tard), et le texte est lu dans la base, pas envoyé par le visiteur.

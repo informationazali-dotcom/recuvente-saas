@@ -775,6 +775,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
         <label>Votre nom<input name="nom" autocomplete="name" placeholder="Ex. M. Koné"></label>
         <label>Nom de la société<input name="societe" autocomplete="organization" placeholder="Ex. Boulangerie du Plateau"></label>
       </div>
+      <label>Votre numéro WhatsApp<input name="tel" type="tel" inputmode="tel" autocomplete="tel" required minlength="8" placeholder="Ex. 07 00 00 00 00"></label>
       <label>Type de site<select name="site"><option value="">Choisir…</option><option>Maison / villa</option><option>Boutique / maquis</option><option>Boulangerie</option><option>Supermarché</option><option>Hôtel / clinique</option><option>Immeuble / bureaux</option><option>Usine</option><option>Chantier</option><option>Autre</option></select></label>
       <div class="fiche-deux">
         <label>Puissance (si connue)<select name="kva"><option value="">Je ne sais pas</option></select></label>
@@ -1277,6 +1278,7 @@ document.querySelectorAll('.tuile').forEach(t => { t.href = location.pathname.st
       const lignes = ['Bonjour OU LI PAI IVOIRE, je souhaite une proforma.'];
       if (v.nom) lignes.push('Nom : ' + v.nom);
       if (v.societe) lignes.push('Société : ' + v.societe);
+      if (v.tel) lignes.push('Téléphone : ' + v.tel);
       if (v.site) lignes.push('Type de site : ' + v.site);
       lignes.push('Puissance : à conseiller', 'Quantité : ' + n);
       if (v.ville) lignes.push('Ville : ' + v.ville);
@@ -1288,7 +1290,7 @@ document.querySelectorAll('.tuile').forEach(t => { t.href = location.pathname.st
     const d = new Date();
     const pf = { r: 'OLP-' + String(d.getFullYear()).slice(2) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(),
       t: d.toISOString().slice(0, 10), k: g.kva, p: g.p, q: n, x: avecTaxe(g) && v.taxe === 'ttc' ? 1 : 0,
-      n: v.nom || '', s: v.societe || '', v: v.ville || '', y: v.site || '', a: v.appareils || '', l: v.delai || '' };
+      n: v.nom || '', s: v.societe || '', w: (v.tel || '').trim(), v: v.ville || '', y: v.site || '', a: v.appareils || '', l: v.delai || '' };
     montrerProforma(pf, false);
   });
 })();
@@ -1309,100 +1311,172 @@ function chargerJsPDF(){
   return jspdfPret;
 }
 function imageEnData(src){
-  return new Promise(ok => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); ok({ d: c.toDataURL('image/png'), w: i.naturalWidth, h: i.naturalHeight }); }; i.onerror = () => ok(null); i.src = src; });
+  return new Promise(ok => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); const k = Math.min(1, 520 / i.naturalWidth); c.width = Math.round(i.naturalWidth * k); c.height = Math.round(i.naturalHeight * k); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); ok({ d: c.toDataURL('image/png'), w: c.width, h: c.height }); }; i.onerror = () => ok(null); i.src = src; });
+}
+let qrPret = null;
+function chargerQR(){
+  if (window.qrcode) return Promise.resolve();
+  if (!qrPret) qrPret = new Promise(ok => { const s = document.createElement('script'); s.src = ASSET + 'qrcode.min.js'; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
+  return qrPret;
 }
 async function pdfProforma(pf){
-  await chargerJsPDF();
+  await Promise.all([chargerJsPDF(), chargerQR()]);
   const g = DATA.find(x => String(x.kva) === String(pf.k)) || { kva: pf.k, kw: pf.k * 0.8, c: pf.k >= 100 ? 'entreprise' : 'pro' };
-  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  const BLEU = [31, 143, 214], NUIT = [11, 22, 36], GRIS = [91, 107, 125];
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  const BLEU = [22, 112, 176], CIEL = [79, 179, 240], NUIT = [11, 22, 36], ORANGE = [242, 122, 38], GRIS = [91, 107, 125], TRAIT = [217, 225, 234], GLACE = [241, 247, 252];
   const n2 = x => fmt(Math.round(x)).replace(/\s/g, ' ');
   const logo = await imageEnData(ASSET + 'logo-complet.png');
-  // En-tête
-  doc.setFillColor(...NUIT); doc.rect(0, 0, 210, 38, 'F');
-  doc.setFillColor(...BLEU); doc.rect(0, 38, 210, 2.2, 'F');
-  if (logo) { doc.setFillColor(255, 255, 255); doc.roundedRect(12, 6, 38, 27, 3, 3, 'F'); const h = 23, w = h * logo.w / logo.h; doc.addImage(logo.d, 'PNG', 12 + (38 - w) / 2, 8, w, h); }
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text('OU LI PAI IVOIRE', 56, 15);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Trading Company of Africa · Groupes électrogènes', 56, 21);
-  doc.text('Moteur diesel Perkins · alternateur Stamford · garantie 1 an', 56, 26);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('PRO FORMA', 198, 16, { align: 'right' });
-  doc.setFontSize(9.5); doc.setFont('helvetica', 'normal');
-  doc.text('N° ' + pf.r, 198, 23, { align: 'right' });
-  doc.text('Date : ' + dateFr(pf.t), 198, 28, { align: 'right' });
-  doc.text('Valable jusqu\'au ' + dateFr(plusJours(pf.t, VALIDITE_JOURS)), 198, 33, { align: 'right' });
-  // Client
-  let y = 50;
-  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Client', 14, y);
-  doc.setDrawColor(220, 228, 236); doc.line(14, y + 2, 196, y + 2);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-  const infos = [['Société', pf.s], ['Nom', pf.n], ['Ville', pf.v], ['Type de site', pf.y], ['À alimenter', pf.a], ['Délai souhaité', pf.l]].filter(r => r[1]);
-  y += 8;
-  infos.forEach(([a, b]) => { doc.setTextColor(...GRIS); doc.text(a, 14, y); doc.setTextColor(...NUIT); doc.text(doc.splitTextToSize(String(b), 140), 50, y); y += 6; });
-  // Tableau
-  y += 4;
-  doc.setFillColor(...BLEU); doc.rect(14, y, 182, 9, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
-  const taxeOk = pf.k >= 100;
-  doc.text('Désignation', 17, y + 6); doc.text('Qté', 128, y + 6, { align: 'center' });
-  doc.text('Prix unitaire' + (taxeOk ? ' HT' : ''), 158, y + 6, { align: 'right' }); doc.text('Total' + (taxeOk ? ' HT' : ''), 194, y + 6, { align: 'right' });
-  y += 9;
-  const petit = g.c === 'petit';
-  const des = ['Groupe électrogène OU LI PAI ' + kv(pf.k) + ' kVA (' + kv(g.kw) + ' kW)',
-    'Moteur diesel Perkins · alternateur Stamford',
-    (petit ? 'Groupe ouvert · monophasé 230 V' : 'Insonorisé · ' + (pf.k <= 20 ? 'mono ou triphasé' : 'triphasé 400 V') + ' · 50 Hz'),
-    'Matériel d\'installation inclus · garantie 1 an'];
-  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
-  const h = des.length * 5 + 6;
-  doc.setFillColor(244, 247, 250); doc.rect(14, y, 182, h, 'F');
-  des.forEach((t, i) => { if (i === 0) doc.setFont('helvetica', 'bold'); else doc.setFont('helvetica', 'normal'); doc.text(t, 17, y + 6 + i * 5); });
-  doc.setFont('helvetica', 'normal');
-  doc.text(String(pf.q), 128, y + 6, { align: 'center' });
-  doc.text(n2(pf.p) + ' FCFA', 158, y + 6, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.text(n2(pf.p * pf.q) + ' FCFA', 194, y + 6, { align: 'right' });
-  y += h + 3;
-  // Transport et installation
+  const petit = g.c === 'petit', taxeOk = pf.k >= 100;
   const abj = !pf.v || COMMUNES_ABIDJAN.test(pf.v);
-  doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRIS); doc.setFontSize(9);
-  const transp = abj ? (petit ? 'Transport : offert à Abidjan' : 'Transport et installation : offerts à Abidjan')
-    : 'Transport et installation hors d\'Abidjan : à la charge du client, selon la distance (montant communiqué avant la commande)';
-  doc.text(doc.splitTextToSize(transp, 180), 17, y + 2); y += 10;
-  // Totaux
   const total = pf.p * pf.q;
-  const lignesT = taxeOk ? (pf.x ? [['Total HT', total], ['Taxe (3 %)', Math.round(total * 0.03)], ['Total TTC', Math.round(total * 1.03)]] : [['Total HT', total]]) : [['Total', total]];
+  const lignesT = taxeOk ? (pf.x ? [['Total HT', total], ['Taxe (3 %)', Math.round(total * 0.03)], ['Net à payer TTC', Math.round(total * 1.03)]] : [['Net à payer HT', total]]) : [['Net à payer', total]];
+  const net = lignesT[lignesT.length - 1][1];
+  const box = (x, y, w, h, fond, bord) => { if (fond) doc.setFillColor(...fond); if (bord) doc.setDrawColor(...bord); doc.roundedRect(x, y, w, h, 2.2, 2.2, fond && bord ? 'FD' : fond ? 'F' : 'S'); };
+  // Filigrane : logo très pâle au centre
+  if (logo && doc.GState) { doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.045 })); const w = 130, h = w * logo.h / logo.w; doc.addImage(logo.d, 'PNG', (210 - w) / 2, 118, w, h, 'logo', 'FAST'); doc.restoreGraphicsState(); }
+  // ---------- En-tête ----------
+  doc.setFillColor(...NUIT); doc.rect(0, 0, 210, 40, 'F');
+  doc.setFillColor(...BLEU); doc.rect(0, 40, 140, 1.6, 'F'); doc.setFillColor(...ORANGE); doc.rect(140, 40, 70, 1.6, 'F');
+  if (logo) { box(12, 6, 36, 28, [255, 255, 255]); const h = 24, w = Math.min(32, h * logo.w / logo.h); doc.addImage(logo.d, 'PNG', 12 + (36 - w) / 2, 8, w, w * logo.h / logo.w, 'logo', 'FAST'); }
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('OU LI PAI IVOIRE', 54, 15);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor(...CIEL);
+  doc.text('TRADING COMPANY OF AFRICA', 54, 20.5, { charSpace: 0.6 });
+  doc.setTextColor(210, 222, 234); doc.text('Groupes électrogènes · Moteur Perkins · Alternateur Stamford', 54, 26.5);
+  doc.text('Garantie 1 an · Installation par nos techniciens', 54, 31.5);
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.text('PRO FORMA', 198, 18, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...CIEL); doc.text('FACTURE PROFORMA · DEVIS', 198, 24, { align: 'right', charSpace: 0.4 });
+  doc.setFillColor(...ORANGE); doc.roundedRect(160, 28, 38, 7, 3.5, 3.5, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+  doc.text('N° ' + pf.r, 179, 32.6, { align: 'center' });
+  // ---------- Bandeau d'informations ----------
+  let y = 46;
+  const meta = [['Date d\'émission', dateFr(pf.t)], ['Valable jusqu\'au', dateFr(plusJours(pf.t, VALIDITE_JOURS))], ['Délai souhaité', pf.l || '—'], ['Contact commercial', '+225 07 11 35 57 43']];
+  meta.forEach(([a, b], i) => { const x = 14 + i * 46; box(x, y, 43.5, 13, GLACE, TRAIT);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2); doc.setTextColor(...GRIS); doc.text(a.toUpperCase(), x + 3.5, y + 4.8, { charSpace: 0.2 });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.6); doc.setTextColor(...NUIT); doc.text(doc.splitTextToSize(String(b), 38)[0], x + 3.5, y + 10.2); });
+  // ---------- Émetteur / Client ----------
+  y = 63;
+  const carte = (x, w, titre, lignes, couleur) => {
+    const h = 40; box(x, y, w, h, [255, 255, 255], TRAIT);
+    doc.setFillColor(...couleur); doc.roundedRect(x, y, w, 7, 2.2, 2.2, 'F'); doc.rect(x, y + 4, w, 3, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text(titre, x + 4, y + 4.9, { charSpace: 0.5 });
+    let yy = y + 13;
+    lignes.forEach(([t, gras], i) => { if (yy > y + h - 2) return; doc.setFont('helvetica', gras ? 'bold' : 'normal'); doc.setFontSize(gras ? 10.5 : 8.8); doc.setTextColor(...(gras ? NUIT : [52, 66, 82]));
+      const l = doc.splitTextToSize(String(t), w - 8)[0]; doc.text(l, x + 4, yy); yy += gras ? 5.6 : 4.6; });
+  };
+  carte(14, 89, 'ÉMETTEUR', [['OU LI PAI IVOIRE', 1], ['Trading Company of Africa'], ['Bureau : Abobo, Abidjan'], ['Dépôt : Yopougon, Abidjan'], ['13 BP 2302 Abidjan 13'], ['WhatsApp : +225 07 11 35 57 43']], NUIT);
+  const cli = [[pf.s || pf.n || 'Client', 1]];
+  if (pf.s && pf.n) cli.push(['À l\'attention de : ' + pf.n]);
+  if (pf.w) cli.push(['Tél. / WhatsApp : ' + pf.w]);
+  if (pf.v) cli.push(['Ville : ' + pf.v]);
+  if (pf.y) cli.push(['Type de site : ' + pf.y]);
+  carte(107, 89, 'CLIENT · FACTURÉ À', cli, BLEU);
+  // ---------- Objet ----------
+  y = 108;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...NUIT);
+  doc.text('Objet :', 14, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Fourniture' + (petit ? '' : ' et installation') + ' de groupe' + (pf.q > 1 ? 's' : '') + ' électrogène' + (pf.q > 1 ? 's' : '') + ' ' + kv(pf.k) + ' kVA' + (pf.y ? ' · ' + pf.y : ''), 27, y);
+  if (pf.a) { y += 5; doc.setTextColor(...GRIS); doc.setFontSize(8.6); doc.text(doc.splitTextToSize('Besoin exprimé : ' + pf.a, 182)[0], 14, y); }
+  // ---------- Tableau ----------
+  y += 5;
+  const cols = { n: 17, d: 25, q: 128, pu: 160, m: 194 };
+  doc.setFillColor(...NUIT); doc.roundedRect(14, y, 182, 9, 2, 2, 'F'); doc.rect(14, y + 5, 182, 4, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6);
+  doc.text('N°', cols.n, y + 6); doc.text('DÉSIGNATION', cols.d, y + 6); doc.text('QTÉ', cols.q, y + 6, { align: 'center' });
+  doc.text('P.U.' + (taxeOk ? ' HT' : ''), cols.pu, y + 6, { align: 'right' }); doc.text('MONTANT' + (taxeOk ? ' HT' : ''), cols.m, y + 6, { align: 'right' });
+  y += 9;
+  const lignes = [
+    { t: 'Groupe électrogène OU LI PAI ' + kv(pf.k) + ' kVA (' + kv(g.kw) + ' kW)',
+      s: ['Moteur diesel Perkins · Alternateur Stamford', petit ? 'Groupe ouvert · monophasé 230 V · 50 Hz' : 'Capot insonorisé · ' + (pf.k <= 20 ? 'mono ou triphasé' : 'triphasé 400 V') + ' · 50 Hz'],
+      q: String(pf.q), pu: n2(pf.p), m: n2(pf.p * pf.q) },
+    { t: 'Matériel d\'installation', s: ['Compris dans le prix du groupe'], q: '—', pu: '', m: 'Inclus' },
+    { t: petit ? 'Transport' : 'Transport, installation et mise en service', s: [abj ? 'Abidjan · mise en service devant le client' : 'Hors d\'Abidjan · selon la distance, montant communiqué avant la commande'], q: '—', pu: '', m: abj ? 'Offert' : 'Sur devis' },
+    { t: 'Garantie 1 an', s: ['Suivi par nos techniciens · pièces d\'origine usine'], q: '—', pu: '', m: 'Inclus' },
+  ];
+  lignes.forEach((l, i) => {
+    const h = 6.4 + l.s.length * 4;
+    doc.setFillColor(...(i % 2 ? [255, 255, 255] : GLACE)); doc.rect(14, y, 182, h, 'F');
+    doc.setDrawColor(...TRAIT); doc.line(14, y + h, 196, y + h);
+    doc.setTextColor(...GRIS); doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(String(i + 1).padStart(2, '0'), cols.n, y + 5.5);
+    doc.setTextColor(...NUIT); doc.text(l.t, cols.d, y + 5.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRIS);
+    l.s.forEach((t, k) => doc.text(t, cols.d, y + 9.4 + k * 4));
+    doc.setFontSize(9); doc.setTextColor(...NUIT); doc.text(l.q, cols.q, y + 5.5, { align: 'center' });
+    if (l.pu) doc.text(l.pu, cols.pu, y + 5.5, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    if (l.m === 'Offert' || l.m === 'Inclus') { doc.setTextColor(31, 168, 85); } else if (l.m === 'Sur devis') { doc.setTextColor(...ORANGE); }
+    doc.text(l.m, cols.m, y + 5.5, { align: 'right' });
+    y += h;
+  });
+  // ---------- Montant en lettres + QR / Totaux ----------
+  y += 6;
+  const yBloc = y;
+  let yt = y;
   lignesT.forEach(([a, b], i) => {
     const der = i === lignesT.length - 1;
-    if (der) { doc.setFillColor(...NUIT); doc.rect(118, y - 5, 78, 9, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); }
-    else { doc.setTextColor(...NUIT); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); }
-    doc.text(a, 121, y + 1); doc.text(n2(b) + ' FCFA', 194, y + 1, { align: 'right' }); y += 9;
+    if (der) { doc.setFillColor(...NUIT); doc.roundedRect(116, yt, 80, 12, 2, 2, 'F'); doc.setFillColor(...ORANGE); doc.rect(116, yt, 2.2, 12, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(a.toUpperCase(), 121, yt + 7.6);
+      doc.setFontSize(12.5); doc.text(n2(b) + ' FCFA', 193, yt + 7.8, { align: 'right' }); yt += 12; }
+    else { doc.setDrawColor(...TRAIT); doc.line(116, yt + 8, 196, yt + 8); doc.setTextColor(...GRIS); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text(a, 121, yt + 5.6);
+      doc.setTextColor(...NUIT); doc.setFont('helvetica', 'bold'); doc.text(n2(b) + ' FCFA', 193, yt + 5.6, { align: 'right' }); yt += 8; }
   });
-  doc.setTextColor(...GRIS); doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5);
-  doc.text(doc.splitTextToSize('Arrêté la présente pro forma à la somme de ' + enLettres(lignesT[lignesT.length - 1][1]) + ' francs CFA.', 182), 14, y + 2);
-  y += 12;
-  // Conditions
-  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Conditions', 14, y);
-  doc.line(14, y + 2, 196, y + 2); y += 8;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
-  ['Paiement à notre bureau d\'Abobo : virement bancaire, chèque ou Mobile Money.',
-   'Livraison après paiement : 24 heures à Abidjan, 72 heures maximum hors d\'Abidjan.',
-   'Mise en service par nos techniciens, devant le client.',
-   'Garantie 1 an. Contrat d\'entretien : contrôle toutes les 100 heures. Pièces d\'origine commandées à l\'usine.',
-   'Pro forma valable ' + VALIDITE_JOURS + ' jours. Disponibilité confirmée par notre conseiller.',
-   'Visite libre du dépôt de Yopougon, du lundi au samedi de 8 h à 18 h.'
-  ].forEach(t => { doc.setFillColor(...BLEU); doc.circle(16, y - 1.2, 0.9, 'F'); doc.text(doc.splitTextToSize(t, 174), 19, y); y += 6; });
-  // Pied
-  doc.setFillColor(...BLEU); doc.rect(0, 272, 210, 25, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-  doc.text('WhatsApp : +225 07 11 35 57 43', 105, 281, { align: 'center' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-  doc.text('Dépôt : Yopougon · Bureau : Abobo · 13 BP 2302 Abidjan 13 · Lundi–samedi, 8 h–18 h', 105, 287, { align: 'center' });
-  doc.text('facebook.com/oulipai · recuvente-saas.vercel.app/oulipai', 105, 292, { align: 'center' });
+  if (!taxeOk && abj) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6); doc.setTextColor(...GRIS); doc.text('Transport et installation à Abidjan compris', 196, yt + 4.5, { align: 'right' }); yt += 5; }
+  // QR code vers la pro forma en ligne
+  let xLettres = 14, wLettres = 96;
+  if (window.qrcode) {
+    try { const qr = window.qrcode(0, 'M'); qr.addData(lienPf(pf)); qr.make(); const n = qr.getModuleCount(), taille = 26, m = taille / n;
+      box(14, yBloc, 30, 33, [255, 255, 255], TRAIT); doc.setFillColor(...NUIT);
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) doc.rect(16 + c * m, yBloc + 2 + r * m, m + 0.02, m + 0.02, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(...GRIS); doc.text('Scannez pour vérifier', 29, yBloc + 31.2, { align: 'center' });
+      xLettres = 48; wLettres = 62; } catch (e) {}
+  }
+  box(xLettres, yBloc, wLettres, 33, GLACE, TRAIT);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.4); doc.setTextColor(...BLEU); doc.text('ARRÊTÉE À LA SOMME DE :', xLettres + 3.5, yBloc + 5.5, { charSpace: 0.2 });
+  doc.setFont('helvetica', 'bolditalic'); doc.setFontSize(9); doc.setTextColor(...NUIT);
+  doc.text(doc.splitTextToSize(enLettres(net).replace(/^./, c => c.toUpperCase()) + ' francs CFA' + (taxeOk ? (pf.x ? ' TTC' : ' hors taxe') : '') + '.', wLettres - 7).slice(0, 5), xLettres + 3.5, yBloc + 11);
+  y = Math.max(yBloc + 33, yt) + 7;
+  // ---------- Conditions ----------
+  doc.setTextColor(...NUIT); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text('CONDITIONS DE VENTE', 14, y, { charSpace: 0.4 });
+  doc.setFillColor(...ORANGE); doc.rect(14, y + 1.8, 16, 0.9, 'F'); y += 7;
+  const cond = [['Paiement', 'À notre bureau d\'Abobo : virement, chèque ou Mobile Money.'], ['Livraison', 'Après paiement : 24 h à Abidjan, 72 h maximum hors d\'Abidjan.'],
+    ['Mise en service', 'Par nos techniciens, devant le client.'], ['Garantie', '1 an. Contrat d\'entretien : contrôle toutes les 100 heures.'],
+    ['Validité', VALIDITE_JOURS + ' jours. Disponibilité confirmée par notre conseiller.'], ['Visite', 'Dépôt de Yopougon, du lundi au samedi, 8 h – 18 h.']];
+  cond.forEach(([a, b], i) => { const x = i % 2 ? 107 : 14, yy = y + Math.floor(i / 2) * 8.6;
+    doc.setFillColor(...BLEU); doc.circle(x + 1.2, yy - 1.1, 1, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.4); doc.setTextColor(...NUIT); doc.text(a, x + 4, yy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRIS); doc.text(doc.splitTextToSize(b, 84).slice(0, 2), x + 4, yy + 3.8); });
+  y += 26;
+  // ---------- Signatures ----------
+  const sig = (x, titre, sous) => { doc.setLineDashPattern([1.2, 1], 0); doc.setDrawColor(...TRAIT); doc.roundedRect(x, y, 89, 18, 2, 2, 'S'); doc.setLineDashPattern([], 0);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6); doc.setTextColor(...NUIT); doc.text(titre, x + 4, y + 5.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.4); doc.setTextColor(...GRIS); doc.text(sous, x + 4, y + 9.6); };
+  if (y + 18 < 270) { sig(14, 'Bon pour accord · Le client', 'Date, cachet et signature'); sig(107, 'Pour OU LI PAI IVOIRE', 'Le service commercial'); }
+  // ---------- Pied ----------
+  doc.setFillColor(...ORANGE); doc.rect(0, 271, 210, 1.2, 'F');
+  doc.setFillColor(...NUIT); doc.rect(0, 272.2, 210, 24.8, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('WhatsApp : +225 07 11 35 57 43', 105, 280.5, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.2); doc.setTextColor(200, 214, 228);
+  doc.text('Bureau : Abobo · Dépôt : Yopougon · 13 BP 2302 Abidjan 13 · Lundi – samedi, 8 h – 18 h', 105, 286, { align: 'center' });
+  doc.setTextColor(...CIEL); doc.text('facebook.com/oulipai  ·  recuvente-saas.vercel.app/oulipai', 105, 291, { align: 'center' });
+  doc.setProperties({ title: 'Pro forma ' + pf.r + ' · OU LI PAI IVOIRE', subject: 'Groupe électrogène ' + kv(pf.k) + ' kVA', author: 'OU LI PAI IVOIRE', creator: 'OU LI PAI IVOIRE' });
   return doc;
 }
+const alertesPf = new Set();
+async function alerterProprietaire(pf){
+  if (alertesPf.has(pf.r)) return; alertesPf.add(pf.r);
+  let pdf = null;
+  try { const d = await pdfProforma(pf); pdf = d.output('datauristring').split(',')[1]; } catch (e) {}
+  try {
+    await fetch('/api/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: !pdf,
+      body: JSON.stringify({ type: 'oulipai_proforma', pf, pdf, lien: lienPf(pf) }) });
+  } catch (e) {}
+}
 async function montrerProforma(pf, depuisLien){
+  if (!depuisLien) alerterProprietaire(pf);
   const g = DATA.find(x => String(x.kva) === String(pf.k));
   const total = pf.p * pf.q * (pf.x ? 1.03 : 1);
   const msg = ['Bonjour OU LI PAI IVOIRE, voici ma demande de proforma N° ' + pf.r + '.',
-    pf.s ? 'Société : ' + pf.s : '', pf.n ? 'Nom : ' + pf.n : '',
+    pf.s ? 'Société : ' + pf.s : '', pf.n ? 'Nom : ' + pf.n : '', pf.w ? 'Téléphone : ' + pf.w : '',
     'Groupe : ' + kv(pf.k) + ' kVA × ' + pf.q, 'Total : ' + fmt(Math.round(total)) + ' FCFA' + (pf.k >= 100 ? (pf.x ? ' TTC' : ' HT') : ''),
     pf.v ? 'Ville : ' + pf.v : '', 'Proforma : ' + lienPf(pf)].filter(Boolean).join('\n') + refTxt();
   document.getElementById('detail-haut-titre').textContent = 'Pro forma';

@@ -592,7 +592,8 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   .ouverture .tuile i{width:42px;height:42px;border-radius:12px}
   .ouverture .tuile i svg{width:24px;height:24px}
   .ouverture .tuile b{font-size:13.5px!important;margin-top:0}
-  .ouverture .tuile small,.ouverture .tuile::after{display:none}
+  .ouverture .tuile small{display:none}
+  .ouverture .tuile::after{content:"Prix ›";display:inline-block;margin-top:4px;padding:3px 9px;font-size:10.5px;box-shadow:0 2px 0 #B84A0E}
   .ouverture .ecouter-clair{margin-top:12px;font-size:13px;padding:8px 14px}
   .atouts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
   .atouts span{font:700 12px var(--texte);color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px}
@@ -627,7 +628,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
     <div>
       <span class="badge-stock"><i class="pouls" aria-hidden="true"></i>Moteur Perkins · Alternateur Stamford</span>
       <h1>Groupes électrogènes<br><em>garantis 1 an.</em></h1>
-      <p class="chapeau chapeau-court">De 3 à 1000 kVA, en stock à Abidjan. Touchez votre besoin :</p>
+      <p class="chapeau chapeau-court">De 3 à 1000 kVA, en stock à Abidjan. <b>Touchez votre besoin : vous voyez tout de suite ses prix.</b></p>
       <div class="tuiles" id="tuiles" aria-label="Choisissez pour quoi vous voulez le groupe">
         <a class="tuile" href="maison" data-seg="maison"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i><b>Ma maison</b><small>Villa, famille</small></a>
         <a class="tuile" href="commerce" data-seg="commerce"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l1.5-5h13L20 9"/><path d="M4 9h16v2a2.7 2.7 0 01-5.3 0 2.7 2.7 0 01-5.4 0A2.7 2.7 0 014 11z"/><path d="M5.5 13v7h13v-7M10 20v-4h4v4"/></svg></i><b>Mon commerce</b><small>Boutique, maquis, salon</small></a>

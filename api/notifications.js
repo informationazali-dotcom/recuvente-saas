@@ -327,7 +327,8 @@ export default async function handler(req, res) {
       <div style="padding:16px 20px">${telWa ? `<a href="https://wa.me/${telWa}?text=${encodeURIComponent(`Bonjour${pf.n ? " " + t(pf.n) : ""}, ici OU LI PAI IVOIRE. Nous avons bien reçu votre pro forma N° ${ref} (${kv} kVA × ${q}). Le groupe est disponible. Quand souhaitez-vous être livré ?`)}" style="display:inline-block;background:#1FA855;color:#fff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:10px">Répondre au client sur WhatsApp</a>` : `<p style="color:#b84a0e">Le client n'a pas laissé de numéro.</p>`}
       ${lien ? `<p style="font-size:13px;margin-top:14px"><a href="${lien}" style="color:#1670B0">Ouvrir la pro forma en ligne</a></p>` : ""}
       <p style="font-size:12px;color:#5a6878">Le PDF est en pièce jointe.</p></div></div>`;
-    const destinataires = [process.env.RECUVENTE_ADMIN_EMAIL, process.env.OULIPAI_ALERTE_EMAIL].filter(Boolean);
+    // Sans domaine vérifié chez Resend, seule l'adresse du compte Resend peut recevoir : on l'utilise par défaut.
+    const destinataires = [process.env.OULIPAI_ALERTE_EMAIL || "informationazali@gmail.com"];
     let email = false;
     if (destinataires.length) {
       try {

@@ -498,10 +498,38 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   .apparait.vu{opacity:1;transform:none}
 }
 @media (prefers-reduced-motion:reduce){.pouls{animation:none}html{scroll-behavior:auto}}
-/* Arrivée directe sur les prix (nov. 2026) : un seul bandeau qui défile, puis les prix */
-.ouverture{display:none}
-#prix .filtres{margin-top:0}
+/* Accueil compact et pro (nov. 2026) : bandeau, en-tête court avec photo, puis les prix tout de suite */
 #cible .cible-tete .sur,#cible-texte{display:none}
+.tuile em{font-style:normal;font:800 12px var(--texte);color:#0E5C95;white-space:nowrap}
+.tuile em small{display:inline;font-weight:600;color:#3B4B5C;margin-right:3px}
+.prix-tete{padding-top:34px}
+.prix-tete .titre{margin-bottom:0}
+.atouts{display:none}
+@media (max-width:699px){
+  .ouverture{background:linear-gradient(180deg,rgba(11,22,36,.78),rgba(11,22,36,.96) 70%),url(/oulipai/photos/ouverture.webp) center 30%/cover no-repeat}
+  .ouverture::before{opacity:.55}
+  .ouverture .cadre{padding-top:22px!important;padding-bottom:22px!important;gap:0}
+  .ouverture .badge-stock{display:inline-flex!important;font-size:11px;padding:6px 12px;letter-spacing:.1em}
+  .ouverture h1{font-size:clamp(34px,9.5vw,44px)!important;margin-top:12px!important}
+  .ouverture h1 em::after{width:84px;height:5px;margin-top:10px}
+  .ouverture .chapeau-court{font-size:15px;margin-top:12px}
+  .ouverture .chapeau:not(.chapeau-court),.ouverture .offert,.ouverture .actions,.ouverture .visuel,.chiffres{display:none!important}
+  .ouverture .tuiles{grid-template-columns:repeat(4,1fr)!important;gap:8px!important;margin-top:12px}
+  .ouverture .tuile{padding:10px 4px 9px!important;border-radius:14px;gap:5px}
+  .ouverture .tuile i{width:42px;height:42px;border-radius:12px}
+  .ouverture .tuile i svg{width:24px;height:24px}
+  .ouverture .tuile b{font-size:13.5px!important;margin-top:0}
+  .ouverture .tuile small,.ouverture .tuile::after{display:none}
+  .ouverture .ecouter-clair{margin-top:12px;font-size:13px;padding:8px 14px}
+  .atouts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .atouts span{font:700 12px var(--texte);color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px}
+  .atouts span::before{content:"✓ ";color:#7CF0A9}
+  .prix-tete{padding-top:24px}
+  .prix-tete .titre{font-size:30px}
+  .ouverture .tuile em{font-size:10.5px;letter-spacing:-.01em}
+  .ouverture .tuile em small{display:block!important;margin:0;font-size:10px}
+  .ouverture .tuile b{font-size:12.5px!important}
+}
 @media (max-width:699px){.groupe-sous{display:none}.groupe-titre{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:18px}.groupe-titre h3{font-size:26px;margin:0}.groupe-titre span{margin:0}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
@@ -526,13 +554,14 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
     <div>
       <span class="badge-stock"><i class="pouls" aria-hidden="true"></i>Moteur Perkins · Alternateur Stamford</span>
       <h1>Groupes électrogènes<br><em>garantis 1 an.</em></h1>
-      <p class="chapeau chapeau-court">De 3 à 1000 kVA, tous les prix affichés. Touchez votre besoin :</p>
+      <p class="chapeau chapeau-court">De 3 à 1000 kVA, en stock à Abidjan. Touchez votre besoin :</p>
       <div class="tuiles" id="tuiles" aria-label="Choisissez pour quoi vous voulez le groupe">
         <a class="tuile" href="maison" data-seg="maison"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i><b>Ma maison</b><small>Villa, famille</small></a>
         <a class="tuile" href="commerce" data-seg="commerce"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l1.5-5h13L20 9"/><path d="M4 9h16v2a2.7 2.7 0 01-5.3 0 2.7 2.7 0 01-5.4 0A2.7 2.7 0 014 11z"/><path d="M5.5 13v7h13v-7M10 20v-4h4v4"/></svg></i><b>Mon commerce</b><small>Boutique, maquis, salon</small></a>
         <a class="tuile" href="entreprise" data-seg="entreprise"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18"/><path d="M14 9h6v12h-6M7 7h4M7 11h4M7 15h4"/></svg></i><b>Mon entreprise</b><small>Bureau, hôtel, clinique</small></a>
         <a class="tuile" href="industrie" data-seg="industrie"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6 4V10l6 4V6h4v15z"/><path d="M7 17h2M13 17h2"/></svg></i><b>Mon usine</b><small>Usine, chantier</small></a>
       </div>
+      <div class="atouts"><span>Installation offerte à Abidjan</span><span>Livré en 24 h</span><span>Dépôt à Yopougon</span></div>
       <div class="actions">
         <a class="btn btn-bleu" href="#prix">Voir tous les prix <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
         <a class="btn btn-wa" data-wa="conseil" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Besoin d'aide pour choisir ?</a>
@@ -578,7 +607,10 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 </section>
 
 <section class="section" id="prix" style="padding-top:0">
-  <h2 class="sr-only">Nos groupes électrogènes et leurs prix</h2>
+  <div class="cadre prix-tete">
+    <p class="sur">Catalogue et prix</p>
+    <h2 class="titre">Nos groupes et leurs prix</h2>
+  </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre" id="puces"></div></nav>
   <div class="cadre" id="catalogue"></div>
   <div class="cadre"><button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button></div>
@@ -1347,7 +1379,7 @@ if (SEGMENTS[seg]) {
   document.body.classList.add('mode-cible', 'mode-cible-court');
   document.getElementById('cible').hidden = false;
   document.getElementById('cible-sur').textContent = S.sur;
-  document.getElementById('cible-titre').textContent = S.titre;
+  document.getElementById('cible-titre').textContent = 'Choisissez votre groupe';
   document.getElementById('cible-texte').textContent = 'Transport et installation offerts à Abidjan. Touchez « Commander » : WhatsApp s\'ouvre avec votre choix.';
   document.getElementById('cible-groupes').innerHTML = liste.map(carte).join('');
   const h1 = document.querySelector('.ouverture h1');
@@ -1363,6 +1395,7 @@ if (SEGMENTS[seg]) {
   document.title = S.titre + ' · OU LI PAI IVOIRE';
   pixel('ViewContent', { content_category: 'Groupe électrogène', content_name: S.titre });
 }
+document.querySelectorAll('.tuile[data-seg]').forEach(t => { const S = SEGMENTS[t.dataset.seg]; if (!S) return; const l = DATA.filter(g => S.cats.includes(g.c)); if (!l.length) return; const e = document.createElement('em'); e.innerHTML = '<small>dès</small>' + fmt(Math.min(...l.map(g => g.p))) + ' F'; t.appendChild(e); });
 document.getElementById('voir-tout').addEventListener('click', () => { document.body.classList.remove('mode-cible-court'); filtre = 'all'; puces(); rendre(); document.getElementById('prix').scrollIntoView(); });
 
 /* ---------- Calculateur de puissance (en images, sans rien écrire) ---------- */

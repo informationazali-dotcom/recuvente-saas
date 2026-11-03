@@ -530,6 +530,22 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 #prix .puce[aria-pressed="true"]{background:linear-gradient(160deg,#4FB3F0,#1670B0 60%,#0E5C95);border-color:#1670B0;color:#fff;box-shadow:0 5px 0 #0B4A78,0 0 18px rgba(79,179,240,.55),inset 0 1px 0 rgba(255,255,255,.35)}
 #prix .puce[aria-pressed="true"] small{color:#DDF0FF}
 #prix .puce[aria-pressed="true"]::after{content:"";position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-18deg);animation:reflet 2.8s ease-in-out infinite}
+/* Étapes d'achat, statut de réponse, liste des prix */
+.achat{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;counter-reset:none}
+.achat li{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:7px 8px;font:600 12px/1.2 var(--texte);color:#fff}
+.achat b{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(160deg,#FF9A4D,#E5640F);font:800 12px var(--texte);box-shadow:0 2px 0 #B84A0E}
+.statut{display:inline-flex;align-items:center;gap:8px;margin:10px 0 0;font:700 12.5px var(--texte);color:#7CF0A9}
+.statut i{width:8px;height:8px;border-radius:50%;background:#7CF0A9;animation:point 1.8s ease-out infinite}
+.statut.ferme{color:#FFC48F}.statut.ferme i{background:#FFC48F;animation:none}
+@media (min-width:700px){.achat{max-width:620px}.achat li{font-size:13.5px;padding:10px 12px}}
+.liste-wa{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;margin-top:22px;text-decoration:none;color:#fff;border-radius:18px;padding:14px;background:linear-gradient(150deg,#1FA855,#0E7A3B);box-shadow:0 6px 0 #095C2C,0 14px 26px -10px rgba(14,122,59,.6),inset 0 1px 0 rgba(255,255,255,.25)}
+.liste-wa:active{transform:translateY(5px);box-shadow:0 1px 0 #095C2C}
+.liste-wa::after{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.25),transparent);transform:skewX(-18deg);animation:reflet 3.6s ease-in-out infinite}
+.liste-wa > .ic-wa{flex:none;width:34px!important;height:34px!important}
+.liste-wa b{display:block;font-family:var(--titre);font-size:19px;text-transform:uppercase;line-height:1}
+.liste-wa small{display:block;font-size:12.5px;line-height:1.3;opacity:.9;margin-top:3px}
+.liste-wa em{flex:none;font-style:normal;font:800 12.5px var(--texte);background:#fff;color:#0E7A3B;border-radius:999px;padding:6px 12px}
+@media (prefers-reduced-motion:reduce){.liste-wa::after,.statut i{animation:none}}
 /* Console 3D autour des filtres de puissance */
 #prix .filtres{background:transparent;backdrop-filter:none;border-bottom:0}
 #prix .filtres .cadre{display:block!important;overflow:visible;padding-top:12px;padding-bottom:16px}
@@ -584,7 +600,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 <body>
 <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=2183714672563572&ev=PageView&noscript=1"></noscript>
 
-<div class="annonce" role="note"><div class="annonce-defile"><span>Moteur Perkins · Alternateur Stamford</span><span>Garantie 1 an sur chaque groupe</span><span>Transport et installation offerts à Abidjan</span><span>Livré en 24 h à Abidjan</span><span>Pas besoin d'écrire : envoyez un vocal WhatsApp</span><span>Visitez le dépôt de Yopougon</span><span>Proforma au nom de votre société</span><span>Moteur Perkins · Alternateur Stamford</span><span>Garantie 1 an sur chaque groupe</span><span>Transport et installation offerts à Abidjan</span><span>Livré en 24 h à Abidjan</span><span>Pas besoin d'écrire : envoyez un vocal WhatsApp</span><span>Visitez le dépôt de Yopougon</span><span>Proforma au nom de votre société</span></div></div>
+<div class="annonce" role="note"><div class="annonce-defile"><span>Moteur Perkins · Alternateur Stamford</span><span>Garantie 1 an sur chaque groupe</span><span>Transport et installation offerts à Abidjan</span><span>Livré en 24 h à Abidjan</span><span>Pas besoin d'écrire : envoyez un vocal WhatsApp</span><span>Visitez le dépôt de Yopougon</span><span>Proforma au nom de votre société</span><span>Paiement au bureau d'Abobo</span><span>Moteur Perkins · Alternateur Stamford</span><span>Garantie 1 an sur chaque groupe</span><span>Transport et installation offerts à Abidjan</span><span>Livré en 24 h à Abidjan</span><span>Pas besoin d'écrire : envoyez un vocal WhatsApp</span><span>Visitez le dépôt de Yopougon</span><span>Proforma au nom de votre société</span><span>Paiement au bureau d'Abobo</span></div></div>
 <header class="entete">
   <div class="cadre">
     <a class="marque" href="#haut" aria-label="OU LI PAI IVOIRE, accueil"><img src="/oulipai/ailes-petit.png" alt="" width="77" height="38"><span><b>OU LI PAI</b><small>Ivoire · Énergie</small></span></a>
@@ -607,7 +623,12 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
         <a class="tuile" href="entreprise" data-seg="entreprise"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18"/><path d="M14 9h6v12h-6M7 7h4M7 11h4M7 15h4"/></svg></i><b>Mon entreprise</b><small>Bureau, hôtel, clinique</small></a>
         <a class="tuile" href="industrie" data-seg="industrie"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6 4V10l6 4V6h4v15z"/><path d="M7 17h2M13 17h2"/></svg></i><b>Mon usine</b><small>Usine, chantier</small></a>
       </div>
-      <div class="atouts"><span>Installation offerte à Abidjan</span><span>Livré en 24 h</span><span>Dépôt à Yopougon</span></div>
+      <ol class="achat" aria-label="Comment acheter">
+        <li><b>1</b><span>Choisissez votre groupe</span></li>
+        <li><b>2</b><span>Écrivez ou envoyez un vocal WhatsApp</span></li>
+        <li><b>3</b><span>Livré et installé en 24 h à Abidjan</span></li>
+      </ol>
+      <p class="statut" id="statut"><i aria-hidden="true"></i><span></span></p>
       <div class="actions">
         <a class="btn btn-bleu" href="#prix">Voir tous les prix <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
         <a class="btn btn-wa" data-wa="conseil" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i>Besoin d'aide pour choisir ?</a>
@@ -671,6 +692,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre"><div class="console"><p class="console-titre"><i aria-hidden="true"></i>Choisissez votre puissance</p><div class="puces" id="puces"></div></div></div></nav>
   <div class="cadre" id="catalogue"></div>
+  <div class="cadre"><a class="liste-wa" data-wa="liste" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i><span><b>Pas encore décidé ?</b><small>Recevez la liste de tous nos prix sur WhatsApp, pour la montrer à votre patron ou à votre électricien.</small></span><em>Recevoir →</em></a></div>
   <div class="cadre"><button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button></div>
 </section>
 
@@ -957,6 +979,7 @@ const kv = k => String(k).replace('.',',');
 const lien = msg => 'https://wa.me/' + WA + '?text=' + encodeURIComponent(msg);
 const MSG = {
   general: "Bonjour OU LI PAI IVOIRE, j'ai vu votre site. Je cherche un groupe électrogène.",
+  liste: "Bonjour OU LI PAI IVOIRE, pouvez-vous m'envoyer la liste de vos groupes électrogènes avec les prix ?",
   conseil: "Bonjour OU LI PAI IVOIRE, j'aimerais un conseil pour choisir la puissance de mon groupe électrogène.",
   proforma: "Bonjour OU LI PAI IVOIRE, je souhaite une proforma pour un groupe électrogène au nom de ma société.",
   vocal: "Bonjour OU LI PAI IVOIRE, je vous envoie un vocal pour mon groupe électrogène.",
@@ -1453,6 +1476,10 @@ if (SEGMENTS[seg]) {
   document.title = S.titre + ' · OU LI PAI IVOIRE';
   pixel('ViewContent', { content_category: 'Groupe électrogène', content_name: S.titre });
 }
+(() => { const st = document.getElementById('statut'); if (!st) return; const d = new Date(), j = d.getUTCDay(), h = d.getUTCHours();
+  const ouvert = j !== 0 && h >= 8 && h < 18;
+  st.classList.toggle('ferme', !ouvert);
+  st.querySelector('span').textContent = ouvert ? 'Nous répondons maintenant sur WhatsApp' : (j === 6 && h >= 18 || j === 0 ? 'Écrivez-nous : réponse lundi dès 8 h' : 'Écrivez-nous : réponse dès 8 h'); })();
 document.querySelectorAll('.tuile[data-seg]').forEach(t => { const S = SEGMENTS[t.dataset.seg]; if (!S) return; const l = DATA.filter(g => S.cats.includes(g.c)); if (!l.length) return; const e = document.createElement('em'); e.innerHTML = '<small>dès</small>' + fmt(Math.min(...l.map(g => g.p))) + ' F'; t.appendChild(e); });
 document.getElementById('voir-tout').addEventListener('click', () => { document.body.classList.remove('mode-cible-court'); filtre = 'all'; puces(); rendre(); document.getElementById('prix').scrollIntoView(); });
 

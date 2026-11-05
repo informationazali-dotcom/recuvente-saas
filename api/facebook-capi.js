@@ -165,7 +165,7 @@ async function traiterEvenementEntonnoir(req, res) {
 //  se conclut au bureau, une conversation WhatsApp n'est pas un achat.
 // ============================================================================
 const OULIPAI_PIXEL = "1510588064232724";
-const OULIPAI_EVENEMENTS = new Set(["PageView", "ViewContent", "Contact", "Lead"]);
+const OULIPAI_EVENEMENTS = new Set(["PageView", "ViewContent", "Contact", "Lead", "AddToCart"]);
 async function traiterOulipai(req, res) {
   const corps = req.body && typeof req.body === "object" ? req.body : {};
   const { nom, eventId } = corps;

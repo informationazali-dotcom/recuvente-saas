@@ -1003,7 +1003,7 @@ const MSG = {
   briques: "Bonjour OU LI PAI IVOIRE, je suis intéressé par vos pondeuses de briques. Pouvez-vous m'envoyer les modèles et les prix ?",
 };
 /* Pixel (navigateur) + API Conversions (serveur), même identifiant d'événement : Meta ne compte qu'une fois */
-const EV_SERVEUR = new Set(['PageView', 'ViewContent', 'Contact', 'Lead']);
+const EV_SERVEUR = new Set(['PageView', 'ViewContent', 'Contact', 'Lead', 'AddToCart']);
 function cookie(n){ const m = document.cookie.match('(?:^|; )' + n + '=([^;]*)'); return m ? decodeURIComponent(m[1]) : ''; }
 function capi(ev, id, data){
   if (!window.PIXEL_ID || !location.pathname.startsWith('/oulipai')) return;
@@ -1261,12 +1261,13 @@ document.getElementById('appel').addEventListener('click', () => pixel('Contact'
 // Suivi publicitaire. Aucun événement « Purchase » ici : une conversation WhatsApp n'est pas une vente.
 // - Contact : tout clic vers WhatsApp
 // - Lead : clic « Commander » sur un groupe précis, liste du calculateur, demande de proforma (prospect qualifié)
+// - AddToCart : même clic « Commander sur WhatsApp » sur un groupe précis (signal d'achat pour les campagnes Ventes)
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href*="wa.me"]');
   if (!a) return;
   if (a.dataset.kva) {
     const d = { content_ids: ['G' + a.dataset.kva], content_type: 'product', content_name: 'Groupe ' + a.dataset.kva + ' kVA', content_category: 'Groupe électrogène', value: Number(a.dataset.prix), currency: 'XOF' };
-    pixel('Contact', d); pixel('Lead', d);
+    pixel('Contact', d); pixel('Lead', d); pixel('AddToCart', d);
   } else pixel('Contact', { content_name: a.dataset.wa || a.dataset.waInfo || 'general' });
 });
 document.getElementById('detail-fermer').addEventListener('click', fermerDetail);

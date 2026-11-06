@@ -539,14 +539,15 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 .statut i{width:8px;height:8px;border-radius:50%;background:#7CF0A9;animation:point 1.8s ease-out infinite}
 .statut.ferme{color:#FFC48F}.statut.ferme i{background:#FFC48F;animation:none}
 @media (min-width:700px){.achat{max-width:620px}.achat li{font-size:13.5px;padding:10px 12px}}
-.liste-wa{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;margin-top:22px;text-decoration:none;color:#fff;border-radius:18px;padding:14px;background:linear-gradient(150deg,#1FA855,#0E7A3B);box-shadow:0 6px 0 #095C2C,0 14px 26px -10px rgba(14,122,59,.6),inset 0 1px 0 rgba(255,255,255,.25)}
-.liste-wa:active{transform:translateY(5px);box-shadow:0 1px 0 #095C2C}
-.liste-wa::after{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.25),transparent);transform:skewX(-18deg);animation:reflet 3.6s ease-in-out infinite}
-.liste-wa > .ic-wa{flex:none;width:34px!important;height:34px!important}
-.liste-wa b{display:block;font-family:var(--titre);font-size:19px;text-transform:uppercase;line-height:1}
-.liste-wa small{display:block;font-size:12.5px;line-height:1.3;opacity:.9;margin-top:3px}
-.liste-wa em{flex:none;font-style:normal;font:800 12.5px var(--texte);background:#fff;color:#0E7A3B;border-radius:999px;padding:6px 12px}
-@media (prefers-reduced-motion:reduce){.liste-wa::after,.statut i{animation:none}}
+.liste-wa{display:flex;align-items:center;gap:14px;margin-top:22px;text-decoration:none;color:var(--nuit);background:#fff;border:1px solid var(--trait);border-left:4px solid #1FA855;border-radius:16px;padding:14px 16px;box-shadow:0 6px 18px -12px rgba(11,27,58,.35);transition:box-shadow .2s,transform .2s}
+.liste-wa:hover{box-shadow:0 10px 24px -12px rgba(11,27,58,.45);transform:translateY(-1px)}
+.liste-wa > svg{flex:none;width:24px!important;height:24px!important;padding:11px;box-sizing:content-box;border-radius:50%;background:#1FA855;color:#fff}
+.liste-wa > span{flex:1;min-width:0}
+.liste-wa b{display:block;font-family:var(--texte);font-size:16px;font-weight:800;line-height:1.25;color:var(--nuit)}
+.liste-wa small{display:block;font-size:13px;line-height:1.35;color:#4A5B6C;margin-top:2px}
+.liste-wa em{flex:none;font-style:normal;font:800 13.5px var(--texte);background:#1FA855;color:#fff;border-radius:10px;padding:10px 16px;white-space:nowrap}
+@media (max-width:520px){.liste-wa{flex-wrap:wrap}.liste-wa em{width:100%;text-align:center}}
+@media (prefers-reduced-motion:reduce){.statut i{animation:none}}
 /* Flèche « Descendez pour voir tous les prix » */
 .descendre{display:none}
 @media (max-width:699px){
@@ -615,7 +616,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 .intro-prix p{margin:6px 0 0;font-size:14.5px;line-height:1.4;color:#C9D6E4}
 .intro-prix p b{color:#7CF0A9}
 #prix{padding-top:4px}
-#prix .filtres{margin-top:4px}
+#prix .filtres{margin-top:4px;position:static}
 #prix .prix-tete{display:none}
 @media (max-width:699px){.intro-prix{padding:12px 0 10px}.intro-prix p{font-size:13px}}
 body.mode-cible .intro-prix{display:none}
@@ -699,7 +700,7 @@ body.mode-cible .intro-prix{display:none}
   </div>
   <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre"><div class="console"><p class="console-titre"><i aria-hidden="true"></i>Choisissez votre puissance</p><div class="puces" id="puces"></div></div></div></nav>
   <div class="cadre" id="catalogue"></div>
-  <div class="cadre"><a class="liste-wa" data-wa="liste" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i><span><b>Pas encore décidé ?</b><small>Recevez la liste de tous nos prix sur WhatsApp, pour la montrer à votre patron ou à votre électricien.</small></span><em>Recevoir →</em></a></div>
+  <div class="cadre"><a class="liste-wa" data-wa="liste" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i><span><b>Pas encore décidé ?</b><small>Recevez la liste de tous nos prix sur WhatsApp, pour la montrer à votre patron ou à votre électricien.</small></span><em>Recevoir la liste</em></a></div>
   <div class="cadre"><button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button></div>
 </section>
 

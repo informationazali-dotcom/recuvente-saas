@@ -86,9 +86,9 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .badge-stock{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ciel);background:rgba(79,179,240,.1);border:1px solid rgba(79,179,240,.3);padding:8px 14px;border-radius:999px}
 .pouls{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.7);animation:pouls 2s infinite}
 @keyframes pouls{70%{box-shadow:0 0 0 10px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
-.ouverture h1{font-size:clamp(46px,8vw,92px);font-weight:800;margin:20px 0 0;line-height:.92;text-wrap:balance}
-.ouverture h1 em{font-style:normal;color:var(--ciel)}
-.ouverture h1 em::after{content:"";display:block;width:120px;height:6px;margin-top:14px;border-radius:3px;background:linear-gradient(90deg,var(--bleu) 0 45%,var(--orange) 45% 75%,#fff 75%)}
+.ouverture .titre-ouv{font-size:clamp(46px,8vw,92px);font-weight:800;margin:20px 0 0;line-height:.92;text-wrap:balance}
+.ouverture .titre-ouv em{font-style:normal;color:var(--ciel)}
+.ouverture .titre-ouv em::after{content:"";display:block;width:120px;height:6px;margin-top:14px;border-radius:3px;background:linear-gradient(90deg,var(--bleu) 0 45%,var(--orange) 45% 75%,#fff 75%)}
 .ouverture .chapeau{font-size:clamp(17px,1.8vw,20px);color:rgba(255,255,255,.8);max-width:52ch;margin:20px 0 0}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
 .offert{display:flex;align-items:center;gap:12px;margin-top:22px;font-size:15px;color:rgba(255,255,255,.85)}
@@ -96,7 +96,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .offert svg{width:20px;height:20px}
 .offert b{color:#fff}
 .offert span:last-child{flex:1 1 auto;width:auto!important;height:auto!important;display:block!important;background:none!important;color:inherit!important;border-radius:0}
-@media (max-width:699px){body.mode-cible .badge-stock,body.mode-cible .actions .btn-wa,body.mode-cible .offert:not(:last-of-type){display:none}body.mode-cible .ouverture h1{margin-top:0}body.mode-cible .actions{margin-top:18px}body.mode-cible .offert{margin-top:16px}}
+@media (max-width:699px){body.mode-cible .badge-stock,body.mode-cible .actions .btn-wa,body.mode-cible .offert:not(:last-of-type){display:none}body.mode-cible .ouverture .titre-ouv{margin-top:0}body.mode-cible .actions{margin-top:18px}body.mode-cible .offert{margin-top:16px}}
 .visuel{position:relative;min-height:340px;display:grid;place-items:center}
 .visuel .halo{position:absolute;width:86%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(31,143,214,.45),transparent 65%);filter:blur(8px)}
 .visuel .photo{position:relative;width:100%;max-width:600px;aspect-ratio:16/10;border-radius:22px;overflow:hidden;background:linear-gradient(160deg,var(--acier2),var(--acier));box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.08);display:grid;place-items:center}
@@ -246,13 +246,13 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .tuile b{font-family:var(--titre);font-size:21px;line-height:1;font-weight:800;text-transform:uppercase;letter-spacing:.01em;color:var(--nuit);margin-top:4px}
 .tuile small{font-size:12.5px;line-height:1.25;color:#3B4B5C;font-weight:600}
 .tuile::after{content:"Voir →";display:inline-block;margin-top:auto;font:800 12.5px var(--texte);color:#fff;background:var(--orange);border-radius:999px;padding:5px 12px;box-shadow:0 3px 0 #B84A0E}
-@media (max-width:699px){.ouverture .badge-stock{display:none}.ouverture h1{margin-top:4px}.tuiles{grid-template-columns:1fr 1fr;gap:14px}.tuile{padding:16px 10px 14px}.tuile b{font-size:22px}}
+@media (max-width:699px){.ouverture .badge-stock{display:none}.ouverture .titre-ouv{margin-top:4px}.tuiles{grid-template-columns:1fr 1fr;gap:14px}.tuile{padding:16px 10px 14px}.tuile b{font-size:22px}}
 @media (max-width:360px){.tuile i{width:56px;height:56px}.tuile b{font-size:19px}}
 .chapeau-court{margin-top:14px!important;font-weight:600;color:#fff!important}
 .ouverture .tuiles{margin-top:12px}
 @media (max-width:699px){
   .ouverture .cadre{padding-top:30px}
-  .ouverture h1{font-size:clamp(40px,11vw,56px)}
+  .ouverture .titre-ouv{font-size:clamp(40px,11vw,56px)}
   .ouverture .actions{margin-top:18px}
   .ouverture .actions .btn{flex:1 1 100%}
   body.mode-cible .chapeau:not(.chapeau-court),body.mode-cible .ouverture .ecouter-clair{display:none}
@@ -290,7 +290,7 @@ body.mode-cible .tuiles{display:none}
 .btn-ligne-sombre{background:#fff;color:var(--nuit);box-shadow:inset 0 0 0 1.5px var(--trait)}
 .btn-ligne-sombre:hover{box-shadow:inset 0 0 0 1.5px var(--nuit)}
 body.mode-cible .ouverture .cadre{padding-top:34px;padding-bottom:28px}
-body.mode-cible .ouverture h1{font-size:clamp(38px,6vw,64px)}
+body.mode-cible .ouverture .titre-ouv{font-size:clamp(38px,6vw,64px)}
 body.mode-cible .visuel{display:none}
 @media (min-width:980px){body.mode-cible .ouverture .cadre{grid-template-columns:1fr}}
 body.mode-cible .chiffres{display:none}
@@ -487,7 +487,7 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   .carte .img{aspect-ratio:16/9}
 }
 
-@media (min-width:980px){.ouverture h1{font-size:clamp(46px,5.6vw,78px)}.ouverture .cadre{align-items:start}.ouverture .visuel{margin-top:70px}}
+@media (min-width:980px){.ouverture .titre-ouv{font-size:clamp(46px,5.6vw,78px)}.ouverture .cadre{align-items:start}.ouverture .visuel{margin-top:70px}}
 .pf-raccourci{display:block;margin-top:14px;border:1px dashed #1670B0;background:var(--glace);color:var(--encre);border-radius:12px;padding:12px 14px;font:500 15px var(--texte);text-align:left;cursor:pointer;width:100%;max-width:62ch}
 .pf-raccourci b{color:#1670B0}
 .pf-surligne{animation:surligne 2.2s ease}
@@ -584,8 +584,8 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   .ouverture::before{opacity:.55}
   .ouverture .cadre{padding-top:22px!important;padding-bottom:22px!important;gap:0}
   .ouverture .badge-stock{display:inline-flex!important;font-size:11px;padding:6px 12px;letter-spacing:.1em}
-  .ouverture h1{font-size:clamp(34px,9.5vw,44px)!important;margin-top:12px!important}
-  .ouverture h1 em::after{width:84px;height:5px;margin-top:10px}
+  .ouverture .titre-ouv{font-size:clamp(34px,9.5vw,44px)!important;margin-top:12px!important}
+  .ouverture .titre-ouv em::after{width:84px;height:5px;margin-top:10px}
   .ouverture .chapeau-court{font-size:15px;margin-top:12px}
   .ouverture .chapeau:not(.chapeau-court),.ouverture .offert,.ouverture .actions,.ouverture .visuel,.chiffres{display:none!important}
   .ouverture .tuiles{grid-template-columns:repeat(4,1fr)!important;gap:8px!important;margin-top:12px}
@@ -607,6 +607,40 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
 }
 @media (max-width:699px){.groupe-sous{display:none}.groupe-titre{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:18px}.groupe-titre h3{font-size:26px;margin:0}.groupe-titre span{margin:0}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Prix en premier : bandeau compact au-dessus du catalogue */
+.intro-prix{background:var(--nuit);color:#fff;padding:18px 0 16px}
+.intro-prix h1{font-family:var(--titre);font-size:clamp(24px,4.4vw,40px);line-height:1.05;margin:0;text-transform:uppercase;font-weight:800;letter-spacing:.005em}
+.intro-prix h1 em{font-style:normal;color:#FFB547}
+.intro-prix p{margin:6px 0 0;font-size:14.5px;line-height:1.4;color:#C9D6E4}
+.intro-prix p b{color:#7CF0A9}
+#prix{padding-top:4px}
+#prix .filtres{margin-top:4px}
+#prix .prix-tete{display:none}
+@media (max-width:699px){.intro-prix{padding:12px 0 10px}.intro-prix p{font-size:13px}}
+body.mode-cible .intro-prix{display:none}
+
+/* Vue « tous les prix » compacte */
+.tarifs-grille{display:grid;gap:16px;margin-top:6px}
+@media (min-width:760px){.tarifs-grille{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:1100px){.tarifs-grille{grid-template-columns:repeat(3,1fr)}}
+.tarif-cat{background:#fff;border:1px solid var(--trait);border-radius:18px;padding:14px 14px 12px;box-shadow:0 6px 18px -10px rgba(11,27,58,.25)}
+.tarif-tete{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tarif-tete h3{margin:0;font-family:var(--titre);font-size:21px;line-height:1.1;text-transform:uppercase;color:var(--nuit)}
+.tarif-tete span{font:800 13px var(--texte);color:#0E5C95;white-space:nowrap}
+.tarif-msg{margin:3px 0 8px;font-size:13px;color:#4A5B6C;line-height:1.35}
+.tarifs{list-style:none;margin:0;padding:0}
+.tarifs li+li{border-top:1px solid #EEF2F6}
+.tarif{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer}
+.tarif:hover,.tarif:focus-visible{background:#F4F8FC;border-radius:10px}
+.tarif b{font-family:var(--titre);font-size:19px;color:var(--nuit);min-width:92px}
+.tarif b small{font-size:13px;color:#4A5B6C}
+.tarif em{font-style:normal;margin-left:auto;font:800 17px var(--texte);color:#0B7A3B;white-space:nowrap}
+.tarif em small{font-size:11.5px;font-weight:700;color:#4A5B6C}
+.tarif i{font-style:normal;font-size:22px;color:#9AA9B8;line-height:1}
+.voir-cat{all:unset;box-sizing:border-box;display:block;width:100%;margin-top:8px;text-align:center;padding:10px;border-radius:12px;background:var(--nuit);color:#fff;font:800 14px var(--texte);cursor:pointer}
+.voir-cat:hover{background:#0E5C95}
+.retour-prix{all:unset;cursor:pointer;display:inline-block;margin:4px 0 6px;font:800 14px var(--texte);color:#0E5C95}
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://recuvente-saas.vercel.app/oulipai#org","name":"OU LI PAI IVOIRE","alternateName":"OU LI PAI, Trading Company of Africa","url":"https://recuvente-saas.vercel.app/oulipai","logo":"https://recuvente-saas.vercel.app/oulipai/logo-complet.png","telephone":"+225 07 11 35 57 43","sameAs":["https://www.facebook.com/oulipai"],"hasMap":"https://maps.app.goo.gl/TchHJ83Vw53s99Ni8","openingHours":"Mo-Sa 08:00-18:00","paymentAccepted":"Virement bancaire, chèque, Mobile Money","areaServed":{"@type":"Country","name":"Côte d'Ivoire"},"address":{"@type":"PostalAddress","addressLocality":"Abidjan","addressCountry":"CI"}},{"@type":"ItemList","name":"Groupes électrogènes et prix","itemListElement":[{"@type":"ListItem","position":1,"item":{"@type":"Product","name":"Groupe électrogène 3 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=3","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-3.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":175000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=3"}}},{"@type":"ListItem","position":2,"item":{"@type":"Product","name":"Groupe électrogène 5 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=5","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-5.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":240000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=5"}}},{"@type":"ListItem","position":3,"item":{"@type":"Product","name":"Groupe électrogène 7 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=7","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-7.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":300000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=7"}}},{"@type":"ListItem","position":4,"item":{"@type":"Product","name":"Groupe électrogène 10 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=10","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-10.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":1250000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=10"}}},{"@type":"ListItem","position":5,"item":{"@type":"Product","name":"Groupe électrogène 15 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=15","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-15.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":2350000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=15"}}},{"@type":"ListItem","position":6,"item":{"@type":"Product","name":"Groupe électrogène 20 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=20","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-20.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":3700000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=20"}}},{"@type":"ListItem","position":7,"item":{"@type":"Product","name":"Groupe électrogène 25 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=25","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-25.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":4000000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=25"}}},{"@type":"ListItem","position":8,"item":{"@type":"Product","name":"Groupe électrogène 30 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=30","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-30.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":4100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=30"}}},{"@type":"ListItem","position":9,"item":{"@type":"Product","name":"Groupe électrogène 37,5 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=37.5","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-37-5.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":4250000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=37.5"}}},{"@type":"ListItem","position":10,"item":{"@type":"Product","name":"Groupe électrogène 50 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=50","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-50.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":5600000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=50"}}},{"@type":"ListItem","position":11,"item":{"@type":"Product","name":"Groupe électrogène 62,5 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=62.5","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-62-5.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":6600000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=62.5"}}},{"@type":"ListItem","position":12,"item":{"@type":"Product","name":"Groupe électrogène 100 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=100","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-100.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":10100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=100"}}},{"@type":"ListItem","position":13,"item":{"@type":"Product","name":"Groupe électrogène 125 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=125","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-125.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":12600000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=125"}}},{"@type":"ListItem","position":14,"item":{"@type":"Product","name":"Groupe électrogène 150 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=150","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-150.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":14600000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=150"}}},{"@type":"ListItem","position":15,"item":{"@type":"Product","name":"Groupe électrogène 187,5 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=187.5","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-187-5.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":16600000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=187.5"}}},{"@type":"ListItem","position":16,"item":{"@type":"Product","name":"Groupe électrogène 200 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=200","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-200.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":17600000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=200"}}},{"@type":"ListItem","position":17,"item":{"@type":"Product","name":"Groupe électrogène 250 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=250","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-250.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":20100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=250"}}},{"@type":"ListItem","position":18,"item":{"@type":"Product","name":"Groupe électrogène 300 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=300","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-300.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":25100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=300"}}},{"@type":"ListItem","position":19,"item":{"@type":"Product","name":"Groupe électrogène 350 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=350","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-350.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":28100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=350"}}},{"@type":"ListItem","position":20,"item":{"@type":"Product","name":"Groupe électrogène 400 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=400","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-400.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":34100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=400"}}},{"@type":"ListItem","position":21,"item":{"@type":"Product","name":"Groupe électrogène 500 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=500","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-500.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":42100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=500"}}},{"@type":"ListItem","position":22,"item":{"@type":"Product","name":"Groupe électrogène 1000 kVA","url":"https://recuvente-saas.vercel.app/oulipai?kva=1000","image":"https://recuvente-saas.vercel.app/oulipai/photos/kva-1000.jpg","category":"Groupe électrogène","brand":{"@type":"Brand","name":"OU LI PAI"},"offers":{"@type":"Offer","price":140100000,"priceCurrency":"XOF","seller":{"@id":"https://recuvente-saas.vercel.app/oulipai#org"},"url":"https://recuvente-saas.vercel.app/oulipai?kva=1000"}}}]}]}</script>
 </head>
@@ -624,11 +658,56 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   </div>
 </header>
 
-<section class="ouverture" id="haut">
+<section class="intro-prix" id="haut">
+  <div class="cadre">
+    <h1>Groupes électrogènes Perkins : <em>tous nos prix</em></h1>
+    <p>De 3 à 1000 kVA · Garantie 1 an · <b>Transport et installation offerts à Abidjan</b></p>
+  </div>
+</section>
+<!-- Page ciblée (publicité) : affichée seulement quand on arrive par /oulipai/maison, /commerce, /entreprise, /industrie -->
+<section class="cible" id="cible" hidden>
+  <div class="cadre">
+    <div class="cible-tete">
+      <p class="sur" id="cible-sur"></p>
+      <h2 class="titre" id="cible-titre"></h2>
+      <p class="sous" id="cible-texte"></p>
+    </div>
+    <div class="defile" id="cible-groupes"></div>
+    <p class="defile-aide">← Glissez pour voir toutes les puissances →</p>
+    <div class="cible-bas">
+      <a class="btn btn-ligne-sombre" href="#calcul">Je ne connais pas ma puissance</a>
+      <button type="button" class="btn btn-ligne-sombre" id="voir-tout">Voir toutes les puissances</button>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="prix">
+  <div class="cadre prix-tete">
+    
+    <div class="outils">
+      <a class="outil" href="#calcul" data-outil="calcul">
+        <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0012 3z"/></svg></i>
+        <span><b>Quelle puissance pour moi ?</b><small>Comptez vos ampoules, climatiseurs, frigos… le site trouve votre groupe.</small></span>
+        <em>Calculer →</em>
+      </a>
+      <button type="button" class="outil outil-pf" data-pf="">
+        <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></i>
+        <span><b>Pro forma en 1 minute</b><small>Au nom de votre société, en PDF, prête à envoyer.</small></span>
+        <em>Créer →</em>
+      </button>
+    </div>
+  </div>
+  <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre"><div class="console"><p class="console-titre"><i aria-hidden="true"></i>Choisissez votre puissance</p><div class="puces" id="puces"></div></div></div></nav>
+  <div class="cadre" id="catalogue"></div>
+  <div class="cadre"><a class="liste-wa" data-wa="liste" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i><span><b>Pas encore décidé ?</b><small>Recevez la liste de tous nos prix sur WhatsApp, pour la montrer à votre patron ou à votre électricien.</small></span><em>Recevoir →</em></a></div>
+  <div class="cadre"><button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button></div>
+</section>
+
+<section class="ouverture" id="presentation">
   <div class="cadre">
     <div>
       <span class="badge-stock"><i class="pouls" aria-hidden="true"></i>Moteur Perkins · Alternateur Stamford</span>
-      <h1>Groupes électrogènes<br><em>garantis 1 an.</em></h1>
+      <h2 class="titre-ouv">Groupes électrogènes<br><em>garantis 1 an.</em></h2>
       <p class="chapeau chapeau-court">De 3 à 1000 kVA, en stock à Abidjan. <b>Touchez votre besoin : vous voyez tout de suite ses prix.</b></p>
       <div class="tuiles" id="tuiles" aria-label="Choisissez pour quoi vous voulez le groupe">
         <a class="tuile" href="maison" data-seg="maison"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i><b>Ma maison</b><small>Villa, famille</small></a>
@@ -636,7 +715,6 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
         <a class="tuile" href="entreprise" data-seg="entreprise"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18"/><path d="M14 9h6v12h-6M7 7h4M7 11h4M7 15h4"/></svg></i><b>Mon entreprise</b><small>Bureau, hôtel, clinique</small></a>
         <a class="tuile" href="industrie" data-seg="industrie"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6 4V10l6 4V6h4v15z"/><path d="M7 17h2M13 17h2"/></svg></i><b>Mon usine</b><small>Usine, chantier</small></a>
       </div>
-      <a class="descendre" href="#prix" aria-label="Descendre pour voir tous les prix"><span>Descendez pour voir tous les prix</span><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i></a>
       <ol class="achat" aria-label="Comment acheter">
         <li><b>1</b><span>Choisissez votre groupe</span></li>
         <li><b>2</b><span>Écrivez ou envoyez un vocal WhatsApp</span></li>
@@ -670,45 +748,9 @@ body.mode-cible-court #prix,body.mode-cible-court #photos,body.mode-cible-court 
   </div>
 </section>
 
-<!-- Page ciblée (publicité) : affichée seulement quand on arrive par /oulipai/maison, /commerce, /entreprise, /industrie -->
-<section class="cible" id="cible" hidden>
-  <div class="cadre">
-    <div class="cible-tete">
-      <p class="sur" id="cible-sur"></p>
-      <h2 class="titre" id="cible-titre"></h2>
-      <p class="sous" id="cible-texte"></p>
-    </div>
-    <div class="defile" id="cible-groupes"></div>
-    <p class="defile-aide">← Glissez pour voir toutes les puissances →</p>
-    <div class="cible-bas">
-      <a class="btn btn-ligne-sombre" href="#calcul">Je ne connais pas ma puissance</a>
-      <button type="button" class="btn btn-ligne-sombre" id="voir-tout">Voir toutes les puissances</button>
-    </div>
-  </div>
-</section>
 
-<section class="section" id="prix" style="padding-top:0">
-  <div class="cadre prix-tete">
-    <p class="sur">Catalogue et prix</p>
-    <h2 class="titre">Nos groupes et leurs prix</h2>
-    <div class="outils">
-      <a class="outil" href="#calcul" data-outil="calcul">
-        <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0012 3z"/></svg></i>
-        <span><b>Quelle puissance pour moi ?</b><small>Comptez vos ampoules, climatiseurs, frigos… le site trouve votre groupe.</small></span>
-        <em>Calculer →</em>
-      </a>
-      <button type="button" class="outil outil-pf" data-pf="">
-        <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></i>
-        <span><b>Pro forma en 1 minute</b><small>Au nom de votre société, en PDF, prête à envoyer.</small></span>
-        <em>Créer →</em>
-      </button>
-    </div>
-  </div>
-  <nav class="filtres" aria-label="Filtrer par puissance"><div class="cadre"><div class="console"><p class="console-titre"><i aria-hidden="true"></i>Choisissez votre puissance</p><div class="puces" id="puces"></div></div></div></nav>
-  <div class="cadre" id="catalogue"></div>
-  <div class="cadre"><a class="liste-wa" data-wa="liste" href="#" target="_blank" rel="noopener"><i class="ic-wa"></i><span><b>Pas encore décidé ?</b><small>Recevez la liste de tous nos prix sur WhatsApp, pour la montrer à votre patron ou à votre électricien.</small></span><em>Recevoir →</em></a></div>
-  <div class="cadre"><button type="button" class="pf-raccourci" data-pf="">Pour une société : <b>créez votre pro forma PDF en 1 minute →</b></button></div>
-</section>
+
+
 
 <section class="section" id="calcul">
   <div class="cadre apparait">
@@ -1225,7 +1267,17 @@ let filtre = 'all';
 const ouverts = {};  // catégories dépliées (« Voir les autres puissances »)
 const PAR_CAT = 4;
 function rendre(){
-  document.getElementById('catalogue').innerHTML = CATS.filter(c => filtre === 'all' || c.id === filtre).map(c => {
+  // Vue d'ensemble : tous les prix d'un coup d'œil, par catégorie. Une catégorie choisie : fiches complètes.
+  if (filtre === 'all') {
+    document.getElementById('catalogue').innerHTML = '<div class="tarifs-grille">' + CATS.map(c => {
+      const tous = DATA.filter(g => g.c === c.id);
+      return `<div class="tarif-cat"><div class="tarif-tete"><h3>${c.titre}</h3><span>${c.label}</span></div><p class="tarif-msg">${c.sous}</p>
+       <ul class="tarifs">${tous.map(g => `<li><button type="button" class="tarif" data-detail="${g.kva}" aria-label="Voir le groupe ${kv(g.kva)} kVA à ${fmt(g.p)} francs CFA"><b>${kv(g.kva)}<small> kVA</small></b><em>${fmt(g.p)}<small> FCFA${avecTaxe(g) ? ' HT' : ''}</small></em><i aria-hidden="true">›</i></button></li>`).join('')}</ul>
+       <button type="button" class="voir-cat" data-cat="${c.id}">Voir les photos et détails →</button></div>`;
+    }).join('') + '</div>';
+    return;
+  }
+  document.getElementById('catalogue').innerHTML = '<button type="button" class="retour-prix" data-cat="all">← Retour à tous les prix</button>' + CATS.filter(c => filtre === 'all' || c.id === filtre).map(c => {
     const tous = DATA.filter(g => g.c === c.id);
     const montrer = filtre !== 'all' || ouverts[c.id] ? tous : tous.slice(0, PAR_CAT);
     const reste = tous.length - montrer.length;
@@ -1236,6 +1288,7 @@ function rendre(){
   }).join('');
 }
 document.getElementById('catalogue').addEventListener('click', e => {
+  const cat = e.target.closest('[data-cat]'); if (cat) return choisir(cat.dataset.cat);
   const b = e.target.closest('[data-ouvrir]'); if (!b) return;
   ouverts[b.dataset.ouvrir] = true; rendre();
 });
@@ -1552,7 +1605,7 @@ if (SEGMENTS[seg]) {
   document.getElementById('cible-titre').textContent = 'Choisissez votre groupe';
   document.getElementById('cible-texte').textContent = 'Transport et installation offerts à Abidjan. Touchez « Commander » : WhatsApp s\'ouvre avec votre choix.';
   document.getElementById('cible-groupes').innerHTML = liste.map(carte).join('');
-  const h1 = document.querySelector('.ouverture h1');
+  const h1 = document.querySelector('.ouverture .titre-ouv');
   h1.textContent = S.titre;
   document.querySelector('.ouverture .chapeau').textContent = S.texte;
   const ap = document.createElement('div');

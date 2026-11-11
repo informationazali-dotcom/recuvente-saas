@@ -815,6 +815,190 @@ function VueNouvelle({ workspace, cur, onCree, avecComptant }) {
 }
 
 // ---------------------------------------------------------------------------
+//  Agenda des encaissements — tuiles-calendrier en 3D
+// ---------------------------------------------------------------------------
+const MOIS_COURTS = ["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."];
+const CSS_3D = `
+.rv-scene{perspective:1100px;perspective-origin:50% 30%}
+.rv-tuile{transform-style:preserve-3d;transform:rotateX(9deg) rotateY(-11deg) translateZ(0);transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .45s;will-change:transform}
+.rv-tuile:hover,.rv-tuile:active{transform:rotateX(0) rotateY(0) translateZ(26px) translateY(-6px)}
+.rv-tuile .rv-reflet{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(125deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 38%,rgba(255,255,255,0) 70%,rgba(255,255,255,.18) 100%);pointer-events:none}
+.rv-defile{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:18px 6px 30px;scrollbar-width:none}
+.rv-defile::-webkit-scrollbar{display:none}
+.rv-defile>*{scroll-snap-align:start;flex:0 0 auto}
+@keyframes rvPulse{0%,100%{box-shadow:0 0 0 0 rgba(201,162,74,.55)}50%{box-shadow:0 0 0 8px rgba(201,162,74,0)}}
+`;
+
+function etatEcheance(e, auj) {
+  const du = Number(e.montant_du) - Number(e.montant_paye);
+  if (du <= 0) return "payee";
+  if (e.date_echeance < auj) return "retard";
+  if (joursEntre(auj, e.date_echeance) <= JOURS_ALERTE) return "bientot";
+  return "avenir";
+}
+
+// Une page de calendrier en relief : anneaux, bandeau du mois, grand jour, montant.
+function TuileDate3D({ e, client, article, cur, onClick, compact }) {
+  const auj = aujourdhui();
+  const etat = etatEcheance(e, auj);
+  const d = versDate(e.date_echeance);
+  const du = Number(e.montant_du) - Number(e.montant_paye);
+  const palette = {
+    payee: { bandeau: `linear-gradient(135deg, #2FA567, ${T.vert})`, texte: T.vert, libelle: "Payée" },
+    retard: { bandeau: "linear-gradient(135deg, #E8604A, #B8321F)", texte: T.rouge, libelle: `Retard · ${joursEntre(e.date_echeance, auj)} j` },
+    bientot: { bandeau: "linear-gradient(135deg, #E9C46A, #B88A25)", texte: "#9A7420", libelle: joursEntre(auj, e.date_echeance) === 0 ? "Aujourd'hui" : joursEntre(auj, e.date_echeance) === 1 ? "Demain" : `Dans ${joursEntre(auj, e.date_echeance)} jours` },
+    avenir: { bandeau: `linear-gradient(135deg, #2B3F36, ${T.encre})`, texte: T.gris, libelle: `Dans ${joursEntre(auj, e.date_echeance)} jours` },
+  }[etat];
+  const largeur = compact ? 132 : 158;
+  return (
+    <div className="rv-tuile" onClick={onClick} style={{
+      position: "relative", width: largeur, borderRadius: 20, background: "linear-gradient(180deg,#FFFFFF 0%,#F7F3EA 100%)", cursor: onClick ? "pointer" : "default",
+      border: "1px solid rgba(201,162,74,0.45)",
+      boxShadow: "0 1px 0 rgba(255,255,255,.9) inset, 0 -3px 0 rgba(14,23,20,.06) inset, 0 2px 4px rgba(14,23,20,.08), 0 18px 34px -12px rgba(14,23,20,.35), 10px 22px 40px -18px rgba(14,23,20,.30)",
+      opacity: etat === "payee" ? 0.78 : 1,
+    }}>
+      <div style={{ position: "absolute", top: -7, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 46, zIndex: 2 }}>
+        {[0, 1].map((i) => <div key={i} style={{ width: 9, height: 18, borderRadius: 6, background: "linear-gradient(180deg,#E7D3A1,#9A7420)", boxShadow: "0 2px 3px rgba(0,0,0,.3)" }} />)}
+      </div>
+      <div style={{ background: palette.bandeau, borderRadius: "20px 20px 0 0", padding: "13px 12px 9px", color: "white", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.16em" }}>{MOIS_COURTS[d.getMonth()]} {d.getFullYear()}</div>
+      </div>
+      <div style={{ textAlign: "center", padding: compact ? "6px 10px 12px" : "8px 12px 14px" }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: T.grisClair, textTransform: "uppercase", letterSpacing: "0.12em" }}>{d.toLocaleDateString("fr-FR", { weekday: "long" })}</div>
+        <div style={{ fontSize: compact ? 46 : 56, lineHeight: 1, fontWeight: 900, letterSpacing: "-0.04em", margin: "4px 0 6px", background: "linear-gradient(180deg,#1C2B25 30%,#556A60 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", textShadow: "0 2px 0 rgba(255,255,255,.6)" }}>{d.getDate()}</div>
+        {client && <div style={{ fontSize: 13, fontWeight: 900, color: T.encre, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{client}</div>}
+        {article && <div style={{ fontSize: 11, color: T.gris, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>{article}</div>}
+        <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(201,162,74,.6),transparent)", margin: "9px 0 8px" }} />
+        <div style={{ fontSize: 15.5, fontWeight: 900, color: T.encre, letterSpacing: "-0.01em" }}>{nb(etat === "payee" ? e.montant_du : du)} <span style={{ fontSize: 10, color: T.grisClair }}>{cur}</span></div>
+        <div style={{ display: "inline-block", marginTop: 6, fontSize: 10.5, fontWeight: 900, color: palette.texte, background: etat === "avenir" ? "#EEEBE3" : "rgba(255,255,255,.7)", border: `1px solid ${etat === "avenir" ? "transparent" : palette.texte}`, borderRadius: 999, padding: "3px 9px", animation: etat === "bientot" ? "rvPulse 2s infinite" : "none" }}>{etat === "payee" ? "✓ " : ""}{palette.libelle}</div>
+      </div>
+      <div className="rv-reflet" />
+    </div>
+  );
+}
+
+async function telechargerAgendaPDF(lignes, workspace, cur) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const L = 210, marge = 16;
+  const or = [201, 162, 74], encre = [14, 23, 20], gris = [107, 113, 104];
+  const auj = aujourdhui();
+  const total = lignes.reduce((s, l) => s + l.du, 0);
+  const enRetard = lignes.filter((l) => l.e.date_echeance < auj).reduce((s, l) => s + l.du, 0);
+  const entete = () => {
+    doc.setFillColor(...encre); doc.rect(0, 0, L, 44, "F");
+    doc.setFillColor(...or); doc.rect(0, 44, L, 1.4, "F");
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
+    doc.text(String(workspace?.name || "").toUpperCase(), marge, 19);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...or);
+    doc.text("AGENDA DES ENCAISSEMENTS À VENIR", marge, 27);
+    doc.setTextColor(220, 220, 220); doc.setFontSize(9);
+    doc.text(`Édité le ${dCourt(auj)}`, marge, 34);
+  };
+  entete();
+  let y = 56;
+  const blocs = [["Total attendu", `${nb(total)} ${cur}`], ["Dont en retard", `${nb(enRetard)} ${cur}`], ["Paiements", String(lignes.length)]];
+  const lb = (L - 2 * marge - 6) / 3;
+  blocs.forEach(([t, v], i) => {
+    const x = marge + i * (lb + 3);
+    if (i === 1 && enRetard > 0) doc.setFillColor(252, 233, 229); else doc.setFillColor(246, 244, 238);
+    doc.roundedRect(x, y, lb, 20, 2.5, 2.5, "F");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...gris); doc.text(t.toUpperCase(), x + 4, y + 7);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...encre); doc.text(v, x + 4, y + 15);
+  });
+  y += 30;
+  let moisCourant = null;
+  for (const l of lignes) {
+    const cleMois = l.e.date_echeance < auj ? "retard" : l.e.date_echeance.slice(0, 7);
+    if (cleMois !== moisCourant) {
+      moisCourant = cleMois;
+      if (y > 255) { doc.addPage(); entete(); y = 56; }
+      const totalMois = lignes.filter((x) => (x.e.date_echeance < auj ? "retard" : x.e.date_echeance.slice(0, 7)) === cleMois).reduce((s, x) => s + x.du, 0);
+      doc.setFillColor(...(cleMois === "retard" ? [208, 68, 47] : encre)); doc.roundedRect(marge, y, L - 2 * marge, 10, 2, 2, "F");
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text(cleMois === "retard" ? "EN RETARD" : versDate(l.e.date_echeance).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }).toUpperCase(), marge + 4, y + 6.8);
+      doc.text(`${nb(totalMois)} ${cur}`, L - marge - 4, y + 6.8, { align: "right" });
+      y += 13;
+    }
+    if (y > 278) { doc.addPage(); entete(); y = 56; }
+    const d = versDate(l.e.date_echeance);
+    doc.setFillColor(251, 244, 226); doc.roundedRect(marge, y, 16, 13, 2, 2, "F");
+    doc.setTextColor(...encre); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(String(d.getDate()), marge + 8, y + 7.2, { align: "center" });
+    doc.setFontSize(6.5); doc.setTextColor(154, 116, 32); doc.text(MOIS_COURTS[d.getMonth()], marge + 8, y + 11, { align: "center" });
+    doc.setTextColor(...encre); doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.text(String(l.f.client_nom || ""), marge + 21, y + 5.5);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...gris);
+    doc.text(`${String(l.f.article || "").slice(0, 60)}${l.f.client_tel ? "  ·  " + l.f.client_tel : ""}  ·  mensualité ${l.e.numero}/${l.f.ech.length}`, marge + 21, y + 10.5);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...(l.e.date_echeance < auj ? [208, 68, 47] : encre));
+    doc.text(`${nb(l.du)} ${cur}`, L - marge, y + 8, { align: "right" });
+    doc.setDrawColor(236, 231, 219); doc.setLineWidth(0.2); doc.line(marge + 21, y + 14.5, L - marge, y + 14.5);
+    y += 17;
+  }
+  doc.setFontSize(7.5); doc.setTextColor(...gris); doc.setFont("helvetica", "normal");
+  doc.text("Document généré avec RecuVente", L / 2, 290, { align: "center" });
+  doc.save(`Agenda-encaissements-${auj}.pdf`);
+}
+
+function VueAgenda({ fiches, workspace, cur, onOuvrir }) {
+  const auj = aujourdhui();
+  const [pdf, setPdf] = useState(false);
+  const lignes = useMemo(() => {
+    const out = [];
+    for (const f of fiches) {
+      if (f.situation === "annule") continue;
+      for (const e of f.ech) {
+        const du = Number(e.montant_du) - Number(e.montant_paye);
+        if (du > 0) out.push({ f, e, du });
+      }
+    }
+    return out.sort((a, b) => a.e.date_echeance.localeCompare(b.e.date_echeance));
+  }, [fiches]);
+
+  const groupes = [];
+  for (const l of lignes) {
+    const cle = l.e.date_echeance < auj ? "retard" : l.e.date_echeance.slice(0, 7);
+    const g = groupes[groupes.length - 1];
+    if (g && g.cle === cle) g.items.push(l); else groupes.push({ cle, items: [l] });
+  }
+  const total = lignes.reduce((s, l) => s + l.du, 0);
+
+  if (lignes.length === 0) {
+    return <Vide icone="📅" fond={T.orClair} titre="Aucun paiement à venir" texte="Dès qu'une vente à crédit est enregistrée, ses dates de paiement apparaissent ici, mois par mois." />;
+  }
+
+  return (
+    <>
+      <div style={{ ...S.carte, display: "flex", alignItems: "center", gap: 12, background: `linear-gradient(135deg, #FFFDF7, ${T.orClair})`, borderColor: "rgba(201,162,74,.45)" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={S.label}>Total attendu</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: T.encre, letterSpacing: "-0.02em" }}>{nb(total)} <span style={{ fontSize: 12, color: T.gris }}>{cur}</span></div>
+          <div style={{ fontSize: 12, color: T.gris }}>{lignes.length} paiement{lignes.length > 1 ? "s" : ""} prévus</div>
+        </div>
+        <button style={{ ...S.boutonOr, padding: "12px 14px", fontSize: 13.5, opacity: pdf ? 0.6 : 1 }} disabled={pdf} onClick={async () => { setPdf(true); try { await telechargerAgendaPDF(lignes, workspace, cur); } finally { setPdf(false); } }}>
+          {pdf ? "…" : "📄 Agenda PDF"}
+        </button>
+      </div>
+      {groupes.map((g) => (
+        <div key={g.cle} style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "0 4px" }}>
+            <div style={{ fontWeight: 900, fontSize: 15, color: g.cle === "retard" ? T.rouge : T.encre, textTransform: "capitalize" }}>
+              {g.cle === "retard" ? "En retard" : versDate(g.cle + "-01").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: g.cle === "retard" ? T.rouge : "#9A7420" }}>{nb(g.items.reduce((s, l) => s + l.du, 0))} {cur}</div>
+          </div>
+          <div className="rv-scene">
+            <div className="rv-defile">
+              {g.items.map((l) => (
+                <TuileDate3D key={l.e.id} e={l.e} client={l.f.client_nom} article={l.f.article} cur={cur} onClick={() => onOuvrir(l.f.id)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 //  Fiche d'un crédit
 // ---------------------------------------------------------------------------
 function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvrirEncaissement }) {
@@ -893,6 +1077,20 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
           </button>
         ))}
       </div>
+
+      {f.type_vente !== "comptant" && f.ech.length > 0 && (
+        <div style={{ margin: "4px 0 2px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "0 4px" }}>
+            <div style={{ fontWeight: 900, fontSize: 15, color: T.encre }}>Calendrier des paiements</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.gris }}>Glisse →</div>
+          </div>
+          <div className="rv-scene">
+            <div className="rv-defile">
+              {f.ech.map((e) => <TuileDate3D key={e.id} e={e} cur={cur} compact />)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {f.type_vente !== "comptant" && <div style={S.carte}>
         <div style={{ ...S.titreCarte, justifyContent: "space-between" }}>
@@ -1004,6 +1202,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
   const ONGLETS = [
     ...(espaceDedie ? [{ cle: "ventes", label: "Ventes" }] : []),
     { cle: "relancer", label: "À relancer", n: stats.aRelancer },
+    { cle: "agenda", label: "Agenda" },
     { cle: "tous", label: espaceDedie ? "Crédits" : "Tous", n: stats.actifs.length },
     { cle: "nouveau", label: espaceDedie ? "+ Vente" : "+ Nouvelle vente" },
   ];
@@ -1012,7 +1211,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: T.fond, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-      <style>{`@keyframes rvMonte{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}} .rv-cr input:focus,.rv-cr textarea:focus{border-color:${T.or}!important;box-shadow:0 0 0 4px rgba(201,162,74,0.15)} .rv-cr button{font-family:inherit}`}</style>
+      <style>{`@keyframes rvMonte{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}} .rv-cr input:focus,.rv-cr textarea:focus{border-color:${T.or}!important;box-shadow:0 0 0 4px rgba(201,162,74,0.15)} .rv-cr button{font-family:inherit} ${CSS_3D}`}</style>
       <div className="rv-cr">
         <div style={{ background: `radial-gradient(130% 120% at 100% 0%, #2B3F36 0%, ${T.encre} 55%)`, color: "white", padding: "16px 16px 0" }}>
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
@@ -1031,7 +1230,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
               {!espaceDedie && <button onClick={onClose} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.12)", color: "white", width: 38, height: 38, borderRadius: 12, fontSize: 20, cursor: "pointer" }}>×</button>}
             </div>
 
-            {charge && !ouvert && onglet !== "nouveau" && onglet !== "ventes" && fiches.length > 0 && (
+            {charge && !ouvert && onglet !== "nouveau" && onglet !== "ventes" && onglet !== "agenda" && fiches.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1fr", gap: 10, marginTop: 16 }}>
                 <div style={{ ...tuile, padding: 14, gridRow: "span 2" }}>
                   <div style={petitTitre}>Reste à encaisser</div>
@@ -1077,6 +1276,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
           )}
           {charge && !ouvert && onglet === "ventes" && <VueRegistre fiches={toutes} cur={cur} onOuvrir={setOuvertId} onNouveau={() => setOnglet("nouveau")} />}
           {charge && !ouvert && onglet === "relancer" && <VueARelancer fiches={fiches} cur={cur} onOuvrir={setOuvertId} onRelancer={relancer} onNouveau={() => setOnglet("nouveau")} />}
+          {charge && !ouvert && onglet === "agenda" && <VueAgenda fiches={fiches} workspace={workspace} cur={cur} onOuvrir={setOuvertId} />}
           {charge && !ouvert && onglet === "tous" && <VueTous fiches={fiches} cur={cur} onOuvrir={setOuvertId} />}
           {charge && !ouvert && onglet === "nouveau" && (
             <VueNouvelle workspace={workspace} cur={cur} avecComptant={espaceDedie} onCree={async (id) => { await recharger(); setOnglet(espaceDedie ? "ventes" : "tous"); setOuvertId(id); }} />

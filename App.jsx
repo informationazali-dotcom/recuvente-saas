@@ -41,6 +41,8 @@ const LocationVoiture = React.lazy(() => import("./LocationVoiture.jsx"));
 // LOT 7 — Prospects & fiches commerciales (immobilier vente, véhicule vente, logements en location) :
 // tous les prospects/questions/rendez-vous venus des fiches publiques. Chargé à la demande.
 const ProspectsFiches = React.lazy(() => import("./ProspectsFiches.jsx"));
+// Ventes à crédit (acompte + mensualités) : échéancier, clients à relancer, rappels WhatsApp.
+const VentesCredit = React.lazy(() => import("./VentesCredit.jsx"));
 // Réseau national (stocks chez les représentants régionaux, attribution automatique des livraisons).
 // Chargé à la demande, ouvert au propriétaire et aux administrateurs de la boutique.
 const AdminReseau = React.lazy(() => import("./ReseauAdmin.jsx"));
@@ -4090,6 +4092,11 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   const [showStoreBuilder, setShowStoreBuilder] = useState(false);
   const [showLocationVoiture, setShowLocationVoiture] = useState(false);
   const [showProspectsFiches, setShowProspectsFiches] = useState(false); // LOT 7 : Prospects & fiches commerciales
+  // Ventes à crédit : s'ouvre aussi directement depuis la notification du matin (lien « ?credits=1 »).
+  const [showVentesCredit, setShowVentesCredit] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("credits") === "1"; } catch (_) { return false; }
+  });
+  const [nbCreditsARelancer, setNbCreditsARelancer] = useState(0);
   const [showBatch, setShowBatch] = useState(false);
   const [commandeAConfirmerRapide, setCommandeAConfirmerRapide] = useState(null);
 
@@ -6002,14 +6009,14 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
         showRapportSemaine || showReunion || showTeam || showStoreBuilder || showAvis || showTemoignages ||
         showCollections || showPages || showCodesPromo || showPaniersAbandonnes || showAzaliDesign || showTraficBoutique || showVisiteursEnLigne || showProspectsBusiness || showFacturesBusiness || showRendezVousBusiness || showDashboardBusiness || showProduits || showCaisse || showAbonnement || showCampagne || showLivreurs || showClosers ||
         showBienvenue || showAide || showIntegrations ||
-        showBatch || showAdd || showLocationMaison || showProspectsFiches;
+        showBatch || showAdd || showLocationMaison || showProspectsFiches || showVentesCredit;
 
       if (uneFenetreEstOuverte) {
         setShowRapportSemaine(false); setShowReunion(false); setShowTeam(false); setShowStoreBuilder(false);
         setShowAvis(false); setShowTemoignages(false); setShowCollections(false); setShowPages(false); setShowCodesPromo(false); setShowPaniersAbandonnes(false); setShowAzaliDesign(false); setShowTraficBoutique(false); setShowVisiteursEnLigne(false); setShowProspectsBusiness(false); setShowFacturesBusiness(false); setShowRendezVousBusiness(false); setShowDashboardBusiness(false); setShowProduits(false); setShowCaisse(false);
         setShowAbonnement(false); setShowCampagne(false); setShowLivreurs(false); setShowClosers(false);
         setShowBienvenue(false); setShowAide(false);
-        setShowIntegrations(false); setShowBatch(false); setShowAdd(false); setShowLocationMaison(false); setShowProspectsFiches(false);
+        setShowIntegrations(false); setShowBatch(false); setShowAdd(false); setShowLocationMaison(false); setShowProspectsFiches(false); setShowVentesCredit(false);
       } else if (vue !== "aujourdhui") {
         setVue("aujourdhui");
       }
@@ -6022,8 +6029,31 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     showRapportSemaine, showReunion, showTeam, showStoreBuilder, showAvis, showTemoignages,
     showCollections, showPages, showCodesPromo, showPaniersAbandonnes, showAzaliDesign, showTraficBoutique, showVisiteursEnLigne, showProspectsBusiness, showFacturesBusiness, showRendezVousBusiness, showDashboardBusiness, showProduits, showCaisse, showAbonnement, showCampagne, showLivreurs, showClosers,
     showBienvenue, showAide, showIntegrations,
-    showBatch, showAdd, showLocationMaison, showProspectsFiches, vue,
+    showBatch, showAdd, showLocationMaison, showProspectsFiches, showVentesCredit, vue,
   ]);
+
+  // Nombre de clients à crédit à relancer (paiement dans 3 jours ou moins, ou en retard).
+  const peutVoirCredits = workspace.role === "owner" || workspace.role === "admin" || workspace.role === "comptable";
+  useEffect(() => {
+    if (!workspace?.id || !peutVoirCredits || showVentesCredit) return;
+    let annule = false;
+    (async () => {
+      try {
+        const limite = new Date();
+        limite.setDate(limite.getDate() + 3);
+        const iso = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, "0")}-${String(limite.getDate()).padStart(2, "0")}`;
+        const { data } = await supabase
+          .from("echeances_credit")
+          .select("credit_id, montant_du, montant_paye, ventes_credit!inner(statut)")
+          .eq("workspace_id", workspace.id)
+          .eq("ventes_credit.statut", "en_cours")
+          .lte("date_echeance", iso);
+        const ids = new Set((data || []).filter((e) => Number(e.montant_paye) < Number(e.montant_du)).map((e) => e.credit_id));
+        if (!annule) setNbCreditsARelancer(ids.size);
+      } catch (_) {}
+    })();
+    return () => { annule = true; };
+  }, [workspace?.id, peutVoirCredits, showVentesCredit]);
 
   if (workspace.role === "livreur" && monProfilLivreur) {
     return (
@@ -6231,6 +6261,15 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
             style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
           >
             🧾 Caisse
+          </button>
+        )}
+        {peutVoirCredits && (
+          <button
+            onClick={() => setShowVentesCredit(true)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderRadius: 9, border: "none", background: nbCreditsARelancer > 0 ? "rgba(214,73,51,0.18)" : "transparent", color: nbCreditsARelancer > 0 ? "#ff9b87" : "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: nbCreditsARelancer > 0 ? 700 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}
+          >
+            <span>🤝 Ventes à crédit</span>
+            {nbCreditsARelancer > 0 && <span style={{ background: "#D64933", color: "white", borderRadius: 999, fontSize: 11, padding: "1px 7px", fontWeight: 800 }}>{nbCreditsARelancer}</span>}
           </button>
         )}
 
@@ -6640,6 +6679,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                 <button onClick={() => setShowSanteMarchand(true)} aria-label="Santé de la boutique" style={{ flexShrink: 0, background: "rgba(26,122,60,0.25)", border: "1px solid rgba(26,122,60,0.4)", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🩺</button>
                 {estEcommerce && <button onClick={() => setShowProduits(true)} aria-label="Catalogue" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📦</button>}
                 {workspace.activity_type === "retail" && <button onClick={() => setShowCaisse(true)} aria-label="Caisse" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧾</button>}
+                {peutVoirCredits && <button onClick={() => setShowVentesCredit(true)} aria-label="Ventes à crédit" style={{ position: "relative", flexShrink: 0, background: nbCreditsARelancer > 0 ? "rgba(214,73,51,0.35)" : "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🤝{nbCreditsARelancer > 0 && <span style={{ position: "absolute", top: -5, right: -5, background: "#D64933", color: "white", borderRadius: 999, fontSize: 9.5, padding: "1px 5px", fontWeight: 800 }}>{nbCreditsARelancer}</span>}</button>}
                 <button onClick={() => setVue("rapprochement")} aria-label="Rapprochement" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🔗</button>
                 <button onClick={() => setVue("score_business")} aria-label="Score business" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>🧭</button>
                 {estEcommerce && <button onClick={() => setVue("simulateur")} aria-label="Simulateur pub" style={{ flexShrink: 0, background: "rgba(255,255,255,0.14)", border: "none", color: "white", padding: "7px 9px", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>📊</button>}
@@ -6841,6 +6881,20 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           <span style={{ color: "#8A9089", fontSize: 12 }}>à</span>
           <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ flex: 1, padding: "7px 9px", borderRadius: 8, border: "1px solid #DDD8CC", fontSize: 12.5 }} />
         </div>
+      )}
+
+      {vue === "aujourdhui" && peutVoirCredits && nbCreditsARelancer > 0 && (
+        <button
+          onClick={() => setShowVentesCredit(true)}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: "#FFF4F1", border: "1px solid #F3C4B8", borderRadius: 14, padding: "13px 14px", marginBottom: 14, cursor: "pointer" }}
+        >
+          <span style={{ fontSize: 24 }}>🔔</span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: "block", fontWeight: 800, color: "#B23A26", fontSize: 14.5 }}>{nbCreditsARelancer} client{nbCreditsARelancer > 1 ? "s" : ""} à relancer</span>
+            <span style={{ display: "block", fontSize: 12.5, color: "#6B7168" }}>Ventes à crédit : paiement dans 3 jours ou moins, ou en retard</span>
+          </span>
+          <span style={{ fontWeight: 800, color: "#B23A26" }}>›</span>
+        </button>
       )}
 
       {vue === "aujourdhui" && !accesBloque && (
@@ -7667,6 +7721,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
       {showLocationMaison && <React.Suspense fallback={null}><LocationMaisonModal workspace={workspace} session={session} onClose={() => setShowLocationMaison(false)} /></React.Suspense>}
       {showLocationVoiture && <React.Suspense fallback={null}><LocationVoiture workspace={workspace} session={session} onClose={() => setShowLocationVoiture(false)} /></React.Suspense>}
       {showProspectsFiches && <React.Suspense fallback={null}><ProspectsFiches workspace={workspace} session={session} onClose={() => setShowProspectsFiches(false)} /></React.Suspense>}
+      {showVentesCredit && peutVoirCredits && <React.Suspense fallback={null}><VentesCredit workspace={workspace} onClose={() => setShowVentesCredit(false)} /></React.Suspense>}
       {showIntegrations && <IntegrationsModal workspace={workspace} onClose={() => setShowIntegrations(false)} onSupprimerBoutique={onSupprimerBoutique} />}
       {showStoreBuilder && !accesBloque && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,31,0.6)", zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>

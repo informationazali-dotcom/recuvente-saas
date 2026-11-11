@@ -136,6 +136,33 @@ export async function pousserRappelLoyers({ workspaceId, nbEnRetard, totalEnReta
   }
 }
 
+// ===== Ventes à crédit : rappel récapitulatif « clients à relancer » au marchand =====
+// Appelé par lib/credits.js (cron quotidien), au plus une fois par jour et par boutique.
+export async function pousserRappelCredits({ workspaceId, nbRetard, nbBientot, total, noms }) {
+  try {
+    const nbClients = (nbRetard || 0) + (nbBientot || 0);
+    if (!workspaceId || !nbClients) return { envoyes: 0 };
+    const abonnements = await abonnementsWorkspace(workspaceId);
+    if (abonnements.length === 0) return { envoyes: 0, raison: "personne n'a activé les notifications" };
+    const { data: ws } = await supabaseAdmin.from("workspaces").select("name, currency").eq("id", workspaceId).maybeSingle();
+    const somme = `${Number(total || 0).toLocaleString("fr-FR")} ${libelleDevise(ws?.currency)}`;
+    const parties = [];
+    if (nbRetard) parties.push(`${nbRetard} en retard`);
+    if (nbBientot) parties.push(`${nbBientot} à payer d'ici 3 jours`);
+    const liste = (noms || []).slice(0, 3).join(", ") + ((noms || []).length > 3 ? "…" : "");
+    return await envoyerAuxAbonnements(abonnements, {
+      title: `🔔 ${nbClients} client${nbClients > 1 ? "s" : ""} à relancer${ws?.name ? " — " + ws.name : ""}`,
+      body: `${parties.join(" • ")} — ${somme}. ${liste}`.trim(),
+      url: "/admin/?credits=1",
+      tag: `credits-${workspaceId}`,
+      sound: true,
+      ts: Date.now(),
+    });
+  } catch (e) {
+    return { envoyes: 0, erreur: e.message };
+  }
+}
+
 export async function pousserNouvelleCommande(commandeOuId) {
   try {
     let cmd = commandeOuId && typeof commandeOuId === "object" ? commandeOuId : null;

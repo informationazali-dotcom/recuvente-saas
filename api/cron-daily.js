@@ -757,6 +757,9 @@ export default async function handler(req, res) {
   // try/catch : une erreur ici ne doit jamais empêcher le reste du cron quotidien de s'exécuter.
   let resultatLoyers = null;
   try { resultatLoyers = await (await import("../lib/loyers.js")).genererLoyersEtRelances(); } catch (_) {}
+  // Ventes à crédit : prévient le marchand des clients à relancer (J-3 et retards). Isolé lui aussi.
+  let resultatCredits = null;
+  try { resultatCredits = await (await import("../lib/credits.js")).rappelsVentesCredit(); } catch (e) { console.error("Erreur rappels crédits:", e); }
 
   // LOT G (abonnement personnel du filleul) : détecte les filleuls qui viennent de franchir
   // leur seuil de commandes nettes, puis suspend ceux dont le délai de grâce est écoulé sans
@@ -785,6 +788,7 @@ export default async function handler(req, res) {
     paiementsEnLigne: resultatPaiements,
     paiementsStripe: resultatStripe,
     loyers: resultatLoyers,
+    ventesCredit: resultatCredits,
     abonnementFilleulSeuilDetecte: resultatSeuilAbonnementFilleul,
     abonnementFilleulGraceExpiree: resultatGraceAbonnementFilleul,
   });

@@ -101,3 +101,6 @@ alter table public.workspaces add constraint activity_type_valid check (activity
 alter table public.ventes_credit add column if not exists type_vente text not null default 'credit' check (type_vente in ('comptant','credit'));
 alter table public.paiements_credit drop constraint if exists paiements_credit_type_check;
 alter table public.paiements_credit add constraint paiements_credit_type_check check (type in ('acompte','mensualite','comptant'));
+
+-- Répartition d'un paiement sur les mensualités (permet d'annuler un paiement saisi par erreur).
+alter table public.paiements_credit add column if not exists repartition jsonb;

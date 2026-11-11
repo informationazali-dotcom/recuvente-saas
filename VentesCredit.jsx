@@ -320,10 +320,14 @@ function FeuilleMessage({ titre, texteInitial, tel, onEnvoye, onFermer }) {
   );
 }
 
-function FeuilleEncaissement({ f, workspace, cur, onFermer, onFait }) {
+function FeuilleEncaissement({ f, workspace, cur, onFermer, onFait, cible }) {
+  // « cible » : la mensualité cochée « Payée » (on règle celle-là en priorité).
+  const echCible = cible ? f.ech.find((e) => e.id === cible) : null;
+  const dueCible = echCible ? Number(echCible.montant_du) - Number(echCible.montant_paye) : 0;
   const prochaineDue = f.premiereDue ? Number(f.premiereDue.montant_du) - Number(f.premiereDue.montant_paye) : 0;
   const suggestions = [
-    prochaineDue > 0 && { l: "Une mensualité", v: prochaineDue },
+    echCible && dueCible > 0 && { l: `Mensualité du ${dCourt(echCible.date_echeance)}`, v: dueCible },
+    !echCible && prochaineDue > 0 && { l: "Une mensualité", v: prochaineDue },
     f.montantEnRetard > 0 && f.montantEnRetard !== prochaineDue && { l: "Tout le retard", v: f.montantEnRetard },
     f.reste > 0 && f.reste !== prochaineDue && { l: "Solder tout", v: f.reste },
   ].filter(Boolean);
@@ -339,17 +343,23 @@ function FeuilleEncaissement({ f, workspace, cur, onFermer, onFait }) {
     if (m > f.reste) return setErreur(`Le client ne doit plus que ${nb(f.reste)} ${cur}.`);
     setEnCours(true);
     try {
-      const { error } = await supabase.from("paiements_credit").insert([{ workspace_id: workspace.id, credit_id: f.id, montant: m, mode, date_paiement: date, type: "mensualite" }]);
-      if (error) throw error;
-      // Le paiement couvre d'abord les mensualités les plus anciennes.
+      // La mensualité cochée d'abord (s'il y en a une), puis les plus anciennes.
+      const ordre = echCible ? [echCible, ...f.ech.filter((e) => e.id !== echCible.id)] : f.ech;
+      const repartition = [];
       let aRepartir = m;
-      for (const e of f.ech) {
+      for (const e of ordre) {
         if (aRepartir <= 0) break;
         const du = Number(e.montant_du) - Number(e.montant_paye);
         if (du <= 0) continue;
         const part = Math.min(du, aRepartir);
         aRepartir -= part;
-        const { error: e2 } = await supabase.from("echeances_credit").update({ montant_paye: Number(e.montant_paye) + part }).eq("id", e.id);
+        repartition.push({ echeance_id: e.id, montant: part });
+      }
+      const { error } = await supabase.from("paiements_credit").insert([{ workspace_id: workspace.id, credit_id: f.id, montant: m, mode, date_paiement: date, type: "mensualite", repartition }]);
+      if (error) throw error;
+      for (const r of repartition) {
+        const e = f.ech.find((x) => x.id === r.echeance_id);
+        const { error: e2 } = await supabase.from("echeances_credit").update({ montant_paye: Number(e.montant_paye) + r.montant }).eq("id", e.id);
         if (e2) throw e2;
       }
       if (m >= f.reste) await supabase.from("ventes_credit").update({ statut: "solde", updated_at: new Date().toISOString() }).eq("id", f.id);
@@ -361,7 +371,7 @@ function FeuilleEncaissement({ f, workspace, cur, onFermer, onFait }) {
   }
 
   return (
-    <Feuille titre="Encaisser un paiement" onFermer={onFermer}>
+    <Feuille titre={echCible ? `Mensualité du ${dCourt(echCible.date_echeance)}` : "Encaisser un paiement"} onFermer={onFermer}>
       <div style={{ ...S.carte, padding: 16 }}>
         <label style={S.label}>Montant reçu</label>
         <div style={{ position: "relative" }}>
@@ -838,7 +848,7 @@ function etatEcheance(e, auj) {
 }
 
 // Une page de calendrier en relief : anneaux, bandeau du mois, grand jour, montant.
-function TuileDate3D({ e, client, article, cur, onClick, compact }) {
+function TuileDate3D({ e, client, article, cur, onClick, compact, onPayer }) {
   const auj = aujourdhui();
   const etat = etatEcheance(e, auj);
   const d = versDate(e.date_echeance);
@@ -871,6 +881,11 @@ function TuileDate3D({ e, client, article, cur, onClick, compact }) {
         <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(201,162,74,.6),transparent)", margin: "9px 0 8px" }} />
         <div style={{ fontSize: 15.5, fontWeight: 900, color: T.encre, letterSpacing: "-0.01em" }}>{nb(etat === "payee" ? e.montant_du : du)} <span style={{ fontSize: 10, color: T.grisClair }}>{cur}</span></div>
         <div style={{ display: "inline-block", marginTop: 6, fontSize: 10.5, fontWeight: 900, color: palette.texte, background: etat === "avenir" ? "#EEEBE3" : "rgba(255,255,255,.7)", border: `1px solid ${etat === "avenir" ? "transparent" : palette.texte}`, borderRadius: 999, padding: "3px 9px", animation: etat === "bientot" ? "rvPulse 2s infinite" : "none" }}>{etat === "payee" ? "✓ " : ""}{palette.libelle}</div>
+        {onPayer && etat !== "payee" && (
+          <button onClick={(ev) => { ev.stopPropagation(); onPayer(); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", marginTop: 10, padding: "9px 6px", borderRadius: 12, border: "1.5px solid rgba(23,131,74,.35)", background: "white", color: T.vert, fontWeight: 900, fontSize: 12.5, cursor: "pointer", position: "relative", zIndex: 3 }}>
+            <span style={{ width: 16, height: 16, borderRadius: 5, border: `2px solid ${T.vert}`, display: "inline-block" }} />Payée
+          </button>
+        )}
       </div>
       <div className="rv-reflet" />
     </div>
@@ -938,7 +953,7 @@ async function telechargerAgendaPDF(lignes, workspace, cur) {
   doc.save(`Agenda-encaissements-${auj}.pdf`);
 }
 
-function VueAgenda({ fiches, workspace, cur, onOuvrir }) {
+function VueAgenda({ fiches, workspace, cur, onOuvrir, onPayer }) {
   const auj = aujourdhui();
   const [pdf, setPdf] = useState(false);
   const lignes = useMemo(() => {
@@ -988,7 +1003,7 @@ function VueAgenda({ fiches, workspace, cur, onOuvrir }) {
           <div className="rv-scene">
             <div className="rv-defile">
               {g.items.map((l) => (
-                <TuileDate3D key={l.e.id} e={l.e} client={l.f.client_nom} article={l.f.article} cur={cur} onClick={() => onOuvrir(l.f.id)} />
+                <TuileDate3D key={l.e.id} e={l.e} client={l.f.client_nom} article={l.f.article} cur={cur} onClick={() => onOuvrir(l.f.id)} onPayer={() => onPayer(l.f, l.e.id)} />
               ))}
             </div>
           </div>
@@ -1017,6 +1032,16 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
     await supabase.from("ventes_credit").delete().eq("id", f.id);
     await onChange();
     onRetour();
+  }
+  async function annulerPaiement(p) {
+    if (!window.confirm(`Annuler ce paiement de ${nb(p.montant)} ${cur} du ${dCourt(p.date_paiement)} ? Le reste à payer sera recalculé.`)) return;
+    for (const r of p.repartition || []) {
+      const e = f.ech.find((x) => x.id === r.echeance_id);
+      if (e) await supabase.from("echeances_credit").update({ montant_paye: Math.max(0, Number(e.montant_paye) - Number(r.montant)) }).eq("id", e.id);
+    }
+    await supabase.from("paiements_credit").delete().eq("id", p.id);
+    if (f.statut === "solde") await supabase.from("ventes_credit").update({ statut: "en_cours", updated_at: new Date().toISOString() }).eq("id", f.id);
+    onChange();
   }
   async function changerDate(e, nouvelle) {
     if (!nouvelle || nouvelle === e.date_echeance) return;
@@ -1086,7 +1111,7 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
           </div>
           <div className="rv-scene">
             <div className="rv-defile">
-              {f.ech.map((e) => <TuileDate3D key={e.id} e={e} cur={cur} compact />)}
+              {f.ech.map((e) => <TuileDate3D key={e.id} e={e} cur={cur} compact onPayer={actif ? () => ouvrirEncaissement(f, e.id) : null} />)}
             </div>
           </div>
         </div>
@@ -1121,7 +1146,12 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
                       {!payee && actif && <button onClick={() => setEditionDate(e.id)} title="Modifier la date" style={{ border: "none", background: T.fond, color: T.gris, borderRadius: 8, padding: "2px 8px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Modifier</button>}
                     </div>
                   )}
-                  <div style={{ fontSize: 14.5, fontWeight: 900, color: payee ? T.gris : T.encre, whiteSpace: "nowrap" }}>{nb(e.montant_du)}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 900, color: payee ? T.gris : T.encre, whiteSpace: "nowrap" }}>{nb(e.montant_du)}</div>
+                    {actif && !payee && (
+                      <button onClick={() => ouvrirEncaissement(f, e.id)} title="Marquer cette mensualité payée" aria-label="Marquer payée" style={{ width: 28, height: 28, borderRadius: 9, border: `2px solid ${retard ? T.rouge : T.vert}`, background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: T.vert, fontSize: 15, fontWeight: 900, padding: 0, flexShrink: 0 }} />
+                    )}
+                  </div>
                 </div>
                 <div style={{ fontSize: 12.5, marginTop: 2, fontWeight: 700, color: payee ? T.vert : retard ? T.rouge : partiel ? T.ambre : estProchaine ? "#9A7420" : T.grisClair }}>
                   {payee ? "Payée" : retard ? `En retard · reste ${nb(du)}` : partiel ? `Partielle · reste ${nb(du)}` : estProchaine ? (f.joursAvant === 0 ? "Aujourd'hui" : f.joursAvant === 1 ? "Demain" : `Dans ${f.joursAvant} jours`) : "À venir"}
@@ -1142,7 +1172,12 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
               <div style={{ fontSize: 14, fontWeight: 800, color: T.encre }}>{p.type === "acompte" ? "Acompte" : p.type === "comptant" ? "Paiement comptant" : "Mensualité"}</div>
               <div style={{ fontSize: 12.5, color: T.gris }}>{dCourt(p.date_paiement)}{p.mode ? ` · ${p.mode}` : ""}</div>
             </div>
-            <div style={{ fontWeight: 900, color: T.vert, fontSize: 14.5 }}>+{nb(p.montant)}</div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontWeight: 900, color: T.vert, fontSize: 14.5 }}>+{nb(p.montant)}</div>
+              {p.type === "mensualite" && Array.isArray(p.repartition) && (
+                <button onClick={() => annulerPaiement(p)} style={{ background: "none", border: "none", padding: 0, marginTop: 2, color: T.grisClair, fontSize: 11.5, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Annuler</button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -1272,11 +1307,11 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
           {!charge && <div style={{ textAlign: "center", color: T.grisClair, padding: 50 }}>Chargement…</div>}
           {charge && erreur && <div style={{ ...S.carte, color: T.rouge }}>Impossible de charger les crédits : {erreur}</div>}
           {charge && ouvert && (
-            <VueDetail f={ouvert} workspace={workspace} cur={cur} onRetour={() => setOuvertId(null)} onChange={recharger} ouvrirMessage={setMessage} ouvrirEncaissement={setEncaisser} />
+            <VueDetail f={ouvert} workspace={workspace} cur={cur} onRetour={() => setOuvertId(null)} onChange={recharger} ouvrirMessage={setMessage} ouvrirEncaissement={(f, cible) => setEncaisser({ f, cible: cible || null })} />
           )}
           {charge && !ouvert && onglet === "ventes" && <VueRegistre fiches={toutes} cur={cur} onOuvrir={setOuvertId} onNouveau={() => setOnglet("nouveau")} />}
           {charge && !ouvert && onglet === "relancer" && <VueARelancer fiches={fiches} cur={cur} onOuvrir={setOuvertId} onRelancer={relancer} onNouveau={() => setOnglet("nouveau")} />}
-          {charge && !ouvert && onglet === "agenda" && <VueAgenda fiches={fiches} workspace={workspace} cur={cur} onOuvrir={setOuvertId} />}
+          {charge && !ouvert && onglet === "agenda" && <VueAgenda fiches={fiches} workspace={workspace} cur={cur} onOuvrir={setOuvertId} onPayer={(f, id) => setEncaisser({ f, cible: id })} />}
           {charge && !ouvert && onglet === "tous" && <VueTous fiches={fiches} cur={cur} onOuvrir={setOuvertId} />}
           {charge && !ouvert && onglet === "nouveau" && (
             <VueNouvelle workspace={workspace} cur={cur} avecComptant={espaceDedie} onCree={async (id) => { await recharger(); setOnglet(espaceDedie ? "ventes" : "tous"); setOuvertId(id); }} />
@@ -1285,9 +1320,9 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
       </div>
 
       {encaisser && (
-        <FeuilleEncaissement f={encaisser} workspace={workspace} cur={cur} onFermer={() => setEncaisser(null)}
+        <FeuilleEncaissement f={encaisser.f} cible={encaisser.cible} workspace={workspace} cur={cur} onFermer={() => setEncaisser(null)}
           onFait={async (texte) => {
-            const tel = encaisser.client_tel;
+            const tel = encaisser.f.client_tel;
             setEncaisser(null);
             await recharger();
             if (tel) setMessage({ titre: "Confirmer le paiement au client", texte, tel });

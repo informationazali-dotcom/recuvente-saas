@@ -1212,6 +1212,7 @@ async function gererGenererBoutiqueCompleteIA(req, res, user) {
     cod_ecommerce: "vente en ligne (paiement à la livraison)", retail: "commerce physique", restaurant: "restaurant",
     location_immobiliere: "location immobilière", location_vehicule: "location de véhicules/matériel",
     network_marketing: "marketing de réseau (boutique + vendeurs affiliés)", personnalise: "activité de services",
+    vente_credit: "vente au comptant et à crédit (acompte + mensualités)",
   };
   const typeTexte = typesLisibles[type_activite] || "vente en ligne";
 

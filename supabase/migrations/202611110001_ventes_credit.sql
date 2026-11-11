@@ -94,3 +94,10 @@ create trigger echeances_credit_coherence before insert or update on public.eche
 drop trigger if exists paiements_credit_coherence on public.paiements_credit;
 create trigger paiements_credit_coherence before insert or update on public.paiements_credit
   for each row execute function public.verifier_coherence_credit();
+
+-- Activité dédiée « Vente au comptant & à crédit » + ventes au comptant dans le même registre.
+alter table public.workspaces drop constraint activity_type_valid;
+alter table public.workspaces add constraint activity_type_valid check (activity_type = any (array['cod_ecommerce','retail','location_immobiliere','restaurant','location_vehicule','personnalise','network_marketing','vente_credit']));
+alter table public.ventes_credit add column if not exists type_vente text not null default 'credit' check (type_vente in ('comptant','credit'));
+alter table public.paiements_credit drop constraint if exists paiements_credit_type_check;
+alter table public.paiements_credit add constraint paiements_credit_type_check check (type in ('acompte','mensualite','comptant'));

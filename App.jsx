@@ -2651,6 +2651,7 @@ function CreateWorkspaceScreen({ onCreate, loading, onAnnuler }) {
     { key: "location_immobiliere", icon: "🏠", titre: "Location immobilière", desc: "Suivi des loyers, locataires, relances de paiement" },
     { key: "restaurant", icon: "🍽️", titre: "Restaurant / Maquis / Fast-food", desc: "Menu, tables, suivi cuisine en temps réel" },
     { key: "location_vehicule", icon: "🚗", titre: "Location de véhicules / matériel", desc: "Véhicules, motos, matériel — dates, caution, disponibilité" },
+    { key: "vente_credit", icon: "🤝", titre: "Vente au comptant & à crédit", desc: "Ventes enregistrées au bureau, acompte et mensualités, rappels automatiques des clients" },
     { key: "network_marketing", icon: "🟣", titre: "Marketing de réseau", desc: "Une boutique centrale, des filleuls avec leur lien, attribution et commissions automatiques" },
     { key: "personnalise", icon: "🗂️", titre: "Autre activité (conseil, agence, clinique, association...)", desc: "Dossiers/commandes, clients, services, comptabilité, équipe — sans écrans spécifiques à un secteur" },
   ];
@@ -2976,7 +2977,7 @@ function ResumeIntelligent({ todoAujourdhui, clientsARelancer, produitStockCriti
 
 function SelecteurEspace({ workspace, workspacesDisponibles, onChangerEspace, onDemanderAjoutEspace }) {
   const [ouvert, setOuvert] = useState(false);
-  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", network_marketing: "🟣" };
+  const icones = { cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", network_marketing: "🟣", vente_credit: "🤝" };
 
   return (
     <div style={{ position: "relative", marginBottom: 18, display: "flex", gap: 6 }}>
@@ -6055,6 +6056,23 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     return () => { annule = true; };
   }, [workspace?.id, peutVoirCredits, showVentesCredit]);
 
+  // Activité « Vente au comptant & à crédit » : un espace à part, sans les écrans e-commerce.
+  // L'accueil est directement le registre des ventes du bureau et le suivi des crédits.
+  if (workspace.activity_type === "vente_credit" && peutVoirCredits) {
+    return (
+      <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "#0E1714" }} />}>
+        <VentesCredit
+          workspace={workspace}
+          espaceDedie
+          entete={workspace.role === "owner" ? (
+            <SelecteurEspace workspace={workspace} workspacesDisponibles={workspacesDisponibles} onChangerEspace={onChangerEspace} onDemanderAjoutEspace={onDemanderAjoutEspace} />
+          ) : null}
+          onDeconnexion={() => supabase.auth.signOut()}
+        />
+      </React.Suspense>
+    );
+  }
+
   if (workspace.role === "livreur" && monProfilLivreur) {
     return (
       <LivreurPortalSaas
@@ -6717,7 +6735,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
                     onClick={() => onChangerEspace(w.id)}
                     style={{ flexShrink: 0, background: w.id === workspace.id ? "white" : "rgba(255,255,255,0.14)", color: w.id === workspace.id ? "#16231F" : "white", border: "none", borderRadius: 999, padding: "6px 13px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
                   >
-                    {{ cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠" }[w.activity_type] || "🏢"} {w.name}
+                    {{ cod_ecommerce: "📦", retail: "🏪", location_immobiliere: "🏠", vente_credit: "🤝" }[w.activity_type] || "🏢"} {w.name}
                   </button>
                 ))}
               </div>

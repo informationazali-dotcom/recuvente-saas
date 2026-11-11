@@ -189,6 +189,9 @@ function messageEcheancier(f, cur) {
   const lignes = f.ech.map((e, i) => `${i + 1}. ${dCourt(e.date_echeance)} : ${nb(e.montant_du)} ${cur}`).join("\n");
   return `Bonjour ${nomClient(f)}, voici le récapitulatif de votre achat.\n\nArticle : ${f.article}\nPrix total : ${nb(f.prix_total)} ${cur}\nAcompte versé : ${nb(f.acompte)} ${cur}\nReste à payer : ${nb(f.reste)} ${cur}\n\nVos mensualités :\n${lignes}\n\nMerci pour votre confiance.`;
 }
+function messageRecuComptant(f, cur) {
+  return `Bonjour ${nomClient(f)}, merci pour votre achat. Nous confirmons avoir bien reçu votre paiement de ${nb(f.prix_total)} ${cur} pour votre ${f.article}, réglé le ${dLong(f.date_vente)}. Merci pour votre confiance.`;
+}
 function ouvrirWhatsApp(tel, texte) {
   window.open(`https://wa.me/${cleanPhoneForWhatsApp(tel)}?text=${encodeURIComponent(texte)}`, "_blank", "noopener,noreferrer");
 }
@@ -206,7 +209,8 @@ async function telechargerEcheancierPDF(f, workspace, cur) {
   doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
   doc.text(String(workspace?.name || "").toUpperCase(), marge, 19);
   doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...or);
-  doc.text("ÉCHÉANCIER DE PAIEMENT", marge, 27);
+  const comptant = f.type_vente === "comptant";
+  doc.text(comptant ? "REÇU DE VENTE" : "ÉCHÉANCIER DE PAIEMENT", marge, 27);
   doc.setTextColor(220, 220, 220); doc.setFontSize(9);
   doc.text(`Émis le ${dCourt(aujourdhui())}`, marge, 34);
   doc.text(`Réf. ${String(f.id).slice(0, 8).toUpperCase()}`, L - marge, 34, { align: "right" });
@@ -219,10 +223,12 @@ async function telechargerEcheancierPDF(f, workspace, cur) {
   doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...gris);
   if (f.client_tel) doc.text(String(f.client_tel), marge, y + 13);
   if (f.client_adresse) doc.text(String(f.client_adresse), marge, y + 18.5);
-  doc.text(`Date de l'acompte : ${dCourt(f.date_vente)}`, 110, y + 18.5);
+  doc.text(`${comptant ? "Date de la vente" : "Date de l'acompte"} : ${dCourt(f.date_vente)}`, 110, y + 18.5);
 
   y = 88;
-  const blocs = [["Prix total", f.prix_total], ["Acompte versé", f.acompte], ["Déjà payé", f.paye], ["Reste à payer", f.reste]];
+  const blocs = comptant
+    ? [["Prix total", f.prix_total], ["Montant payé", f.paye], ["Paiement", f.histo?.[0]?.mode || "Comptant"], ["Reste à payer", 0]]
+    : [["Prix total", f.prix_total], ["Acompte versé", f.acompte], ["Déjà payé", f.paye], ["Reste à payer", f.reste]];
   const lb = (L - 2 * marge - 9) / 4;
   blocs.forEach(([t, v], i) => {
     const x = marge + i * (lb + 3);
@@ -230,11 +236,18 @@ async function telechargerEcheancierPDF(f, workspace, cur) {
     doc.roundedRect(x, y, lb, 22, 2.5, 2.5, "F");
     doc.setFontSize(8); doc.setTextColor(...gris); doc.text(t.toUpperCase(), x + 4, y + 7);
     doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...encre);
-    doc.text(`${nb(v)} ${cur}`, x + 4, y + 16);
+    doc.text(typeof v === "number" ? `${nb(v)} ${cur}` : String(v), x + 4, y + 16);
     doc.setFont("helvetica", "normal");
   });
 
   y = 124;
+  if (comptant) {
+    doc.setFillColor(227, 244, 234); doc.roundedRect(marge, y, L - 2 * marge, 16, 2.5, 2.5, "F");
+    doc.setTextColor(23, 131, 74); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text(`PAYÉ INTÉGRALEMENT — ${nb(f.prix_total)} ${cur}`, L / 2, y + 10, { align: "center" });
+    y += 16;
+  }
+  if (!comptant) {
   doc.setFillColor(...encre); doc.rect(marge, y, L - 2 * marge, 9, "F");
   doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont("helvetica", "bold");
   doc.text("N°", marge + 4, y + 6); doc.text("DATE", marge + 18, y + 6); doc.text("MONTANT", 120, y + 6, { align: "right" });
@@ -259,6 +272,7 @@ async function telechargerEcheancierPDF(f, workspace, cur) {
   doc.setDrawColor(...or); doc.setLineWidth(0.6); doc.line(marge, y + 2, L - marge, y + 2);
   doc.setFont("helvetica", "bold"); doc.setTextColor(...encre); doc.setFontSize(10.5);
   doc.text(`Total des mensualités : ${nb(f.ech.reduce((s, e) => s + Number(e.montant_du), 0))} ${cur}`, L - marge, y + 10, { align: "right" });
+  }
 
   y += 30;
   if (y > 255) { doc.addPage(); y = 30; }
@@ -267,7 +281,7 @@ async function telechargerEcheancierPDF(f, workspace, cur) {
   doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
   doc.line(marge, y + 18, marge + 60, y + 18); doc.line(L - marge - 60, y + 18, L - marge, y + 18);
   doc.setFontSize(7.5); doc.text("Document généré avec RecuVente", L / 2, 290, { align: "center" });
-  doc.save(`Echeancier-${String(f.client_nom || "client").replace(/[^\w-]+/g, "_")}.pdf`);
+  doc.save(`${comptant ? "Recu" : "Echeancier"}-${String(f.client_nom || "client").replace(/[^\w-]+/g, "_")}.pdf`);
 }
 
 // ---------------------------------------------------------------------------
@@ -383,6 +397,7 @@ function FeuilleEncaissement({ f, workspace, cur, onFermer, onFait }) {
 //  Liste
 // ---------------------------------------------------------------------------
 function PastilleSituation({ f }) {
+  if (f.type_vente === "comptant") return <Pastille couleur={T.vert} fond={T.vertClair}>✓ Payé comptant</Pastille>;
   if (f.situation === "retard") return <Pastille couleur={T.rouge} fond={T.rougeClair}>● En retard</Pastille>;
   if (f.situation === "bientot") return <Pastille couleur={T.ambre} fond={T.ambreClair}>● {f.joursAvant === 0 ? "Aujourd'hui" : f.joursAvant === 1 ? "Demain" : `Dans ${f.joursAvant} jours`}</Pastille>;
   if (f.situation === "solde") return <Pastille couleur={T.vert} fond={T.vertClair}>✓ Soldé</Pastille>;
@@ -498,6 +513,92 @@ function VueTous({ fiches, cur, onOuvrir }) {
 }
 
 // ---------------------------------------------------------------------------
+//  Registre des ventes (accueil de l'espace dédié)
+// ---------------------------------------------------------------------------
+function debutPeriode(cle) {
+  const d = new Date();
+  if (cle === "jour") return isoLocal(d);
+  if (cle === "semaine") { const j = (d.getDay() + 6) % 7; d.setDate(d.getDate() - j); return isoLocal(d); }
+  if (cle === "mois") return isoLocal(new Date(d.getFullYear(), d.getMonth(), 1));
+  return "0000-01-01";
+}
+
+function VueRegistre({ fiches, cur, onOuvrir, onNouveau }) {
+  const [periode, setPeriode] = useState("mois");
+  const [recherche, setRecherche] = useState("");
+  const debut = debutPeriode(periode);
+  const ventes = fiches
+    .filter((f) => f.situation !== "annule" && f.date_vente >= debut)
+    .filter((f) => { const q = recherche.trim().toLowerCase(); return !q || [f.client_nom, f.client_tel, f.article].some((x) => String(x || "").toLowerCase().includes(q)); })
+    .sort((a, b) => (b.date_vente + b.created_at).localeCompare(a.date_vente + a.created_at));
+  const encaisse = fiches.filter((f) => f.situation !== "annule").reduce((s, f) => s + f.histo.filter((p) => p.date_paiement >= debut).reduce((t, p) => t + Number(p.montant), 0), 0);
+  const chiffre = ventes.reduce((s, f) => s + Number(f.prix_total), 0);
+  const nbComptant = ventes.filter((f) => f.type_vente === "comptant").length;
+  const nbCredit = ventes.length - nbComptant;
+
+  const groupes = [];
+  for (const f of ventes) {
+    const g = groupes[groupes.length - 1];
+    if (g && g.date === f.date_vente) g.items.push(f); else groupes.push({ date: f.date_vente, items: [f] });
+  }
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto" }}>
+        {[["jour", "Aujourd'hui"], ["semaine", "Cette semaine"], ["mois", "Ce mois"], ["tout", "Tout"]].map(([k, l]) => (
+          <button key={k} onClick={() => setPeriode(k)} style={S.puce(periode === k)}>{l}</button>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div style={{ ...S.carte, marginBottom: 0, padding: 14 }}>
+          <div style={S.label}>Ventes</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: T.encre, letterSpacing: "-0.01em" }}>{nb(chiffre)}</div>
+          <div style={{ fontSize: 12, color: T.gris, marginTop: 2 }}>{ventes.length} vente{ventes.length > 1 ? "s" : ""} · {nbComptant} comptant · {nbCredit} crédit</div>
+        </div>
+        <div style={{ ...S.carte, marginBottom: 0, padding: 14 }}>
+          <div style={S.label}>Encaissé</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: T.vert, letterSpacing: "-0.01em" }}>{nb(encaisse)}</div>
+          <div style={{ fontSize: 12, color: T.gris, marginTop: 2 }}>{cur} reçus sur la période</div>
+        </div>
+      </div>
+      <input style={{ ...S.champ, background: "white" }} placeholder="Rechercher un client, un numéro, un article…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
+
+      {ventes.length === 0 && (
+        <Vide icone="🧾" fond={T.orClair} titre="Aucune vente sur cette période" texte="Enregistre chaque vente faite au bureau, au comptant ou à crédit. Tout apparaît ici, jour par jour.">
+          <button style={{ ...S.boutonOr, marginTop: 18 }} onClick={onNouveau}>+ Enregistrer une vente</button>
+        </Vide>
+      )}
+
+      {groupes.map((g) => (
+        <div key={g.date} style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "10px 4px 8px" }}>
+            <div style={{ fontWeight: 900, fontSize: 13, color: T.encre, textTransform: "capitalize" }}>{g.date === aujourdhui() ? "Aujourd'hui" : dLong(g.date)}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: T.gris }}>{nb(g.items.reduce((s, f) => s + Number(f.prix_total), 0))} {cur}</div>
+          </div>
+          <div style={{ ...S.carte, padding: "4px 16px" }}>
+            {g.items.map((f, i) => (
+              <div key={f.id} onClick={() => onOuvrir(f.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderTop: i ? `1px solid ${T.ligne}` : "none", cursor: "pointer" }}>
+                <Avatar nom={f.client_nom} situation={f.type_vente === "comptant" ? "solde" : f.situation} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 900, fontSize: 14.5, color: T.encre, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.client_nom}</div>
+                  <div style={{ fontSize: 12.5, color: T.gris, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.article}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 900, fontSize: 14.5, color: T.encre }}>{nb(f.prix_total)}</div>
+                  {f.type_vente === "comptant"
+                    ? <div style={{ fontSize: 11.5, fontWeight: 800, color: T.vert }}>Comptant</div>
+                    : <div style={{ fontSize: 11.5, fontWeight: 800, color: f.situation === "retard" ? T.rouge : f.reste > 0 ? "#9A7420" : T.vert }}>{f.reste > 0 ? `Crédit · reste ${nb(f.reste)}` : "Crédit soldé"}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 //  Nouvelle vente
 // ---------------------------------------------------------------------------
 function ChampMontant({ valeur, onChange, cur, placeholder }) {
@@ -510,7 +611,8 @@ function ChampMontant({ valeur, onChange, cur, placeholder }) {
   );
 }
 
-function VueNouvelle({ workspace, cur, onCree }) {
+function VueNouvelle({ workspace, cur, onCree, avecComptant }) {
+  const [typeVente, setTypeVente] = useState(avecComptant ? "comptant" : "credit");
   const [client, setClient] = useState({ nom: "", tel: "", adresse: "" });
   const [article, setArticle] = useState("");
   const [prix, setPrix] = useState(0);
@@ -526,7 +628,8 @@ function VueNouvelle({ workspace, cur, onCree }) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState("");
 
-  const reste = Math.max(0, prix - acompte);
+  const comptant = typeVente === "comptant";
+  const reste = comptant ? 0 : Math.max(0, prix - acompte);
   const pctAcompte = prix > 0 ? Math.round((acompte / prix) * 100) : 0;
 
   // Par défaut, le client paie chaque mois au même jour que son acompte.
@@ -546,14 +649,14 @@ function VueNouvelle({ workspace, cur, onCree }) {
     if (!client.nom.trim()) return setErreur("Indique le nom du client.");
     if (!article.trim()) return setErreur("Indique l'article vendu.");
     if (prix <= 0) return setErreur("Indique le prix total.");
-    if (acompte > prix) return setErreur("L'acompte dépasse le prix total.");
+    if (!comptant && acompte > prix) return setErreur("L'acompte dépasse le prix total.");
     if (reste > 0 && plan.length === 0) return setErreur("Indique le montant à payer chaque mois.");
     setEnCours(true);
     try {
       const { data: cr, error } = await supabase.from("ventes_credit").insert([{
         workspace_id: workspace.id, client_nom: client.nom.trim(), client_tel: client.tel.trim() || null,
-        client_adresse: client.adresse.trim() || null, article: article.trim(), prix_total: prix, acompte,
-        date_vente: dateAcompte, notes: notes.trim() || null, statut: reste > 0 ? "en_cours" : "solde",
+        client_adresse: client.adresse.trim() || null, article: article.trim(), prix_total: prix, acompte: comptant ? prix : acompte,
+        date_vente: dateAcompte, notes: notes.trim() || null, statut: reste > 0 ? "en_cours" : "solde", type_vente: typeVente,
       }]).select().single();
       if (error) throw error;
       if (plan.length > 0) {
@@ -562,8 +665,9 @@ function VueNouvelle({ workspace, cur, onCree }) {
         })));
         if (e2) throw e2;
       }
-      if (acompte > 0) {
-        await supabase.from("paiements_credit").insert([{ workspace_id: workspace.id, credit_id: cr.id, montant: acompte, mode: modeAcompte, date_paiement: dateAcompte, type: "acompte" }]);
+      const verse = comptant ? prix : acompte;
+      if (verse > 0) {
+        await supabase.from("paiements_credit").insert([{ workspace_id: workspace.id, credit_id: cr.id, montant: verse, mode: modeAcompte, date_paiement: dateAcompte, type: comptant ? "comptant" : "acompte" }]);
       }
       onCree(cr.id);
     } catch (e) {
@@ -574,6 +678,14 @@ function VueNouvelle({ workspace, cur, onCree }) {
 
   return (
     <div style={{ paddingBottom: 110 }}>
+      {avecComptant && <div style={{ display: "flex", background: "white", border: `1px solid ${T.ligne}`, borderRadius: 18, padding: 5, marginBottom: 14, boxShadow: OMBRE }}>
+        {[["comptant", "Paiement comptant", "Le client paie tout"], ["credit", "Vente à crédit", "Acompte + mensualités"]].map(([k, l, d]) => (
+          <button key={k} onClick={() => setTypeVente(k)} style={{ flex: 1, padding: "12px 8px", borderRadius: 14, border: "none", cursor: "pointer", background: typeVente === k ? `linear-gradient(135deg, ${T.encre2}, ${T.encre})` : "transparent", color: typeVente === k ? "white" : T.gris, textAlign: "center" }}>
+            <div style={{ fontWeight: 900, fontSize: 14.5, color: typeVente === k ? (k === "credit" ? T.or : "white") : T.encre }}>{l}</div>
+            <div style={{ fontSize: 11.5, marginTop: 2, opacity: 0.75 }}>{d}</div>
+          </button>
+        ))}
+      </div>}
       <div style={S.carte}>
         <div style={S.titreCarte}><span style={S.numero}>1</span>Le client</div>
         <label style={S.label}>Nom complet</label>
@@ -592,7 +704,19 @@ function VueNouvelle({ workspace, cur, onCree }) {
         <ChampMontant valeur={prix} onChange={setPrix} cur={cur} placeholder="7 500 000" />
       </div>
 
-      <div style={S.carte}>
+      {comptant && (
+        <div style={S.carte}>
+          <div style={S.titreCarte}><span style={S.numero}>3</span>Le paiement</div>
+          <label style={S.label}>Payé par</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+            {MODES.map((x) => <button key={x} onClick={() => setModeAcompte(x)} style={S.puce(modeAcompte === x)}>{x}</button>)}
+          </div>
+          <label style={S.label}>Date de la vente</label>
+          <input type="date" style={{ ...S.champ, marginBottom: 0 }} value={dateAcompte} onChange={(e) => setDateAcompte(e.target.value)} />
+        </div>
+      )}
+
+      {!comptant && <div style={S.carte}>
         <div style={S.titreCarte}><span style={S.numero}>3</span>L'acompte versé</div>
         <label style={S.label}>Montant de l'acompte</label>
         <ChampMontant valeur={acompte} onChange={setAcompte} cur={cur} placeholder="5 500 000" />
@@ -619,7 +743,7 @@ function VueNouvelle({ workspace, cur, onCree }) {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {reste > 0 && (
         <div style={S.carte}>
@@ -677,9 +801,9 @@ function VueNouvelle({ workspace, cur, onCree }) {
           {erreur && <div style={{ color: T.rouge, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{erreur}</div>}
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: T.gris, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Reste à payer</div>
+              <div style={{ fontSize: 11, color: T.gris, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{comptant ? "Montant encaissé" : "Reste à payer"}</div>
               <div style={{ fontSize: 17, fontWeight: 900, color: T.encre, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {nb(reste)} {cur}{plan.length > 0 && <span style={{ fontSize: 12.5, color: T.gris, fontWeight: 700 }}> · {plan.length} mois</span>}
+                {nb(comptant ? prix : reste)} {cur}{plan.length > 0 && <span style={{ fontSize: 12.5, color: T.gris, fontWeight: 700 }}> · {plan.length} mois</span>}
               </div>
             </div>
             <button style={{ ...S.boutonOr, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={enregistrer}>{enCours ? "…" : "Enregistrer"}</button>
@@ -718,8 +842,10 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
 
   const actions = [
     actif && f.premiereDue && { i: "💬", l: "Rappel", fn: () => ouvrirMessage({ titre: "Rappel de paiement", texte: messageRappel(f, cur), tel: f.client_tel, echeanceId: f.premiereDue.id }) },
-    { i: "📅", l: "Échéancier", fn: () => ouvrirMessage({ titre: "Envoyer l'échéancier", texte: messageEcheancier(f, cur), tel: f.client_tel }) },
-    { i: "📄", l: pdfEnCours ? "…" : "PDF", fn: async () => { setPdfEnCours(true); try { await telechargerEcheancierPDF(f, workspace, cur); } finally { setPdfEnCours(false); } } },
+    f.type_vente === "comptant"
+      ? { i: "💬", l: "Reçu WhatsApp", fn: () => ouvrirMessage({ titre: "Envoyer le reçu", texte: messageRecuComptant(f, cur), tel: f.client_tel }) }
+      : { i: "📅", l: "Échéancier", fn: () => ouvrirMessage({ titre: "Envoyer l'échéancier", texte: messageEcheancier(f, cur), tel: f.client_tel }) },
+    { i: "📄", l: pdfEnCours ? "…" : f.type_vente === "comptant" ? "Reçu PDF" : "PDF", fn: async () => { setPdfEnCours(true); try { await telechargerEcheancierPDF(f, workspace, cur); } finally { setPdfEnCours(false); } } },
   ].filter(Boolean);
 
   return (
@@ -741,9 +867,9 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
           </Anneau>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, color: T.or, fontWeight: 800 }}>{f.article}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 10, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>Reste à payer</div>
-            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.02em" }}>{nb(f.reste)} <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{cur}</span></div>
-            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>sur {nb(f.prix_total)} · acompte {nb(f.acompte)}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 10, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>{f.type_vente === "comptant" ? "Montant payé" : "Reste à payer"}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.02em" }}>{nb(f.type_vente === "comptant" ? f.prix_total : f.reste)} <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{cur}</span></div>
+            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{f.type_vente === "comptant" ? `Vente au comptant du ${dCourt(f.date_vente)}` : `sur ${nb(f.prix_total)} · acompte ${nb(f.acompte)}`}</div>
           </div>
         </div>
         {f.situation === "retard" && (
@@ -768,7 +894,7 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
         ))}
       </div>
 
-      <div style={S.carte}>
+      {f.type_vente !== "comptant" && <div style={S.carte}>
         <div style={{ ...S.titreCarte, justifyContent: "space-between" }}>
           <span>Échéancier</span>
           <span style={{ fontSize: 12, color: T.gris, fontWeight: 700 }}>{f.ech.filter((e) => Number(e.montant_paye) >= Number(e.montant_du)).length} / {f.ech.length} payées</span>
@@ -806,7 +932,7 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
             </div>
           );
         })}
-      </div>
+      </div>}
 
       <div style={S.carte}>
         <div style={S.titreCarte}>Paiements reçus</div>
@@ -815,7 +941,7 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: i ? `1px solid ${T.ligne}` : "none" }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: p.type === "acompte" ? T.orClair : T.vertClair, color: p.type === "acompte" ? "#8A6A1E" : T.vert, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 900 }}>{p.type === "acompte" ? "★" : "↓"}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: T.encre }}>{p.type === "acompte" ? "Acompte" : "Mensualité"}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: T.encre }}>{p.type === "acompte" ? "Acompte" : p.type === "comptant" ? "Paiement comptant" : "Mensualité"}</div>
               <div style={{ fontSize: 12.5, color: T.gris }}>{dCourt(p.date_paiement)}{p.mode ? ` · ${p.mode}` : ""}</div>
             </div>
             <div style={{ fontWeight: 900, color: T.vert, fontSize: 14.5 }}>+{nb(p.montant)}</div>
@@ -838,14 +964,16 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
 // ---------------------------------------------------------------------------
 //  Panneau principal
 // ---------------------------------------------------------------------------
-export default function VentesCredit({ workspace, onClose }) {
-  const { fiches, charge, erreur, recharger } = useCredits(workspace);
-  const [onglet, setOnglet] = useState("relancer");
+export default function VentesCredit({ workspace, onClose, espaceDedie = false, entete = null, onDeconnexion }) {
+  const { fiches: toutes, charge, erreur, recharger } = useCredits(workspace);
+  // Les ventes au comptant vont dans le registre ; les écrans « crédits » ne montrent que les crédits.
+  const fiches = useMemo(() => toutes.filter((f) => f.type_vente !== "comptant"), [toutes]);
+  const [onglet, setOnglet] = useState(espaceDedie ? "ventes" : "relancer");
   const [ouvertId, setOuvertId] = useState(null);
   const [message, setMessage] = useState(null);
   const [encaisser, setEncaisser] = useState(null);
   const cur = devise(workspace?.currency);
-  const ouvert = fiches.find((f) => f.id === ouvertId) || null;
+  const ouvert = toutes.find((f) => f.id === ouvertId) || null;
 
   const stats = useMemo(() => {
     const maintenant = new Date();
@@ -874,9 +1002,10 @@ export default function VentesCredit({ workspace, onClose }) {
   }
 
   const ONGLETS = [
+    ...(espaceDedie ? [{ cle: "ventes", label: "Ventes" }] : []),
     { cle: "relancer", label: "À relancer", n: stats.aRelancer },
-    { cle: "tous", label: "Tous", n: stats.actifs.length },
-    { cle: "nouveau", label: "+ Nouvelle vente" },
+    { cle: "tous", label: espaceDedie ? "Crédits" : "Tous", n: stats.actifs.length },
+    { cle: "nouveau", label: espaceDedie ? "+ Vente" : "+ Nouvelle vente" },
   ];
   const tuile = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 12 };
   const petitTitre = { fontSize: 10.5, color: "rgba(255,255,255,0.55)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" };
@@ -887,15 +1016,22 @@ export default function VentesCredit({ workspace, onClose }) {
       <div className="rv-cr">
         <div style={{ background: `radial-gradient(130% 120% at 100% 0%, #2B3F36 0%, ${T.encre} 55%)`, color: "white", padding: "16px 16px 0" }}>
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
+            {espaceDedie && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 6 }}>
+                <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: "0.02em", padding: "8px 0", whiteSpace: "nowrap" }}>RECU<span style={{ color: T.or }}>VENTE</span></div>
+                <div style={{ flex: 1, minWidth: 0 }}>{entete}</div>
+                {onDeconnexion && <button onClick={onDeconnexion} title="Déconnexion" aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)", height: 36, padding: "0 12px", borderRadius: 10, fontSize: 13, cursor: "pointer", flexShrink: 0 }}>⏻</button>}
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: "0.12em", color: T.or, fontWeight: 800, textTransform: "uppercase" }}>{workspace?.name}</div>
-                <div style={{ fontWeight: 900, fontSize: 21, letterSpacing: "-0.01em", marginTop: 2 }}>Ventes à crédit</div>
+                <div style={{ fontWeight: 900, fontSize: 21, letterSpacing: "-0.01em", marginTop: 2 }}>{espaceDedie ? "Ventes & crédits" : "Ventes à crédit"}</div>
               </div>
-              <button onClick={onClose} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.12)", color: "white", width: 38, height: 38, borderRadius: 12, fontSize: 20, cursor: "pointer" }}>×</button>
+              {!espaceDedie && <button onClick={onClose} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.12)", color: "white", width: 38, height: 38, borderRadius: 12, fontSize: 20, cursor: "pointer" }}>×</button>}
             </div>
 
-            {charge && !ouvert && onglet !== "nouveau" && fiches.length > 0 && (
+            {charge && !ouvert && onglet !== "nouveau" && onglet !== "ventes" && fiches.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1fr", gap: 10, marginTop: 16 }}>
                 <div style={{ ...tuile, padding: 14, gridRow: "span 2" }}>
                   <div style={petitTitre}>Reste à encaisser</div>
@@ -939,10 +1075,11 @@ export default function VentesCredit({ workspace, onClose }) {
           {charge && ouvert && (
             <VueDetail f={ouvert} workspace={workspace} cur={cur} onRetour={() => setOuvertId(null)} onChange={recharger} ouvrirMessage={setMessage} ouvrirEncaissement={setEncaisser} />
           )}
+          {charge && !ouvert && onglet === "ventes" && <VueRegistre fiches={toutes} cur={cur} onOuvrir={setOuvertId} onNouveau={() => setOnglet("nouveau")} />}
           {charge && !ouvert && onglet === "relancer" && <VueARelancer fiches={fiches} cur={cur} onOuvrir={setOuvertId} onRelancer={relancer} onNouveau={() => setOnglet("nouveau")} />}
           {charge && !ouvert && onglet === "tous" && <VueTous fiches={fiches} cur={cur} onOuvrir={setOuvertId} />}
           {charge && !ouvert && onglet === "nouveau" && (
-            <VueNouvelle workspace={workspace} cur={cur} onCree={async (id) => { await recharger(); setOnglet("tous"); setOuvertId(id); }} />
+            <VueNouvelle workspace={workspace} cur={cur} avecComptant={espaceDedie} onCree={async (id) => { await recharger(); setOnglet(espaceDedie ? "ventes" : "tous"); setOuvertId(id); }} />
           )}
         </div>
       </div>

@@ -104,3 +104,37 @@ alter table public.paiements_credit add constraint paiements_credit_type_check c
 
 -- Répartition d'un paiement sur les mensualités (permet d'annuler un paiement saisi par erreur).
 alter table public.paiements_credit add column if not exists repartition jsonb;
+
+-- Documents joints à une vente (décharge signée au bureau, pièce d'identité…), stockage privé par boutique.
+create table if not exists public.documents_credit (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  credit_id uuid not null references public.ventes_credit(id) on delete cascade,
+  chemin text not null,
+  nom text,
+  libelle text not null default 'Décharge signée',
+  type_mime text,
+  taille bigint,
+  created_by uuid default auth.uid(),
+  created_at timestamptz not null default now()
+);
+create index if not exists documents_credit_credit_idx on public.documents_credit(credit_id);
+alter table public.documents_credit enable row level security;
+create policy documents_credit_lecture on public.documents_credit for select using (public.peut_gerer_credits(workspace_id));
+create policy documents_credit_ajout on public.documents_credit for insert with check (public.peut_gerer_credits(workspace_id));
+create policy documents_credit_suppr on public.documents_credit for delete using (public.peut_gerer_credits(workspace_id));
+create trigger documents_credit_coherence before insert or update on public.documents_credit
+  for each row execute function public.verifier_coherence_credit();
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('credits-documents', 'credits-documents', false, 15728640, array['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'])
+on conflict (id) do nothing;
+create or replace function public.chemin_credit_autorise(chemin text)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare ws uuid;
+begin
+  begin ws := split_part(chemin, '/', 1)::uuid; exception when others then return false; end;
+  return public.peut_gerer_credits(ws);
+end $$;
+create policy credits_documents_lecture on storage.objects for select using (bucket_id = 'credits-documents' and public.chemin_credit_autorise(name));
+create policy credits_documents_ajout on storage.objects for insert with check (bucket_id = 'credits-documents' and public.chemin_credit_autorise(name));
+create policy credits_documents_suppr on storage.objects for delete using (bucket_id = 'credits-documents' and public.chemin_credit_autorise(name));

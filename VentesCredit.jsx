@@ -1014,6 +1014,136 @@ function VueAgenda({ fiches, workspace, cur, onOuvrir, onPayer }) {
 }
 
 // ---------------------------------------------------------------------------
+//  Documents joints : décharge signée au bureau, pièce d'identité, contrat…
+// ---------------------------------------------------------------------------
+const LIBELLES_DOC = ["Décharge signée", "Contrat", "Pièce d'identité", "Autre"];
+
+// Réduit une photo (souvent 4 à 8 Mo sur téléphone) en JPEG net et léger, lisible pour un document.
+async function compresserImage(fichier) {
+  if (!/^image\/(jpeg|png|webp)$/.test(fichier.type)) return fichier;
+  try {
+    const url = URL.createObjectURL(fichier);
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const max = 2000;
+    const ratio = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * ratio); c.height = Math.round(img.height * ratio);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.85));
+    return blob && blob.size < fichier.size ? new File([blob], fichier.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : fichier;
+  } catch (_) { return fichier; }
+}
+
+function DocumentsCredit({ f, workspace }) {
+  const [docs, setDocs] = useState([]);
+  const [apercus, setApercus] = useState({});
+  const [libelle, setLibelle] = useState("Décharge signée");
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const refPhoto = React.useRef(null);
+  const refFichier = React.useRef(null);
+
+  const charger = useCallback(async () => {
+    const { data } = await supabase.from("documents_credit").select("*").eq("credit_id", f.id).order("created_at", { ascending: false });
+    setDocs(data || []);
+    const images = (data || []).filter((d) => String(d.type_mime || "").startsWith("image/"));
+    if (images.length) {
+      const { data: urls } = await supabase.storage.from("credits-documents").createSignedUrls(images.map((d) => d.chemin), 3600);
+      const m = {};
+      (urls || []).forEach((u, i) => { if (u?.signedUrl) m[images[i].id] = u.signedUrl; });
+      setApercus(m);
+    }
+  }, [f.id]);
+  useEffect(() => { charger(); }, [charger]);
+
+  async function envoyer(liste) {
+    setErreur("");
+    const fichiers = Array.from(liste || []);
+    if (!fichiers.length) return;
+    setEnvoi(true);
+    try {
+      for (const brut of fichiers) {
+        const fichier = await compresserImage(brut);
+        if (fichier.size > 15 * 1024 * 1024) throw new Error("Fichier trop lourd (15 Mo maximum).");
+        const ext = (fichier.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const chemin = `${workspace.id}/${f.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from("credits-documents").upload(chemin, fichier, { contentType: fichier.type || undefined, upsert: false });
+        if (error) throw error;
+        const { error: e2 } = await supabase.from("documents_credit").insert([{ workspace_id: workspace.id, credit_id: f.id, chemin, nom: brut.name, libelle, type_mime: fichier.type, taille: fichier.size }]);
+        if (e2) { await supabase.storage.from("credits-documents").remove([chemin]); throw e2; }
+      }
+      await charger();
+    } catch (e) {
+      setErreur(e.message || "Envoi impossible.");
+    } finally {
+      setEnvoi(false);
+      if (refPhoto.current) refPhoto.current.value = "";
+      if (refFichier.current) refFichier.current.value = "";
+    }
+  }
+
+  async function ouvrir(d) {
+    const { data } = await supabase.storage.from("credits-documents").createSignedUrl(d.chemin, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+  async function supprimer(d) {
+    if (!window.confirm(`Supprimer « ${d.libelle} » ?`)) return;
+    await supabase.storage.from("credits-documents").remove([d.chemin]);
+    await supabase.from("documents_credit").delete().eq("id", d.id);
+    charger();
+  }
+
+  const aDecharge = docs.some((d) => d.libelle === "Décharge signée");
+  return (
+    <div style={S.carte}>
+      <div style={{ ...S.titreCarte, justifyContent: "space-between" }}>
+        <span>Documents</span>
+        {aDecharge
+          ? <Pastille couleur={T.vert} fond={T.vertClair}>✓ Décharge reçue</Pastille>
+          : <Pastille couleur={T.ambre} fond={T.ambreClair}>Décharge à ajouter</Pastille>}
+      </div>
+
+      {docs.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
+          {docs.map((d) => {
+            const image = String(d.type_mime || "").startsWith("image/");
+            return (
+              <div key={d.id} style={{ border: `1px solid ${T.ligne}`, borderRadius: 16, overflow: "hidden", background: T.fond }}>
+                <div onClick={() => ouvrir(d)} style={{ height: 120, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: image && apercus[d.id] ? `center/cover no-repeat url("${apercus[d.id]}")` : `linear-gradient(135deg, ${T.encre2}, ${T.encre})` }}>
+                  {!(image && apercus[d.id]) && <div style={{ color: T.or, fontWeight: 900, fontSize: 13, letterSpacing: "0.1em" }}>{image ? "IMAGE" : "PDF"}</div>}
+                </div>
+                <div style={{ padding: "8px 10px" }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 900, color: T.encre }}>{d.libelle}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                    <span style={{ fontSize: 11, color: T.gris }}>{dCourt(isoLocal(new Date(d.created_at)))}</span>
+                    <button onClick={() => supprimer(d)} style={{ background: "none", border: "none", padding: 0, color: T.grisClair, fontSize: 11, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Supprimer</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <label style={S.label}>Type de document</label>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        {LIBELLES_DOC.map((l) => <button key={l} onClick={() => setLibelle(l)} style={S.puce(libelle === l)}>{l}</button>)}
+      </div>
+      <input ref={refPhoto} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => envoyer(e.target.files)} />
+      <input ref={refFichier} type="file" accept="image/*,application/pdf" multiple style={{ display: "none" }} onChange={(e) => envoyer(e.target.files)} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <button disabled={envoi} onClick={() => refPhoto.current?.click()} style={{ ...S.boutonOr, flex: 1, padding: "13px 10px", fontSize: 14, opacity: envoi ? 0.6 : 1 }}>📷 Prendre en photo</button>
+        <button disabled={envoi} onClick={() => refFichier.current?.click()} style={{ ...S.boutonClair, flex: 1, padding: "13px 10px", fontSize: 14, opacity: envoi ? 0.6 : 1 }}>📎 Ajouter un fichier</button>
+      </div>
+      {envoi && <div style={{ fontSize: 13, color: T.gris, marginTop: 10, fontWeight: 700 }}>Envoi en cours…</div>}
+      {erreur && <div style={{ fontSize: 13, color: T.rouge, marginTop: 10, fontWeight: 700 }}>{erreur}</div>}
+      <div style={{ fontSize: 12, color: T.grisClair, marginTop: 10 }}>Photo ou PDF de la décharge signée au bureau. Les documents restent privés à ta boutique.</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 //  Fiche d'un crédit
 // ---------------------------------------------------------------------------
 function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvrirEncaissement }) {
@@ -1181,6 +1311,8 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
           </div>
         ))}
       </div>
+
+      <DocumentsCredit f={f} workspace={workspace} />
 
       {f.notes && <div style={{ ...S.carte, fontSize: 13.5, color: T.gris }}><b style={{ color: T.encre }}>Note : </b>{f.notes}</div>}
 

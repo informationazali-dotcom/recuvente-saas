@@ -1047,7 +1047,11 @@ const MSG = {
   briques: "Bonjour OU LI PAI IVOIRE, je suis intéressé par vos pondeuses de briques. Pouvez-vous m'envoyer les modèles et les prix ?",
 };
 /* Pixel (navigateur) + API Conversions (serveur), même identifiant d'événement : Meta ne compte qu'une fois */
-const EV_SERVEUR = new Set(['PageView', 'ViewContent', 'Contact', 'Lead', 'AddToCart']);
+const EV_SERVEUR = new Set(['PageView', 'ViewContent', 'Contact', 'Lead', 'AddToCart', 'InitiateCheckout']);
+/* « Prospect pro » : demande sur un groupe d'au moins 20 kVA. Signal envoyé à Facebook comme InitiateCheckout,
+   pour que les campagnes apprennent à trouver des acheteurs professionnels (et plus seulement des gens qui écrivent). */
+const SEUIL_PRO_KVA = 20;
+const prospectPro = (kva, data) => { if (Number(kva) >= SEUIL_PRO_KVA) pixel('InitiateCheckout', Object.assign({ num_items: 1 }, data)); };
 function cookie(n){ const m = document.cookie.match('(?:^|; )' + n + '=([^;]*)'); return m ? decodeURIComponent(m[1]) : ''; }
 function capi(ev, id, data){
   if (!window.PIXEL_ID || !location.pathname.startsWith('/oulipai')) return;
@@ -1325,7 +1329,7 @@ document.addEventListener('click', e => {
   if (!a) return;
   if (a.dataset.kva) {
     const d = { content_ids: ['G' + a.dataset.kva], content_type: 'product', content_name: 'Groupe ' + a.dataset.kva + ' kVA', content_category: 'Groupe électrogène', value: Number(a.dataset.prix), currency: 'XOF' };
-    pixel('Contact', d); pixel('Lead', d); pixel('AddToCart', d);
+    pixel('Contact', d); pixel('Lead', d); pixel('AddToCart', d); prospectPro(a.dataset.kva, d);
   } else pixel('Contact', { content_name: a.dataset.wa || a.dataset.waInfo || 'general' });
 });
 document.getElementById('detail-fermer').addEventListener('click', fermerDetail);
@@ -1346,6 +1350,7 @@ document.querySelectorAll('.tuile').forEach(t => { t.href = location.pathname.st
     const n = Math.max(1, Math.min(50, parseInt(v.quantite, 10) || 1));
     const g = DATA.find(x => String(x.kva) === v.kva);
     pixel('Lead', g ? { content_ids: ['G' + g.kva], content_name: 'Proforma ' + v.kva + ' kVA', value: g.p * n, currency: 'XOF' } : { content_name: 'Proforma' });
+    if (g) prospectPro(g.kva, { content_ids: ['G' + g.kva], content_type: 'product', content_name: 'Proforma ' + v.kva + ' kVA', value: g.p * n, currency: 'XOF', num_items: n });
     if (!g) {
       // Puissance inconnue : pas de proforma automatique, le conseiller la prépare
       const lignes = ['Bonjour OU LI PAI IVOIRE, je souhaite une proforma.'];

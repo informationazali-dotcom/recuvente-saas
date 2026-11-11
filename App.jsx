@@ -6264,6 +6264,11 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           </button>
         )}
         {peutVoirCredits && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "14px 12px 6px" }}>
+            💰 Crédits clients
+          </div>
+        )}
+        {peutVoirCredits && (
           <button
             onClick={() => setShowVentesCredit(true)}
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderRadius: 9, border: "none", background: nbCreditsARelancer > 0 ? "rgba(214,73,51,0.18)" : "transparent", color: nbCreditsARelancer > 0 ? "#ff9b87" : "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: nbCreditsARelancer > 0 ? 700 : 500, textAlign: "left", marginBottom: 3, cursor: "pointer" }}

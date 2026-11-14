@@ -166,7 +166,7 @@ h1,h2,h3{font-family:var(--titre);text-transform:uppercase;letter-spacing:.01em;
 .corps{padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px;flex:1}
 .specs{display:grid;grid-template-columns:1fr auto;gap:7px 12px;margin:0;font-size:14.5px}
 .specs dt{color:var(--gris)}.specs dd{margin:0;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
-.prix{font-family:var(--titre);font-weight:800;font-size:34px;color:var(--nuit);line-height:1;font-variant-numeric:tabular-nums}
+.prix{font-family:var(--titre);font-weight:800;font-size:clamp(24px,1.95vw,34px);white-space:nowrap;color:var(--nuit);line-height:1;font-variant-numeric:tabular-nums}
 .prix small{font-size:17px;margin-left:5px;color:var(--gris)}
 .note{display:flex;align-items:center;gap:6px;font-size:13px;color:#15703A;font-weight:600;margin-top:6px}
 .note svg{width:15px;height:15px;flex:none}
@@ -1273,14 +1273,9 @@ let filtre = 'all';
 const ouverts = {};  // catégories dépliées (« Voir les autres puissances »)
 const PAR_CAT = 4;
 function rendre(){
-  // Vue d'ensemble : tous les prix d'un coup d'œil, par catégorie. Une catégorie choisie : fiches complètes.
+  // Vue d'ensemble : chaque gamme avec ses groupes en photo et leur prix (plus de liste de prix sans images).
   if (filtre === 'all') {
-    document.getElementById('catalogue').innerHTML = '<div class="tarifs-grille">' + CATS.map(c => {
-      const tous = DATA.filter(g => g.c === c.id);
-      return `<div class="tarif-cat"><div class="tarif-tete"><h3>${c.titre}</h3><span>${c.label}</span></div><p class="tarif-msg">${c.sous}</p>
-       <ul class="tarifs">${tous.map(g => `<li><button type="button" class="tarif" data-detail="${g.kva}" aria-label="Voir le groupe ${kv(g.kva)} kVA à ${fmt(g.p)} francs CFA"><b>${kv(g.kva)}<small> kVA</small></b><em>${fmt(g.p)}<small> FCFA${avecTaxe(g) ? ' HT' : ''}</small></em><i aria-hidden="true">›</i></button></li>`).join('')}</ul>
-       <button type="button" class="voir-cat" data-cat="${c.id}">Voir les photos et détails →</button></div>`;
-    }).join('') + '</div>' + '<div class="photos-tete"><h2>Nos groupes en photos</h2><p>Tous nos groupes PERKINS – alternateur STAMFORD, neufs, avec leur prix. Touchez un groupe pour voir sa fiche.</p></div>' + fichesPhotos();
+    document.getElementById('catalogue').innerHTML = fichesPhotos();
     return;
   }
   document.getElementById('catalogue').innerHTML = '<button type="button" class="retour-prix" data-cat="all">← Retour à tous les prix</button>' + fichesPhotos();
@@ -1288,7 +1283,7 @@ function rendre(){
 function fichesPhotos(){
   return CATS.filter(c => filtre === 'all' || c.id === filtre).map(c => {
     const tous = DATA.filter(g => g.c === c.id);
-    const montrer = filtre !== 'all' || ouverts[c.id] ? tous : tous.slice(0, PAR_CAT);
+    const montrer = tous;  // tous les groupes de la gamme, chacun avec sa photo et son prix
     const reste = tous.length - montrer.length;
     const autres = tous.slice(PAR_CAT).map(g => kv(g.kva)).join(', ');
     return `<div class="groupe-titre"><h3>${c.titre}</h3><span>${c.label}</span></div><p class="groupe-sous">${c.sous}</p>

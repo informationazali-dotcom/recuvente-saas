@@ -763,7 +763,6 @@ function VueRegistre({ fiches, cur, onOuvrir, onNouveau }) {
           <div style={{ fontSize: 12, color: T.gris, marginTop: 2 }}>{cur} reçus sur la période</div>
         </div>
       </div>
-      {parCredit && <RecapMaPart fiches={fiches} parCredit={parCredit} cur={cur} onOuvrir={onOuvrir} />}
       <input style={{ ...S.champ, background: "white" }} placeholder="Rechercher un client, un numéro, un article…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
 
       {ventes.length === 0 && (

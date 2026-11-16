@@ -498,7 +498,7 @@ function VueARelancer({ fiches, cur, onOuvrir, onRelancer, onNouveau }) {
   );
 }
 
-function VueTous({ fiches, cur, onOuvrir }) {
+function VueTous({ fiches, cur, onOuvrir, parCredit }) {
   const [recherche, setRecherche] = useState("");
   const [filtre, setFiltre] = useState("en_cours");
   const liste = fiches.filter((f) => {
@@ -510,6 +510,7 @@ function VueTous({ fiches, cur, onOuvrir }) {
   });
   return (
     <>
+      {parCredit && <RecapMaPart fiches={fiches} parCredit={parCredit} cur={cur} onOuvrir={onOuvrir} />}
       <input style={{ ...S.champ, background: "white" }} placeholder="Rechercher un client, un numéro, un article…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
       <div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto" }}>
         {[["en_cours", "En cours"], ["retard", "En retard"], ["soldes", "Soldés"], ["tous", "Tous"]].map(([k, l]) => (
@@ -519,6 +520,197 @@ function VueTous({ fiches, cur, onOuvrir }) {
       {liste.length === 0 && <div style={{ textAlign: "center", color: T.grisClair, padding: 36 }}>Aucun crédit ici.</div>}
       {liste.map((f) => <CarteCredit key={f.id} f={f} cur={cur} onOuvrir={() => onOuvrir(f.id)} />)}
     </>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+//  Ma part (commission du vendeur) — privée : chaque vendeur ne voit que la sienne.
+//  Ma part = prix de vente au client − prix du propriétaire. Le propriétaire
+//  la reverse en plusieurs fois : on note chaque versement, le reste se calcule.
+// ---------------------------------------------------------------------------
+function useCommissions(workspace) {
+  const [commissions, setCommissions] = useState([]);
+  const [versements, setVersements] = useState([]);
+  const recharger = useCallback(async () => {
+    if (!workspace?.id) return;
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u?.user?.id; if (!uid) return;
+    const [c, v] = await Promise.all([
+      supabase.from("commissions_vendeur").select("*").eq("workspace_id", workspace.id).eq("user_id", uid),
+      supabase.from("versements_commission").select("*").eq("workspace_id", workspace.id).eq("user_id", uid).order("date_versement", { ascending: false }),
+    ]);
+    setCommissions(c.data || []);
+    setVersements(v.data || []);
+  }, [workspace?.id]);
+  useEffect(() => { recharger(); }, [recharger]);
+  const parCredit = useMemo(() => {
+    const m = {};
+    commissions.forEach((c) => {
+      const vers = versements.filter((v) => v.commission_id === c.id);
+      const recu = vers.reduce((s, v) => s + Number(v.montant), 0);
+      m[c.credit_id] = { ...c, vers, recu };
+    });
+    return m;
+  }, [commissions, versements]);
+  return { parCredit, recharger };
+}
+function calculPart(f, c) {
+  if (!c) return null;
+  const part = Math.max(0, Number(f.prix_total) - Number(c.prix_proprietaire));
+  return { part, recu: c.recu, reste: Math.max(0, part - c.recu) };
+}
+
+function MaPart({ f, workspace, cur, commission, onChange }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [prixProprio, setPrixProprio] = useState(commission ? Number(commission.prix_proprietaire) : 0);
+  const [editionPrix, setEditionPrix] = useState(!commission);
+  const [montant, setMontant] = useState(0);
+  const [date, setDate] = useState(aujourdhui());
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const calc = calculPart(f, commission);
+  useEffect(() => { setPrixProprio(commission ? Number(commission.prix_proprietaire) : 0); setEditionPrix(!commission); }, [commission?.id, commission?.prix_proprietaire]);
+
+  async function enregistrerPrix() {
+    if (!prixProprio) return setErreur("Indique le prix du propriétaire.");
+    if (prixProprio > Number(f.prix_total)) return setErreur("Le prix du propriétaire dépasse le prix de vente.");
+    setEnCours(true); setErreur("");
+    const { error } = commission
+      ? await supabase.from("commissions_vendeur").update({ prix_proprietaire: prixProprio }).eq("id", commission.id)
+      : await supabase.from("commissions_vendeur").insert([{ workspace_id: workspace.id, credit_id: f.id, prix_proprietaire: prixProprio }]);
+    setEnCours(false);
+    if (error) return setErreur(error.message);
+    setEditionPrix(false); onChange();
+  }
+  async function ajouterVersement() {
+    if (!montant) return setErreur("Indique le montant reçu.");
+    setEnCours(true); setErreur("");
+    const { error } = await supabase.from("versements_commission").insert([{ workspace_id: workspace.id, commission_id: commission.id, montant, date_versement: date }]);
+    setEnCours(false);
+    if (error) return setErreur(error.message);
+    setMontant(0); setDate(aujourdhui()); onChange();
+  }
+  async function supprimerVersement(v) {
+    if (!window.confirm(`Supprimer le versement de ${nb(v.montant)} ${cur} du ${dCourt(v.date_versement)} ?`)) return;
+    await supabase.from("versements_commission").delete().eq("id", v.id);
+    onChange();
+  }
+
+  const ligne = (label, valeur, couleur, gras) => (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 0", borderTop: `1px solid ${T.ligne}`, fontSize: 14 }}>
+      <span style={{ color: T.gris, fontWeight: 700 }}>{label}</span>
+      <span style={{ fontWeight: gras ? 900 : 800, color: couleur || T.encre, whiteSpace: "nowrap" }}>{valeur}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ ...S.carte, padding: 0, overflow: "hidden", border: `1.5px solid ${ouvert ? T.or : T.ligne}` }}>
+      <button onClick={() => setOuvert(!ouvert)} style={{ width: "100%", background: ouvert ? T.orClair : "white", border: "none", padding: "15px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+        <span style={{ width: 38, height: 38, borderRadius: 12, background: T.encre, color: T.or, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>💼</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontWeight: 900, fontSize: 15, color: T.encre }}>Ma part</span>
+          <span style={{ display: "block", fontSize: 12.5, color: T.gris, marginTop: 1 }}>
+            {calc ? (calc.reste > 0 ? `Il me reste ${nb(calc.reste)} ${cur} à recevoir` : "Ma part est entièrement reçue ✓") : "Prix du propriétaire pas encore indiqué"}
+          </span>
+        </span>
+        <span style={{ fontSize: 13, color: T.gris, transform: ouvert ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▼</span>
+      </button>
+      {ouvert && (
+        <div style={{ padding: "4px 16px 16px" }}>
+          {editionPrix ? (
+            <div style={{ paddingTop: 10 }}>
+              <label style={S.label}>Prix du propriétaire</label>
+              <ChampMontant valeur={prixProprio} onChange={setPrixProprio} cur={cur} placeholder="Ex. 3 300 000" />
+              {prixProprio > 0 && prixProprio <= Number(f.prix_total) && <div style={{ fontSize: 13, color: T.vert, fontWeight: 800, marginTop: -6, marginBottom: 12 }}>Ma part sur cette vente : {nb(Number(f.prix_total) - prixProprio)} {cur}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={{ ...S.boutonOr, flex: 1 }} disabled={enCours} onClick={enregistrerPrix}>{enCours ? "…" : "Enregistrer"}</button>
+                {commission && <button style={S.boutonClair} onClick={() => setEditionPrix(false)}>Annuler</button>}
+              </div>
+            </div>
+          ) : calc && (
+            <>
+              {ligne("Prix de vente au client", `${nb(f.prix_total)} ${cur}`)}
+              {ligne(<span>Prix du propriétaire <button onClick={() => setEditionPrix(true)} style={{ border: "none", background: T.fond, color: T.gris, borderRadius: 8, padding: "2px 8px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", marginLeft: 4 }}>Modifier</button></span>, `${nb(commission.prix_proprietaire)} ${cur}`)}
+              {ligne("Ma part", `${nb(calc.part)} ${cur}`, "#8A6A1E", true)}
+              {ligne("Déjà reçu", `${nb(calc.recu)} ${cur}`, T.vert)}
+              {ligne("Reste à recevoir", `${nb(calc.reste)} ${cur}`, calc.reste > 0 ? T.rouge : T.vert, true)}
+
+              <div style={{ fontWeight: 900, fontSize: 13, color: T.encre, margin: "14px 0 4px" }}>Versements du propriétaire</div>
+              {commission.vers.length === 0 && <div style={{ fontSize: 13, color: T.gris }}>Aucun versement pour l'instant.</div>}
+              {commission.vers.map((v) => (
+                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${T.ligne}` }}>
+                  <div style={{ flex: 1, fontSize: 13.5, color: T.encre, fontWeight: 700 }}>{dCourt(v.date_versement)}</div>
+                  <div style={{ fontWeight: 900, color: T.vert, fontSize: 14 }}>+{nb(v.montant)}</div>
+                  <button onClick={() => supprimerVersement(v)} aria-label="Supprimer ce versement" style={{ background: "none", border: "none", color: T.grisClair, cursor: "pointer", fontSize: 16 }}>×</button>
+                </div>
+              ))}
+
+              {calc.reste > 0 && (
+                <div style={{ background: T.fond, borderRadius: 14, padding: 12, marginTop: 12 }}>
+                  <label style={S.label}>Nouveau versement reçu</label>
+                  <ChampMontant valeur={montant} onChange={setMontant} cur={cur} placeholder={`Ex. ${nb(calc.reste)}`} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...S.champ, marginBottom: 0, flex: 1 }} />
+                    <button style={S.boutonOr} disabled={enCours} onClick={ajouterVersement}>{enCours ? "…" : "Ajouter"}</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          {erreur && <div style={{ color: T.rouge, fontSize: 13, fontWeight: 700, marginTop: 10 }}>{erreur}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Récapitulatif de ma part sur toutes les ventes (bouton qui se déroule, en haut de la liste des crédits).
+function RecapMaPart({ fiches, parCredit, cur, onOuvrir }) {
+  const [ouvert, setOuvert] = useState(false);
+  const lignes = fiches.filter((f) => parCredit[f.id] && f.situation !== "annule").map((f) => ({ f, ...calculPart(f, parCredit[f.id]) }));
+  if (lignes.length === 0) return null;
+  const tot = lignes.reduce((a, l) => ({ part: a.part + l.part, recu: a.recu + l.recu, reste: a.reste + l.reste }), { part: 0, recu: 0, reste: 0 });
+  const cellule = { padding: "9px 6px", fontSize: 13, textAlign: "right", whiteSpace: "nowrap" };
+  return (
+    <div style={{ ...S.carte, padding: 0, overflow: "hidden", border: `1.5px solid ${ouvert ? T.or : T.ligne}` }}>
+      <button onClick={() => setOuvert(!ouvert)} style={{ width: "100%", background: ouvert ? T.orClair : "white", border: "none", padding: "15px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+        <span style={{ width: 38, height: 38, borderRadius: 12, background: T.encre, color: T.or, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>💼</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontWeight: 900, fontSize: 15, color: T.encre }}>Ma part sur toutes les ventes</span>
+          <span style={{ display: "block", fontSize: 12.5, color: T.gris, marginTop: 1 }}>Reste à recevoir : <b style={{ color: tot.reste > 0 ? T.rouge : T.vert }}>{nb(tot.reste)} {cur}</b></span>
+        </span>
+        <span style={{ fontSize: 13, color: T.gris, transform: ouvert ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▼</span>
+      </button>
+      {ouvert && (
+        <div style={{ padding: "0 10px 12px", overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", color: T.encre }}>
+            <thead>
+              <tr style={{ fontSize: 11, color: T.gris, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                <th style={{ ...cellule, fontSize: 11, textAlign: "left" }}>Client</th><th style={{ ...cellule, fontSize: 11 }}>Ma part</th><th style={{ ...cellule, fontSize: 11 }}>Reçu</th><th style={{ ...cellule, fontSize: 11 }}>Reste</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((l) => (
+                <tr key={l.f.id} onClick={() => onOuvrir(l.f.id)} style={{ borderTop: `1px solid ${T.ligne}`, cursor: "pointer" }}>
+                  <td style={{ ...cellule, textAlign: "left", whiteSpace: "normal" }}><b>{l.f.client_nom}</b><div style={{ fontSize: 11.5, color: T.gris }}>{l.f.article}</div></td>
+                  <td style={cellule}>{nb(l.part)}</td>
+                  <td style={{ ...cellule, color: T.vert, fontWeight: 800 }}>{nb(l.recu)}</td>
+                  <td style={{ ...cellule, color: l.reste > 0 ? T.rouge : T.vert, fontWeight: 900 }}>{nb(l.reste)}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: `2px solid ${T.encre}` }}>
+                <td style={{ ...cellule, textAlign: "left", fontWeight: 900 }}>Total</td>
+                <td style={{ ...cellule, fontWeight: 900 }}>{nb(tot.part)}</td>
+                <td style={{ ...cellule, fontWeight: 900, color: T.vert }}>{nb(tot.recu)}</td>
+                <td style={{ ...cellule, fontWeight: 900, color: tot.reste > 0 ? T.rouge : T.vert }}>{nb(tot.reste)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ fontSize: 11.5, color: T.gris, marginTop: 8, textAlign: "center" }}>Montants en {cur} · touche un client pour ouvrir sa fiche</div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -571,6 +763,7 @@ function VueRegistre({ fiches, cur, onOuvrir, onNouveau }) {
           <div style={{ fontSize: 12, color: T.gris, marginTop: 2 }}>{cur} reçus sur la période</div>
         </div>
       </div>
+      {parCredit && <RecapMaPart fiches={fiches} parCredit={parCredit} cur={cur} onOuvrir={onOuvrir} />}
       <input style={{ ...S.champ, background: "white" }} placeholder="Rechercher un client, un numéro, un article…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
 
       {ventes.length === 0 && (
@@ -1146,7 +1339,7 @@ function DocumentsCredit({ f, workspace }) {
 // ---------------------------------------------------------------------------
 //  Fiche d'un crédit
 // ---------------------------------------------------------------------------
-function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvrirEncaissement }) {
+function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvrirEncaissement, commission, onChangePart }) {
   const auj = aujourdhui();
   const [pdfEnCours, setPdfEnCours] = useState(false);
   const [editionDate, setEditionDate] = useState(null);
@@ -1232,6 +1425,8 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
           </button>
         ))}
       </div>
+
+      {f.situation !== "annule" && <MaPart f={f} workspace={workspace} cur={cur} commission={commission} onChange={onChangePart} />}
 
       {f.type_vente !== "comptant" && f.ech.length > 0 && (
         <div style={{ margin: "4px 0 2px" }}>
@@ -1331,6 +1526,7 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
 // ---------------------------------------------------------------------------
 export default function VentesCredit({ workspace, onClose, espaceDedie = false, entete = null, onDeconnexion }) {
   const { fiches: toutes, charge, erreur, recharger } = useCredits(workspace);
+  const { parCredit, recharger: rechargerParts } = useCommissions(workspace);
   // Les ventes au comptant vont dans le registre ; les écrans « crédits » ne montrent que les crédits.
   const fiches = useMemo(() => toutes.filter((f) => f.type_vente !== "comptant"), [toutes]);
   const [onglet, setOnglet] = useState(espaceDedie ? "ventes" : "relancer");
@@ -1439,12 +1635,12 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
           {!charge && <div style={{ textAlign: "center", color: T.grisClair, padding: 50 }}>Chargement…</div>}
           {charge && erreur && <div style={{ ...S.carte, color: T.rouge }}>Impossible de charger les crédits : {erreur}</div>}
           {charge && ouvert && (
-            <VueDetail f={ouvert} workspace={workspace} cur={cur} onRetour={() => setOuvertId(null)} onChange={recharger} ouvrirMessage={setMessage} ouvrirEncaissement={(f, cible) => setEncaisser({ f, cible: cible || null })} />
+            <VueDetail f={ouvert} workspace={workspace} cur={cur} onRetour={() => setOuvertId(null)} onChange={recharger} ouvrirMessage={setMessage} ouvrirEncaissement={(f, cible) => setEncaisser({ f, cible: cible || null })} commission={parCredit[ouvert.id] || null} onChangePart={rechargerParts} />
           )}
           {charge && !ouvert && onglet === "ventes" && <VueRegistre fiches={toutes} cur={cur} onOuvrir={setOuvertId} onNouveau={() => setOnglet("nouveau")} />}
           {charge && !ouvert && onglet === "relancer" && <VueARelancer fiches={fiches} cur={cur} onOuvrir={setOuvertId} onRelancer={relancer} onNouveau={() => setOnglet("nouveau")} />}
           {charge && !ouvert && onglet === "agenda" && <VueAgenda fiches={fiches} workspace={workspace} cur={cur} onOuvrir={setOuvertId} onPayer={(f, id) => setEncaisser({ f, cible: id })} />}
-          {charge && !ouvert && onglet === "tous" && <VueTous fiches={fiches} cur={cur} onOuvrir={setOuvertId} />}
+          {charge && !ouvert && onglet === "tous" && <VueTous fiches={fiches} cur={cur} onOuvrir={setOuvertId} parCredit={parCredit} />}
           {charge && !ouvert && onglet === "nouveau" && (
             <VueNouvelle workspace={workspace} cur={cur} avecComptant={espaceDedie} onCree={async (id) => { await recharger(); setOnglet(espaceDedie ? "ventes" : "tous"); setOuvertId(id); }} />
           )}

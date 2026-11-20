@@ -852,13 +852,18 @@ function VueMembres({ workspace, eq, userId }) {
 
   async function inviter() {
     if (!f.nom.trim() || !f.email.trim() || f.password.length < 6) { setMsg("Nom, email et mot de passe (6 caractères minimum) sont obligatoires."); return; }
+    const email = f.email.trim().toLowerCase();
+    const domaine = email.split("@")[1] || "";
+    const fautes = { "gamail.com": "gmail.com", "gmial.com": "gmail.com", "gmai.com": "gmail.com", "gmail.co": "gmail.com", "gmail.fr": "gmail.com", "gnail.com": "gmail.com", "gmaill.com": "gmail.com", "yaho.fr": "yahoo.fr", "yahou.fr": "yahoo.fr", "hotmial.com": "hotmail.com", "hotmai.com": "hotmail.com" };
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(email)) { setMsg("Cet email n'est pas valide."); return; }
+    if (fautes[domaine]) { setMsg(`Vérifie l'email : tu voulais sûrement écrire …@${fautes[domaine]}`); setF((x) => ({ ...x, email: email.replace(/@.*/, "@" + fautes[domaine]) })); return; }
     setEnvoi(true); setMsg("");
     try {
       const { data: s } = await supabase.auth.getSession();
       const res = await fetch("/api/team", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.session?.access_token}` },
-        body: JSON.stringify({ action: "invite", workspaceId: workspace.id, email: f.email.trim(), password: f.password, role: f.role, titre: ROLES_EQUIPE[f.role] }),
+        body: JSON.stringify({ action: "invite", workspaceId: workspace.id, email, password: f.password, role: f.role, titre: ROLES_EQUIPE[f.role] }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { setMsg(json.error || `Erreur (${res.status})`); setEnvoi(false); return; }
@@ -867,7 +872,7 @@ function VueMembres({ workspace, eq, userId }) {
       }
       journaliser(workspace.id, "Membre ajouté", `${f.nom.trim()} – ${ROLES_EQUIPE[f.role]}`);
       const lien = `${window.location.origin}`;
-      const texte = `Bonjour ${f.nom.trim()}, ton accès à l'espace équipe OU LI PAI sur RecuVente est prêt.\n\nLien : ${lien}\nEmail : ${f.email.trim()}\nMot de passe : ${f.password}\n\nTu pourras changer ton mot de passe après la première connexion.`;
+      const texte = `Bonjour ${f.nom.trim()}, ton accès à l'espace équipe OU LI PAI sur RecuVente est prêt.\n\nLien : ${lien}\nEmail : ${email}\nMot de passe : ${f.password}\n\nTu pourras changer ton mot de passe après la première connexion.`;
       if (f.tel.trim()) ouvrirWhatsApp(f.tel, texte);
       setF({ nom: "", tel: "", email: "", password: "", role: "conseiller" }); setOuvert(false);
       eq.recharger();

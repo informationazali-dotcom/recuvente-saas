@@ -302,7 +302,7 @@ function Feuille({ titre, onFermer, children }) {
   );
 }
 
-function FeuilleMessage({ titre, texteInitial, tel, onEnvoye, onFermer }) {
+function FeuilleMessage({ titre, texteInitial, tel, onEnvoye, onFermer, sansTel }) {
   const [texte, setTexte] = useState(texteInitial);
   const [copie, setCopie] = useState(false);
   return (
@@ -311,7 +311,7 @@ function FeuilleMessage({ titre, texteInitial, tel, onEnvoye, onFermer }) {
         <textarea value={texte} onChange={(e) => setTexte(e.target.value)} rows={7} style={{ width: "100%", boxSizing: "border-box", border: "none", background: "transparent", padding: 12, fontSize: 14.5, lineHeight: 1.5, fontFamily: "inherit", color: "#111", resize: "vertical", outline: "none" }} />
       </div>
       <div style={{ fontSize: 12, color: T.gris, marginBottom: 12 }}>Tu peux modifier le texte avant de l'envoyer.</div>
-      {!tel && <div style={{ color: T.rouge, fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Aucun numéro WhatsApp enregistré pour ce client.</div>}
+      {!tel && <div style={{ color: T.rouge, fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{sansTel || "Aucun numéro WhatsApp enregistré pour ce client."}</div>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.boutonClair, flex: 1 }} onClick={() => { navigator.clipboard?.writeText(texte); setCopie(true); }}>{copie ? "✓ Copié" : "Copier"}</button>
         <button style={{ ...S.boutonWa, flex: 2, padding: 14, fontSize: 15, opacity: tel ? 1 : 0.45 }} disabled={!tel} onClick={() => { ouvrirWhatsApp(tel, texte); onEnvoye?.(); onFermer(); }}>Envoyer sur WhatsApp</button>
@@ -1523,12 +1523,60 @@ function VueDetail({ f, workspace, cur, onRetour, onChange, ouvrirMessage, ouvri
 // ---------------------------------------------------------------------------
 //  Panneau principal
 // ---------------------------------------------------------------------------
-export default function VentesCredit({ workspace, onClose, espaceDedie = false, entete = null, onDeconnexion }) {
+// Rapport du représentant au bureau, envoyé au responsable sur WhatsApp après chaque vente.
+function messageRapportBureau(f, cur, auteur) {
+  const date = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const reste = Math.max(0, Number(f.reste || 0));
+  const lignes = [
+    `RAPPORT – ${date}`,
+    `Client : ${f.client_nom || ""}`,
+    `Téléphone : ${f.client_tel || "—"}`,
+    `Groupe : ${f.article || ""}`,
+    `Prix de vente : ${nb(f.prix_total)} ${cur}`,
+    `Payé aujourd'hui : ${nb(f.paye)} ${cur}`,
+    `Reste à payer : ${nb(reste)} ${cur}`,
+  ];
+  if (f.type_vente !== "comptant" && f.ech?.length) {
+    const impayees = f.ech.filter((e) => Number(e.montant_paye) < Number(e.montant_du));
+    lignes.push(`Échéances (crédit) : ${impayees.map((e) => `${dCourt(e.date_echeance)} – ${nb(Number(e.montant_du) - Number(e.montant_paye))}`).join(" ; ") || "—"}`);
+  } else {
+    lignes.push("Échéances (crédit) : —");
+  }
+  lignes.push(`Type : ${f.type_vente === "comptant" ? "comptant" : "crédit"}`);
+  lignes.push("Document signé : à joindre en photo");
+  if (auteur) lignes.push("", `— ${auteur}`);
+  return lignes.join("\n");
+}
+
+function useResponsableEquipe(workspace, actif) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    if (!actif || !workspace?.id) return;
+    let annule = false;
+    (async () => {
+      const [{ data: profils }, { data: roles }, { data: u }] = await Promise.all([
+        supabase.from("equipe_profils").select("user_id, nom, tel").eq("workspace_id", workspace.id),
+        supabase.rpc("equipe_roles", { ws: workspace.id }),
+        supabase.auth.getUser(),
+      ]);
+      const roleDe = Object.fromEntries((roles || []).map((r) => [r.user_id, r.role]));
+      const resp = (profils || []).find((p) => roleDe[p.user_id] === "owner") || (profils || []).find((p) => roleDe[p.user_id] === "admin") || null;
+      const moi = (profils || []).find((p) => p.user_id === u?.user?.id) || null;
+      if (!annule) setInfo({ tel: resp?.tel || "", nom: resp?.nom || "", auteur: moi?.nom || "" });
+    })();
+    return () => { annule = true; };
+  }, [workspace?.id, actif]);
+  return info;
+}
+
+export default function VentesCredit({ workspace, onClose, espaceDedie = false, entete = null, onDeconnexion, ongletsExtra = [], rapportAuResponsable = false }) {
   const { fiches: toutes, charge, erreur, recharger } = useCredits(workspace);
   const { parCredit, recharger: rechargerParts } = useCommissions(workspace);
   // Les ventes au comptant vont dans le registre ; les écrans « crédits » ne montrent que les crédits.
   const fiches = useMemo(() => toutes.filter((f) => f.type_vente !== "comptant"), [toutes]);
-  const [onglet, setOnglet] = useState(espaceDedie ? "ventes" : "relancer");
+  const [onglet, setOnglet] = useState(ongletsExtra[0]?.debut ? ongletsExtra[0].cle : espaceDedie ? "ventes" : "relancer");
+  const extraActif = ongletsExtra.find((o) => o.cle === onglet) || null;
+  const responsableEquipe = useResponsableEquipe(workspace, rapportAuResponsable);
   const [ouvertId, setOuvertId] = useState(null);
   const [message, setMessage] = useState(null);
   const [encaisser, setEncaisser] = useState(null);
@@ -1562,10 +1610,12 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
   }
 
   const ONGLETS = [
+    ...ongletsExtra.filter((o) => o.debut),
     ...(espaceDedie ? [{ cle: "ventes", label: "Ventes" }] : []),
     { cle: "relancer", label: "À relancer", n: stats.aRelancer },
     { cle: "agenda", label: "Agenda" },
     { cle: "tous", label: espaceDedie ? "Crédits" : "Tous", n: stats.actifs.length },
+    ...ongletsExtra.filter((o) => !o.debut),
     { cle: "nouveau", label: espaceDedie ? "+ Vente" : "+ Nouvelle vente" },
   ];
   const tuile = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 12 };
@@ -1592,7 +1642,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
               {!espaceDedie && <button onClick={onClose} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.12)", color: "white", width: 38, height: 38, borderRadius: 12, fontSize: 20, cursor: "pointer" }}>×</button>}
             </div>
 
-            {charge && !ouvert && onglet !== "nouveau" && onglet !== "ventes" && onglet !== "agenda" && fiches.length > 0 && (
+            {charge && !ouvert && !extraActif && onglet !== "nouveau" && onglet !== "ventes" && onglet !== "agenda" && fiches.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1fr", gap: 10, marginTop: 16 }}>
                 <div style={{ ...tuile, padding: 14, gridRow: "span 2" }}>
                   <div style={petitTitre}>Reste à encaisser</div>
@@ -1633,6 +1683,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
         <div style={{ padding: "18px 16px 60px", maxWidth: 720, margin: "0 auto" }}>
           {!charge && <div style={{ textAlign: "center", color: T.grisClair, padding: 50 }}>Chargement…</div>}
           {charge && erreur && <div style={{ ...S.carte, color: T.rouge }}>Impossible de charger les crédits : {erreur}</div>}
+          {extraActif && !ouvert && extraActif.rendu()}
           {charge && ouvert && (
             <VueDetail f={ouvert} workspace={workspace} cur={cur} onRetour={() => setOuvertId(null)} onChange={recharger} ouvrirMessage={setMessage} ouvrirEncaissement={(f, cible) => setEncaisser({ f, cible: cible || null })} commission={parCredit[ouvert.id] || null} onChangePart={rechargerParts} />
           )}
@@ -1641,7 +1692,22 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
           {charge && !ouvert && onglet === "agenda" && <VueAgenda fiches={fiches} workspace={workspace} cur={cur} onOuvrir={setOuvertId} onPayer={(f, id) => setEncaisser({ f, cible: id })} />}
           {charge && !ouvert && onglet === "tous" && <VueTous fiches={fiches} cur={cur} onOuvrir={setOuvertId} parCredit={parCredit} />}
           {charge && !ouvert && onglet === "nouveau" && (
-            <VueNouvelle workspace={workspace} cur={cur} avecComptant={espaceDedie} onCree={async (id) => { await recharger(); setOnglet(espaceDedie ? "ventes" : "tous"); setOuvertId(id); }} />
+            <VueNouvelle workspace={workspace} cur={cur} avecComptant={espaceDedie} onCree={async (id) => {
+              await recharger();
+              setOnglet(espaceDedie ? "ventes" : "tous"); setOuvertId(id);
+              if (rapportAuResponsable) {
+                const [{ data: cr }, { data: ech }] = await Promise.all([
+                  supabase.from("ventes_credit").select("*").eq("id", id).single(),
+                  supabase.from("echeances_credit").select("*").eq("credit_id", id).order("numero", { ascending: true }),
+                ]);
+                if (cr) {
+                  const liste = ech || [];
+                  const reste = liste.reduce((t, e) => t + Math.max(0, Number(e.montant_du) - Number(e.montant_paye)), 0);
+                  const f = { ...cr, ech: liste, reste, paye: Number(cr.prix_total) - reste };
+                  setMessage({ titre: "Envoyer le rapport au responsable", texte: messageRapportBureau(f, cur, responsableEquipe?.auteur), tel: responsableEquipe?.tel || "", sansTel: "Le responsable n'a pas encore renseigné son numéro WhatsApp. Copie le rapport et envoie-le-lui." });
+                }
+              }
+            }} />
           )}
         </div>
       </div>
@@ -1656,7 +1722,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
           }} />
       )}
       {message && (
-        <FeuilleMessage titre={message.titre} texteInitial={message.texte} tel={message.tel} onEnvoye={() => marquerRelance(message.echeanceId)} onFermer={() => setMessage(null)} />
+        <FeuilleMessage titre={message.titre} texteInitial={message.texte} tel={message.tel} sansTel={message.sansTel} onEnvoye={() => marquerRelance(message.echeanceId)} onFermer={() => setMessage(null)} />
       )}
     </div>
   );

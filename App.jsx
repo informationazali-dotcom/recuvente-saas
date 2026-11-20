@@ -43,6 +43,7 @@ const LocationVoiture = React.lazy(() => import("./LocationVoiture.jsx"));
 const ProspectsFiches = React.lazy(() => import("./ProspectsFiches.jsx"));
 // Ventes à crédit (acompte + mensualités) : échéancier, clients à relancer, rappels WhatsApp.
 const VentesCredit = React.lazy(() => import("./VentesCredit.jsx"));
+const EquipeVente = React.lazy(() => import("./EquipeVente.jsx"));
 // Réseau national (stocks chez les représentants régionaux, attribution automatique des livraisons).
 // Chargé à la demande, ouvert au propriétaire et aux administrateurs de la boutique.
 const AdminReseau = React.lazy(() => import("./ReseauAdmin.jsx"));
@@ -6034,7 +6035,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
   ]);
 
   // Nombre de clients à crédit à relancer (paiement dans 3 jours ou moins, ou en retard).
-  const peutVoirCredits = workspace.role === "owner" || workspace.role === "admin" || workspace.role === "comptable";
+  const peutVoirCredits = workspace.role === "owner" || workspace.role === "admin" || workspace.role === "comptable" || workspace.role === "bureau";
   useEffect(() => {
     if (!workspace?.id || !peutVoirCredits || showVentesCredit) return;
     let annule = false;
@@ -6058,11 +6059,30 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
 
   // Activité « Vente au comptant & à crédit » : un espace à part, sans les écrans e-commerce.
   // L'accueil est directement le registre des ventes du bureau et le suivi des crédits.
+  // Espace Équipe de vente : le conseiller a son propre portail (missions, clients confiés),
+  // le représentant au bureau garde les Ventes & crédits avec ses missions, et le
+  // responsable pilote toute l'équipe depuis l'onglet « Équipe ».
+  if (workspace.activity_type === "vente_credit" && workspace.role === "conseiller") {
+    return (
+      <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "#0E1714" }} />}>
+        <EquipeVente workspace={workspace} userId={session.user.id} role="conseiller" onDeconnexion={() => supabase.auth.signOut()} />
+      </React.Suspense>
+    );
+  }
   if (workspace.activity_type === "vente_credit" && peutVoirCredits) {
+    const estResponsableEquipe = workspace.role === "owner" || workspace.role === "admin";
+    const estBureau = workspace.role === "bureau";
+    const ongletsEquipe = estResponsableEquipe
+      ? [{ cle: "equipe", label: "Équipe", rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role={workspace.role} integre /></React.Suspense> }]
+      : estBureau
+        ? [{ cle: "missions", label: "Mes missions", debut: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role="bureau" integre /></React.Suspense> }]
+        : [];
     return (
       <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "#0E1714" }} />}>
         <VentesCredit
           workspace={workspace}
+          ongletsExtra={ongletsEquipe}
+          rapportAuResponsable={estBureau}
           espaceDedie
           entete={workspace.role === "owner" ? (
             <SelecteurEspace workspace={workspace} workspacesDisponibles={workspacesDisponibles} onChangerEspace={onChangerEspace} onDemanderAjoutEspace={onDemanderAjoutEspace} />
@@ -8424,7 +8444,7 @@ function TeamModal({ workspace, onClose, pleinePage }) {
     setRetraitEnCours(null);
   }
 
-  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)", secretaire: "Secrétaire", filleul: "Filleul (vendeur réseau)" };
+  const roleLabels = { owner: "Propriétaire", admin: "Admin", closer: "Closer", livreur: "Livreur", comptable: "Comptable", rh: "RH (gestion équipe)", secretaire: "Secrétaire", filleul: "Filleul (vendeur réseau)", conseiller: "Conseiller (relation client)", bureau: "Représentant au bureau" };
 
   const contenu = (
     <>
@@ -8520,6 +8540,7 @@ function InviteMemberForm({ workspace, onClose, onInvited, filleulPreselectionne
     { key: "comptable", label: "Comptable — lecture financière" },
     { key: "rh", label: "RH — gestion de l'équipe uniquement" },
     ...(workspace.activity_type === "network_marketing" ? [{ key: "filleul", label: "Filleul — son lien de vente, ses ventes, ses commissions" }] : []),
+    ...(workspace.activity_type === "vente_credit" ? [{ key: "conseiller", label: "Conseiller — ses rencontres, visites et clients confiés" }, { key: "bureau", label: "Représentant au bureau — ventes, crédits, documents" }] : []),
   ].filter((r) => workspace.role === "owner" || (r.key !== "admin" && r.key !== "rh"));
 
   async function submit() {

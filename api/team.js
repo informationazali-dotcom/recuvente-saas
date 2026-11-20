@@ -139,7 +139,7 @@ export default async function handler(req, res) {
 
     await tracerAudit(workspaceId, "Membre invité", `${email} — rôle : ${role}${titre ? ` (${titre})` : ""}`, userData.user.email);
 
-    return res.status(200).json({ success: true, email, compteExistant: !!createError });
+    return res.status(200).json({ success: true, email, userId, compteExistant: !!createError });
   }
 
   // ===== RETIRER =====

@@ -1574,7 +1574,7 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
   const { parCredit, recharger: rechargerParts } = useCommissions(workspace);
   // Les ventes au comptant vont dans le registre ; les écrans « crédits » ne montrent que les crédits.
   const fiches = useMemo(() => toutes.filter((f) => f.type_vente !== "comptant"), [toutes]);
-  const [onglet, setOnglet] = useState(ongletsExtra[0]?.debut ? ongletsExtra[0].cle : espaceDedie ? "ventes" : "relancer");
+  const [onglet, setOnglet] = useState(ongletsExtra.find((o) => o.parDefaut)?.cle || (espaceDedie ? "ventes" : "relancer"));
   const extraActif = ongletsExtra.find((o) => o.cle === onglet) || null;
   const responsableEquipe = useResponsableEquipe(workspace, rapportAuResponsable);
   const [ouvertId, setOuvertId] = useState(null);
@@ -1612,10 +1612,11 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
   const ONGLETS = [
     ...ongletsExtra.filter((o) => o.debut),
     ...(espaceDedie ? [{ cle: "ventes", label: "Ventes" }] : []),
+    ...ongletsExtra.filter((o) => o.apresVentes),
     { cle: "relancer", label: "À relancer", n: stats.aRelancer },
     { cle: "agenda", label: "Agenda" },
     { cle: "tous", label: espaceDedie ? "Crédits" : "Tous", n: stats.actifs.length },
-    ...ongletsExtra.filter((o) => !o.debut),
+    ...ongletsExtra.filter((o) => !o.debut && !o.apresVentes),
     { cle: "nouveau", label: espaceDedie ? "+ Vente" : "+ Nouvelle vente" },
   ];
   const tuile = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 12 };
@@ -1637,8 +1638,13 @@ export default function VentesCredit({ workspace, onClose, espaceDedie = false, 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: "0.12em", color: T.or, fontWeight: 800, textTransform: "uppercase" }}>{workspace?.name}</div>
-                <div style={{ fontWeight: 900, fontSize: 21, letterSpacing: "-0.01em", marginTop: 2 }}>{espaceDedie ? "Ventes & crédits" : "Ventes à crédit"}</div>
+                <div style={{ fontWeight: 900, fontSize: 21, letterSpacing: "-0.01em", marginTop: 2 }}>{extraActif?.titre || (espaceDedie ? "Ventes & crédits" : "Ventes à crédit")}</div>
               </div>
+              {ongletsExtra.filter((o) => o.raccourci).map((o) => (
+                <button key={o.cle} onClick={() => { setOnglet(onglet === o.cle ? "ventes" : o.cle); setOuvertId(null); }} style={{ background: onglet === o.cle ? "white" : `linear-gradient(135deg, #DDB866, ${T.or})`, color: T.encre, border: "none", borderRadius: 14, padding: "10px 14px", fontWeight: 900, fontSize: 14, cursor: "pointer", boxShadow: "0 6px 18px rgba(201,162,74,0.35)", whiteSpace: "nowrap" }}>
+                  {onglet === o.cle ? "← Ventes" : o.raccourci}
+                </button>
+              ))}
               {!espaceDedie && <button onClick={onClose} aria-label="Fermer" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.12)", color: "white", width: 38, height: 38, borderRadius: 12, fontSize: 20, cursor: "pointer" }}>×</button>}
             </div>
 

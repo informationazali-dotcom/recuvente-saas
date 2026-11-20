@@ -6073,9 +6073,9 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     const estResponsableEquipe = workspace.role === "owner" || workspace.role === "admin";
     const estBureau = workspace.role === "bureau";
     const ongletsEquipe = estResponsableEquipe
-      ? [{ cle: "equipe", label: "Équipe", rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role={workspace.role} integre /></React.Suspense> }]
+      ? [{ cle: "equipe", label: "👥 Équipe", titre: "Mon équipe", raccourci: "👥 Équipe", apresVentes: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role={workspace.role} integre /></React.Suspense> }]
       : estBureau
-        ? [{ cle: "missions", label: "Mes missions", debut: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role="bureau" integre /></React.Suspense> }]
+        ? [{ cle: "missions", label: "📋 Mes missions", titre: "Mes missions", debut: true, parDefaut: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role="bureau" integre /></React.Suspense> }]
         : [];
     return (
       <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "#0E1714" }} />}>

@@ -44,6 +44,7 @@ const ProspectsFiches = React.lazy(() => import("./ProspectsFiches.jsx"));
 // Ventes à crédit (acompte + mensualités) : échéancier, clients à relancer, rappels WhatsApp.
 const VentesCredit = React.lazy(() => import("./VentesCredit.jsx"));
 const EquipeVente = React.lazy(() => import("./EquipeVente.jsx"));
+const BadgeMembreEquipe = React.lazy(() => import("./EquipeVente.jsx").then((m) => ({ default: m.BadgeMembre })));
 // Réseau national (stocks chez les représentants régionaux, attribution automatique des livraisons).
 // Chargé à la demande, ouvert au propriétaire et aux administrateurs de la boutique.
 const AdminReseau = React.lazy(() => import("./ReseauAdmin.jsx"));
@@ -6075,7 +6076,7 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
     const ongletsEquipe = estResponsableEquipe
       ? [{ cle: "equipe", label: "👥 Équipe", titre: "Mon équipe", raccourci: "👥 Équipe", apresVentes: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role={workspace.role} integre /></React.Suspense> }]
       : estBureau
-        ? [{ cle: "missions", label: "📋 Mes missions", titre: "Mes missions", debut: true, parDefaut: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role="bureau" integre /></React.Suspense> }]
+        ? [{ cle: "missions", label: "☀️ Ma journée", titre: "Ma journée", debut: true, parDefaut: true, rendu: () => <React.Suspense fallback={null}><EquipeVente workspace={workspace} userId={session.user.id} role="bureau" integre /></React.Suspense> }]
         : [];
     return (
       <React.Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "#0E1714" }} />}>
@@ -6084,7 +6085,9 @@ export function WorkspaceDashboard({ workspace, session, subscription, workspace
           ongletsExtra={ongletsEquipe}
           rapportAuResponsable={estBureau}
           espaceDedie
-          entete={workspace.role === "owner" ? (
+          entete={estBureau ? (
+            <React.Suspense fallback={null}><BadgeMembreEquipe workspace={workspace} userId={session.user.id} role="bureau" /></React.Suspense>
+          ) : workspace.role === "owner" ? (
             <SelecteurEspace workspace={workspace} workspacesDisponibles={workspacesDisponibles} onChangerEspace={onChangerEspace} onDemanderAjoutEspace={onDemanderAjoutEspace} />
           ) : null}
           onDeconnexion={() => supabase.auth.signOut()}

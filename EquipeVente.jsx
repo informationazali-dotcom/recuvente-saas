@@ -103,6 +103,21 @@ function versInputLocal(iso) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 function estAujourdhui(iso) { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.toDateString() === n.toDateString(); }
+function salutation() { const h = new Date().getHours(); return h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir"; }
+function dateDuJour() { const t = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }); return t.charAt(0).toUpperCase() + t.slice(1); }
+function quand(iso) {
+  if (!iso) return { texte: "Sans date", retard: false };
+  const diff = new Date(iso).getTime() - Date.now();
+  const min = Math.round(diff / 60000);
+  const heure = new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (min < -60 * 12) return { texte: `En retard · ${dateHeure(iso)}`, retard: true };
+  if (min < 0) return { texte: `Prévu à ${heure} · en retard`, retard: true };
+  if (min < 60) return { texte: `Dans ${min} min · ${heure}`, retard: false };
+  if (estAujourdhui(iso)) return { texte: `Aujourd'hui à ${heure}`, retard: false };
+  const demain = new Date(); demain.setDate(demain.getDate() + 1);
+  if (new Date(iso).toDateString() === demain.toDateString()) return { texte: `Demain à ${heure}`, retard: false };
+  return { texte: dateHeure(iso), retard: false };
+}
 function etapeDe(cle) { return ETAPES.find((e) => e.cle === cle) || ETAPES[0]; }
 function typeDe(cle) { return TYPES_MISSION.find((t) => t.cle === cle) || TYPES_MISSION[5]; }
 function resultatDe(cle) { return RESULTATS.find((r) => r.cle === cle) || null; }
@@ -573,6 +588,91 @@ function Tuile({ titre, valeur, sous, couleur = T.encre, onClick }) {
   );
 }
 
+function VueMaJournee({ eq, userId, role, cur, onOuvrir, onAller }) {
+  const miennes = eq.missions.filter((m) => m.assigne_a === userId);
+  const aFaire = miennes.filter((m) => m.statut === "a_faire").sort((a, b) => new Date(a.date_prevue || 8.64e15) - new Date(b.date_prevue || 8.64e15));
+  const ilYa7j = Date.now() - 7 * 86400000;
+  const faites7 = miennes.filter((m) => m.statut === "faite" && m.fait_le && new Date(m.fait_le).getTime() > ilYa7j);
+  const decides = faites7.filter((m) => m.resultat === "decide").length;
+  const prochaine = aFaire[0] || null;
+  const prospect = prochaine ? eq.prospects.find((p) => p.id === prochaine.prospect_id) : null;
+  const autres = aFaire.slice(1);
+  const aujourdhui = autres.filter((m) => estAujourdhui(m.date_prevue) || quand(m.date_prevue).retard);
+  const plusTard = autres.filter((m) => !aujourdhui.includes(m));
+  const mesClients = eq.prospects.filter((p) => p.assigne_a === userId && !["livre", "perdu"].includes(p.etape)).length;
+
+  return (
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
+        {[
+          { t: "À faire", v: aFaire.length, c: aFaire.some((m) => quand(m.date_prevue).retard) ? T.rouge : T.encre, a: () => onAller("missions") },
+          { t: "Faites (7 j)", v: faites7.length, c: T.vert, a: () => onAller("missions") },
+          role === "conseiller" ? { t: "Décidés (7 j)", v: decides, c: T.or, a: () => onAller("clients") } : { t: "Mes clients", v: mesClients, c: T.bleu, a: () => onAller("clients") },
+        ].map((k) => (
+          <button key={k.t} onClick={k.a} style={{ ...S.carte, marginBottom: 0, padding: "12px 10px", textAlign: "center", cursor: "pointer" }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: k.c, letterSpacing: "-0.02em", lineHeight: 1 }}>{k.v}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: T.gris, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 6 }}>{k.t}</div>
+          </button>
+        ))}
+      </div>
+
+      {prochaine ? (() => {
+        const q = quand(prochaine.date_prevue);
+        const t = typeDe(prochaine.type);
+        return (
+          <div style={{ borderRadius: 24, padding: 18, marginBottom: 14, color: "white", background: `radial-gradient(120% 140% at 100% 0%, #35503F 0%, ${T.encre} 60%)`, boxShadow: "0 18px 40px rgba(14,23,20,0.28)", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", right: -30, top: -30, width: 140, height: 140, borderRadius: 999, background: "rgba(201,162,74,0.12)" }} />
+            <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: "0.14em", color: T.or, textTransform: "uppercase" }}>Prochaine mission</div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{t.icone}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 900, fontSize: 18, lineHeight: 1.25 }}>{prochaine.titre}</div>
+                <div style={{ fontSize: 13, marginTop: 4, color: q.retard ? "#FFB4A5" : "rgba(255,255,255,0.7)", fontWeight: 700 }}>{q.texte}</div>
+              </div>
+            </div>
+            {(prochaine.lieu || prospect) && (
+              <div style={{ display: "grid", gridTemplateColumns: prochaine.lieu && prospect ? "1fr 1fr" : "1fr", gap: 8, marginTop: 14 }}>
+                {prochaine.lieu && <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "10px 12px" }}><div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", fontWeight: 800, textTransform: "uppercase" }}>Lieu</div><div style={{ fontWeight: 800, fontSize: 13.5, marginTop: 2 }}>{prochaine.lieu}</div></div>}
+                {prospect && <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "10px 12px" }}><div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", fontWeight: 800, textTransform: "uppercase" }}>Client</div><div style={{ fontWeight: 800, fontSize: 13.5, marginTop: 2 }}>{prospect.nom}</div></div>}
+              </div>
+            )}
+            {prospect?.prix_minimum && role === "conseiller" ? (
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, background: "rgba(201,162,74,0.16)", border: "1px solid rgba(201,162,74,0.35)", borderRadius: 14, padding: "10px 12px", fontSize: 13 }}>
+                <span style={{ color: T.orClair, fontWeight: 700 }}>Prix minimum</span><b style={{ color: "white" }}>{nb(prospect.prix_minimum)} {cur}</b>
+              </div>
+            ) : null}
+            <div style={{ display: "grid", gridTemplateColumns: prospect?.tel ? "2fr 1fr 1fr" : "1fr", gap: 8, marginTop: 14 }}>
+              <button onClick={() => onOuvrir(prochaine)} style={{ ...S.boutonOr, padding: "12px 10px", fontSize: 14 }}>Ouvrir la mission</button>
+              {prospect?.tel && <button onClick={() => ouvrirWhatsApp(prospect.tel, `Bonjour ${prospect.nom}, `)} style={{ ...S.boutonWa, padding: "12px 6px" }}>WhatsApp</button>}
+              {prospect?.tel && <a href={`tel:${prospect.tel}`} style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 12, padding: "12px 6px", fontWeight: 800, fontSize: 13.5, textAlign: "center", textDecoration: "none" }}>Appeler</a>}
+            </div>
+          </div>
+        );
+      })() : (
+        <div style={{ ...S.carte, textAlign: "center", padding: "30px 20px", background: `linear-gradient(180deg, white, #FBF8F0)` }}>
+          <div style={{ fontSize: 38 }}>🌿</div>
+          <div style={{ fontWeight: 900, fontSize: 17, marginTop: 6 }}>Aucune mission en attente</div>
+          <div style={{ fontSize: 13.5, color: T.gris, marginTop: 6, lineHeight: 1.5 }}>Dès que le responsable te confie une mission, elle apparaît ici et tu reçois une alerte WhatsApp.</div>
+        </div>
+      )}
+
+      {aujourdhui.length > 0 && <><div style={S.titreSection}>Aussi aujourd'hui</div>{aujourdhui.map((m) => <CarteMission key={m.id} m={m} prospect={eq.prospects.find((p) => p.id === m.prospect_id)} onOuvrir={() => onOuvrir(m)} />)}</>}
+      {plusTard.length > 0 && <><div style={S.titreSection}>À venir</div>{plusTard.map((m) => <CarteMission key={m.id} m={m} prospect={eq.prospects.find((p) => p.id === m.prospect_id)} onOuvrir={() => onOuvrir(m)} />)}</>}
+
+      <div style={S.titreSection}>Mon rôle</div>
+      <div style={{ ...S.carte, display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: role === "conseiller" ? T.vertClair : "#FBEEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{role === "conseiller" ? "🤝" : "🏢"}</div>
+        <div style={{ fontSize: 13.5, color: T.encre2, lineHeight: 1.55 }}>
+          <b>{ROLES_EQUIPE[role]}</b><br />
+          {role === "conseiller"
+            ? "Reçois les clients, fais visiter le dépôt et négocie sans descendre sous le prix minimum. Après chaque rencontre : résultat + compte rendu."
+            : "Au bureau : fiche client, encaissement, facture ou décharge, crédit. Enregistre chaque vente dans « Ventes » : ton rapport part tout seul sur WhatsApp."}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function VueAccueil({ eq, cur, onAller, onOuvrirMission, onNouveauClient, onNouvelleMission }) {
   const actifs = eq.prospects.filter((p) => !["livre", "perdu"].includes(p.etape));
   const aFaire = eq.missions.filter((m) => m.statut === "a_faire");
@@ -585,14 +685,29 @@ function VueAccueil({ eq, cur, onAller, onOuvrirMission, onNouveauClient, onNouv
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        <Tuile titre="Clients en cours" valeur={actifs.length} sous="à suivre" onClick={() => onAller("clients")} />
-        <Tuile titre="Missions à faire" valeur={aFaire.length} sous={enRetard.length ? `${enRetard.length} en retard` : `${aujourdhui.length} aujourd'hui`} couleur={enRetard.length ? T.rouge : T.encre} onClick={() => onAller("missions")} />
+      <div style={{ borderRadius: 24, padding: 18, marginBottom: 12, color: "white", background: `radial-gradient(120% 140% at 100% 0%, #35503F 0%, ${T.encre} 60%)`, boxShadow: "0 18px 40px rgba(14,23,20,0.25)", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", right: -40, top: -40, width: 160, height: 160, borderRadius: 999, background: "rgba(201,162,74,0.12)" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: "0.14em", color: T.or, textTransform: "uppercase" }}>{dateDuJour()}</div>
+          <div style={{ display: "flex" }}>
+            {conseillers.map((m, i) => <div key={m.user_id} style={{ marginLeft: i ? -8 : 0, border: "2px solid " + T.encre, borderRadius: 12 }}><Avatar nom={m.nom} couleur={couleurRole(m.role)} taille={28} /></div>)}
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 12, fontWeight: 700 }}>Ventes en vue (visite + accord)</div>
+        <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.02em" }}>{nb(potentiel)} <span style={{ fontSize: 13, opacity: .55 }}>{cur}</span></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 14 }}>
+          {[
+            { t: "Clients en cours", v: actifs.length, a: () => onAller("clients") },
+            { t: "Missions à faire", v: aFaire.length, a: () => onAller("missions") },
+            { t: enRetard.length ? "En retard" : "Aujourd'hui", v: enRetard.length || aujourdhui.length, rouge: enRetard.length > 0, a: () => onAller("missions") },
+          ].map((k) => (
+            <button key={k.t} onClick={k.a} style={{ background: k.rouge ? "rgba(208,68,47,0.22)" : "rgba(255,255,255,0.07)", border: `1px solid ${k.rouge ? "rgba(255,138,115,0.35)" : "rgba(255,255,255,0.1)"}`, borderRadius: 14, padding: "10px 8px", color: "white", cursor: "pointer", textAlign: "left" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: k.rouge ? "#FFB4A5" : "white" }}>{k.v}</div>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", fontWeight: 700, marginTop: 2 }}>{k.t}</div>
+            </button>
+          ))}
+        </div>
       </div>
-      {potentiel > 0 && <div style={{ ...S.carte, background: `linear-gradient(135deg, ${T.encre}, #2B3F36)`, color: "white", border: "none" }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, color: T.or, textTransform: "uppercase", letterSpacing: "0.08em" }}>Ventes en vue (visite + accord)</div>
-        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{nb(potentiel)} <span style={{ fontSize: 13, opacity: .6 }}>{cur}</span></div>
-      </div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 6 }}>
         <button onClick={onNouveauClient} style={S.boutonOr}>+ Client</button>
@@ -825,6 +940,24 @@ function EditionMembre({ m, onEnregistrer }) {
   );
 }
 
+// Petite carte d'identité affichée dans l'en-tête (représentant au bureau).
+export function BadgeMembre({ workspace, userId, role }) {
+  const [nom, setNom] = useState("");
+  useEffect(() => {
+    if (!workspace?.id || !userId) return;
+    supabase.from("equipe_profils").select("nom").eq("workspace_id", workspace.id).eq("user_id", userId).maybeSingle().then(({ data }) => setNom(data?.nom || ""));
+  }, [workspace?.id, userId]);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "6px 10px 6px 6px", maxWidth: "100%" }}>
+      <Avatar nom={nom || "?"} couleur={couleurRole(role)} taille={30} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 900, fontSize: 13.5, color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nom || "Mon espace"}</div>
+        <div style={{ fontSize: 11, color: T.or, fontWeight: 700, whiteSpace: "nowrap" }}>{ROLES_EQUIPE[role]}</div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 //  Composant principal
 //  • integre = true : affiché dans un onglet de l'écran Ventes & crédits.
@@ -835,7 +968,7 @@ export default function EquipeVente({ workspace, userId, role, integre = false, 
   const estResponsable = role === "owner" || role === "admin";
   const avecPrix = estResponsable || role === "conseiller";
   const cur = devise(workspace?.currency);
-  const [onglet, setOnglet] = useState(estResponsable ? "accueil" : "missions");
+  const [onglet, setOnglet] = useState(estResponsable ? "accueil" : "journee");
   const [filtreClients, setFiltreClients] = useState(null);
   const [prospectOuvert, setProspectOuvert] = useState(null);
   const [missionOuverte, setMissionOuverte] = useState(null);
@@ -846,26 +979,28 @@ export default function EquipeVente({ workspace, userId, role, integre = false, 
   const mesMissionsAFaire = eq.missions.filter((m) => m.assigne_a === userId && m.statut === "a_faire").length;
   const ONGLETS = estResponsable
     ? [{ cle: "accueil", label: "Tableau de bord" }, { cle: "clients", label: "Clients", n: eq.prospects.filter((p) => !["livre", "perdu"].includes(p.etape)).length }, { cle: "missions", label: "Missions", n: eq.missions.filter((m) => m.statut === "a_faire").length }, { cle: "membres", label: "Membres" }]
-    : [{ cle: "missions", label: "Mes missions", n: mesMissionsAFaire }, { cle: "clients", label: "Mes clients" }, { cle: "profil", label: "Mon profil" }];
+    : [{ cle: "journee", label: "Ma journée", icone: "☀️" }, { cle: "missions", label: "Missions", icone: "📋", n: mesMissionsAFaire }, { cle: "clients", label: "Clients", icone: "👥" }, { cle: "profil", label: "Profil", icone: "👤" }];
+  const navEnBas = !integre && !estResponsable;
 
   const prospectActuel = prospectOuvert ? eq.prospects.find((p) => p.id === prospectOuvert) : null;
   const missionActuelle = missionOuverte ? eq.missions.find((m) => m.id === missionOuverte) : null;
 
   const contenu = (
     <>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 12 }}>
+      {!navEnBas && <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 12 }}>
         {ONGLETS.map((o) => (
           <button key={o.cle} onClick={() => { setOnglet(o.cle); setFiltreClients(null); }} style={S.puce(onglet === o.cle)}>
             {o.label}{o.n > 0 && <span style={{ marginLeft: 6, background: onglet === o.cle ? T.or : T.encre, color: onglet === o.cle ? T.encre : "white", borderRadius: 99, padding: "1px 7px", fontSize: 11 }}>{o.n}</span>}
           </button>
         ))}
-      </div>
+      </div>}
       {!eq.charge && <div style={{ textAlign: "center", color: T.grisClair, padding: 40 }}>Chargement…</div>}
       {eq.charge && eq.erreur && <div style={{ ...S.carte, color: T.rouge }}>Impossible de charger l'espace équipe : {eq.erreur}</div>}
       {eq.charge && !eq.erreur && <>
         {!estResponsable && !moi?.profil?.tel && onglet !== "profil" && (
           <button onClick={() => setOnglet("profil")} style={{ ...S.carte, width: "100%", textAlign: "left", background: T.ambreClair, borderColor: "#F2DCAE", color: "#7A4D06", fontSize: 13.5, cursor: "pointer" }}>Renseigne ton numéro WhatsApp dans « Mon profil » →</button>
         )}
+        {onglet === "journee" && <VueMaJournee eq={eq} userId={userId} role={role} cur={cur} onOuvrir={(m) => setMissionOuverte(m.id)} onAller={setOnglet} />}
         {onglet === "accueil" && <VueAccueil eq={eq} cur={cur} onAller={(o, f) => { setOnglet(o); setFiltreClients(f || null); }} onOuvrirMission={(m) => setMissionOuverte(m.id)} onNouveauClient={() => setFormProspect({})} onNouvelleMission={() => setFormMission({})} />}
         {onglet === "clients" && <VueClients eq={eq} cur={cur} avecPrix={avecPrix} filtreInitial={filtreClients} estResponsable={estResponsable} onOuvrir={(p) => setProspectOuvert(p.id)} onNouveau={() => setFormProspect({})} />}
         {onglet === "missions" && <VueMissions eq={eq} userId={userId} estResponsable={estResponsable} onOuvrir={(m) => setMissionOuverte(m.id)} onNouvelle={() => setFormMission({})} />}
@@ -893,26 +1028,44 @@ export default function EquipeVente({ workspace, userId, role, integre = false, 
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: T.fond, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-      <style>{`@keyframes rvMonte{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}} .rv-eq input:focus,.rv-eq textarea:focus,.rv-eq select:focus{border-color:${T.or}!important;box-shadow:0 0 0 4px rgba(201,162,74,0.15)} .rv-eq button{font-family:inherit}`}</style>
+      <style>{`@keyframes rvMonte{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}} @keyframes rvApparait{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}} .rv-eq input:focus,.rv-eq textarea:focus,.rv-eq select:focus{border-color:${T.or}!important;box-shadow:0 0 0 4px rgba(201,162,74,0.15)} .rv-eq button{font-family:inherit} .rv-eq-contenu>*{animation:rvApparait .35s ease both}`}</style>
       <div className="rv-eq">
-        <div style={{ background: `radial-gradient(130% 120% at 100% 0%, #2B3F36 0%, ${T.encre} 55%)`, color: "white", padding: "16px 16px 18px" }}>
+        <div style={{ background: `radial-gradient(130% 120% at 100% 0%, #2B3F36 0%, ${T.encre} 55%)`, color: "white", padding: "16px 16px 26px", borderRadius: "0 0 28px 28px" }}>
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: "0.02em" }}>RECU<span style={{ color: T.or }}>VENTE</span></div>
+              <div style={{ fontSize: 10.5, fontWeight: 800, color: T.or, border: `1px solid rgba(201,162,74,0.4)`, borderRadius: 99, padding: "3px 9px", letterSpacing: "0.06em" }}>ÉQUIPE</div>
               <div style={{ flex: 1 }} />
               {onDeconnexion && <button onClick={onDeconnexion} aria-label="Déconnexion" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)", height: 36, padding: "0 12px", borderRadius: 10, fontSize: 13, cursor: "pointer" }}>⏻</button>}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14 }}>
-              <Avatar nom={moi?.nom || "?"} couleur={couleurRole(role)} taille={46} />
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: "0.12em", color: T.or, fontWeight: 800, textTransform: "uppercase" }}>{workspace?.name}</div>
-                <div style={{ fontWeight: 900, fontSize: 20 }}>Bonjour {moi?.profil?.nom ? moi.profil.nom.split(" ").slice(-1)[0] : ""}</div>
-                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>{ROLES_EQUIPE[role]}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
+              <div style={{ padding: 3, borderRadius: 18, background: `linear-gradient(135deg, #F1D58C, ${T.or})` }}><Avatar nom={moi?.nom || "?"} couleur={couleurRole(role)} taille={52} /></div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 700 }}>{dateDuJour()}</div>
+                <div style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-0.01em" }}>{salutation()}{moi?.profil?.nom ? `, ${moi.profil.nom.split(" ").slice(-1)[0]}` : ""}</div>
+                <div style={{ display: "inline-flex", gap: 6, alignItems: "center", marginTop: 4, fontSize: 11.5, fontWeight: 800, color: T.encre, background: T.or, borderRadius: 99, padding: "3px 10px" }}>{ROLES_EQUIPE[role]}</div>
               </div>
             </div>
+            <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", fontWeight: 800, textTransform: "uppercase", marginTop: 14 }}>{workspace?.name}</div>
           </div>
         </div>
-        <div style={{ padding: "16px 16px 60px", maxWidth: 720, margin: "0 auto" }}>{contenu}</div>
+        <div className="rv-eq-contenu" style={{ padding: `16px 16px ${navEnBas ? 110 : 60}px`, maxWidth: 720, margin: "0 auto" }}>{contenu}</div>
+        {navEnBas && (
+          <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 350, padding: "8px 12px calc(10px + env(safe-area-inset-bottom))", background: "rgba(244,242,236,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${T.ligne}` }}>
+            <div style={{ maxWidth: 520, margin: "0 auto", display: "grid", gridTemplateColumns: `repeat(${ONGLETS.length}, 1fr)`, gap: 6 }}>
+              {ONGLETS.map((o) => {
+                const actif = onglet === o.cle;
+                return (
+                  <button key={o.cle} onClick={() => setOnglet(o.cle)} style={{ position: "relative", background: actif ? T.encre : "transparent", color: actif ? "white" : T.gris, border: "none", borderRadius: 16, padding: "8px 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "background .2s" }}>
+                    <span style={{ fontSize: 19, filter: actif ? "none" : "grayscale(0.4)" }}>{o.icone}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800 }}>{o.label}</span>
+                    {o.n > 0 && <span style={{ position: "absolute", top: 4, right: "22%", background: T.rouge, color: "white", borderRadius: 99, fontSize: 10, fontWeight: 900, padding: "1px 6px" }}>{o.n}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
